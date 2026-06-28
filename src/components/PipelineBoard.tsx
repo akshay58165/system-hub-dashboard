@@ -81,6 +81,10 @@ export default function PipelineBoard({
   const [newChannel, setNewChannel] = useState<'LearnDriven' | 'DecodeWorthy'>('LearnDriven');
   const [newLane, setNewLane] = useState<VideoItem['contentLane']>('LearnDriven Shorts');
   const [newEligibility, setNewEligibility] = useState<VideoRevenueEligibility>({ ...EMPTY_REVENUE_ELIGIBILITY });
+  const [quickAddStage, setQuickAddStage] = useState<VideoStage | null>(null);
+  const [quickTitle, setQuickTitle] = useState('');
+  const [quickLane, setQuickLane] = useState<VideoItem['contentLane']>('LearnDriven Shorts');
+  const [dragOverStage, setDragOverStage] = useState<VideoStage | null>(null);
   
   // Quick Edit Form State (for selected card)
   const [editStatusNote, setEditStatusNote] = useState('');
@@ -90,6 +94,7 @@ export default function PipelineBoard({
   const calculatedRevenueLevel = calculateRevenueLevel(newLane, newEligibility);
   const calculatedRevenueConfig = revenueLevels.find(level => level.level === calculatedRevenueLevel);
   const eligibilityOptions: Array<{ key: keyof VideoRevenueEligibility; label: string; description: string; visible: boolean }> = [
+    { key: 'neutral', label: 'Neutral', description: 'Track this at the baseline Level 0.5 without revenue signals.', visible: newLane !== 'LearnDriven Members-only Videos' },
     { key: 'viralPotential', label: 'Viral topic potential', description: 'The idea has a strong timely or shareable hook.', visible: newLane !== 'LearnDriven Members-only Videos' },
     { key: 'productTag', label: 'Relevant product tag', description: 'A genuinely useful product can be attached to this topic.', visible: newLane !== 'LearnDriven Members-only Videos' },
     { key: 'pinnedComment', label: 'Pinned promotion or link', description: 'A relevant member video, resource, or offer can be pinned.', visible: newLane !== 'LearnDriven Members-only Videos' },
@@ -162,6 +167,71 @@ export default function PipelineBoard({
     setNewTitle('');
     setNewEligibility({ ...EMPTY_REVENUE_ELIGIBILITY });
     setIsAdding(false);
+  };
+
+  const createPipelineAtStage = (lane: VideoItem['contentLane'], targetStage: VideoStage): VideoItem['pipeline'] | null => {
+    const isLong = lane === 'LearnDriven Long Videos';
+    if (targetStage === 'Thumbnail' && !isLong) return null;
+    const flow: VideoStage[] = isLong
+      ? ['Topic', 'Script', 'Shoot', 'Edit', 'Thumbnail', 'Schedule', 'Done']
+      : ['Topic', 'Script', 'Shoot', 'Edit', 'Schedule', 'Done'];
+    const targetIndex = flow.indexOf(targetStage);
+    const statusFor = (stage: VideoStage): StageStatus => targetStage === 'Done' || flow.indexOf(stage) < targetIndex ? 'Done' : flow.indexOf(stage) === targetIndex ? 'In progress' : 'Not started';
+    return {
+      topic: statusFor('Topic'),
+      script: statusFor('Script'),
+      shoot: statusFor('Shoot'),
+      edit: statusFor('Edit'),
+      ...(isLong ? { thumbnail: statusFor('Thumbnail') } : {}),
+      schedule: statusFor('Schedule'),
+    };
+  };
+
+  const openQuickAdd = (stage: VideoStage) => {
+    setQuickAddStage(current => current === stage ? null : stage);
+    setQuickTitle('');
+    if (stage === 'Thumbnail') setQuickLane('LearnDriven Long Videos');
+  };
+
+  const handleQuickAdd = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!quickAddStage || !quickTitle.trim()) return;
+    const pipeline = createPipelineAtStage(quickLane, quickAddStage);
+    if (!pipeline) return;
+    const eligibility = { ...EMPTY_REVENUE_ELIGIBILITY };
+    onAddVideo({
+      channel: quickLane === 'DecodeWorthy Shorts' ? 'DecodeWorthy' : 'LearnDriven',
+      contentLane: quickLane,
+      title: quickTitle.trim(),
+      createdAt: getLocalDateString(),
+      revenueLevelTarget: calculateRevenueLevel(quickLane, eligibility),
+      revenueEligibility: eligibility,
+      pipeline,
+      currentStage: quickAddStage,
+      actualScheduledDate: quickAddStage === 'Done' ? getLocalDateString() : undefined,
+      isBlocked: false,
+      status: 'neutral',
+      statusNote: '',
+      productTagStatus: 'Unsuitable',
+      pinnedCommentStatus: 'None',
+      membersPromotionStatus: 'None',
+      brandCollabStatus: 'None',
+      notes: '',
+    });
+    setQuickTitle('');
+    setQuickAddStage(null);
+  };
+
+  const moveVideoDirectly = (video: VideoItem, targetStage: VideoStage) => {
+    if (video.currentStage === targetStage) return;
+    const pipeline = createPipelineAtStage(video.contentLane, targetStage);
+    if (!pipeline) return;
+    onUpdateVideo({
+      ...video,
+      pipeline,
+      currentStage: targetStage,
+      actualScheduledDate: targetStage === 'Done' ? (video.actualScheduledDate || getLocalDateString()) : undefined,
+    });
   };
 
   const moveStage = (video: VideoItem, direction: 'forward' | 'backward') => {
@@ -349,7 +419,9 @@ export default function PipelineBoard({
                   <input
                     type="checkbox"
                     checked={newEligibility[option.key]}
-                    onChange={event => setNewEligibility(prev => ({ ...prev, [option.key]: event.target.checked }))}
+                    onChange={event => setNewEligibility(prev => option.key === 'neutral'
+                      ? (event.target.checked ? { ...EMPTY_REVENUE_ELIGIBILITY, neutral: true } : { ...prev, neutral: false })
+                      : { ...prev, neutral: false, [option.key]: event.target.checked })}
                     className="mt-0.5 accent-emerald-500"
                   />
                   <span>
@@ -395,7 +467,18 @@ export default function PipelineBoard({
           return (
             <div 
               key={stage} 
-              className="bg-zinc-950 border border-zinc-900 rounded-lg p-3 flex flex-col justify-between space-y-3"
+              onDragOver={event => {
+                event.preventDefault();
+                setDragOverStage(stage);
+              }}
+              onDragLeave={() => setDragOverStage(current => current === stage ? null : current)}
+              onDrop={event => {
+                event.preventDefault();
+                const video = videos.find(item => item.id === event.dataTransfer.getData('text/plain'));
+                if (video) moveVideoDirectly(video, stage);
+                setDragOverStage(null);
+              }}
+              className={`bg-zinc-950 border rounded-lg p-3 flex flex-col justify-between space-y-3 transition-colors ${dragOverStage === stage ? 'border-cyan-500/70 bg-cyan-950/10' : 'border-zinc-900'}`}
             >
               {/* Stage Header */}
               <div className="border-b border-zinc-900 pb-2 flex justify-between items-center">
@@ -403,10 +486,29 @@ export default function PipelineBoard({
                   <TactileLED color={stage === 'Done' ? 'emerald' : 'zinc'} importance="low" active={stage === 'Done'} />
                   <span className="font-bold text-zinc-200 tracking-wider text-[11px] uppercase">{stage}</span>
                 </div>
-                <span className="font-mono text-[9px] bg-zinc-900 text-zinc-500 px-1.5 py-0.5 rounded font-bold">
-                  {stageVideos.length}
-                </span>
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => openQuickAdd(stage)} className="h-5 w-5 grid place-items-center rounded border border-zinc-800 text-zinc-500 hover:text-emerald-400 hover:border-emerald-800/60 transition-colors" title={`Add directly to ${stage}`}><Plus className="h-3 w-3" /></button>
+                  <span className="font-mono text-[9px] bg-zinc-900 text-zinc-500 px-1.5 py-0.5 rounded font-bold">
+                    {stageVideos.length}
+                  </span>
+                </div>
               </div>
+
+              {quickAddStage === stage && (
+                <form onSubmit={handleQuickAdd} className="space-y-2 rounded border border-zinc-800 bg-zinc-900/40 p-2 font-mono">
+                  <input autoFocus value={quickTitle} onChange={event => setQuickTitle(event.target.value)} placeholder="Topic / video title" className="w-full rounded border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-[9px] text-zinc-200 outline-none focus:border-emerald-600" />
+                  <select value={quickLane} onChange={event => setQuickLane(event.target.value as VideoItem['contentLane'])} disabled={stage === 'Thumbnail'} className="w-full rounded border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-[8px] text-zinc-400 outline-none disabled:opacity-70">
+                    <option value="LearnDriven Shorts">LearnDriven Shorts</option>
+                    <option value="LearnDriven Long Videos">LearnDriven Long Videos</option>
+                    <option value="LearnDriven Members-only Videos">LearnDriven Members-only</option>
+                    <option value="DecodeWorthy Shorts">DecodeWorthy Shorts</option>
+                  </select>
+                  <div className="flex gap-1">
+                    <button type="submit" className="flex-1 rounded bg-emerald-600 px-2 py-1 text-[8px] font-bold text-white hover:bg-emerald-500">ADD HERE</button>
+                    <button type="button" onClick={() => setQuickAddStage(null)} className="rounded border border-zinc-800 px-2 py-1 text-[8px] text-zinc-500 hover:text-white">CANCEL</button>
+                  </div>
+                </form>
+              )}
 
               {/* Card List */}
               <div className="flex-1 space-y-2 max-h-[480px] overflow-y-auto pr-1 min-h-[120px]">
@@ -423,6 +525,12 @@ export default function PipelineBoard({
                         <div 
                           key={video.id}
                           id={`video-card-${video.id}`}
+                          draggable
+                          onDragStart={event => {
+                            event.dataTransfer.setData('text/plain', video.id);
+                            event.dataTransfer.effectAllowed = 'move';
+                          }}
+                          onDragEnd={() => setDragOverStage(null)}
                           className={`bg-zinc-900/40 hover:bg-zinc-900/80 border transition-all rounded p-3 space-y-3 relative group ${config.borderClass} ${focusedVideoId === video.id ? 'ring-2 ring-cyan-400 shadow-[0_0_25px_rgba(34,211,238,0.35)] animate-pulse' : ''}`}
                         >
                           {/* Channel / Lane Badges */}

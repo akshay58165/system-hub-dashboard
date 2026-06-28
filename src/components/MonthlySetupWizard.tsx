@@ -44,6 +44,7 @@ export default function MonthlySetupWizard({
 
   // List of all revenue levels to enable/disable
   const REVENUE_LEVELS = [
+    { num: 0.5, desc: 'Neutral revenue potential' },
     { num: 1, desc: 'Short video, cold topic' },
     { num: 2, desc: 'Short video, viral topic' },
     { num: 3, desc: 'Viral short video + tagged product' },
@@ -284,8 +285,8 @@ export default function MonthlySetupWizard({
                   <input 
                     type="number" 
                     min="0"
-                    value={goals.ldShortsTarget}
-                    onChange={e => setGoals({ ...goals, ldShortsTarget: Number(e.target.value) })}
+                    value={goals.ldShortsTarget ?? ''}
+                    onChange={e => setGoals({ ...goals, ldShortsTarget: e.target.value === '' ? null : Number(e.target.value) })}
                     className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
@@ -295,8 +296,8 @@ export default function MonthlySetupWizard({
                   <input 
                     type="number" 
                     min="0"
-                    value={goals.ldLongTarget}
-                    onChange={e => setGoals({ ...goals, ldLongTarget: Number(e.target.value) })}
+                    value={goals.ldLongTarget ?? ''}
+                    onChange={e => setGoals({ ...goals, ldLongTarget: e.target.value === '' ? null : Number(e.target.value) })}
                     className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
@@ -306,8 +307,8 @@ export default function MonthlySetupWizard({
                   <input 
                     type="number" 
                     min="0"
-                    value={goals.ldMembersTarget}
-                    onChange={e => setGoals({ ...goals, ldMembersTarget: Number(e.target.value) })}
+                    value={goals.ldMembersTarget ?? ''}
+                    onChange={e => setGoals({ ...goals, ldMembersTarget: e.target.value === '' ? null : Number(e.target.value) })}
                     className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
@@ -359,8 +360,8 @@ export default function MonthlySetupWizard({
                   <input 
                     type="number" 
                     min="0"
-                    value={goals.dwShortsTarget}
-                    onChange={e => setGoals({ ...goals, dwShortsTarget: Number(e.target.value) })}
+                    value={goals.dwShortsTarget ?? ''}
+                    onChange={e => setGoals({ ...goals, dwShortsTarget: e.target.value === '' ? null : Number(e.target.value) })}
                     className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-zinc-100 focus:outline-none focus:border-emerald-500"
                   />
                 </div>

@@ -111,7 +111,7 @@ export default function PriorityUpdates({ videos, productOpportunities, goals, n
     const editBacklog = zoneVideos.filter(video => video.currentStage === 'Edit');
     if (editBacklog.length > 0) items.push({ label: 'EDITING LOAD', message: `${editBacklog.length} ${editBacklog.length === 1 ? 'video is' : 'videos are'} currently in Edit.`, action: editBacklog.length >= 2 ? 'A focused edit block will release the largest production bottleneck.' : `Finish “${editBacklog[0].title}” to move it toward scheduling.`, tone: editBacklog.length >= 3 ? 'orange' : 'yellow', icon: <Clock3 className="h-4 w-4" />, target: { type: 'video', videoId: editBacklog[0].id } });
 
-    nodes.filter(node => node.value <= 5).sort((a, b) => a.value - b.value).slice(0, 3).forEach(node => items.push({
+    nodes.filter(node => node.value > 0 && node.value <= 5).sort((a, b) => a.value - b.value).slice(0, 3).forEach(node => items.push({
       label: `${node.label} SIGNAL`,
       message: `${node.label} is currently ${node.value}/10.`,
       action: node.id === 'energy' ? 'Use a short, concrete work block.' : node.id === 'hydration' ? 'Hydrate before the next production block.' : node.id === 'sleep' ? 'Protect recovery and avoid extending the workday.' : 'Review the wellbeing panel before choosing the next demanding task.',
@@ -162,7 +162,7 @@ export default function PriorityUpdates({ videos, productOpportunities, goals, n
   };
 
   return (
-    <div className="border-y border-zinc-800 bg-gradient-to-b from-zinc-900 via-zinc-950 to-black px-4 py-1 font-mono relative overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.05),inset_0_-1px_0_rgba(0,0,0,0.9)]">
+    <div className="preserve-dark border-y border-zinc-800 bg-gradient-to-b from-zinc-900 via-zinc-950 to-black px-4 py-1 font-mono relative overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.05),inset_0_-1px_0_rgba(0,0,0,0.9)]">
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 shrink-0 border-r border-zinc-700 pr-3 text-zinc-200">
           <TrendingUp className="h-4 w-4" /><span className="text-[9px] font-black tracking-[0.18em] uppercase">LIVE STATUS</span>

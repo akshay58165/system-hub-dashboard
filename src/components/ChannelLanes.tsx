@@ -90,7 +90,8 @@ export default function ChannelLanes({ videos, goals, todayDay, totalDays }: Cha
         {lanes.map((lane) => {
           const laneVideos = videos.filter(lane.filter);
           const completed = laneVideos.filter(v => v.currentStage === 'Done').length;
-          const remaining = Math.max(0, lane.target - completed);
+          const hasGoal = lane.target !== null && lane.target !== undefined;
+          const remaining = hasGoal ? Math.max(0, lane.target - completed) : null;
           const inPipeline = laneVideos.filter(v => v.currentStage !== 'Done').length;
           
           // Future scheduled buffer count
@@ -125,16 +126,20 @@ export default function ChannelLanes({ videos, goals, todayDay, totalDays }: Cha
           }
 
           // Consistency Risk computation
-          const expectedCompleted = lane.target * elapsedRatio;
+          const expectedCompleted = hasGoal ? lane.target * elapsedRatio : null;
           let riskColor = 'text-emerald-400';
           let riskLabel = 'LOW RISK';
           let riskBg = 'bg-emerald-950/20 border-emerald-900/50';
 
-          if (completed < expectedCompleted - 2) {
+          if (!hasGoal) {
+            riskColor = 'text-zinc-500';
+            riskLabel = 'GOAL NOT SET';
+            riskBg = 'bg-zinc-900/20 border-zinc-800/60';
+          } else if (expectedCompleted !== null && completed < expectedCompleted - 2) {
             riskColor = 'text-rose-400';
             riskLabel = 'HIGH RISK';
             riskBg = 'bg-rose-950/20 border-rose-900/50';
-          } else if (completed < expectedCompleted) {
+          } else if (expectedCompleted !== null && completed < expectedCompleted) {
             riskColor = 'text-amber-400';
             riskLabel = 'MODERATE';
             riskBg = 'bg-amber-950/20 border-amber-900/40';
@@ -151,7 +156,7 @@ export default function ChannelLanes({ videos, goals, todayDay, totalDays }: Cha
             revenueOpp = `Add promotional pin on "${commentOpp.title}"`;
           }
 
-          const completionRate = lane.target > 0 ? Math.round((completed / lane.target) * 100) : 100;
+          const completionRate = hasGoal && lane.target > 0 ? Math.round((completed / lane.target) * 100) : null;
 
           return (
             <div 
@@ -172,22 +177,22 @@ export default function ChannelLanes({ videos, goals, todayDay, totalDays }: Cha
                       {lane.tagline}
                     </span>
                   </div>
-                  <span className={`text-[9px] font-mono border px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${lane.badgeBg}`}>
+                  {completionRate !== null && <span className={`text-[9px] font-mono border px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${lane.badgeBg}`}>
                     {completionRate}%
-                  </span>
+                  </span>}
                 </div>
 
                 {/* Progress bar */}
                 <div>
-                  <div className="relative h-1 bg-zinc-900 rounded-full overflow-hidden">
+                  {completionRate !== null && <div className="relative h-1 bg-zinc-900 rounded-full overflow-hidden">
                     <div 
                       className="absolute top-0 bottom-0 left-0 bg-emerald-500 transition-all duration-500"
                       style={{ width: `${completionRate}%` }}
                     />
-                  </div>
+                  </div>}
                   <div className="flex justify-between items-center text-[10px] font-mono text-zinc-600 mt-1">
-                    <span>GOAL: {lane.target}</span>
-                    <span>DONE: {completed} / LEFT: {remaining}</span>
+                    <span>GOAL: {hasGoal ? lane.target : 'N/A'}</span>
+                    <span>DONE: {completed} / LEFT: {hasGoal ? remaining : 'N/A'}</span>
                   </div>
                 </div>
 

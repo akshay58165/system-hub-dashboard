@@ -14,10 +14,11 @@ import MonthlySetupWizard from './components/MonthlySetupWizard';
 import PriorityUpdates from './components/PriorityUpdates';
 import ActionNavigator from './components/ActionNavigator';
 import TimeAwareCoach from './components/TimeAwareCoach';
-import { AlertTriangle, Cloud, LogOut, RefreshCw, Shield } from 'lucide-react';
+import AppMode from './components/AppMode';
+import { AlertTriangle, Clapperboard, Cloud, Database, LogOut, Plus, RefreshCw, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { calculateRevenueLevel, getLocalDateString, inferRevenueEligibility, migrateVideo } from './videoLogic';
-import { useDashboardCloudSync } from './cloudSync';
+import { normalizeMonthlyGoals, normalizeRevenueLevels, useDashboardCloudSync } from './cloudSync';
 import { supabase, useCloud } from './cloud';
 
 const LOCAL_STORAGE_KEY_GOALS = 'creator_os_goals';
@@ -50,16 +51,16 @@ const INITIAL_GOALS: MonthlyGoals = {
   hoursPerDay: 6,
   workWindowStart: '11:00',
   workWindowEnd: '20:00',
-  enabledRevenueLevels: [1, 2, 3, 4, 5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 20],
+  enabledRevenueLevels: [0.5, 1, 2, 3, 4, 5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 20],
   brandCollabsTargeted: true,
   longVideoAbove8MinTargeted: true,
   viralTopicsTargeted: true,
   productTagsAllowed: true,
   pinnedCommentsAllowed: true,
-  ldShortsTarget: 10,
-  ldLongTarget: 4,
-  ldMembersTarget: 4,
-  dwShortsTarget: 8,
+  ldShortsTarget: null,
+  ldLongTarget: null,
+  ldMembersTarget: null,
+  dwShortsTarget: null,
   ldLongWeeklyTarget: 1,
   ldMembersWeeklyTarget: 1,
   dwShortsScheduleType: 'Weekly'
@@ -266,6 +267,7 @@ const INITIAL_VIDEOS: VideoItem[] = [
 ];
 
 const INITIAL_REVENUE_CONFIGS: RevenueLevelConfig[] = [
+  { level: 0.5, description: 'Neutral revenue potential', difficulty: 'Easy', requiredConditions: [], suggestedActions: [] },
   { level: 1, description: 'Short video, cold topic', difficulty: 'Easy', requiredConditions: [], suggestedActions: [] },
   { level: 2, description: 'Short video, viral topic', difficulty: 'Medium', requiredConditions: [], suggestedActions: [] },
   { level: 3, description: 'Viral short video + tagged product', difficulty: 'Medium', requiredConditions: [], suggestedActions: [] },
@@ -290,19 +292,19 @@ const INITIAL_PRODUCT_OPPORTUNITIES: ProductOpportunity[] = [
 ];
 
 const INITIAL_CALIBRATION_NODES: CalibrationNode[] = [
-  { id: 'sleep', label: 'SLEEP', value: 6, color: '#818cf8' },
-  { id: 'freshness', label: 'FRESHNESS', value: 6, color: '#22d3ee' },
-  { id: 'eyeComfort', label: 'EYE COMFORT', value: 7, color: '#38bdf8' },
-  { id: 'pleasantness', label: 'PLEASANTNESS', value: 6, color: '#2dd4bf' },
-  { id: 'nutrition', label: 'NUTRITION', value: 6, color: '#f59e0b' },
-  { id: 'hydration', label: 'HYDRATION', value: 6, color: '#0ea5e9' },
-  { id: 'physicalComfort', label: 'PHYSICAL COMFORT', value: 6, color: '#10b981' },
-  { id: 'mood', label: 'MOOD', value: 4, color: '#f43f5e' },
-  { id: 'mindfulness', label: 'MINDFULNESS', value: 6, color: '#a78bfa' },
-  { id: 'energy', label: 'ENERGY', value: 4, color: '#f43f5e' },
-  { id: 'finances', label: 'FINANCES', value: 5, color: '#fbbf24' },
-  { id: 'environment', label: 'ENVIRONMENT', value: 7, color: '#34d399' },
-  { id: 'endorphins', label: 'ENDORPHINS', value: 5, color: '#fb7185' }
+  { id: 'sleep', label: 'SLEEP', value: 0, color: '#818cf8' },
+  { id: 'freshness', label: 'FRESHNESS', value: 0, color: '#22d3ee' },
+  { id: 'eyeComfort', label: 'EYE COMFORT', value: 0, color: '#38bdf8' },
+  { id: 'pleasantness', label: 'PLEASANTNESS', value: 0, color: '#2dd4bf' },
+  { id: 'nutrition', label: 'NUTRITION', value: 0, color: '#f59e0b' },
+  { id: 'hydration', label: 'HYDRATION', value: 0, color: '#0ea5e9' },
+  { id: 'physicalComfort', label: 'PHYSICAL COMFORT', value: 0, color: '#10b981' },
+  { id: 'mood', label: 'MOOD', value: 0, color: '#f43f5e' },
+  { id: 'mindfulness', label: 'MINDFULNESS', value: 0, color: '#a78bfa' },
+  { id: 'energy', label: 'ENERGY', value: 0, color: '#f43f5e' },
+  { id: 'finances', label: 'FINANCES', value: 0, color: '#fbbf24' },
+  { id: 'environment', label: 'ENVIRONMENT', value: 0, color: '#34d399' },
+  { id: 'endorphins', label: 'ENDORPHINS', value: 0, color: '#fb7185' }
 ];
 
 function migrateWellbeingNodes(savedNodes: CalibrationNode[]): CalibrationNode[] {
@@ -321,12 +323,19 @@ const EFFORT_CONFIG = {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'mission' | 'health'>('mission');
+  const [activeTab, setActiveTab] = useState<'mission' | 'health' | 'app'>('mission');
+  const [colorTheme, setColorTheme] = useState<'dark' | 'light'>(() => localStorage.getItem('creator_os_theme') === 'light' ? 'light' : 'dark');
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isZoneChoiceOpen, setIsZoneChoiceOpen] = useState(false);
   const [zoneSetupMode, setZoneSetupMode] = useState<'edit' | 'new'>('edit');
   const [wizardGoals, setWizardGoals] = useState<MonthlyGoals>(INITIAL_GOALS);
   const [actionTarget, setActionTarget] = useState<DashboardActionTarget | null>(null);
+  const [dailyDate, setDailyDate] = useState(() => getLocalDateString());
+
+  useEffect(() => {
+    localStorage.setItem('creator_os_theme', colorTheme);
+    document.documentElement.classList.toggle('theme-light', colorTheme === 'light');
+  }, [colorTheme]);
 
   // Core Database States
   const [goals, setGoals] = useState<MonthlyGoals>(() => {
@@ -337,7 +346,7 @@ export default function App() {
         parsed.cycleStartDate = '2026-06-01';
         parsed.cycleEndDate = '2026-06-30';
       }
-      return parsed;
+      return normalizeMonthlyGoals(parsed);
     }
     return INITIAL_GOALS;
   });
@@ -352,7 +361,7 @@ export default function App() {
 
   const [revenueLevels, setRevenueLevels] = useState<RevenueLevelConfig[]>(() => {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY_REV_LEVELS);
-    return saved ? JSON.parse(saved) : INITIAL_REVENUE_CONFIGS;
+    return saved ? normalizeRevenueLevels(JSON.parse(saved)) : INITIAL_REVENUE_CONFIGS;
   });
 
   const [productOpportunities, setProductOpportunities] = useState<ProductOpportunity[]>(() => {
@@ -373,6 +382,22 @@ export default function App() {
 
   const { email, userId, syncStatus, signOut } = useCloud();
   useDashboardCloudSync({ goals, videos, revenueLevels, productOpportunities, nodes, wellbeingHistory, setGoals, setVideos, setRevenueLevels, setProductOpportunities, setNodes, setWellbeingHistory });
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setDailyDate(getLocalDateString()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (syncStatus === 'loading') return;
+    const todayEntries = wellbeingHistory
+      .filter(entry => getLocalDateString(new Date(entry.timestamp)) === dailyDate)
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+    setNodes(current => {
+      const next = current.map(node => ({ ...node, value: todayEntries.find(entry => entry.nodeId === node.id)?.value ?? 0 }));
+      return next.every((node, index) => node.value === current[index]?.value) ? current : next;
+    });
+  }, [dailyDate, wellbeingHistory, syncStatus]);
 
   // Cinematic reset triggers
   const [isResetting, setIsResetting] = useState(false);
@@ -449,7 +474,7 @@ export default function App() {
   const todayStr = cycleStats.todayStr;
 
   // Total videos planned across lanes
-  const totalPlanned = goals.ldShortsTarget + goals.ldLongTarget + goals.ldMembersTarget + goals.dwShortsTarget;
+  const totalPlanned = (goals.ldShortsTarget ?? 0) + (goals.ldLongTarget ?? 0) + (goals.ldMembersTarget ?? 0) + (goals.dwShortsTarget ?? 0);
   const totalCompleted = videos.filter(v => v.currentStage === 'Done').length;
   const totalRemaining = Math.max(0, totalPlanned - totalCompleted);
 
@@ -590,8 +615,13 @@ export default function App() {
     window.setTimeout(() => document.getElementById('pipeline-board')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
   };
 
+  const navigateToInventory = () => {
+    setActiveTab('mission');
+    window.setTimeout(() => document.getElementById('inventory-records')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 140);
+  };
+
   const openZoneSetup = () => {
-    const hasActiveZone = goals.workdaysAvailable > 0 || (goals.ldShortsTarget + goals.ldLongTarget + goals.ldMembersTarget + goals.dwShortsTarget) > 0;
+    const hasActiveZone = goals.workdaysAvailable > 0 || ((goals.ldShortsTarget ?? 0) + (goals.ldLongTarget ?? 0) + (goals.ldMembersTarget ?? 0) + (goals.dwShortsTarget ?? 0)) > 0;
     if (hasActiveZone) {
       setIsZoneChoiceOpen(true);
     } else {
@@ -683,10 +713,10 @@ export default function App() {
         viralTopicsTargeted: false,
         productTagsAllowed: false,
         pinnedCommentsAllowed: false,
-        ldShortsTarget: 0,
-        ldLongTarget: 0,
-        ldMembersTarget: 0,
-        dwShortsTarget: 0,
+        ldShortsTarget: null,
+        ldLongTarget: null,
+        ldMembersTarget: null,
+        dwShortsTarget: null,
         ldLongWeeklyTarget: 0,
         ldMembersWeeklyTarget: 0,
         dwShortsScheduleType: 'Weekly'
@@ -705,12 +735,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#060607] text-zinc-300 relative bg-grid-pattern selection:bg-emerald-500/20 selection:text-emerald-400">
-      <div className="fixed bottom-4 right-4 z-[100] flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950/95 px-3 py-2 shadow-xl font-mono">
-        <Cloud className={`h-3.5 w-3.5 ${syncStatus === 'error' ? 'text-rose-400' : syncStatus === 'saving' || syncStatus === 'loading' ? 'text-amber-400 animate-pulse' : syncStatus === 'saved' ? 'text-emerald-400' : 'text-zinc-500'}`} />
-        <span className="text-[8px] text-zinc-500 uppercase">{syncStatus === 'local' ? 'Local storage' : syncStatus === 'loading' ? 'Loading cloud data' : syncStatus === 'saving' ? 'Saving' : syncStatus === 'saved' ? 'Cloud saved' : 'Cloud sync error'}</span>
-        {email && <button onClick={signOut} title={`Sign out ${email}`} className="ml-1 border-l border-zinc-800 pl-2 text-zinc-600 hover:text-white"><LogOut className="h-3.5 w-3.5" /></button>}
-      </div>
-      
       {/* Reset matrix/glitch effect overlay */}
       <AnimatePresence>
         {isResetting && (
@@ -764,6 +788,8 @@ export default function App() {
           cycleEndDate={goals.cycleEndDate}
           totalDays={totalDays}
           daysRemaining={daysRemaining}
+          colorTheme={colorTheme}
+          toggleColorTheme={() => setColorTheme(theme => theme === 'dark' ? 'light' : 'dark')}
         />
 
         {/* Live Scrolling Suggestions Feed */}
@@ -782,6 +808,16 @@ export default function App() {
           onNavigate={navigateToAction}
         />
 
+        {/* Quick action dock */}
+        <div className="border-b border-zinc-900 bg-zinc-950 px-6 py-2.5">
+          <div className="flex flex-wrap items-center gap-2 font-mono">
+            <span className="mr-1 text-[8px] font-bold tracking-[0.16em] text-zinc-600">QUICK ACTIONS</span>
+            <button type="button" onClick={() => navigateToAction({ type: 'add-video', lane: 'LearnDriven Shorts' })} className="flex items-center gap-1.5 rounded-md border border-emerald-900/60 bg-emerald-950/15 px-3 py-2 text-[9px] font-bold text-emerald-400 transition hover:border-emerald-700 hover:bg-emerald-950/30"><Plus className="h-3.5 w-3.5" />ADD A TOPIC</button>
+            <button type="button" onClick={() => navigateToAction({ type: 'pipeline' })} className="flex items-center gap-1.5 rounded-md border border-cyan-900/60 bg-cyan-950/15 px-3 py-2 text-[9px] font-bold text-cyan-400 transition hover:border-cyan-700 hover:bg-cyan-950/30"><Clapperboard className="h-3.5 w-3.5" />VIDEO PRODUCTION BOARD</button>
+            <button type="button" onClick={navigateToInventory} className="flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900/35 px-3 py-2 text-[9px] font-bold text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-200"><Database className="h-3.5 w-3.5" />INVENTORY RECORDS</button>
+          </div>
+        </div>
+
         {/* Workspace Hub Info strip */}
         <div className="px-6 py-2.5 bg-zinc-950 border-b border-zinc-900 text-[10px] font-mono flex flex-wrap justify-between items-center gap-2">
           <div className="flex items-center gap-4 text-zinc-500">
@@ -791,13 +827,6 @@ export default function App() {
             <span className="text-zinc-700">|</span>
             <span>WORK PACE: <strong className="text-amber-400">{goals.intensityMode === 'War mode' ? 'DEADLINE SPRINT' : goals.intensityMode.toUpperCase()}</strong></span>
           </div>
-          <button 
-            onClick={handleTriggerResetModal}
-            className="text-zinc-600 hover:text-red-500 font-bold uppercase transition-colors text-[9px] flex items-center gap-1"
-          >
-            <RefreshCw className="h-3 w-3" />
-            Reset All Data
-          </button>
         </div>
 
         {/* Main Workspace content */}
@@ -907,7 +936,7 @@ export default function App() {
                   onDeleteProductOpportunity={handleDeleteProductOpportunity}
                 />
               </motion.div>
-            ) : (
+            ) : activeTab === 'health' ? (
               <motion.div
                 key="health"
                 initial={{ opacity: 0, y: 10 }}
@@ -922,17 +951,47 @@ export default function App() {
                   onUpdateNode={handleUpdateBiometric}
                 />
               </motion.div>
+            ) : (
+              <motion.div
+                key="app"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <AppMode
+                  goals={goals}
+                  videos={videos}
+                  revenueLevels={revenueLevels}
+                  nodes={nodes}
+                  wellbeingHistory={wellbeingHistory}
+                  todayDay={todayDay}
+                  totalDays={totalDays}
+                  daysRemaining={daysRemaining}
+                  totalPlanned={totalPlanned}
+                  totalCompleted={totalCompleted}
+                  requiredEffortToday={requiredEffortToday}
+                  pressureLevel={pressureLevel}
+                  onUpdateVideo={handleUpdateVideo}
+                  onAddVideo={handleAddVideo}
+                  onDeleteVideo={handleDeleteVideo}
+                  onUpdateNode={handleUpdateBiometric}
+                  onOpenZone={openZoneSetup}
+                />
+              </motion.div>
             )}
           </AnimatePresence>
         </main>
 
         {/* Footer Area */}
-        <footer className="border-t border-zinc-900 bg-zinc-950/40 p-6 text-center font-mono text-[10px] text-zinc-600 flex flex-col sm:flex-row justify-between items-center gap-2">
+        <footer className="border-t border-zinc-900 bg-zinc-950/40 p-6 text-center font-mono text-[10px] text-zinc-600 flex flex-col sm:flex-row justify-between items-center gap-3">
           <span>CREATOR.OS PRODUCTION HUB © 2026. YOUR PERSONAL CREATOR WORKSPACE.</span>
-          <span className="flex items-center gap-1.5 text-zinc-500">
-            <Shield className="h-3 w-3 text-emerald-500/80" />
-            LOCAL BROWSER DATA ACTIVE
-          </span>
+          <div className="flex items-center gap-2 rounded border border-zinc-900 bg-black/20 px-3 py-2">
+            <Cloud className={`h-3.5 w-3.5 ${syncStatus === 'error' ? 'text-rose-400' : syncStatus === 'saving' || syncStatus === 'loading' ? 'text-amber-400 animate-pulse' : syncStatus === 'saved' ? 'text-emerald-400' : 'text-zinc-500'}`} />
+            <span className="text-[8px] text-zinc-500 uppercase">{syncStatus === 'local' ? 'Local storage' : syncStatus === 'loading' ? 'Loading cloud data' : syncStatus === 'saving' ? 'Saving' : syncStatus === 'saved' ? 'Cloud saved' : 'Cloud sync error'}</span>
+            {email && <button onClick={signOut} title={`Sign out ${email}`} className="ml-1 border-l border-zinc-800 pl-2 text-zinc-600 hover:text-white"><LogOut className="h-3.5 w-3.5" /></button>}
+          </div>
+          <button onClick={handleTriggerResetModal} className="flex items-center gap-1.5 rounded border border-rose-950/70 bg-rose-950/10 px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-rose-500 hover:border-rose-800 hover:bg-rose-950/30" title="Permanently delete all dashboard data"><RefreshCw className="h-3.5 w-3.5" />Hard Reset</button>
         </footer>
 
         {/* Month constraints Wizard overlay */}
@@ -1039,18 +1098,6 @@ export default function App() {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Floating Tactical Bottom-Right Corner Reset Trigger */}
-        <div className="fixed bottom-4 right-4 z-40">
-          <button
-            onClick={handleTriggerResetModal}
-            className="bg-zinc-950/90 hover:bg-red-950/60 border border-zinc-900 hover:border-red-900/50 text-[9px] font-mono font-bold text-zinc-500 hover:text-red-400 px-3 py-2 rounded-md uppercase tracking-wider transition-all duration-300 shadow-xl flex items-center gap-1.5 backdrop-blur-sm"
-            title="Delete all saved dashboard data"
-          >
-            <RefreshCw className="h-3.5 w-3.5 animate-[spin_4s_linear_infinite] text-red-500" />
-            <span>RESET ALL DATA</span>
-          </button>
-        </div>
 
       </div>
     </div>

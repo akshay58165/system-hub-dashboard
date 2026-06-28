@@ -21,7 +21,6 @@ function ExpertGuidancePanel({ guides }: { guides: ExpertGuide[] }) {
   const tones = { rose: 'border-rose-900/70 text-rose-400 from-rose-950/25', amber: 'border-amber-900/60 text-amber-400 from-amber-950/20', cyan: 'border-cyan-900/60 text-cyan-400 from-cyan-950/20', emerald: 'border-emerald-900/60 text-emerald-400 from-emerald-950/20' };
   if (!active) return null;
   return <div className={`min-w-0 h-[88px] overflow-hidden relative rounded-lg border bg-gradient-to-r ${tones[active.tone]} via-zinc-950/80 to-zinc-950/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]`}>
-    <motion.div className="absolute inset-y-0 w-20 bg-gradient-to-r from-transparent via-white/[0.035] to-transparent" animate={{ left: ['-15%', '110%'] }} transition={{ duration: 5, repeat: Infinity, ease: 'linear' }} />
     <AnimatePresence mode="wait">
       <motion.div key={`${index}-${active.title}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.4 }} className="absolute inset-0 grid grid-cols-[1.05fr_1.5fr_auto] gap-5 items-center px-5">
         <div className="min-w-0"><span className={`text-[8px] font-mono tracking-[0.16em] ${tones[active.tone].split(' ')[1]}`}>EXPERT GUIDANCE · {active.category}</span><strong className="text-[13px] text-white block mt-1 truncate">{active.title}</strong><span className="text-[9px] text-zinc-400 block truncate mt-1">WHY NOW: {active.why}</span></div>
@@ -186,10 +185,11 @@ export default function MissionControl({
 
   const earningOutlook = getEarningOutlook(videos.filter(video => isVideoInCycle(video, goals.cycleStartDate, goals.cycleEndDate)));
   const wellbeingReadiness = getReadiness(wellbeingNodes);
+  const hasWellbeingData = wellbeingNodes.some(node => node.value > 0);
   const wellbeingInsights = getWellbeingInsights(wellbeingNodes, wellbeingHistory);
-  const lowestSignals = [...wellbeingNodes].sort((a, b) => a.value - b.value).slice(0, 3);
-  const dailyCapacity = Math.max(1, wellbeingReadiness / 10);
-  const demandCapacityRatio = requiredEffortToday / dailyCapacity;
+  const lowestSignals = wellbeingNodes.filter(node => node.value > 0).sort((a, b) => a.value - b.value).slice(0, 3);
+  const dailyCapacity = hasWellbeingData ? Math.max(1, wellbeingReadiness / 10) : 0;
+  const demandCapacityRatio = hasWellbeingData ? requiredEffortToday / dailyCapacity : 0;
   const weakestSignal = lowestSignals[0];
 
 
@@ -319,11 +319,11 @@ export default function MissionControl({
     },
     {
       category: 'CAPACITY MATCHING',
-      title: wellbeingReadiness < 60 ? 'Use recovery as a performance intervention' : 'Spend this capacity on the hardest useful task',
-      why: `${wellbeingReadiness}% readiness with ${weakestSignal?.label || 'your lowest signal'} at ${weakestSignal?.value ?? 0}/10.`,
-      steps: wellbeingReadiness < 60 ? ['Fix the lowest physical or mental signal first.', 'Choose a 15–25 minute low-friction task.', 'Re-score your state before committing to deep work.'] : ['Silence inputs and define one finish line.', 'Use a 50-minute protected focus block.', 'Stop when the finish line is reached—not when energy is gone.'],
-      outcome: wellbeingReadiness < 60 ? 'BETTER ENERGY USE' : 'HIGH-VALUE OUTPUT',
-      tone: wellbeingReadiness < 60 ? 'amber' : 'emerald',
+      title: !hasWellbeingData ? 'Record today’s capacity before matching the workload' : wellbeingReadiness < 60 ? 'Use recovery as a performance intervention' : 'Spend this capacity on the hardest useful task',
+      why: !hasWellbeingData ? 'No wellbeing parameter has been recorded today.' : `${wellbeingReadiness}% readiness with ${weakestSignal?.label || 'your lowest signal'} at ${weakestSignal?.value ?? 0}/10.`,
+      steps: !hasWellbeingData ? ['Open Wellbeing & Workspace.', 'Record today’s parameters without defaults.', 'Return here for capacity-matched guidance.'] : wellbeingReadiness < 60 ? ['Fix the lowest physical or mental signal first.', 'Choose a 15–25 minute low-friction task.', 'Re-score your state before committing to deep work.'] : ['Silence inputs and define one finish line.', 'Use a 50-minute protected focus block.', 'Stop when the finish line is reached—not when energy is gone.'],
+      outcome: !hasWellbeingData ? 'ACCURATE GUIDANCE' : wellbeingReadiness < 60 ? 'BETTER ENERGY USE' : 'HIGH-VALUE OUTPUT',
+      tone: !hasWellbeingData || wellbeingReadiness < 60 ? 'amber' : 'emerald',
     },
     {
       category: 'THROUGHPUT DESIGN',
@@ -527,7 +527,6 @@ export default function MissionControl({
         {/* DAILY EFFORT CAPACITY OVERWATCH BANNER                        */}
         {/* ------------------------------------------------------------- */}
         <div className="mb-5 bg-zinc-950/40 border border-zinc-900 p-4 rounded-lg grid grid-cols-1 lg:grid-cols-[1.1fr_1fr_auto] items-center gap-5 relative z-10 shadow-[inset_0_1px_5px_rgba(0,0,0,0.5)] overflow-hidden">
-          <motion.div className="absolute inset-y-0 w-24 bg-gradient-to-r from-transparent via-rose-500/5 to-transparent pointer-events-none" animate={{ left: ['-10%', '110%'] }} transition={{ duration: 5, repeat: Infinity, ease: 'linear' }} />
           <div className="flex flex-col gap-1 relative z-10">
             <span className="text-[10px] font-mono font-bold tracking-widest text-zinc-400 uppercase flex items-center gap-2 justify-center sm:justify-start">
               <span className={`h-2 w-2 rounded-full ${
@@ -538,18 +537,18 @@ export default function MissionControl({
             <span className="text-[9px] font-sans text-zinc-500 max-w-md">
               Estimated effort needed each day, based on unfinished videos and current status issues.
             </span>
-            <div className={`mt-2 inline-flex w-fit items-center gap-1.5 rounded border px-2 py-1 text-[8px] font-mono font-bold ${demandCapacityRatio > 1.5 ? 'border-rose-900/60 bg-rose-950/15 text-rose-400' : 'border-emerald-900/60 bg-emerald-950/15 text-emerald-400'}`}>
-              <TrendingUp className="h-3 w-3" /> DEMAND IS {demandCapacityRatio.toFixed(1)}× CURRENT CAPACITY
+            <div className={`mt-2 inline-flex w-fit items-center gap-1.5 rounded border px-2 py-1 text-[8px] font-mono font-bold ${!hasWellbeingData ? 'border-zinc-800 bg-zinc-900/20 text-zinc-500' : demandCapacityRatio > 1.5 ? 'border-rose-900/60 bg-rose-950/15 text-rose-400' : 'border-emerald-900/60 bg-emerald-950/15 text-emerald-400'}`}>
+              <TrendingUp className="h-3 w-3" /> {hasWellbeingData ? `DEMAND IS ${demandCapacityRatio.toFixed(1)}× CURRENT CAPACITY` : 'CAPACITY NOT RECORDED TODAY'}
             </div>
             <div className="grid grid-cols-2 gap-2 mt-2 font-mono max-w-lg">
               <div className="border border-zinc-900 bg-zinc-900/20 rounded p-2"><span className="text-[7px] text-zinc-600 uppercase block">State intervention</span><strong className="text-[8px] text-cyan-400 block mt-1 leading-snug">{wellbeingInsights[0]?.title}</strong></div>
-              <div className="border border-zinc-900 bg-zinc-900/20 rounded p-2"><span className="text-[7px] text-zinc-600 uppercase block">Best task shape</span><strong className="text-[8px] text-zinc-300 block mt-1 leading-snug">{wellbeingReadiness < 60 ? 'One short resolving step, then reassess' : 'Use a focused block on the priority action'}</strong></div>
+              <div className="border border-zinc-900 bg-zinc-900/20 rounded p-2"><span className="text-[7px] text-zinc-600 uppercase block">Best task shape</span><strong className="text-[8px] text-zinc-300 block mt-1 leading-snug">{!hasWellbeingData ? 'Record today’s state before matching task intensity' : wellbeingReadiness < 60 ? 'One short resolving step, then reassess' : 'Use a focused block on the priority action'}</strong></div>
             </div>
           </div>
 
           <div className="space-y-3 relative z-10 font-mono">
             <div><div className="flex justify-between text-[8px] text-zinc-500 mb-1"><span>PLAN DEMAND</span><strong className="text-rose-400">{requiredEffortToday.toFixed(1)} PTS</strong></div><div className="h-2 bg-zinc-900 rounded-full overflow-hidden"><motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, requiredEffortToday * 10)}%` }} className="h-full bg-gradient-to-r from-amber-500 to-rose-500 rounded-full" /></div></div>
-            <div><div className="flex justify-between text-[8px] text-zinc-500 mb-1"><span>HUMAN CAPACITY</span><strong className={wellbeingReadiness >= 70 ? 'text-emerald-400' : 'text-cyan-400'}>{dailyCapacity.toFixed(1)} PTS</strong></div><div className="h-2 bg-zinc-900 rounded-full overflow-hidden"><motion.div initial={{ width: 0 }} animate={{ width: `${wellbeingReadiness}%` }} className="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 rounded-full" /></div></div>
+            <div><div className="flex justify-between text-[8px] text-zinc-500 mb-1"><span>HUMAN CAPACITY</span><strong className={hasWellbeingData && wellbeingReadiness >= 70 ? 'text-emerald-400' : 'text-cyan-400'}>{hasWellbeingData ? `${dailyCapacity.toFixed(1)} PTS` : 'N/A'}</strong></div><div className="h-2 bg-zinc-900 rounded-full overflow-hidden"><motion.div initial={{ width: 0 }} animate={{ width: `${hasWellbeingData ? wellbeingReadiness : 0}%` }} className="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 rounded-full" /></div></div>
           </div>
 
           <div className="flex items-center gap-6 relative z-10">
@@ -602,7 +601,7 @@ export default function MissionControl({
           <div className="md:col-span-4 p-4 border border-zinc-900 bg-zinc-950/80 rounded-lg relative overflow-hidden shadow-[inset_0_1px_5px_rgba(0,0,0,0.9)]">
             <div className="flex items-center justify-between border-b border-zinc-900 pb-2 mb-3 font-mono">
               <span className="text-[9px] text-zinc-400 font-bold tracking-wider flex items-center gap-1.5"><HeartPulse className="h-3.5 w-3.5 text-cyan-400 animate-pulse" />YOUR CAPACITY NOW</span>
-              <div className="h-11 w-11 rounded-full grid place-items-center" style={{ background: `conic-gradient(${wellbeingReadiness >= 70 ? '#34d399' : wellbeingReadiness >= 50 ? '#f59e0b' : '#f43f5e'} ${wellbeingReadiness * 3.6}deg, #18181b 0deg)` }}><div className="h-8 w-8 bg-zinc-950 rounded-full grid place-items-center"><span className={`text-[9px] font-black ${wellbeingReadiness >= 70 ? 'text-emerald-400' : wellbeingReadiness >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{wellbeingReadiness}%</span></div></div>
+              <div className="h-11 w-11 rounded-full grid place-items-center" style={{ background: `conic-gradient(${!hasWellbeingData ? '#3f3f46' : wellbeingReadiness >= 70 ? '#34d399' : wellbeingReadiness >= 50 ? '#f59e0b' : '#f43f5e'} ${hasWellbeingData ? wellbeingReadiness * 3.6 : 0}deg, #18181b 0deg)` }}><div className="h-8 w-8 bg-zinc-950 rounded-full grid place-items-center"><span className={`text-[9px] font-black ${!hasWellbeingData ? 'text-zinc-600' : wellbeingReadiness >= 70 ? 'text-emerald-400' : wellbeingReadiness >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{hasWellbeingData ? `${wellbeingReadiness}%` : 'N/A'}</span></div></div>
             </div>
             <div className={`border rounded p-3 relative overflow-hidden ${wellbeingInsights[0]?.tone === 'act' ? 'border-rose-900/50 bg-rose-950/10' : wellbeingInsights[0]?.tone === 'watch' ? 'border-amber-900/50 bg-amber-950/10' : 'border-emerald-900/50 bg-emerald-950/10'}`}>
               <div className="absolute right-2 top-2"><AlertTriangle className={`h-7 w-7 ${wellbeingInsights[0]?.tone === 'act' ? 'text-rose-500/20 animate-pulse' : 'text-emerald-500/20'}`} /></div>
@@ -610,7 +609,7 @@ export default function MissionControl({
               <p className="text-[9px] text-zinc-500 mt-1 leading-relaxed pr-6">{wellbeingInsights[0]?.detail}</p>
             </div>
             <div className="grid grid-cols-3 gap-2 mt-3">
-              {lowestSignals.map(signal => <div key={signal.id} className="border border-zinc-900 rounded p-2 font-mono"><div className="flex justify-between gap-1"><span className="text-[7px] text-zinc-600 uppercase truncate">{signal.label}</span><strong className={`text-[9px] ${signal.value <= 4 ? 'text-rose-400' : 'text-zinc-300'}`}>{signal.value}</strong></div><div className="h-1 bg-zinc-900 rounded-full mt-2 overflow-hidden"><div className={`h-full rounded-full ${signal.value <= 4 ? 'bg-rose-500 animate-pulse' : 'bg-cyan-400'}`} style={{ width: `${signal.value * 10}%` }} /></div></div>)}
+              {lowestSignals.length ? lowestSignals.map(signal => <div key={signal.id} className="border border-zinc-900 rounded p-2 font-mono"><div className="flex justify-between gap-1"><span className="text-[7px] text-zinc-600 uppercase truncate">{signal.label}</span><strong className={`text-[9px] ${signal.value <= 4 ? 'text-rose-400' : 'text-zinc-300'}`}>{signal.value}</strong></div><div className="h-1 bg-zinc-900 rounded-full mt-2 overflow-hidden"><div className={`h-full rounded-full ${signal.value <= 4 ? 'bg-rose-500 animate-pulse' : 'bg-cyan-400'}`} style={{ width: `${signal.value * 10}%` }} /></div></div>) : <div className="col-span-3 rounded border border-zinc-900 p-3 text-center text-[8px] font-mono text-zinc-600">NO SIGNALS RECORDED TODAY</div>}
             </div>
             <p className="text-[8px] text-zinc-600 mt-3 font-mono">Update these in Daily State whenever your condition changes.</p>
           </div>
@@ -654,7 +653,7 @@ export default function MissionControl({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
                 <div className="border border-zinc-900 bg-zinc-900/25 rounded p-2.5 relative overflow-hidden"><AlertCircle className="h-4 w-4 text-rose-400 mb-2" /><span className="text-[7px] text-zinc-600 uppercase block">Trigger</span><strong className="text-[9px] text-zinc-300 block mt-0.5">{blockedCount > 0 ? `${blockedCount} status issue needs review` : `${totalRemaining} planned videos remain`}</strong></div>
                 <div className="border border-zinc-900 bg-zinc-900/25 rounded p-2.5 relative overflow-hidden"><Gauge className="h-4 w-4 text-amber-400 mb-2" /><span className="text-[7px] text-zinc-600 uppercase block">Plan effect</span><strong className="text-[9px] text-zinc-300 block mt-0.5">{bufferCount === 0 ? 'No content buffer protects the schedule' : `${bufferCount} days of buffer available`}</strong><ArrowRight className="hidden sm:block absolute right-2 top-2 h-3 w-3 text-zinc-800" /></div>
-                <div className="border border-zinc-900 bg-zinc-900/25 rounded p-2.5 relative overflow-hidden"><ListChecks className="h-4 w-4 text-cyan-400 mb-2" /><span className="text-[7px] text-zinc-600 uppercase block">Best response</span><strong className="text-[9px] text-zinc-300 block mt-0.5">{wellbeingReadiness < 60 ? 'Take the smallest resolving step first' : 'Resolve it in the current focus window'}</strong></div>
+                <div className="border border-zinc-900 bg-zinc-900/25 rounded p-2.5 relative overflow-hidden"><ListChecks className="h-4 w-4 text-cyan-400 mb-2" /><span className="text-[7px] text-zinc-600 uppercase block">Best response</span><strong className="text-[9px] text-zinc-300 block mt-0.5">{!hasWellbeingData ? 'Record today’s state first' : wellbeingReadiness < 60 ? 'Take the smallest resolving step first' : 'Resolve it in the current focus window'}</strong></div>
               </div>
             </div>
 

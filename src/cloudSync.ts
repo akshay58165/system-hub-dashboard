@@ -12,6 +12,25 @@ export interface DashboardSnapshot {
   wellbeingHistory: WellbeingEntry[];
 }
 
+export function normalizeMonthlyGoals(goals: MonthlyGoals): MonthlyGoals {
+  const normalizeTarget = (value: number | null | undefined) => {
+    if (value === null || value === undefined || value <= 0) return null;
+    return value;
+  };
+  return {
+    ...goals,
+    ldShortsTarget: normalizeTarget(goals.ldShortsTarget),
+    ldLongTarget: normalizeTarget(goals.ldLongTarget),
+    ldMembersTarget: normalizeTarget(goals.ldMembersTarget),
+    dwShortsTarget: normalizeTarget(goals.dwShortsTarget),
+  };
+}
+
+export function normalizeRevenueLevels(levels: RevenueLevelConfig[]): RevenueLevelConfig[] {
+  if (levels.some(level => level.level === 0.5)) return levels;
+  return [{ level: 0.5, description: 'Neutral revenue potential', difficulty: 'Easy', requiredConditions: [], suggestedActions: [] }, ...levels];
+}
+
 type SyncArguments = DashboardSnapshot & {
   setGoals: Dispatch<SetStateAction<MonthlyGoals>>;
   setVideos: Dispatch<SetStateAction<VideoItem[]>>;
@@ -38,9 +57,9 @@ export function useDashboardCloudSync(args: SyncArguments) {
       if (error) { setSyncStatus('error'); return; }
       const cloudState = data?.state as Partial<DashboardSnapshot> | undefined;
       if (cloudState) {
-        if (cloudState.goals) args.setGoals(cloudState.goals);
+        if (cloudState.goals) args.setGoals(normalizeMonthlyGoals(cloudState.goals));
         if (cloudState.videos) args.setVideos(cloudState.videos.map(migrateVideo));
-        if (cloudState.revenueLevels) args.setRevenueLevels(cloudState.revenueLevels);
+        if (cloudState.revenueLevels) args.setRevenueLevels(normalizeRevenueLevels(cloudState.revenueLevels));
         if (cloudState.productOpportunities) args.setProductOpportunities(cloudState.productOpportunities);
         if (cloudState.nodes) args.setNodes(cloudState.nodes);
         if (cloudState.wellbeingHistory) args.setWellbeingHistory(cloudState.wellbeingHistory);

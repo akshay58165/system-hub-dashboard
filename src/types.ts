@@ -18,10 +18,10 @@ export interface MonthlyGoals {
   pinnedCommentsAllowed: boolean;
 
   // Lane targets
-  ldShortsTarget: number;
-  ldLongTarget: number;
-  ldMembersTarget: number;
-  dwShortsTarget: number;
+  ldShortsTarget: number | null;
+  ldLongTarget: number | null;
+  ldMembersTarget: number | null;
+  dwShortsTarget: number | null;
 
   ldLongWeeklyTarget: number;
   ldMembersWeeklyTarget: number;
@@ -44,6 +44,7 @@ export type VideoStage = 'Topic' | 'Script' | 'Shoot' | 'Edit' | 'Thumbnail' | '
 export type VideoStatus = 'neutral' | 'good' | 'attention' | 'warning' | 'critical';
 
 export interface VideoRevenueEligibility {
+  neutral: boolean;
   viralPotential: boolean;
   productTag: boolean;
   pinnedComment: boolean;

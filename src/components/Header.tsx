@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Terminal, Cpu, CalendarRange, Sparkles, Flame, Coffee, Compass, AlertTriangle } from 'lucide-react';
+import { Shield, Terminal, Cpu, CalendarRange, Sparkles, Flame, Coffee, Compass, AlertTriangle, Moon, Sun, PanelsTopLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import TactileLED from './TactileLED';
 
 interface HeaderProps {
-  activeTab: 'mission' | 'health';
-  setActiveTab: (tab: 'mission' | 'health') => void;
+  activeTab: 'mission' | 'health' | 'app';
+  setActiveTab: (tab: 'mission' | 'health' | 'app') => void;
   openSetupWizard: () => void;
   isHardReset: boolean;
   selectedMonth: string;
@@ -14,6 +14,8 @@ interface HeaderProps {
   cycleEndDate: string;
   totalDays: number;
   daysRemaining: number;
+  colorTheme: 'dark' | 'light';
+  toggleColorTheme: () => void;
 }
 
 export default function Header({ 
@@ -26,7 +28,9 @@ export default function Header({
   cycleStartDate,
   cycleEndDate,
   totalDays,
-  daysRemaining
+  daysRemaining,
+  colorTheme,
+  toggleColorTheme,
  }: HeaderProps) {
   const [time, setTime] = useState<string>('00:00:00');
   const [dateLine, setDateLine] = useState<string>('01 JAN THURSDAY 2026');
@@ -314,10 +318,36 @@ export default function Header({
             <TactileLED color={activeTab === 'health' ? theme.pulseLed : 'zinc'} importance="low" active={activeTab === 'health'} />
           </div>
         </button>
+
+        <button
+          onClick={() => setActiveTab('app')}
+          className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2 text-xs font-mono font-semibold tracking-wider transition-all duration-300 rounded-md group relative overflow-hidden ${
+            activeTab === 'app'
+              ? `border ${theme.tabActiveClass}`
+              : 'border border-transparent text-zinc-500 hover:text-zinc-350 hover:bg-zinc-900/40'
+          }`}
+        >
+          <PanelsTopLeft className="h-3.5 w-3.5 group-hover:scale-110 transition-transform" />
+          APP MODE
+          <div className="ml-1">
+            <TactileLED color={activeTab === 'app' ? theme.pulseLed : 'zinc'} importance="low" active={activeTab === 'app'} />
+          </div>
+        </button>
       </div>
 
       {/* Right section: Active workspace, setup trigger, digital clock */}
       <div className="flex items-center gap-4 self-stretch lg:self-auto justify-between lg:justify-end relative z-10">
+        <button
+          type="button"
+          onClick={toggleColorTheme}
+          className={`bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800/60 text-zinc-300 px-3 py-2 rounded flex items-center gap-1.5 font-mono text-xs font-semibold tracking-wider transition-all uppercase ${theme.hoverBorderColor}`}
+          title={colorTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          aria-label={colorTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+        >
+          {colorTheme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+          {colorTheme === 'dark' ? 'LIGHT' : 'DARK'}
+        </button>
+
         <button
           onClick={openSetupWizard}
           className={`bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800/60 text-zinc-300 hover:text-emerald-400 px-3 py-2 rounded flex items-center gap-1.5 font-mono text-xs font-semibold tracking-wider transition-all uppercase hover:shadow-[0_0_12px_rgba(16,185,129,0.15)] group ${theme.hoverBorderColor}`}

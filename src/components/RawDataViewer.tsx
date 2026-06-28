@@ -168,14 +168,10 @@ export default function RawDataViewer({
   const [formChannel, setFormChannel] = useState<'LearnDriven' | 'DecodeWorthy'>('LearnDriven');
   const [formContentLane, setFormContentLane] = useState<VideoItem['contentLane']>('LearnDriven Long Videos');
   const [formTitle, setFormTitle] = useState('');
+  const [formTitleError, setFormTitleError] = useState('');
   const [formEligibility, setFormEligibility] = useState<VideoRevenueEligibility>({ ...EMPTY_REVENUE_ELIGIBILITY });
   const [formCurrentStage, setFormCurrentStage] = useState<VideoStage>('Topic');
   const [formStatus, setFormStatus] = useState<VideoStatus>('neutral');
-  const [formStatusNote, setFormStatusNote] = useState('');
-  const [formProductTagStatus, setFormProductTagStatus] = useState<VideoItem['productTagStatus']>('Available');
-  const [formPinnedCommentStatus, setFormPinnedCommentStatus] = useState<VideoItem['pinnedCommentStatus']>('None');
-  const [formMembersPromotionStatus, setFormMembersPromotionStatus] = useState<VideoItem['membersPromotionStatus']>('None');
-  const [formBrandCollabStatus, setFormBrandCollabStatus] = useState<VideoItem['brandCollabStatus']>('None');
   const [formExpectedPublishDate, setFormExpectedPublishDate] = useState('2026-06-30');
 
   const toggleSection = (sec: string) => {
@@ -195,14 +191,10 @@ export default function RawDataViewer({
     setFormChannel(v.channel);
     setFormContentLane(v.contentLane);
     setFormTitle(v.title);
+    setFormTitleError('');
     setFormEligibility(inferRevenueEligibility(v));
     setFormCurrentStage(v.currentStage);
     setFormStatus(getVideoStatus(v));
-    setFormStatusNote(v.statusNote || v.blockerReason || '');
-    setFormProductTagStatus(v.productTagStatus);
-    setFormPinnedCommentStatus(v.pinnedCommentStatus);
-    setFormMembersPromotionStatus(v.membersPromotionStatus);
-    setFormBrandCollabStatus(v.brandCollabStatus);
     setFormExpectedPublishDate(v.expectedPublishDate || '');
     setIsModalOpen(true);
   };
@@ -213,14 +205,10 @@ export default function RawDataViewer({
     setFormChannel('LearnDriven');
     setFormContentLane('LearnDriven Long Videos');
     setFormTitle('');
+    setFormTitleError('');
     setFormEligibility({ ...EMPTY_REVENUE_ELIGIBILITY });
     setFormCurrentStage('Topic');
     setFormStatus('neutral');
-    setFormStatusNote('');
-    setFormProductTagStatus('Available');
-    setFormPinnedCommentStatus('None');
-    setFormMembersPromotionStatus('None');
-    setFormBrandCollabStatus('None');
     setFormExpectedPublishDate('2026-06-30');
     setIsModalOpen(true);
   };
@@ -238,14 +226,20 @@ export default function RawDataViewer({
 
   // Commit Form Changes (Create or Edit)
   const handleSaveForm = () => {
+    const cleanTitle = formTitle.trim();
+    if (!cleanTitle) {
+      setFormTitleError('A real topic title is required.');
+      return;
+    }
     const needsAttention = statusNeedsAttention(formStatus);
     const pipeline = generatePipeline(formCurrentStage, formContentLane, needsAttention);
     const revenueLevelTarget = calculateRevenueLevel(formContentLane, formEligibility);
+    const derivedStatusNote = formStatus === 'neutral' || formStatus === 'good' ? '' : `${formCurrentStage} stage marked ${formStatus}`;
 
     const data: Omit<VideoItem, 'id'> = {
       channel: formChannel,
       contentLane: formContentLane,
-      title: formTitle || 'Untitled Topic',
+      title: cleanTitle,
       createdAt: editingVideo?.createdAt || getLocalDateString(),
       revenueLevelTarget,
       revenueEligibility: formEligibility,
@@ -253,14 +247,14 @@ export default function RawDataViewer({
       pipeline,
       currentStage: formCurrentStage,
       status: formStatus,
-      statusNote: formStatusNote.trim(),
+      statusNote: derivedStatusNote,
       isBlocked: needsAttention,
-      blockerReason: needsAttention ? formStatusNote.trim() || undefined : undefined,
+      blockerReason: needsAttention ? derivedStatusNote : undefined,
       blockerSeverity: needsAttention ? formStatus : undefined,
-      productTagStatus: formEligibility.productTag ? formProductTagStatus : 'Unsuitable',
-      pinnedCommentStatus: formPinnedCommentStatus,
-      membersPromotionStatus: formMembersPromotionStatus,
-      brandCollabStatus: formEligibility.brandCollaboration ? 'Attached' : formBrandCollabStatus,
+      productTagStatus: formEligibility.productTag ? 'Tagged' : 'Unsuitable',
+      pinnedCommentStatus: formEligibility.pinnedComment ? 'Added' : 'None',
+      membersPromotionStatus: formEligibility.pinnedComment ? 'Promoted' : 'None',
+      brandCollabStatus: formEligibility.brandCollaboration ? 'Attached' : 'None',
     };
 
     if (editingVideo) {
@@ -287,7 +281,7 @@ export default function RawDataViewer({
   };
 
   return (
-    <div className="space-y-3 bg-zinc-950 border border-zinc-900 rounded-lg p-4 font-mono text-xs">
+    <div id="inventory-records" className="space-y-3 bg-zinc-950 border border-zinc-900 rounded-lg p-4 font-mono text-xs scroll-mt-24">
       
       {/* Title with metadata description */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-900 pb-3 mb-2">
@@ -732,10 +726,14 @@ export default function RawDataViewer({
                   <input
                     type="text"
                     value={formTitle}
-                    onChange={(e) => setFormTitle(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-850 focus:border-emerald-500 rounded px-3 py-2 text-zinc-100 focus:outline-none"
+                    onChange={(e) => {
+                      setFormTitle(e.target.value);
+                      if (e.target.value.trim()) setFormTitleError('');
+                    }}
+                    className={`w-full bg-zinc-900 border rounded px-3 py-2 text-zinc-100 focus:outline-none ${formTitleError ? 'border-rose-500 focus:border-rose-400' : 'border-zinc-850 focus:border-emerald-500'}`}
                     placeholder="e.g. Next-Generation TypeScript Strategies"
                   />
+                  {formTitleError && <p className="text-[9px] font-bold text-rose-400">{formTitleError}</p>}
                 </div>
 
                 {/* Channel Select */}
@@ -808,6 +806,7 @@ export default function RawDataViewer({
                   <div><span className="text-[10px] text-zinc-500 uppercase font-bold">Revenue Eligibility</span><p className="text-[9px] text-zinc-600 mt-0.5">The level updates automatically from these choices.</p></div>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                     {([
+                      ['neutral', 'Neutral — Level 0.5'],
                       ['viralPotential', 'Viral topic potential'],
                       ['productTag', 'Relevant product tag'],
                       ['pinnedComment', 'Pinned promotion or link'],
@@ -816,7 +815,9 @@ export default function RawDataViewer({
                       ['brandCollaboration', 'Brand collaboration attached'],
                     ] as Array<[keyof VideoRevenueEligibility, string]>).filter(([key]) => key !== 'overEightMinutes' || formContentLane === 'LearnDriven Long Videos').map(([key, label]) => (
                       <label key={key} className={`flex items-center gap-2 border rounded p-2 cursor-pointer ${formEligibility[key] ? 'border-emerald-500/40 bg-emerald-950/15 text-zinc-200' : 'border-zinc-850 text-zinc-500'}`}>
-                        <input type="checkbox" checked={formEligibility[key]} onChange={event => setFormEligibility(prev => ({ ...prev, [key]: event.target.checked }))} className="accent-emerald-500" />
+                        <input type="checkbox" checked={formEligibility[key]} onChange={event => setFormEligibility(prev => key === 'neutral'
+                          ? (event.target.checked ? { ...EMPTY_REVENUE_ELIGIBILITY, neutral: true } : { ...prev, neutral: false })
+                          : { ...prev, neutral: false, [key]: event.target.checked })} className="accent-emerald-500" />
                         <span className="text-[9px] font-bold">{label}</span>
                       </label>
                     ))}
@@ -843,66 +844,7 @@ export default function RawDataViewer({
                       );
                     })}
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-zinc-500 uppercase font-bold">What Is the Status? <span className="normal-case font-normal">(optional)</span></label>
-                    <input type="text" value={formStatusNote} onChange={event => setFormStatusNote(event.target.value)} className="w-full bg-zinc-900 border border-zinc-850 focus:border-zinc-500 rounded px-3 py-2 text-zinc-100 focus:outline-none" placeholder="e.g. Research complete, ready to script" />
-                  </div>
                 </div>
-
-                {/* Additional metadata tags */}
-                {formContentLane !== 'LearnDriven Members-only Videos' && <div className="md:col-span-2 border-t border-zinc-900 pt-3 space-y-2">
-                  <h3 className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">Promotion & Monetization Toggles</h3>
-                  <div className="grid grid-cols-2 gap-2 text-[10px]">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[9px] text-zinc-600 font-bold uppercase">Product Tag</span>
-                      <select
-                        value={formProductTagStatus}
-                        onChange={(e) => setFormProductTagStatus(e.target.value as any)}
-                        className="bg-zinc-900 border border-zinc-850 rounded px-2.5 py-1.5 text-zinc-300 focus:outline-none"
-                      >
-                        <option value="Unsuitable">Unsuitable</option>
-                        <option value="Available">Available</option>
-                        <option value="Tagged">Tagged</option>
-                      </select>
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[9px] text-zinc-600 font-bold uppercase">Pinned Comment</span>
-                      <select
-                        value={formPinnedCommentStatus}
-                        onChange={(e) => setFormPinnedCommentStatus(e.target.value as any)}
-                        className="bg-zinc-900 border border-zinc-850 rounded px-2.5 py-1.5 text-zinc-300 focus:outline-none"
-                      >
-                        <option value="None">None</option>
-                        <option value="Added">Added</option>
-                      </select>
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[9px] text-zinc-600 font-bold uppercase">Members Promotion</span>
-                      <select
-                        value={formMembersPromotionStatus}
-                        onChange={(e) => setFormMembersPromotionStatus(e.target.value as any)}
-                        className="bg-zinc-900 border border-zinc-850 rounded px-2.5 py-1.5 text-zinc-300 focus:outline-none"
-                      >
-                        <option value="None">None</option>
-                        <option value="Promoted">Promoted</option>
-                      </select>
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[9px] text-zinc-600 font-bold uppercase">Brand Collab</span>
-                      <select
-                        value={formBrandCollabStatus}
-                        onChange={(e) => setFormBrandCollabStatus(e.target.value as any)}
-                        className="bg-zinc-900 border border-zinc-850 rounded px-2.5 py-1.5 text-zinc-300 focus:outline-none"
-                      >
-                        <option value="None">None</option>
-                        <option value="Attached">Attached</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>}
               </div>
 
               {/* Actions Footer */}
@@ -934,7 +876,8 @@ export default function RawDataViewer({
                   <button
                     type="button"
                     onClick={handleSaveForm}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-1.5 rounded uppercase tracking-wider text-[10px]"
+                    disabled={!formTitle.trim()}
+                    className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-600 disabled:cursor-not-allowed text-white font-bold px-4 py-1.5 rounded uppercase tracking-wider text-[10px]"
                   >
                     {editingVideo ? 'Commit Changes' : 'Inject Record'}
                   </button>

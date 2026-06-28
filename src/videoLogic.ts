@@ -1,6 +1,7 @@
 import { VideoItem, VideoRevenueEligibility, VideoStatus } from './types';
 
 export const EMPTY_REVENUE_ELIGIBILITY: VideoRevenueEligibility = {
+  neutral: false,
   viralPotential: false,
   productTag: false,
   pinnedComment: false,
@@ -23,6 +24,7 @@ export function calculateRevenueLevel(
   // Members-only work is subscription value rather than direct per-video revenue.
   // It is deliberately fixed at the high-risk/high-reward Level 5.
   if (lane === 'LearnDriven Members-only Videos') return 5;
+  if (eligibility.neutral) return 0.5;
   if (eligibility.brandCollaboration) return 20;
   if (eligibility.breakoutAttempt) return 10;
 
@@ -45,13 +47,14 @@ export function calculateRevenueLevel(
 }
 
 export function inferRevenueEligibility(video: VideoItem): VideoRevenueEligibility {
-  if (video.revenueEligibility) return video.revenueEligibility;
+  if (video.revenueEligibility) return { ...EMPTY_REVENUE_ELIGIBILITY, ...video.revenueEligibility };
 
   const level = video.revenueLevelTarget;
   return {
+    neutral: level === 0.5,
     viralPotential: [2, 3, 4, 8, 8.5, 9, 9.5, 10].includes(level),
     productTag: video.productTagStatus === 'Tagged' || [3, 4, 6.5, 7.5, 8.5, 9.5].includes(level),
-    pinnedComment: video.pinnedCommentStatus === 'Added' || level === 4,
+    pinnedComment: video.pinnedCommentStatus === 'Added' || video.membersPromotionStatus === 'Promoted' || level === 4,
     overEightMinutes: [7, 7.5, 9, 9.5].includes(level),
     breakoutAttempt: level === 10,
     brandCollaboration: video.brandCollabStatus === 'Attached' || level === 20,
@@ -109,6 +112,7 @@ function classifyBand(score: number, thresholds: [number, number, number]): Earn
 
 export function getEarningOutlook(videos: VideoItem[]) {
   const levelWeight = (level: number) => {
+    if (level <= 0.5) return 0.5;
     if (level <= 2) return 1;
     if (level <= 5) return 2;
     if (level <= 7.5) return 3;

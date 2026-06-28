@@ -193,5 +193,82 @@
   pointer-events: none;
 }
 
+/* Optional light workspace. The dark theme remains the unmodified default. */
+html.theme-light body {
+  background-color: #e9eef5;
+  color: #1f2937;
+}
+
+html.theme-light .bg-grid-pattern {
+  background-color: #edf2f7 !important;
+  background-image: radial-gradient(circle, rgba(15, 23, 42, 0.08) 1px, transparent 1px);
+}
+
+html.theme-light [class*="bg-zinc-950"] {
+  background-color: rgba(248, 250, 252, 0.96) !important;
+}
+
+html.theme-light [class*="bg-zinc-900"] {
+  background-color: rgba(226, 232, 240, 0.82) !important;
+}
+
+html.theme-light [class*="border-zinc-900"],
+html.theme-light [class*="border-zinc-850"],
+html.theme-light [class*="border-zinc-800"] {
+  border-color: rgba(148, 163, 184, 0.5) !important;
+}
+
+html.theme-light [class*="border-zinc-700"] {
+  border-color: rgba(100, 116, 139, 0.55) !important;
+}
+
+html.theme-light [class*="text-white"],
+html.theme-light [class*="text-zinc-100"],
+html.theme-light [class*="text-zinc-150"],
+html.theme-light [class*="text-zinc-200"],
+html.theme-light [class*="text-zinc-300"] {
+  color: #172033 !important;
+}
+
+html.theme-light [class*="text-zinc-400"] {
+  color: #3f4d63 !important;
+}
+
+html.theme-light [class*="text-zinc-500"],
+html.theme-light [class*="text-zinc-600"] {
+  color: #64748b !important;
+}
+
+html.theme-light input,
+html.theme-light select,
+html.theme-light textarea {
+  color: #172033 !important;
+  background-color: #f8fafc !important;
+}
+
+html.theme-light input::placeholder,
+html.theme-light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.theme-light .preserve-dark,
+html.theme-light .preserve-dark [class*="bg-zinc-950"],
+html.theme-light .preserve-dark [class*="bg-zinc-900"] {
+  background-color: #09090b !important;
+}
+
+html.theme-light .preserve-dark [class*="text-white"],
+html.theme-light .preserve-dark [class*="text-zinc-100"],
+html.theme-light .preserve-dark [class*="text-zinc-200"] {
+  color: #f4f4f5 !important;
+}
+
+html.theme-light ::-webkit-scrollbar-track {
+  background: #e2e8f0;
+}
+
+html.theme-light ::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+}
 
 
