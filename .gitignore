@@ -9,3 +9,4 @@ coverage/
 
 .vercel
 /scripts/apply-supabase-schema.ps1
+/supabase/.temp/
