@@ -13,9 +13,11 @@ import RawDataViewer from './components/RawDataViewer';
 import MonthlySetupWizard from './components/MonthlySetupWizard';
 import PriorityUpdates from './components/PriorityUpdates';
 import TacticalActionSteps from './components/TacticalActionSteps';
-import { AlertTriangle, RefreshCw, Shield } from 'lucide-react';
+import { AlertTriangle, Cloud, LogOut, RefreshCw, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { calculateRevenueLevel, getLocalDateString, inferRevenueEligibility, migrateVideo } from './videoLogic';
+import { useDashboardCloudSync } from './cloudSync';
+import { useCloud } from './cloud';
 
 const LOCAL_STORAGE_KEY_GOALS = 'creator_os_goals';
 const LOCAL_STORAGE_KEY_VIDEOS = 'creator_os_videos';
@@ -343,7 +345,7 @@ export default function App() {
       .map(migrateVideo);
   });
 
-  const [revenueLevels] = useState<RevenueLevelConfig[]>(() => {
+  const [revenueLevels, setRevenueLevels] = useState<RevenueLevelConfig[]>(() => {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY_REV_LEVELS);
     return saved ? JSON.parse(saved) : INITIAL_REVENUE_CONFIGS;
   });
@@ -363,6 +365,9 @@ export default function App() {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY_WELLBEING_HISTORY);
     return saved ? JSON.parse(saved) : [];
   });
+
+  const { email, syncStatus, signOut } = useCloud();
+  useDashboardCloudSync({ goals, videos, revenueLevels, productOpportunities, nodes, wellbeingHistory, setGoals, setVideos, setRevenueLevels, setProductOpportunities, setNodes, setWellbeingHistory });
 
   // Cinematic reset triggers
   const [isResetting, setIsResetting] = useState(false);
@@ -647,6 +652,11 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#060607] text-zinc-300 relative bg-grid-pattern selection:bg-emerald-500/20 selection:text-emerald-400">
+      <div className="fixed bottom-4 right-4 z-[100] flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-950/95 px-3 py-2 shadow-xl font-mono">
+        <Cloud className={`h-3.5 w-3.5 ${syncStatus === 'error' ? 'text-rose-400' : syncStatus === 'saving' || syncStatus === 'loading' ? 'text-amber-400 animate-pulse' : syncStatus === 'saved' ? 'text-emerald-400' : 'text-zinc-500'}`} />
+        <span className="text-[8px] text-zinc-500 uppercase">{syncStatus === 'local' ? 'Local storage' : syncStatus === 'loading' ? 'Loading cloud data' : syncStatus === 'saving' ? 'Saving' : syncStatus === 'saved' ? 'Cloud saved' : 'Cloud sync error'}</span>
+        {email && <button onClick={signOut} title={`Sign out ${email}`} className="ml-1 border-l border-zinc-800 pl-2 text-zinc-600 hover:text-white"><LogOut className="h-3.5 w-3.5" /></button>}
+      </div>
       
       {/* Reset matrix/glitch effect overlay */}
       <AnimatePresence>

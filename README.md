@@ -18,6 +18,6 @@ A private creator workflow dashboard for video planning, production status, earn
 
 The production output is generated in `dist/`.
 
-## Current data storage
+## Data storage
 
-The application currently stores dashboard records in browser local storage. Cloud authentication and database sync should be connected before relying on the deployed version across devices.
+The application uses Supabase email authentication and a row-level-secured cloud state record. Browser local storage remains available as a local backup.
