@@ -1,0 +1,6 @@
+{
+  "name": "System Hub Dashboard",
+  "description": "Unified Tactical Command Dashboard for YouTube creators managing LearnDriven and DecodeWorthy.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
