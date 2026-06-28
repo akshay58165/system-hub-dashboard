@@ -67,7 +67,7 @@ export default function DailyStateDashboard({ nodes, history, onUpdateNode }: Pr
   const sorted = [...nodes].sort((a, b) => a.value - b.value);
   const latestByNode = todayHistory.filter((entry, index, all) => all.findIndex(item => item.nodeId === entry.nodeId) === index);
 
-  return <div className="space-y-4">
+  return <div id="wellbeing-dashboard" className="space-y-4 scroll-mt-4">
     <header className="bg-zinc-950 border border-zinc-900 rounded-xl p-4 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-4 items-center relative overflow-hidden">
       <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-cyan-400 via-emerald-400 to-purple-500" />
       <div className="pl-2"><div className="flex items-center gap-2 text-[10px] text-cyan-400 font-mono font-bold tracking-widest"><ScanLine className="h-4 w-4 animate-pulse" />LIVE DAILY STATE</div><h2 className="text-base font-bold text-white mt-1">Record what changed—not how the entire day felt.</h2><p className="text-[10px] text-zinc-500 mt-1">Each adjustment starts a new time segment. Your dashboard uses the latest state until you change it again.</p></div>

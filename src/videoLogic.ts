@@ -20,8 +20,10 @@ export function calculateRevenueLevel(
   lane: VideoItem['contentLane'],
   eligibility: VideoRevenueEligibility,
 ): number {
-  if (eligibility.brandCollaboration) return 20;
+  // Members-only work is subscription value rather than direct per-video revenue.
+  // It is deliberately fixed at the high-risk/high-reward Level 5.
   if (lane === 'LearnDriven Members-only Videos') return 5;
+  if (eligibility.brandCollaboration) return 20;
   if (eligibility.breakoutAttempt) return 10;
 
   if (lane === 'LearnDriven Long Videos') {
@@ -34,11 +36,12 @@ export function calculateRevenueLevel(
     return eligibility.productTag ? 6.5 : 6;
   }
 
-  const shortLevel = eligibility.viralPotential
-    ? (eligibility.productTag ? 3 : 2)
-    : 1;
-
-  return eligibility.pinnedComment ? Math.max(4, shortLevel) : shortLevel;
+  // A pinned promotion is not valuable by itself. Level 4 represents the
+  // compounding combination of reach + a relevant product + a pinned path.
+  if (eligibility.viralPotential && eligibility.productTag && eligibility.pinnedComment) return 4;
+  if (eligibility.viralPotential && eligibility.productTag) return 3;
+  if (eligibility.viralPotential) return 2;
+  return 1;
 }
 
 export function inferRevenueEligibility(video: VideoItem): VideoRevenueEligibility {
@@ -46,8 +49,8 @@ export function inferRevenueEligibility(video: VideoItem): VideoRevenueEligibili
 
   const level = video.revenueLevelTarget;
   return {
-    viralPotential: [2, 3, 8, 8.5, 9, 9.5, 10].includes(level),
-    productTag: video.productTagStatus !== 'Unsuitable' || [3, 6.5, 7.5, 8.5, 9.5].includes(level),
+    viralPotential: [2, 3, 4, 8, 8.5, 9, 9.5, 10].includes(level),
+    productTag: video.productTagStatus === 'Tagged' || [3, 4, 6.5, 7.5, 8.5, 9.5].includes(level),
     pinnedComment: video.pinnedCommentStatus === 'Added' || level === 4,
     overEightMinutes: [7, 7.5, 9, 9.5].includes(level),
     breakoutAttempt: level === 10,

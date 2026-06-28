@@ -759,6 +759,10 @@ export default function RawDataViewer({
                     onChange={(e) => {
                       const lane = e.target.value as VideoItem['contentLane'];
                       setFormContentLane(lane);
+                      if (lane === 'LearnDriven Members-only Videos') {
+                        setFormEligibility({ ...EMPTY_REVENUE_ELIGIBILITY });
+                        return;
+                      }
                       if (lane !== 'LearnDriven Long Videos') setFormEligibility(prev => ({ ...prev, overEightMinutes: false }));
                     }}
                     className="w-full bg-zinc-900 border border-zinc-850 focus:border-emerald-500 rounded px-3 py-2 text-zinc-100 focus:outline-none"
@@ -776,7 +780,7 @@ export default function RawDataViewer({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] text-zinc-500 uppercase font-bold">Automatic Revenue Level</label>
+                  <label className="text-[10px] text-zinc-500 uppercase font-bold">{formContentLane === 'LearnDriven Members-only Videos' ? 'Fixed High-Risk / High-Reward Level' : 'Automatic Revenue Level'}</label>
                   <div className="bg-cyan-950/10 border border-cyan-900/40 rounded px-3 py-2 text-cyan-300 font-bold">Level {calculateRevenueLevel(formContentLane, formEligibility)}</div>
                 </div>
 
@@ -800,7 +804,7 @@ export default function RawDataViewer({
                   </select>
                 </div>
 
-                <div className="md:col-span-2 border-t border-zinc-900 pt-3 space-y-2">
+                {formContentLane !== 'LearnDriven Members-only Videos' && <div className="md:col-span-2 border-t border-zinc-900 pt-3 space-y-2">
                   <div><span className="text-[10px] text-zinc-500 uppercase font-bold">Revenue Eligibility</span><p className="text-[9px] text-zinc-600 mt-0.5">The level updates automatically from these choices.</p></div>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                     {([
@@ -817,7 +821,7 @@ export default function RawDataViewer({
                       </label>
                     ))}
                   </div>
-                </div>
+                </div>}
 
                 {editingVideo && (
                   <div className="space-y-1">
@@ -846,7 +850,7 @@ export default function RawDataViewer({
                 </div>
 
                 {/* Additional metadata tags */}
-                <div className="md:col-span-2 border-t border-zinc-900 pt-3 space-y-2">
+                {formContentLane !== 'LearnDriven Members-only Videos' && <div className="md:col-span-2 border-t border-zinc-900 pt-3 space-y-2">
                   <h3 className="text-[9px] text-zinc-500 uppercase font-bold tracking-wider">Promotion & Monetization Toggles</h3>
                   <div className="grid grid-cols-2 gap-2 text-[10px]">
                     <div className="flex flex-col gap-1">
@@ -898,7 +902,7 @@ export default function RawDataViewer({
                       </select>
                     </div>
                   </div>
-                </div>
+                </div>}
               </div>
 
               {/* Actions Footer */}

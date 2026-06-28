@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  MonthlyGoals, VideoItem, RevenueLevelConfig, ProductOpportunity, CalibrationNode, WellbeingEntry
+  MonthlyGoals, VideoItem, RevenueLevelConfig, ProductOpportunity, CalibrationNode, WellbeingEntry, DashboardActionTarget
 } from './types';
 import Header from './components/Header';
 import MissionControl from './components/MissionControl';
@@ -12,12 +12,13 @@ import DailyStateDashboard from './components/DailyStateDashboard';
 import RawDataViewer from './components/RawDataViewer';
 import MonthlySetupWizard from './components/MonthlySetupWizard';
 import PriorityUpdates from './components/PriorityUpdates';
-import TacticalActionSteps from './components/TacticalActionSteps';
+import ActionNavigator from './components/ActionNavigator';
+import TimeAwareCoach from './components/TimeAwareCoach';
 import { AlertTriangle, Cloud, LogOut, RefreshCw, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { calculateRevenueLevel, getLocalDateString, inferRevenueEligibility, migrateVideo } from './videoLogic';
 import { useDashboardCloudSync } from './cloudSync';
-import { useCloud } from './cloud';
+import { supabase, useCloud } from './cloud';
 
 const LOCAL_STORAGE_KEY_GOALS = 'creator_os_goals';
 const LOCAL_STORAGE_KEY_VIDEOS = 'creator_os_videos';
@@ -268,8 +269,8 @@ const INITIAL_REVENUE_CONFIGS: RevenueLevelConfig[] = [
   { level: 1, description: 'Short video, cold topic', difficulty: 'Easy', requiredConditions: [], suggestedActions: [] },
   { level: 2, description: 'Short video, viral topic', difficulty: 'Medium', requiredConditions: [], suggestedActions: [] },
   { level: 3, description: 'Viral short video + tagged product', difficulty: 'Medium', requiredConditions: [], suggestedActions: [] },
-  { level: 4, description: 'Video + pinned comment promoting members', difficulty: 'Easy', requiredConditions: [], suggestedActions: [] },
-  { level: 5, description: 'Members-only video subscription value', difficulty: 'Medium', requiredConditions: [], suggestedActions: [] },
+  { level: 4, description: 'Viral short + relevant product + pinned promotion', difficulty: 'Hard', requiredConditions: [], suggestedActions: [] },
+  { level: 5, description: 'Members-only subscription value (high risk, high reward)', difficulty: 'Hard', requiredConditions: [], suggestedActions: [] },
   { level: 6, description: 'Long video under 8 minutes, steady topic', difficulty: 'Medium', requiredConditions: [], suggestedActions: [] },
   { level: 6.5, description: 'Long video under 8 minutes with a tagged product', difficulty: 'Medium', requiredConditions: [], suggestedActions: [] },
   { level: 7, description: 'Long video over 8 minutes, steady topic', difficulty: 'Hard', requiredConditions: [], suggestedActions: [] },
@@ -322,6 +323,10 @@ const EFFORT_CONFIG = {
 export default function App() {
   const [activeTab, setActiveTab] = useState<'mission' | 'health'>('mission');
   const [isSetupOpen, setIsSetupOpen] = useState(false);
+  const [isZoneChoiceOpen, setIsZoneChoiceOpen] = useState(false);
+  const [zoneSetupMode, setZoneSetupMode] = useState<'edit' | 'new'>('edit');
+  const [wizardGoals, setWizardGoals] = useState<MonthlyGoals>(INITIAL_GOALS);
+  const [actionTarget, setActionTarget] = useState<DashboardActionTarget | null>(null);
 
   // Core Database States
   const [goals, setGoals] = useState<MonthlyGoals>(() => {
@@ -366,7 +371,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  const { email, syncStatus, signOut } = useCloud();
+  const { email, userId, syncStatus, signOut } = useCloud();
   useDashboardCloudSync({ goals, videos, revenueLevels, productOpportunities, nodes, wellbeingHistory, setGoals, setVideos, setRevenueLevels, setProductOpportunities, setNodes, setWellbeingHistory });
 
   // Cinematic reset triggers
@@ -573,6 +578,45 @@ export default function App() {
     }
   };
 
+  const navigateToAction = (target: DashboardActionTarget) => {
+    const nextTarget = { ...target, requestId: Date.now() } as DashboardActionTarget;
+    if (target.type === 'health') {
+      setActiveTab('health');
+      window.setTimeout(() => document.getElementById('wellbeing-dashboard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+      return;
+    }
+    setActiveTab('mission');
+    setActionTarget(nextTarget);
+    window.setTimeout(() => document.getElementById('pipeline-board')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+  };
+
+  const openZoneSetup = () => {
+    const hasActiveZone = goals.workdaysAvailable > 0 || (goals.ldShortsTarget + goals.ldLongTarget + goals.ldMembersTarget + goals.dwShortsTarget) > 0;
+    if (hasActiveZone) {
+      setIsZoneChoiceOpen(true);
+    } else {
+      setZoneSetupMode('new');
+      setWizardGoals(goals);
+      setIsSetupOpen(true);
+    }
+  };
+
+  const startZoneSetup = (mode: 'edit' | 'new') => {
+    setZoneSetupMode(mode);
+    setWizardGoals(mode === 'edit' ? goals : { ...INITIAL_GOALS, month: getLocalDateString().slice(0, 7) });
+    setIsZoneChoiceOpen(false);
+    setIsSetupOpen(true);
+  };
+
+  const saveZone = (nextGoals: MonthlyGoals) => {
+    if (zoneSetupMode === 'new') {
+      setVideos([]);
+      setProductOpportunities([]);
+    }
+    setGoals(nextGoals);
+    setIsSetupOpen(false);
+  };
+
   // Trigger reset verification
   const handleTriggerResetModal = () => {
     setIsFactoryResetModalOpen(true);
@@ -581,8 +625,15 @@ export default function App() {
   };
 
   // Verify correct decryption password
-  const handleVerifyResetPassword = () => {
+  const handleVerifyResetPassword = async () => {
     if (resetPassword === 'itisakshaysorder') {
+      if (supabase && userId) {
+        const { error } = await supabase.from('dashboard_state').delete().eq('user_id', userId);
+        if (error) {
+          setResetPasswordError('CLOUD DATABASE RESET FAILED. NOTHING WAS DELETED.');
+          return;
+        }
+      }
       setIsFactoryResetModalOpen(false);
       handleFactoryHardReset();
     } else {
@@ -602,6 +653,7 @@ export default function App() {
       '>>> CLEARING ACTIVE VIDEO WORKFLOWS...',
       '>>> CLEARING DASHBOARD METRICS... OK',
       '>>> CLEARING SAVED BROWSER DATA... OK',
+      '>>> WIPING YOUR CLOUD DATABASE RECORD... OK',
       '>>> DELETING ALL VIDEO RECORDS... OK',
       '>>> RESETTING WELLBEING SCORES... OK',
       '>>> RESETTING MONTHLY GOALS... OK',
@@ -642,10 +694,11 @@ export default function App() {
 
       setGoals(resetGoals);
       setVideos([]);
+      setRevenueLevels(INITIAL_REVENUE_CONFIGS);
       setProductOpportunities([]);
       setNodes(INITIAL_CALIBRATION_NODES.map(n => ({ ...n, value: 0 })));
       setWellbeingHistory([]);
-      localStorage.clear();
+      [LOCAL_STORAGE_KEY_GOALS, LOCAL_STORAGE_KEY_VIDEOS, LOCAL_STORAGE_KEY_REV_LEVELS, LOCAL_STORAGE_KEY_PRODUCTS, LOCAL_STORAGE_KEY_NODES, LOCAL_STORAGE_KEY_WELLBEING_HISTORY].forEach(key => localStorage.removeItem(key));
       setIsResetting(false);
     }, 3200);
   };
@@ -703,7 +756,7 @@ export default function App() {
         <Header 
           activeTab={activeTab} 
           setActiveTab={setActiveTab} 
-          openSetupWizard={() => setIsSetupOpen(true)}
+          openSetupWizard={openZoneSetup}
           isHardReset={isResetting}
           selectedMonth={goals.month}
           intensityMode={goals.intensityMode}
@@ -718,6 +771,15 @@ export default function App() {
           videos={videos} 
           productOpportunities={productOpportunities} 
           goals={goals} 
+          nodes={nodes}
+          onNavigate={navigateToAction}
+        />
+
+        <TimeAwareCoach
+          goals={goals}
+          nodes={nodes}
+          wellbeingHistory={wellbeingHistory}
+          onNavigate={navigateToAction}
         />
 
         {/* Workspace Hub Info strip */}
@@ -751,12 +813,11 @@ export default function App() {
                 className="space-y-6"
               >
                 {/* Dynamic Tactical Action Steps Board */}
-                <TacticalActionSteps 
+                <ActionNavigator
                   videos={videos}
                   productOpportunities={productOpportunities}
                   goals={goals}
-                  onUpdateVideo={handleUpdateVideo}
-                  onUpdateProductOpportunity={handleUpdateProductOpportunity}
+                  onNavigate={navigateToAction}
                 />
 
                 {/* Row 1: Top level summary stats */}
@@ -818,6 +879,7 @@ export default function App() {
                   onUpdateVideo={handleUpdateVideo}
                   onAddVideo={handleAddVideo}
                   onDeleteVideo={handleDeleteVideo}
+                  focusRequest={actionTarget}
                 />
 
                 {/* Row 4: Smart Action Prompts (Full Width) */}
@@ -828,6 +890,7 @@ export default function App() {
                   todayDay={todayDay}
                   totalDays={totalDays}
                   onApplyUpgrade={handleApplyUpgrade}
+                  onNavigate={navigateToAction}
                 />
 
                 {/* Structured Database records */}
@@ -876,9 +939,25 @@ export default function App() {
         <MonthlySetupWizard 
           isOpen={isSetupOpen}
           onClose={() => setIsSetupOpen(false)}
-          currentGoals={goals}
-          onSave={setGoals}
+          currentGoals={wizardGoals}
+          onSave={saveZone}
         />
+
+        <AnimatePresence>
+          {isZoneChoiceOpen && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 font-mono">
+              <motion.div initial={{ scale: 0.96, y: 8 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, y: 8 }} className="w-full max-w-md rounded-lg border border-amber-900/50 bg-zinc-950 p-5 shadow-2xl space-y-4">
+                <div className="flex items-center gap-2 text-amber-400 font-bold uppercase text-sm"><AlertTriangle className="h-4 w-4" /> Zone already active</div>
+                <p className="text-xs leading-relaxed text-zinc-400">Starting a new zone will clear the current video progress and product opportunities when you save the new zone. Your wellbeing history will remain available.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button type="button" onClick={() => startZoneSetup('new')} className="rounded border border-rose-900/60 bg-rose-950/20 px-4 py-3 text-[10px] font-bold uppercase text-rose-400 hover:bg-rose-950/40">Start a new zone</button>
+                  <button type="button" onClick={() => startZoneSetup('edit')} className="rounded border border-emerald-900/60 bg-emerald-950/20 px-4 py-3 text-[10px] font-bold uppercase text-emerald-400 hover:bg-emerald-950/40">Edit current zone</button>
+                </div>
+                <button type="button" onClick={() => setIsZoneChoiceOpen(false)} className="w-full text-[9px] uppercase text-zinc-600 hover:text-zinc-300">Cancel</button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Factory Reset Password Modal */}
         <AnimatePresence>
@@ -910,7 +989,7 @@ export default function App() {
 
                 <div className="space-y-2">
                   <p className="text-[10px] text-zinc-500 leading-normal uppercase">
-                    Warning: This permanently deletes every saved input, video, goal, and dashboard setting from this browser.
+                    Warning: This permanently deletes every saved input, video, goal, wellbeing entry, and dashboard setting from this browser and your signed-in cloud database record.
                   </p>
                   <div className="space-y-1">
                     <label className="text-[9px] text-zinc-400 block font-bold uppercase tracking-wider">

@@ -435,6 +435,17 @@ export default function MissionControl({
     }
   };
 
+  const channelProgress = (channel: VideoItem['channel']) => {
+    const channelVideos = videos.filter(video => video.channel === channel);
+    return {
+      shot: channelVideos.filter(video => video.pipeline.shoot === 'Done').length,
+      edited: channelVideos.filter(video => video.pipeline.edit === 'Done').length,
+      scheduled: channelVideos.filter(video => video.pipeline.schedule === 'Done').length,
+    };
+  };
+  const learnDrivenProgress = channelProgress('LearnDriven');
+  const decodeWorthyProgress = channelProgress('DecodeWorthy');
+
   return (
     <div className="space-y-6">
       {/* Creator Command Radar Scan & Master Telemetry Line */}
@@ -459,9 +470,9 @@ export default function MissionControl({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 lg:border-l lg:border-zinc-900 lg:pl-4">
-          <div className="bg-zinc-900/25 border border-zinc-900 rounded p-2"><span className="text-[7px] text-zinc-600 uppercase block">Pace consequence</span><strong className={`text-[9px] block mt-1 ${paceRatio < 100 ? 'text-rose-400' : 'text-emerald-400'}`}>{paceRatio < 75 ? 'Output is slipping sharply' : paceRatio < 100 ? 'Slightly behind the plan' : 'Current pace supports the plan'}</strong></div>
-          <div className="bg-zinc-900/25 border border-zinc-900 rounded p-2"><span className="text-[7px] text-zinc-600 uppercase block">Schedule exposure</span><strong className={`text-[9px] block mt-1 ${bufferCount === 0 ? 'text-rose-400' : 'text-zinc-300'}`}>{bufferCount === 0 ? 'Next delay affects publishing' : `${bufferCount} protected days available`}</strong></div>
-          <div className="bg-zinc-900/25 border border-zinc-900 rounded p-2"><span className="text-[7px] text-zinc-600 uppercase block">Capacity constraint</span><strong className="text-[9px] text-amber-400 block mt-1">{weakestSignal ? `${weakestSignal.label}: ${weakestSignal.value}/10` : 'No state data yet'}</strong></div>
+          <div className="bg-zinc-900/25 border border-zinc-900 rounded p-2"><span className="text-[7px] text-zinc-600 uppercase block">Videos shot</span><div className="flex justify-between gap-3 mt-1 text-[9px] font-bold"><span className="text-emerald-400">LD {learnDrivenProgress.shot}</span><span className="text-cyan-400">DW {decodeWorthyProgress.shot}</span></div></div>
+          <div className="bg-zinc-900/25 border border-zinc-900 rounded p-2"><span className="text-[7px] text-zinc-600 uppercase block">Videos edited</span><div className="flex justify-between gap-3 mt-1 text-[9px] font-bold"><span className="text-emerald-400">LD {learnDrivenProgress.edited}</span><span className="text-cyan-400">DW {decodeWorthyProgress.edited}</span></div></div>
+          <div className="bg-zinc-900/25 border border-zinc-900 rounded p-2"><span className="text-[7px] text-zinc-600 uppercase block">Videos scheduled</span><div className="flex justify-between gap-3 mt-1 text-[9px] font-bold"><span className="text-emerald-400">LD {learnDrivenProgress.scheduled}</span><span className="text-cyan-400">DW {decodeWorthyProgress.scheduled}</span></div></div>
         </div>
 
         {/* Top Mini Telemetry Counters */}

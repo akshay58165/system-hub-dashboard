@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { VideoItem, VideoStage, StageStatus, MonthlyGoals, RevenueLevelConfig, VideoRevenueEligibility, VideoStatus } from '../types';
+import React, { useEffect, useState } from 'react';
+import { VideoItem, VideoStage, StageStatus, MonthlyGoals, RevenueLevelConfig, VideoRevenueEligibility, VideoStatus, DashboardActionTarget } from '../types';
 import { 
   Plus, Calendar, HelpCircle, Check, ArrowRight, ArrowLeft, 
   Trash2, ShieldAlert, BadgeDollarSign, Tag, MessageSquare, Flame, Edit3, X, Sparkles, Activity
@@ -14,6 +14,7 @@ interface PipelineBoardProps {
   onUpdateVideo: (video: VideoItem) => void;
   onAddVideo: (video: Omit<VideoItem, 'id' | 'completionPercentage'>) => void;
   onDeleteVideo: (id: string) => void;
+  focusRequest?: DashboardActionTarget | null;
 }
 
 const getStatusConfig = (status: VideoStatus) => {
@@ -68,10 +69,12 @@ export default function PipelineBoard({
   revenueLevels,
   onUpdateVideo, 
   onAddVideo, 
-  onDeleteVideo 
+  onDeleteVideo,
+  focusRequest
 }: PipelineBoardProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
+  const [focusedVideoId, setFocusedVideoId] = useState<string | null>(null);
   
   // New Video Form State
   const [newTitle, setNewTitle] = useState('');
@@ -88,12 +91,30 @@ export default function PipelineBoard({
   const calculatedRevenueConfig = revenueLevels.find(level => level.level === calculatedRevenueLevel);
   const eligibilityOptions: Array<{ key: keyof VideoRevenueEligibility; label: string; description: string; visible: boolean }> = [
     { key: 'viralPotential', label: 'Viral topic potential', description: 'The idea has a strong timely or shareable hook.', visible: newLane !== 'LearnDriven Members-only Videos' },
-    { key: 'productTag', label: 'Relevant product tag', description: 'A genuinely useful product can be attached to this topic.', visible: true },
+    { key: 'productTag', label: 'Relevant product tag', description: 'A genuinely useful product can be attached to this topic.', visible: newLane !== 'LearnDriven Members-only Videos' },
     { key: 'pinnedComment', label: 'Pinned promotion or link', description: 'A relevant member video, resource, or offer can be pinned.', visible: newLane !== 'LearnDriven Members-only Videos' },
     { key: 'overEightMinutes', label: 'Can naturally exceed 8 minutes', description: 'The topic supports an 8+ minute video without padding.', visible: newLane === 'LearnDriven Long Videos' },
     { key: 'breakoutAttempt', label: 'Experimental breakout attempt', description: 'A high-risk idea intentionally designed for exceptional reach.', visible: newLane !== 'LearnDriven Members-only Videos' },
-    { key: 'brandCollaboration', label: 'Brand collaboration attached', description: 'A confirmed sponsor or paid brand integration is attached.', visible: true },
+    { key: 'brandCollaboration', label: 'Brand collaboration attached', description: 'A confirmed sponsor or paid brand integration is attached.', visible: newLane !== 'LearnDriven Members-only Videos' },
   ];
+
+  useEffect(() => {
+    if (!focusRequest) return;
+    if (focusRequest.type === 'add-video') {
+      const channel = focusRequest.lane === 'DecodeWorthy Shorts' ? 'DecodeWorthy' : 'LearnDriven';
+      setNewChannel(channel);
+      setNewLane(focusRequest.lane);
+      setNewEligibility({ ...EMPTY_REVENUE_ELIGIBILITY });
+      setIsAdding(true);
+      window.setTimeout(() => document.getElementById('add-video-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 180);
+    }
+    if (focusRequest.type === 'video') {
+      setFocusedVideoId(focusRequest.videoId);
+      window.setTimeout(() => document.getElementById(`video-card-${focusRequest.videoId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' }), 180);
+      const timer = window.setTimeout(() => setFocusedVideoId(null), 3500);
+      return () => window.clearTimeout(timer);
+    }
+  }, [focusRequest?.requestId]);
   const statusOptions = [
     { value: 'neutral', label: 'Neutral', detail: 'No assessment yet', color: 'white', importance: 'low' },
     { value: 'good', label: 'Good', detail: 'No issues', color: 'emerald', importance: 'low' },
@@ -216,7 +237,7 @@ export default function PipelineBoard({
 
   const handleToggleProductTag = (video: VideoItem) => {
     const nextStatus = video.productTagStatus === 'Tagged' ? 'Available' : 'Tagged';
-    const revenueEligibility = { ...inferRevenueEligibility(video), productTag: nextStatus !== 'Available' || video.productTagStatus !== 'Unsuitable' };
+    const revenueEligibility = { ...inferRevenueEligibility(video), productTag: nextStatus === 'Tagged' };
     onUpdateVideo({
       ...video,
       productTagStatus: nextStatus,
@@ -226,7 +247,7 @@ export default function PipelineBoard({
   };
 
   return (
-    <div className="space-y-4">
+    <div id="pipeline-board" className="space-y-4 scroll-mt-4">
       {/* Header Board Controls */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-zinc-900 pb-2 mb-2">
         <div className="flex items-center gap-2">
@@ -247,7 +268,7 @@ export default function PipelineBoard({
 
       {/* Deploy Video Form Panel (Expandable) */}
       {isAdding && (
-        <form onSubmit={handleCreateVideo} className="bg-zinc-950 border border-zinc-800 p-4 rounded-lg space-y-4 font-mono text-[11px] animate-fadeIn">
+        <form id="add-video-form" onSubmit={handleCreateVideo} className="bg-zinc-950 border border-zinc-800 p-4 rounded-lg space-y-4 font-mono text-[11px] animate-fadeIn scroll-mt-24">
           <div className="flex justify-between items-center border-b border-zinc-900 pb-1.5">
             <span className="text-white font-bold tracking-wide uppercase">Add a New Video</span>
             <span className="text-zinc-600">VIDEO DETAILS</span>
@@ -288,6 +309,10 @@ export default function PipelineBoard({
                 onChange={e => {
                   const lane = e.target.value as VideoItem['contentLane'];
                   setNewLane(lane);
+                  if (lane === 'LearnDriven Members-only Videos') {
+                    setNewEligibility({ ...EMPTY_REVENUE_ELIGIBILITY });
+                    return;
+                  }
                   if (lane !== 'LearnDriven Long Videos') {
                     setNewEligibility(prev => ({ ...prev, overEightMinutes: false }));
                   }
@@ -308,6 +333,12 @@ export default function PipelineBoard({
           </div>
 
           <div className="space-y-3">
+            {newLane === 'LearnDriven Members-only Videos' ? (
+              <div className="border border-fuchsia-900/50 bg-fuchsia-950/10 rounded p-3">
+                <div className="text-fuchsia-300 font-bold uppercase">Fixed Revenue Potential: Level 5</div>
+                <p className="text-[9px] text-zinc-500 mt-1 leading-relaxed">Members-only videos create subscription value indirectly. They are treated as high risk, high reward, so no revenue eligibility choices are required.</p>
+              </div>
+            ) : (<>
             <div>
               <div className="text-zinc-400 font-bold uppercase tracking-wider">What can this video genuinely include?</div>
               <p className="text-[9px] text-zinc-600 mt-0.5">Select only what fits the topic. Revenue level is calculated automatically.</p>
@@ -328,6 +359,7 @@ export default function PipelineBoard({
                 </label>
               ))}
             </div>
+            </>)}
             <div className="border border-cyan-900/50 bg-cyan-950/10 rounded p-3 flex flex-col md:flex-row md:items-center justify-between gap-2">
               <div>
                 <span className="text-[9px] text-cyan-500 uppercase tracking-wider block">Automatically assigned</span>
@@ -390,7 +422,8 @@ export default function PipelineBoard({
                       return (
                         <div 
                           key={video.id}
-                          className={`bg-zinc-900/40 hover:bg-zinc-900/80 border transition-all rounded p-3 space-y-3 relative group ${config.borderClass}`}
+                          id={`video-card-${video.id}`}
+                          className={`bg-zinc-900/40 hover:bg-zinc-900/80 border transition-all rounded p-3 space-y-3 relative group ${config.borderClass} ${focusedVideoId === video.id ? 'ring-2 ring-cyan-400 shadow-[0_0_25px_rgba(34,211,238,0.35)] animate-pulse' : ''}`}
                         >
                           {/* Channel / Lane Badges */}
                           <div className="flex flex-wrap items-center justify-between gap-1 text-[8px] font-mono">

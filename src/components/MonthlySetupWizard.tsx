@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MonthlyGoals } from '../types';
 import { 
   X, Check, Sliders, Calendar, DollarSign, Gauge, HelpCircle, 
@@ -20,6 +20,13 @@ export default function MonthlySetupWizard({
 }: MonthlySetupWizardProps) {
   const [step, setStep] = useState(1);
   const [goals, setGoals] = useState<MonthlyGoals>({ ...currentGoals });
+
+  useEffect(() => {
+    if (isOpen) {
+      setGoals({ ...currentGoals });
+      setStep(1);
+    }
+  }, [isOpen, currentGoals]);
 
   const getDurationDays = () => {
     if (!goals.cycleStartDate || !goals.cycleEndDate) return 0;

@@ -29,12 +29,22 @@ export default function Header({
   daysRemaining
  }: HeaderProps) {
   const [time, setTime] = useState<string>('00:00:00');
+  const [dateLine, setDateLine] = useState<string>('01 JAN THURSDAY 2026');
   const [countdown, setCountdown] = useState<string>('00:00:00:00');
 
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      setTime(now.toTimeString().split(' ')[0]);
+      setTime(now.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+      }));
+      const date = String(now.getDate()).padStart(2, '0');
+      const month = now.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+      const day = now.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+      setDateLine(`${date} ${month} ${day} ${now.getFullYear()}`);
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
@@ -226,7 +236,6 @@ export default function Header({
           <span className="text-zinc-400 font-bold">CREATOR.OS</span>
           <span className="text-zinc-700">//</span>
           <span className={`${theme.accentText} flex items-center gap-1.5 font-bold transition-all duration-300`}>
-            <TactileLED color={theme.pulseLed} importance="low" active={true} />
             {theme.systemHubText}
           </span>
         </div>
@@ -311,11 +320,11 @@ export default function Header({
       <div className="flex items-center gap-4 self-stretch lg:self-auto justify-between lg:justify-end relative z-10">
         <button
           onClick={openSetupWizard}
-          className={`bg-zinc-900/90 hover:bg-zinc-800 border text-zinc-300 hover:text-emerald-400 px-3 py-2 rounded flex items-center gap-1.5 font-mono text-xs font-semibold tracking-wider transition-all uppercase hover:shadow-[0_0_12px_rgba(16,185,129,0.15)] group ${theme.hoverBorderColor}`}
+          className={`bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800/60 text-zinc-300 hover:text-emerald-400 px-3 py-2 rounded flex items-center gap-1.5 font-mono text-xs font-semibold tracking-wider transition-all uppercase hover:shadow-[0_0_12px_rgba(16,185,129,0.15)] group ${theme.hoverBorderColor}`}
           title="Set up monthly goals and working limits"
         >
           <CalendarRange className={`h-3.5 w-3.5 group-hover:scale-110 transition-transform animate-pulse ${theme.accentText}`} />
-          PLAN MONTH
+          SET ZONE
         </button>
 
         <div className="hidden sm:block text-right font-mono text-xs">
@@ -326,8 +335,9 @@ export default function Header({
           </div>
         </div>
 
-        <div className={`border px-4 py-2 rounded font-mono text-sm md:text-base font-semibold tracking-wider transition-all duration-300 shadow-inner min-w-[95px] text-center ${theme.clockBorder} ${theme.clockBg} ${theme.clockText}`}>
-          {time}
+        <div className={`border px-4 py-2 rounded font-mono font-semibold tracking-wider transition-all duration-300 shadow-inner min-w-[150px] text-center ${theme.clockBorder} ${theme.clockBg} ${theme.clockText}`}>
+          <div className="text-sm md:text-base">{time}</div>
+          <div className="mt-1 border-t border-current/15 pt-1 text-[7px] tracking-widest opacity-70 whitespace-nowrap">{dateLine}</div>
         </div>
       </div>
     </motion.header>

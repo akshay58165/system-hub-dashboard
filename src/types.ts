@@ -133,4 +133,11 @@ export interface ActionPromptLog {
   timeMode: 'quick' | 'medium' | 'deep';
   alternative: string;
   impact: string;
+  target?: DashboardActionTarget;
 }
+
+export type DashboardActionTarget =
+  | { type: 'video'; videoId: string; requestId?: number }
+  | { type: 'add-video'; lane: VideoItem['contentLane']; requestId?: number }
+  | { type: 'health'; requestId?: number }
+  | { type: 'pipeline'; requestId?: number };

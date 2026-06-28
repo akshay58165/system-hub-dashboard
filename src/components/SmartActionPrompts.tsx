@@ -1,5 +1,5 @@
 import React from 'react';
-import { VideoItem, MonthlyGoals, ActionPromptLog, RevenueLevelConfig } from '../types';
+import { VideoItem, MonthlyGoals, ActionPromptLog, RevenueLevelConfig, DashboardActionTarget } from '../types';
 import { 
   Sparkles, Clock, Flame, ShieldAlert, ChevronRight, Zap, Target, Star
 } from 'lucide-react';
@@ -13,6 +13,7 @@ interface SmartActionPromptsProps {
   todayDay: number;
   totalDays: number;
   onApplyUpgrade: (video: VideoItem, upgradeType: 'product' | 'members' | 'brand') => void;
+  onNavigate: (target: DashboardActionTarget) => void;
 }
 
 export default function SmartActionPrompts({ 
@@ -21,7 +22,8 @@ export default function SmartActionPrompts({
   revenueLevels,
   todayDay, 
   totalDays,
-  onApplyUpgrade
+  onApplyUpgrade,
+  onNavigate
 }: SmartActionPromptsProps) {
   
   // Dynamic action prompt generation engine following the requested priority order
@@ -171,7 +173,7 @@ export default function SmartActionPrompts({
     }
 
     // 8. OPTIONAL GROWTH IDEAS (e.g. Members only or Brand collaborations if enabled)
-    if (goals.brandCollabsTargeted && goals.enabledRevenueLevels.includes(20)) {
+    if (goals.brandCollabsTargeted && goals.enabledRevenueLevels.includes(20) && !videos.some(video => video.brandCollabStatus === 'Attached')) {
       list.push({
         id: 'p8_brand_outreach',
         date: todayStr,
@@ -189,6 +191,23 @@ export default function SmartActionPrompts({
   };
 
   const activePrompts = generatePrompts();
+
+  const getPromptTarget = (prompt: ActionPromptLog): DashboardActionTarget => {
+    const quotedTitle = prompt.prompt.match(/"([^"]+)"/)?.[1];
+    const matchedVideo = quotedTitle ? videos.find(video => video.title === quotedTitle) : undefined;
+    if (matchedVideo) return { type: 'video', videoId: matchedVideo.id };
+    if (prompt.id === 'p7_topics') return { type: 'add-video', lane: 'LearnDriven Shorts' };
+    if (prompt.id.includes('dw_')) {
+      const video = videos.find(item => item.contentLane === 'DecodeWorthy Shorts' && item.currentStage !== 'Done');
+      return video ? { type: 'video', videoId: video.id } : { type: 'add-video', lane: 'DecodeWorthy Shorts' };
+    }
+    if (prompt.id.includes('ld_')) {
+      const video = videos.find(item => item.contentLane === 'LearnDriven Shorts' && item.currentStage !== 'Done');
+      return video ? { type: 'video', videoId: video.id } : { type: 'add-video', lane: 'LearnDriven Shorts' };
+    }
+    const nearest = videos.find(video => video.currentStage !== 'Done');
+    return nearest ? { type: 'video', videoId: nearest.id } : { type: 'pipeline' };
+  };
 
   const sessionVideos = videos.filter(video => isVideoInCycle(video, goals.cycleStartDate, goals.cycleEndDate));
   const levelGroups = revenueLevels
@@ -232,7 +251,8 @@ export default function SmartActionPrompts({
             activePrompts.map((prompt) => (
               <div 
                 key={prompt.id}
-                className="bg-zinc-900/40 border border-zinc-850 hover:border-zinc-850 p-3 rounded-lg flex flex-col md:flex-row justify-between gap-4 transition-all relative overflow-hidden"
+                onClick={() => onNavigate(getPromptTarget(prompt))}
+                className="bg-zinc-900/40 border border-zinc-850 hover:border-emerald-800 p-3 rounded-lg flex flex-col md:flex-row justify-between gap-4 transition-all relative overflow-hidden cursor-pointer"
               >
                 {/* Decorative side indicator based on Priority */}
                 <div className={`absolute top-0 bottom-0 left-0 w-1 ${
@@ -279,6 +299,7 @@ export default function SmartActionPrompts({
                       {prompt.alternative}
                     </p>
                   </div>
+                  <button type="button" className="flex items-center justify-center gap-1 rounded border border-emerald-900/60 px-2 py-1.5 text-[8px] font-bold uppercase text-emerald-400 hover:bg-emerald-950/30">Open action <ChevronRight className="h-3 w-3" /></button>
                 </div>
 
               </div>
