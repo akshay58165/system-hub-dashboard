@@ -228,17 +228,17 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
           {/* GitHub Source Block */}
           <div 
             onClick={() => onTabChange('topics')}
-            className="md:col-span-1 p-4 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-red-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(239,68,68,0.04)] transition-all duration-300 cursor-pointer flex flex-col items-center text-center group relative overflow-hidden"
+            className="md:col-span-1 p-5 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-red-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(239,68,68,0.04)] transition-all duration-300 cursor-pointer flex flex-col items-center text-center group relative overflow-hidden min-w-[160px]"
           >
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-red-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="p-2.5 bg-neutral-900/50 rounded-full border border-neutral-900 group-hover:border-red-900/30 group-hover:bg-red-950/10 transition-colors duration-300 text-neutral-300 mb-1.5 flex items-center justify-center">
-              <Youtube className="h-4 w-4 text-red-500 group-hover:scale-110 transition-transform duration-300 animate-pulse" />
+            <div className="p-3 bg-neutral-900/50 rounded-full border border-neutral-900 group-hover:border-red-900/30 group-hover:bg-red-950/10 transition-colors duration-300 text-neutral-300 mb-2.5 flex items-center justify-center">
+              <Youtube className="h-5 w-5 text-red-500 group-hover:scale-110 transition-transform duration-300 animate-pulse" />
             </div>
-            <span className="text-[10px] font-mono font-semibold text-neutral-200">Payment Cycle</span>
+            <span className="text-xs font-mono font-bold text-neutral-200">Payment Cycle</span>
             
             {/* Current Month: Green Card */}
-            <div className="w-full mt-2.5 p-2 bg-emerald-950/10 border border-emerald-900/30 rounded-lg text-left text-[8px] font-mono select-none">
-              <div className="flex justify-between items-center border-b border-emerald-900/20 pb-1 mb-1 font-bold text-emerald-400">
+            <div className="w-full mt-3.5 p-3 bg-emerald-950/10 border border-emerald-900/30 rounded-lg text-left text-[10px] font-mono select-none space-y-1">
+              <div className="flex justify-between items-center border-b border-emerald-900/20 pb-1.5 mb-1.5 font-bold text-emerald-400">
                 <span>Current: {paymentMetrics.curMonthName}</span>
                 <span>{paymentMetrics.curPayDays} left</span>
               </div>
@@ -249,7 +249,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
                   style={getLockGlowStyle(paymentMetrics.curLockDays).style}
                 >
                   {getLockGlowStyle(paymentMetrics.curLockDays).showWarning && (
-                    <AlertTriangle className="h-3 w-3 text-red-500 shrink-0" />
+                    <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" />
                   )}
                   {paymentMetrics.curLockDays}
                 </span>
@@ -261,8 +261,8 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
             </div>
 
             {/* Bottom Card: Last/Next Month (Neutral) */}
-            <div className="w-full mt-1.5 p-2 bg-neutral-900/10 border border-neutral-900/60 rounded-lg text-left text-[8px] font-mono select-none">
-              <div className="flex justify-between items-center border-b border-neutral-900/40 pb-1 mb-1 font-bold text-neutral-400">
+            <div className="w-full mt-2.5 p-3 bg-neutral-900/10 border border-neutral-900/60 rounded-lg text-left text-[10px] font-mono select-none space-y-1">
+              <div className="flex justify-between items-center border-b border-neutral-900/40 pb-1.5 mb-1.5 font-bold text-neutral-400">
                 <span>{paymentMetrics.bottomLabel}: {paymentMetrics.bottomName}</span>
                 <span>{paymentMetrics.bottomPayDays} left</span>
               </div>
