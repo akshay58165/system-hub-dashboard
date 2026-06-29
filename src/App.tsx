@@ -18,7 +18,8 @@ import {
   Laptop,
   Trophy,
   CheckCircle2,
-  Lock
+  Lock,
+  Plus
 } from 'lucide-react';
 
 import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity } from './types';
@@ -74,6 +75,7 @@ export default function App() {
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [timeStr, setTimeStr] = useState('');
   const [lastDbUpdateTime, setLastDbUpdateTime] = useState<Date>(new Date(Date.now() - 5000));
+  const [isAddFormOpen, setIsAddFormOpen] = useState(false);
 
   // Database Reset States
   const [isResetOpen, setIsResetOpen] = useState(false);
@@ -402,12 +404,16 @@ export default function App() {
               </button>
             </div>
 
-            <div className="flex items-center gap-1 font-mono text-[10px] text-neutral-500 shrink-0">
-              <span className="hidden sm:inline">User email:</span>
-              <span className="px-2 py-0.5 bg-neutral-900 border border-neutral-850 text-neutral-300 rounded">
-                typeakshay@gmail.com
-              </span>
-            </div>
+            <button
+              onClick={() => {
+                setActiveTab('topics');
+                setIsAddFormOpen(true);
+              }}
+              className="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-black font-bold font-mono text-[11px] rounded-lg flex items-center gap-1 transition shadow-lg cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Add Topic</span>
+            </button>
           </div>
         </div>
       </nav>
@@ -444,6 +450,8 @@ export default function App() {
                 setTopics={setTopics}
                 activities={activities}
                 setActivities={setActivities}
+                isAddFormOpen={isAddFormOpen}
+                setIsAddFormOpen={setIsAddFormOpen}
               />
             )}
 

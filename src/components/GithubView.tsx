@@ -33,6 +33,8 @@ interface GithubViewProps {
   setTopics: React.Dispatch<React.SetStateAction<Topic[]>>;
   activities: TopicActivity[];
   setActivities: React.Dispatch<React.SetStateAction<TopicActivity[]>>;
+  isAddFormOpen?: boolean;
+  setIsAddFormOpen?: (open: boolean) => void;
 }
 
 // Time formatting helper
@@ -70,7 +72,9 @@ export default function GithubView({
   topics,
   setTopics,
   activities,
-  setActivities
+  setActivities,
+  isAddFormOpen: isAddFormOpenProp,
+  setIsAddFormOpen: setIsAddFormOpenProp
 }: GithubViewProps) {
   // 1. Selected channel filter: 'All' | 'LearnDriven' | 'DecodeWorthy'
   const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy'>('All');
@@ -84,7 +88,10 @@ export default function GithubView({
   // Topics and activities are now passed as props from App.tsx to support selective DB reset integrity.
 
   // Form states for creating a new Topic
-  const [isAddFormOpen, setIsAddFormOpen] = useState(false);
+  const [localIsAddFormOpen, setLocalIsAddFormOpen] = useState(false);
+  const isAddFormOpen = isAddFormOpenProp !== undefined ? isAddFormOpenProp : localIsAddFormOpen;
+  const setIsAddFormOpen = setIsAddFormOpenProp !== undefined ? setIsAddFormOpenProp : setLocalIsAddFormOpen;
+
   const [newTopicName, setNewTopicName] = useState('');
   const [newTopicDesc, setNewTopicDesc] = useState('');
   const [newTopicChannel, setNewTopicChannel] = useState<'LearnDriven' | 'DecodeWorthy' | null>(null);
