@@ -60,13 +60,15 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
       payoutDate = new Date(today.getFullYear(), today.getMonth() + 1, 21);
     }
     
-    const diffTime = payoutDate.getTime() - today.getTime();
-    const daysPending = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const lockDiff = lockDate.getTime() - today.getTime();
+    const lockDays = Math.ceil(lockDiff / (1000 * 60 * 60 * 24));
+
+    const payoutDiff = payoutDate.getTime() - today.getTime();
+    const payDays = Math.ceil(payoutDiff / (1000 * 60 * 60 * 24));
     
     return {
-      lockDate,
-      payoutDate,
-      daysPending
+      lockDays,
+      payDays
     };
   }, []);
 
@@ -141,16 +143,16 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
             </div>
             <span className="text-[10px] font-mono font-semibold text-neutral-200">Payment Cycle</span>
             <span className="text-sm font-mono font-bold text-emerald-400 mt-1 select-none">
-              {paymentMetrics.daysPending}d pending
+              {paymentMetrics.payDays}d pending
             </span>
             <div className="text-[8px] font-mono text-neutral-500 mt-1.5 pt-1 border-t border-neutral-900/60 w-full flex flex-col gap-0.5">
               <div className="flex justify-between px-1">
                 <span>Lock:</span>
-                <span className="text-neutral-300">{paymentMetrics.lockDate.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                <span className="text-neutral-300">{paymentMetrics.lockDays}d remaining</span>
               </div>
               <div className="flex justify-between px-1">
                 <span>Pay:</span>
-                <span className="text-neutral-300">{paymentMetrics.payoutDate.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                <span className="text-neutral-300">{paymentMetrics.payDays}d remaining</span>
               </div>
             </div>
           </div>
