@@ -186,7 +186,7 @@ export default function LogsView({ events, onClearEvents }: LogsViewProps) {
               </div>
             ) : (
               filteredEvents.map((evt, idx) => {
-                const logTime = new Date(evt.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+                const logTime = new Date(evt.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
                 
                 // Color mapping for types
                 const typeColors = {
