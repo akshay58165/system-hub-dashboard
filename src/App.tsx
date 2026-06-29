@@ -404,16 +404,32 @@ export default function App() {
               </button>
             </div>
 
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(59, 130, 246, 0.6)' }}
+              whileTap={{ scale: 0.95 }}
+              animate={{
+                boxShadow: [
+                  '0 0 10px rgba(59, 130, 246, 0.2)',
+                  '0 0 20px rgba(59, 130, 246, 0.4)',
+                  '0 0 10px rgba(59, 130, 246, 0.2)'
+                ]
+              }}
+              transition={{
+                boxShadow: {
+                  repeat: Infinity,
+                  duration: 2,
+                  ease: 'easeInOut'
+                }
+              }}
               onClick={() => {
                 setActiveTab('topics');
                 setIsAddFormOpen(true);
               }}
-              className="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-black font-bold font-mono text-[11px] rounded-lg flex items-center gap-1 transition shadow-lg cursor-pointer"
+              className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-black font-bold font-mono text-[11px] rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
               <span>Add Topic</span>
-            </button>
+            </motion.button>
           </div>
         </div>
       </nav>
