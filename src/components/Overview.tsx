@@ -110,6 +110,61 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
     };
   }, []);
 
+  const getLockGlowStyle = (daysStr: string) => {
+    if (daysStr === 'Locked') {
+      return {
+        color: 'text-neutral-500',
+        animationClass: '',
+        style: {},
+        showWarning: false
+      };
+    }
+    
+    let days = 0;
+    if (daysStr === 'Today') {
+      days = 0;
+    } else {
+      days = parseInt(daysStr.replace('d', ''), 10) || 0;
+    }
+
+    if (days > 20) {
+      return {
+        color: 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]',
+        animationClass: 'animate-pulse',
+        style: { animationDuration: '3s' },
+        showWarning: false
+      };
+    } else if (days > 15) {
+      return {
+        color: 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.3)]',
+        animationClass: 'animate-pulse',
+        style: { animationDuration: '2s' },
+        showWarning: false
+      };
+    } else if (days > 10) {
+      return {
+        color: 'text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.3)]',
+        animationClass: 'animate-pulse',
+        style: { animationDuration: '1.5s' },
+        showWarning: false
+      };
+    } else if (days > 5) {
+      return {
+        color: 'text-orange-400 drop-shadow-[0_0_8px_rgba(251,146,60,0.3)]',
+        animationClass: 'animate-pulse',
+        style: { animationDuration: '1s' },
+        showWarning: false
+      };
+    } else {
+      return {
+        color: 'text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)] font-bold',
+        animationClass: 'animate-pulse',
+        style: { animationDuration: days === 0 ? '0.3s' : '0.6s' },
+        showWarning: true
+      };
+    }
+  };
+
   // Merge traffic data across projects for the combined chart
   const combinedTraffic = useMemo(() => {
     if (vercelProjects.length === 0) return [];
@@ -187,9 +242,17 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
                 <span>Current: {paymentMetrics.curMonthName}</span>
                 <span>{paymentMetrics.curPayDays} left</span>
               </div>
-              <div className="flex justify-between text-neutral-400">
+              <div className="flex justify-between text-neutral-400 items-center">
                 <span>Revenue Lock:</span>
-                <span className="text-neutral-200 font-bold">{paymentMetrics.curLockDays}</span>
+                <span 
+                  className={`font-mono font-bold flex items-center gap-1 ${getLockGlowStyle(paymentMetrics.curLockDays).color} ${getLockGlowStyle(paymentMetrics.curLockDays).animationClass}`}
+                  style={getLockGlowStyle(paymentMetrics.curLockDays).style}
+                >
+                  {getLockGlowStyle(paymentMetrics.curLockDays).showWarning && (
+                    <AlertTriangle className="h-3 w-3 text-red-500 shrink-0" />
+                  )}
+                  {paymentMetrics.curLockDays}
+                </span>
               </div>
               <div className="flex justify-between text-neutral-400">
                 <span>Bank Dispatch:</span>
