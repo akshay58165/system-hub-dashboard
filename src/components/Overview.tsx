@@ -224,11 +224,11 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
         </div>
 
         {/* The Pipeline Connection Graphic */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center relative py-4 z-10">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-center relative py-4 z-10">
           {/* GitHub Source Block */}
           <div 
             onClick={() => onTabChange('topics')}
-            className="md:col-span-1 p-5 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-red-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(239,68,68,0.04)] transition-all duration-300 cursor-pointer flex flex-col items-center text-center group relative overflow-hidden min-w-[160px]"
+            className="md:col-span-2 p-5 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-red-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(239,68,68,0.04)] transition-all duration-300 cursor-pointer flex flex-col items-center text-center group relative overflow-hidden"
           >
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-red-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             <div className="p-3 bg-neutral-900/50 rounded-full border border-neutral-900 group-hover:border-red-900/30 group-hover:bg-red-950/10 transition-colors duration-300 text-neutral-300 mb-2.5 flex items-center justify-center">
@@ -236,43 +236,45 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
             </div>
             <span className="text-xs font-mono font-bold text-neutral-200">Payment Cycle</span>
             
-            {/* Current Month: Green Card */}
-            <div className="w-full mt-3.5 p-3 bg-emerald-950/10 border border-emerald-900/30 rounded-lg text-left text-[10px] font-mono select-none space-y-1">
-              <div className="flex justify-between items-center border-b border-emerald-900/20 pb-1.5 mb-1.5 font-bold text-emerald-400">
-                <span>Current: {paymentMetrics.curMonthName}</span>
-                <span>{paymentMetrics.curPayDays} left</span>
+            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3.5">
+              {/* Current Month: Green Card */}
+              <div className="p-3 bg-emerald-950/10 border border-emerald-900/30 rounded-lg text-left text-[10px] font-mono select-none space-y-1">
+                <div className="flex justify-between items-center border-b border-emerald-900/20 pb-1.5 mb-1.5 font-bold text-emerald-400">
+                  <span>Current: {paymentMetrics.curMonthName}</span>
+                  <span>{paymentMetrics.curPayDays} left</span>
+                </div>
+                <div className="flex justify-between text-neutral-400 items-center">
+                  <span>Revenue Lock:</span>
+                  <span 
+                    className={`font-mono font-bold flex items-center gap-1 ${getLockGlowStyle(paymentMetrics.curLockDays).color} ${getLockGlowStyle(paymentMetrics.curLockDays).animationClass}`}
+                    style={getLockGlowStyle(paymentMetrics.curLockDays).style}
+                  >
+                    {getLockGlowStyle(paymentMetrics.curLockDays).showWarning && (
+                      <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                    )}
+                    {paymentMetrics.curLockDays}
+                  </span>
+                </div>
+                <div className="flex justify-between text-neutral-400">
+                  <span>Bank Dispatch:</span>
+                  <span className="text-neutral-200 font-bold">{paymentMetrics.curPayDays}</span>
+                </div>
               </div>
-              <div className="flex justify-between text-neutral-400 items-center">
-                <span>Revenue Lock:</span>
-                <span 
-                  className={`font-mono font-bold flex items-center gap-1 ${getLockGlowStyle(paymentMetrics.curLockDays).color} ${getLockGlowStyle(paymentMetrics.curLockDays).animationClass}`}
-                  style={getLockGlowStyle(paymentMetrics.curLockDays).style}
-                >
-                  {getLockGlowStyle(paymentMetrics.curLockDays).showWarning && (
-                    <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" />
-                  )}
-                  {paymentMetrics.curLockDays}
-                </span>
-              </div>
-              <div className="flex justify-between text-neutral-400">
-                <span>Bank Dispatch:</span>
-                <span className="text-neutral-200 font-bold">{paymentMetrics.curPayDays}</span>
-              </div>
-            </div>
 
-            {/* Bottom Card: Last/Next Month (Neutral) */}
-            <div className="w-full mt-2.5 p-3 bg-neutral-900/10 border border-neutral-900/60 rounded-lg text-left text-[10px] font-mono select-none space-y-1">
-              <div className="flex justify-between items-center border-b border-neutral-900/40 pb-1.5 mb-1.5 font-bold text-neutral-400">
-                <span>{paymentMetrics.bottomLabel}: {paymentMetrics.bottomName}</span>
-                <span>{paymentMetrics.bottomPayDays} left</span>
-              </div>
-              <div className="flex justify-between text-neutral-500">
-                <span>Revenue Lock:</span>
-                <span className="text-neutral-300 font-bold">{paymentMetrics.bottomLockDays}</span>
-              </div>
-              <div className="flex justify-between text-neutral-500">
-                <span>Bank Dispatch:</span>
-                <span className="text-neutral-300 font-bold">{paymentMetrics.bottomPayDays}</span>
+              {/* Bottom Card: Last/Next Month (Neutral) */}
+              <div className="p-3 bg-neutral-900/10 border border-neutral-900/60 rounded-lg text-left text-[10px] font-mono select-none space-y-1">
+                <div className="flex justify-between items-center border-b border-neutral-900/40 pb-1.5 mb-1.5 font-bold text-neutral-400">
+                  <span>{paymentMetrics.bottomLabel}: {paymentMetrics.bottomName}</span>
+                  <span>{paymentMetrics.bottomPayDays} left</span>
+                </div>
+                <div className="flex justify-between text-neutral-500">
+                  <span>Revenue Lock:</span>
+                  <span className="text-neutral-300 font-bold">{paymentMetrics.bottomLockDays}</span>
+                </div>
+                <div className="flex justify-between text-neutral-500">
+                  <span>Bank Dispatch:</span>
+                  <span className="text-neutral-300 font-bold">{paymentMetrics.bottomPayDays}</span>
+                </div>
               </div>
             </div>
           </div>
