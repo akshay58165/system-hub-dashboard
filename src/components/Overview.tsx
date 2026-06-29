@@ -25,7 +25,11 @@ import {
   Tooltip, 
   BarChart, 
   Bar, 
-  CartesianGrid 
+  CartesianGrid,
+  LineChart,
+  Line,
+  Legend,
+  Brush
 } from 'recharts';
 import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic } from '../types';
 
@@ -331,6 +335,61 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
       learnDriven: getMetricsForChannel('LearnDriven'),
       decodeWorthy: getMetricsForChannel('DecodeWorthy')
     };
+  }, [topics]);
+
+  // Generate monthly timeline data for topics added vs videos scheduled
+  const monthlyTimelineData = useMemo(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const data = [];
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateObj = new Date(year, month, day);
+      const dateStr = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD
+      const dateLabel = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' }); // e.g. "Jun 1"
+
+      // LearnDriven counts
+      const ldAdded = topics.filter(t => 
+        t.channel === 'LearnDriven' && 
+        t.createdDate && 
+        t.createdDate.split('T')[0] === dateStr
+      ).length;
+
+      const ldScheduled = topics.filter(t => 
+        t.channel === 'LearnDriven' && 
+        t.status === 'scheduled' && 
+        t.dueDate && 
+        t.dueDate.split('T')[0] === dateStr
+      ).length;
+
+      // DecodeWorthy counts
+      const dwAdded = topics.filter(t => 
+        t.channel === 'DecodeWorthy' && 
+        t.createdDate && 
+        t.createdDate.split('T')[0] === dateStr
+      ).length;
+
+      const dwScheduled = topics.filter(t => 
+        t.channel === 'DecodeWorthy' && 
+        t.status === 'scheduled' && 
+        t.dueDate && 
+        t.dueDate.split('T')[0] === dateStr
+      ).length;
+
+      data.push({
+        date: dateLabel,
+        rawDate: dateStr,
+        ldAdded,
+        ldScheduled,
+        dwAdded,
+        dwScheduled
+      });
+    }
+
+    return data;
   }, [topics]);
 
   const getLockGlowStyle = (daysStr: string) => {
@@ -827,49 +886,48 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
 
       {/* Main Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Combined Traffic and Views (2 cols on large screen) */}
-        <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-5 lg:col-span-2 space-y-4 shadow-sm">
-          <div className="flex items-center justify-between">
+        {/* Left: Content Scheduling & Velocity (2 cols on large screen) */}
+        <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-5 lg:col-span-2 space-y-4 shadow-sm flex flex-col justify-between">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div>
-              <h3 className="text-sm font-semibold text-neutral-200">Viewer Traffic & Engagement</h3>
-              <p className="text-xs text-neutral-500">Aggregated viewer traffic across video distribution networks and social channels.</p>
+              <h3 className="text-sm font-semibold text-neutral-200">Content Scheduling & Velocity</h3>
+              <p className="text-xs text-neutral-500 font-sans">Dotted line = Topics Added | Solid line = Videos Scheduled</p>
             </div>
-            <div className="flex items-center gap-4 text-xs font-mono">
-              <div className="flex items-center gap-1 text-blue-400">
+            <div className="flex flex-wrap items-center gap-3.5 text-[9px] font-mono">
+              <div className="flex items-center gap-1.5 text-blue-400">
                 <span className="h-1.5 w-1.5 bg-blue-500 rounded-full" />
-                <span>Video Views</span>
+                <span>LearnDriven</span>
               </div>
-              <div className="flex items-center gap-1 text-emerald-400">
+              <div className="flex items-center gap-1.5 text-emerald-400">
                 <span className="h-1.5 w-1.5 bg-emerald-500 rounded-full" />
-                <span>Unique Viewers</span>
+                <span>DecodeWorthy</span>
               </div>
             </div>
           </div>
 
-          <div className="h-64 w-full">
+          <div className="h-64 w-full select-none font-mono">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={combinedTraffic} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorVisitors" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="date" stroke="#404040" fontSize={10} fontStyle="italic" />
-                <YAxis stroke="#404040" fontSize={10} />
+              <LineChart data={monthlyTimelineData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                <XAxis dataKey="date" stroke="#404040" fontSize={9} />
+                <YAxis stroke="#404040" fontSize={9} allowDecimals={false} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#0c0c0e', borderColor: '#1e1e24', borderRadius: '8px' }}
-                  labelStyle={{ color: '#a3a3a3', fontStyle: 'italic', fontSize: '11px' }}
-                  itemStyle={{ fontSize: '12px' }}
+                  labelStyle={{ color: '#a3a3a3', fontSize: '10px', fontWeight: 'bold' }}
+                  itemStyle={{ fontSize: '10px' }}
                 />
                 <CartesianGrid stroke="#1e1e24" strokeDasharray="3 3" />
-                <Area type="monotone" dataKey="views" name="Video Views" stroke="#3b82f6" fillOpacity={1} fill="url(#colorViews)" strokeWidth={2} />
-                <Area type="monotone" dataKey="visitors" name="Unique Viewers" stroke="#10b981" fillOpacity={1} fill="url(#colorVisitors)" strokeWidth={2} />
-              </AreaChart>
+                
+                {/* LearnDriven (Blue) */}
+                <Line type="monotone" dataKey="ldAdded" name="LearnDriven: Added" stroke="#3b82f6" strokeDasharray="4 4" strokeWidth={1.5} dot={{ r: 2 }} activeDot={{ r: 4 }} />
+                <Line type="monotone" dataKey="ldScheduled" name="LearnDriven: Scheduled" stroke="#3b82f6" strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }} />
+
+                {/* DecodeWorthy (Green) */}
+                <Line type="monotone" dataKey="dwAdded" name="DecodeWorthy: Added" stroke="#10b981" strokeDasharray="4 4" strokeWidth={1.5} dot={{ r: 2 }} activeDot={{ r: 4 }} />
+                <Line type="monotone" dataKey="dwScheduled" name="DecodeWorthy: Scheduled" stroke="#10b981" strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }} />
+                
+                {/* Slidable Brush control */}
+                <Brush dataKey="date" height={20} stroke="#2b2b35" fill="#09090b" startIndex={Math.max(0, monthlyTimelineData.length - 14)} />
+              </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
