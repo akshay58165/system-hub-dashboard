@@ -45,8 +45,14 @@ export default function App() {
   const [vercelProjects, setVercelProjects] = useState<VercelProject[]>(initialVercelProjects);
   const [supabase, setSupabase] = useState<SupabaseProject>(initialSupabaseProject);
   const [events, setEvents] = useState<SystemEvent[]>(initialSystemEvents);
-  const [topics, setTopics] = useState<Topic[]>(initialTopics);
-  const [activities, setActivities] = useState<TopicActivity[]>(initialActivities);
+  const [topics, setTopics] = useState<Topic[]>(() => {
+    const stored = localStorage.getItem('unicorn_topics');
+    return stored ? JSON.parse(stored) : initialTopics;
+  });
+  const [activities, setActivities] = useState<TopicActivity[]>(() => {
+    const stored = localStorage.getItem('unicorn_activities');
+    return stored ? JSON.parse(stored) : initialActivities;
+  });
   
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [timeStr, setTimeStr] = useState('');
@@ -151,6 +157,15 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Sync state mutations to localStorage
+  useEffect(() => {
+    localStorage.setItem('unicorn_topics', JSON.stringify(topics));
+  }, [topics]);
+
+  useEffect(() => {
+    localStorage.setItem('unicorn_activities', JSON.stringify(activities));
+  }, [activities]);
 
   // Update clock
   useEffect(() => {
