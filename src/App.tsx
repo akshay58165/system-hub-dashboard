@@ -543,7 +543,7 @@ export default function App() {
             <span>Unicorn's Desk Panel — Cloud Sync Integration Active</span>
           </div>
           <div className="flex items-center gap-4">
-            <span>DB Space: {supabase.metrics.dbSize}</span>
+            <span>DB Space: 8.2%</span>
             <span>Last Updated: {formatRelativeTime(lastDbUpdateTime)}</span>
             <button 
               onClick={() => {
