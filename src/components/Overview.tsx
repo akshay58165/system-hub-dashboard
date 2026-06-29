@@ -27,7 +27,7 @@ import {
   Bar, 
   CartesianGrid 
 } from 'recharts';
-import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent } from '../types';
+import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic } from '../types';
 
 interface OverviewProps {
   repos: GitHubRepo[];
@@ -35,9 +35,10 @@ interface OverviewProps {
   supabase: SupabaseProject;
   events: SystemEvent[];
   onTabChange: (tab: 'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score') => void;
+  topics: Topic[];
 }
 
-export default function Overview({ repos, vercelProjects, supabase, events, onTabChange }: OverviewProps) {
+export default function Overview({ repos, vercelProjects, supabase, events, onTabChange, topics }: OverviewProps) {
   // Compute some high-level metrics
   const totalStars = useMemo(() => repos.reduce((sum, r) => sum + r.stars, 0), [repos]);
   const totalIssues = useMemo(() => repos.reduce((sum, r) => sum + r.openIssues, 0), [repos]);
@@ -109,6 +110,111 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
       bottomPayDays
     };
   }, []);
+
+  // Streak calculations
+  const streakMetrics = useMemo(() => {
+    const isShortVideo = (t: Topic) => {
+      return (
+        (t.revenueLevel && ['Lvl 1', 'Lvl 2', 'Lvl 3', 'Lvl 4'].includes(t.revenueLevel)) ||
+        t.name.toLowerCase().includes('short') ||
+        t.description.toLowerCase().includes('short')
+      );
+    };
+
+    const getStreakForChannel = (channel: 'LearnDriven' | 'DecodeWorthy') => {
+      const scheduledShorts = topics.filter(t => 
+        t.channel === channel && 
+        t.status === 'scheduled' && 
+        t.dueDate &&
+        isShortVideo(t)
+      );
+
+      if (scheduledShorts.length === 0) {
+        return { streak: 0, status: 'red', message: 'No videos scheduled!' };
+      }
+
+      // Convert due dates to midnight timestamp (local time) to avoid timezone offsets
+      const dates = scheduledShorts.map(t => {
+        const d = new Date(t.dueDate!);
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      });
+
+      // Sort unique timestamps
+      const uniqueDates = Array.from(new Set(dates)).sort((a, b) => a - b);
+      if (uniqueDates.length === 0) {
+        return { streak: 0, status: 'red', message: 'No videos scheduled!' };
+      }
+
+      // Find the active consecutive streak.
+      // We will count the longest consecutive chain of days in the scheduled list of dates.
+      let currentStreak = 1;
+      let maxStreak = 1;
+
+      for (let i = 1; i < uniqueDates.length; i++) {
+        const prev = uniqueDates[i - 1];
+        const curr = uniqueDates[i];
+        const diffDays = Math.round((curr - prev) / (1000 * 60 * 60 * 24));
+        if (diffDays === 1) {
+          currentStreak++;
+        } else if (diffDays > 1) {
+          if (currentStreak > maxStreak) {
+            maxStreak = currentStreak;
+          }
+          currentStreak = 1;
+        }
+      }
+      const finalStreak = Math.max(maxStreak, currentStreak);
+
+      // Warning rules:
+      // - 1 video (streak 1): red warning, "Streak is about to end!"
+      // - 2 videos consecutive (streak 2) and no 3rd day scheduled (gap on day 3): orange warning, "Gap on day 3!"
+      // - 3 videos consecutive (streak 3): green warning "Good!"
+      // - 4 videos consecutive (streak 4): green warning "Good!"
+      // - 5+ videos consecutive (streak 5+): green-pulse warning "Very Good!"
+      if (finalStreak === 1) {
+        return { streak: 1, status: 'red', message: 'Streak is about to end!' };
+      } else if (finalStreak === 2) {
+        return { streak: 2, status: 'orange', message: 'Gap on day 3!' };
+      } else if (finalStreak >= 5) {
+        return { streak: finalStreak, status: 'green-pulse', message: 'Very Good!' };
+      } else {
+        return { streak: finalStreak, status: 'green', message: 'Good!' };
+      }
+    };
+
+    return {
+      learnDriven: getStreakForChannel('LearnDriven'),
+      decodeWorthy: getStreakForChannel('DecodeWorthy')
+    };
+  }, [topics]);
+
+  const getStreakStyle = (status: string) => {
+    if (status === 'red') {
+      return {
+        cardClass: 'bg-red-950/20 border-red-900/40 text-red-400 shadow-[0_0_12px_rgba(239,68,68,0.1)]',
+        indicatorClass: 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)] animate-ping',
+        textClass: 'text-red-400 font-bold animate-pulse'
+      };
+    } else if (status === 'orange') {
+      return {
+        cardClass: 'bg-amber-950/25 border-amber-900/40 text-orange-400 shadow-[0_0_12px_rgba(245,158,11,0.08)]',
+        indicatorClass: 'bg-orange-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse',
+        textClass: 'text-orange-400 font-bold'
+      };
+    } else if (status === 'green-pulse') {
+      return {
+        cardClass: 'bg-emerald-950/20 border-emerald-900/30 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.08)]',
+        indicatorClass: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse',
+        textClass: 'text-emerald-400 font-bold animate-pulse'
+      };
+    } else {
+      return {
+        cardClass: 'bg-emerald-950/10 border-emerald-900/20 text-emerald-500',
+        indicatorClass: 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]',
+        textClass: 'text-emerald-500 font-bold'
+      };
+    }
+  };
 
   const getLockGlowStyle = (daysStr: string) => {
     if (daysStr === 'Locked') {
@@ -356,18 +462,56 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
             </div>
           </div>
 
-          {/* Vercel Host Block */}
+          {/* Streak Status Block */}
           <div 
-            onClick={() => onTabChange('progress')}
-            className="md:col-span-1 p-5 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-amber-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(245,158,11,0.04)] transition-all duration-300 cursor-pointer flex flex-col items-center text-center group relative overflow-hidden"
+            onClick={() => onTabChange('topics')}
+            className="md:col-span-1 p-4 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-amber-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(245,158,11,0.04)] transition-all duration-300 cursor-pointer flex flex-col items-center text-center group relative overflow-hidden font-mono"
           >
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-amber-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="p-3 bg-neutral-900/50 rounded-full border border-neutral-900 group-hover:border-amber-900/30 group-hover:bg-amber-950/10 transition-colors duration-300 text-neutral-300 mb-2">
-              <Layers className="h-5 w-5 text-amber-400 group-hover:scale-110 transition-transform duration-300" />
+            <div className="p-2.5 bg-neutral-900/50 rounded-full border border-neutral-900 group-hover:border-amber-900/30 group-hover:bg-amber-950/10 transition-colors duration-300 text-neutral-300 mb-2">
+              <Zap className="h-4 w-4 text-amber-400 group-hover:scale-110 transition-transform duration-300" />
             </div>
-            <span className="text-xs font-mono font-semibold text-neutral-200">Progress</span>
-            <span className="text-[10px] text-neutral-500 font-mono mt-1">{vercelProjects.length} Channels Active</span>
-            <span className="text-[9px] text-blue-400 font-mono mt-0.5 bg-blue-950/20 border border-blue-900/30 px-1.5 py-0.2 rounded">CDN & Stream: OK</span>
+            <span className="text-xs font-bold text-neutral-200">Streak Status</span>
+
+            <div className="w-full mt-3.5 space-y-2 text-left text-[9px]">
+              {/* LearnDriven Streak */}
+              <div className={`p-2.5 rounded-lg border ${getStreakStyle(streakMetrics.learnDriven.status).cardClass}`}>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="font-bold text-neutral-300">LearnDriven</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${getStreakStyle(streakMetrics.learnDriven.status).indicatorClass}`} />
+                      <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${getStreakStyle(streakMetrics.learnDriven.status).indicatorClass.replace(' animate-ping', '').replace(' animate-pulse', '')}`} />
+                    </span>
+                    <span className="font-mono font-bold bg-neutral-950/40 px-1.5 py-0.2 border border-neutral-900/40 rounded text-neutral-200">
+                      {streakMetrics.learnDriven.streak}d
+                    </span>
+                  </div>
+                </div>
+                <div className={`text-[8px] uppercase tracking-wide ${getStreakStyle(streakMetrics.learnDriven.status).textClass}`}>
+                  {streakMetrics.learnDriven.message}
+                </div>
+              </div>
+
+              {/* DecodeWorthy Streak */}
+              <div className={`p-2.5 rounded-lg border ${getStreakStyle(streakMetrics.decodeWorthy.status).cardClass}`}>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="font-bold text-neutral-300">DecodeWorthy</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${getStreakStyle(streakMetrics.decodeWorthy.status).indicatorClass}`} />
+                      <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${getStreakStyle(streakMetrics.decodeWorthy.status).indicatorClass.replace(' animate-ping', '').replace(' animate-pulse', '')}`} />
+                    </span>
+                    <span className="font-mono font-bold bg-neutral-950/40 px-1.5 py-0.2 border border-neutral-900/40 rounded text-neutral-200">
+                      {streakMetrics.decodeWorthy.streak}d
+                    </span>
+                  </div>
+                </div>
+                <div className={`text-[8px] uppercase tracking-wide ${getStreakStyle(streakMetrics.decodeWorthy.status).textClass}`}>
+                  {streakMetrics.decodeWorthy.message}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Connection Vector 2 */}

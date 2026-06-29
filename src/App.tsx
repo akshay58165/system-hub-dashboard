@@ -474,6 +474,7 @@ export default function App() {
                 supabase={supabase} 
                 events={events}
                 onTabChange={setActiveTab}
+                topics={topics}
               />
             )}
 
