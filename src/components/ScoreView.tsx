@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Trophy, 
@@ -73,10 +73,81 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
     }
   ]);
 
-  // Handle parameter value change, logging effect details
-  const handleParamChange = (paramName: string, newVal: any, setter: (val: any) => void, oldVal: any) => {
-    setter(newVal);
+  // Debouncing refs to prevent micro-increment logging spam
+  const logTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({});
+  const originalValuesRef = useRef<Record<string, any>>({});
+  const latestParamsRef = useRef<Record<string, any>>({});
 
+  // Maintain the latest values in a ref on every render to prevent stale closure loops
+  latestParamsRef.current = {
+    restfulness,
+    nutrition,
+    hydration,
+    physicalActivity,
+    endorphins,
+    schedule,
+    pleasantness,
+    socialization,
+    stomach,
+    technicalities,
+    relations,
+    stress
+  };
+
+  // Compile calculations (aggregated Bio-Score and Radar Chart vectors)
+  const computedMetrics = useMemo(() => {
+    const restScore = restfulness;
+    const nutrScore = nutrition;
+    const hydrScore = hydration;
+    const physPoints = physicalActivity === 'Medium' ? 10 : physicalActivity === 'Low' ? 4 : 3;
+    const endoPoints = endorphins === 'Low' ? 10 : endorphins === 'Medium' ? 6 : 2;
+    const schedScore = schedule;
+    const pleasScore = pleasantness;
+    const socPoints = socialization === 'Medium' ? 10 : socialization === 'Low' ? 6 : 4;
+    const stomPoints = stomach === 'Clear' ? 10 : 2;
+    const techPoints = technicalities === 'Absent' ? 10 : 2;
+    const relPoints = relations === 'High' ? 10 : relations === 'Medium' ? 6 : 2;
+    const stressPoints = stress === 'Low' ? 10 : stress === 'Medium' ? 5 : 1;
+
+    const totalPoints = restScore + nutrScore + hydrScore + physPoints + endoPoints + 
+                        schedScore + pleasScore + socPoints + stomPoints + techPoints + 
+                        relPoints + stressPoints;
+    
+    const aggregate = Math.round((totalPoints / 120) * 100);
+
+    // Compute composite metrics for Recharts Radar Chart (bound 10-100)
+    const physEnergy = Math.min(100, Math.max(10, Math.round(
+      (restScore * 1.5 + nutrScore * 1.5 + hydrScore * 1.5 + physPoints * 2.0 + 35)
+    )));
+    const focusBandwidth = Math.min(100, Math.max(10, Math.round(
+      (endoPoints * 3.0 + stressPoints * 4.0 + techPoints * 3.0) * 1.0
+    )));
+    const timeEfficiency = Math.min(100, Math.max(10, Math.round(
+      (schedScore * 6.0 + socPoints * 4.0) * 1.0
+    )));
+    const emotionalVibe = Math.min(100, Math.max(10, Math.round(
+      (pleasScore * 5.0 + stomPoints * 2.5 + relPoints * 2.5) * 1.0
+    )));
+    const socialHarmony = Math.min(100, Math.max(10, Math.round(
+      (socPoints * 5.0 + relPoints * 5.0) * 1.0
+    )));
+    const biologicalComfort = Math.min(100, Math.max(10, Math.round(
+      (stomPoints * 5.0 + stressPoints * 3.0 + restScore * 2.0) * 1.0
+    )));
+
+    return {
+      aggregate,
+      physEnergy,
+      focusBandwidth,
+      timeEfficiency,
+      emotionalVibe,
+      socialHarmony,
+      biologicalComfort
+    };
+  }, [restfulness, nutrition, hydration, physicalActivity, endorphins, schedule, pleasantness, socialization, stomach, technicalities, relations, stress]);
+
+  // Write final transition logs when timer fires after input inactivity
+  const writeFinalLog = (paramName: string, oldVal: any, newVal: any) => {
     const getPoints = (name: string, val: any) => {
       if (['restfulness', 'nutrition', 'hydration', 'schedule', 'pleasantness'].includes(name)) {
         return Number(val);
@@ -164,57 +235,31 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
     ]);
   };
 
-  // Compile calculations (aggregated Bio-Score and Radar Chart vectors)
-  const computedMetrics = useMemo(() => {
-    const restScore = restfulness;
-    const nutrScore = nutrition;
-    const hydrScore = hydration;
-    const physPoints = physicalActivity === 'Medium' ? 10 : physicalActivity === 'Low' ? 4 : 3;
-    const endoPoints = endorphins === 'Low' ? 10 : endorphins === 'Medium' ? 6 : 2;
-    const schedScore = schedule;
-    const pleasScore = pleasantness;
-    const socPoints = socialization === 'Medium' ? 10 : socialization === 'Low' ? 6 : 4;
-    const stomPoints = stomach === 'Clear' ? 10 : 2;
-    const techPoints = technicalities === 'Absent' ? 10 : 2;
-    const relPoints = relations === 'High' ? 10 : relations === 'Medium' ? 6 : 2;
-    const stressPoints = stress === 'Low' ? 10 : stress === 'Medium' ? 5 : 1;
+  // Central trigger to update parameters, debouncing log outcomes
+  const handleParamChange = (paramName: string, newVal: any, setter: (val: any) => void, oldVal: any) => {
+    setter(newVal);
+    latestParamsRef.current[paramName] = newVal;
 
-    const totalPoints = restScore + nutrScore + hydrScore + physPoints + endoPoints + 
-                        schedScore + pleasScore + socPoints + stomPoints + techPoints + 
-                        relPoints + stressPoints;
-    
-    const aggregate = Math.round((totalPoints / 120) * 100);
+    if (originalValuesRef.current[paramName] === undefined) {
+      originalValuesRef.current[paramName] = oldVal;
+    }
 
-    // Compute composite metrics for Recharts Radar Chart (bound 10-100)
-    const physEnergy = Math.min(100, Math.max(10, Math.round(
-      (restScore * 1.5 + nutrScore * 1.5 + hydrScore * 1.5 + physPoints * 2.0 + 35)
-    )));
-    const focusBandwidth = Math.min(100, Math.max(10, Math.round(
-      (endoPoints * 3.0 + stressPoints * 4.0 + techPoints * 3.0) * 1.0
-    )));
-    const timeEfficiency = Math.min(100, Math.max(10, Math.round(
-      (schedScore * 6.0 + socPoints * 4.0) * 1.0
-    )));
-    const emotionalVibe = Math.min(100, Math.max(10, Math.round(
-      (pleasScore * 5.0 + stomPoints * 2.5 + relPoints * 2.5) * 1.0
-    )));
-    const socialHarmony = Math.min(100, Math.max(10, Math.round(
-      (socPoints * 5.0 + relPoints * 5.0) * 1.0
-    )));
-    const biologicalComfort = Math.min(100, Math.max(10, Math.round(
-      (stomPoints * 5.0 + stressPoints * 3.0 + restScore * 2.0) * 1.0
-    )));
+    if (logTimeoutsRef.current[paramName]) {
+      clearTimeout(logTimeoutsRef.current[paramName]);
+    }
 
-    return {
-      aggregate,
-      physEnergy,
-      focusBandwidth,
-      timeEfficiency,
-      emotionalVibe,
-      socialHarmony,
-      biologicalComfort
-    };
-  }, [restfulness, nutrition, hydration, physicalActivity, endorphins, schedule, pleasantness, socialization, stomach, technicalities, relations, stress]);
+    logTimeoutsRef.current[paramName] = setTimeout(() => {
+      const initialVal = originalValuesRef.current[paramName];
+      const finalVal = latestParamsRef.current[paramName];
+
+      if (initialVal !== undefined && finalVal !== undefined && initialVal !== finalVal) {
+        writeFinalLog(paramName, initialVal, finalVal);
+      }
+
+      delete originalValuesRef.current[paramName];
+      delete logTimeoutsRef.current[paramName];
+    }, 1200);
+  };
 
   // Radar Data Mapping
   const radarData = [
@@ -379,7 +424,7 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
             <div className="space-y-3">
               <h4 className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider font-mono">Physical Health</h4>
               
-              {/* Restfulness Slider */}
+              {/* Restfulness Card */}
               <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-neutral-300">Restfulness</span>
@@ -388,23 +433,28 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => handleParamChange('restfulness', Math.max(1, restfulness - 1), setRestfulness, restfulness)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer"
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
                   >
                     -
                   </button>
-                  <div className="flex-1 bg-neutral-900 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-emerald-500 h-full" style={{ width: `${restfulness * 10}%` }} />
-                  </div>
+                  <input 
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={restfulness}
+                    onChange={(e) => handleParamChange('restfulness', Number(e.target.value), setRestfulness, restfulness)}
+                    className="flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer accent-emerald-400 outline-none border-none"
+                  />
                   <button 
                     onClick={() => handleParamChange('restfulness', Math.min(10, restfulness + 1), setRestfulness, restfulness)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer"
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
                   >
                     +
                   </button>
                 </div>
               </div>
 
-              {/* Nutrition Slider */}
+              {/* Nutrition Card */}
               <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-neutral-300">Nutrition</span>
@@ -413,23 +463,28 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => handleParamChange('nutrition', Math.max(1, nutrition - 1), setNutrition, nutrition)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer"
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
                   >
                     -
                   </button>
-                  <div className="flex-1 bg-neutral-900 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-emerald-500 h-full" style={{ width: `${nutrition * 10}%` }} />
-                  </div>
+                  <input 
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={nutrition}
+                    onChange={(e) => handleParamChange('nutrition', Number(e.target.value), setNutrition, nutrition)}
+                    className="flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer accent-emerald-400 outline-none border-none"
+                  />
                   <button 
                     onClick={() => handleParamChange('nutrition', Math.min(10, nutrition + 1), setNutrition, nutrition)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer"
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
                   >
                     +
                   </button>
                 </div>
               </div>
 
-              {/* Hydration Slider */}
+              {/* Hydration Card */}
               <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-neutral-300">Hydration</span>
@@ -438,68 +493,93 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => handleParamChange('hydration', Math.max(1, hydration - 1), setHydration, hydration)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer"
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
                   >
                     -
                   </button>
-                  <div className="flex-1 bg-neutral-900 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-blue-500 h-full" style={{ width: `${hydration * 10}%` }} />
-                  </div>
+                  <input 
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={hydration}
+                    onChange={(e) => handleParamChange('hydration', Number(e.target.value), setHydration, hydration)}
+                    className="flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer accent-blue-400 outline-none border-none"
+                  />
                   <button 
                     onClick={() => handleParamChange('hydration', Math.min(10, hydration + 1), setHydration, hydration)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer"
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
                   >
                     +
                   </button>
                 </div>
               </div>
 
-              {/* Stomach (Clear / Unclear) */}
+              {/* Stomach Status Card */}
               <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-neutral-300">Stomach Status</span>
                   <span className={stomach === 'Clear' ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>{stomach}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 font-mono text-[9px]">
-                  <button
-                    onClick={() => handleParamChange('stomach', 'Clear', setStomach, stomach)}
-                    className={`py-1 rounded border transition cursor-pointer ${
-                      stomach === 'Clear' ? 'bg-emerald-950/20 border-emerald-500/50 text-emerald-400 font-bold' : 'bg-neutral-900 border-neutral-850 text-neutral-500'
-                    }`}
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => handleParamChange('stomach', stomach === 'Clear' ? 'Unclear' : 'Clear', setStomach, stomach)}
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
                   >
-                    Clear
+                    -
                   </button>
-                  <button
-                    onClick={() => handleParamChange('stomach', 'Unclear', setStomach, stomach)}
-                    className={`py-1 rounded border transition cursor-pointer ${
-                      stomach === 'Unclear' ? 'bg-rose-950/20 border-rose-500/50 text-rose-400 font-bold animate-pulse' : 'bg-neutral-900 border-neutral-850 text-neutral-500'
-                    }`}
+                  <input 
+                    type="range"
+                    min="1"
+                    max="2"
+                    value={stomach === 'Unclear' ? 1 : 2}
+                    onChange={(e) => handleParamChange('stomach', Number(e.target.value) === 1 ? 'Unclear' : 'Clear', setStomach, stomach)}
+                    className={`flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer outline-none border-none ${stomach === 'Clear' ? 'accent-emerald-400' : 'accent-rose-400'}`}
+                  />
+                  <button 
+                    onClick={() => handleParamChange('stomach', stomach === 'Clear' ? 'Unclear' : 'Clear', setStomach, stomach)}
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
                   >
-                    Unclear
+                    +
                   </button>
                 </div>
               </div>
 
-              {/* Physical Activity Selector */}
+              {/* Physical Activity Card */}
               <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-neutral-300">Physical Activity</span>
                   <span className="text-blue-400 font-bold">{physicalActivity}</span>
                 </div>
-                <div className="grid grid-cols-3 gap-1.5 font-mono text-[9px]">
-                  {['Low', 'Medium', 'High'].map((opt) => (
-                    <button
-                      key={opt}
-                      onClick={() => handleParamChange('physicalActivity', opt as any, setPhysicalActivity, physicalActivity)}
-                      className={`py-1 rounded border transition cursor-pointer ${
-                        physicalActivity === opt 
-                          ? opt === 'Medium' ? 'bg-emerald-950/20 border-emerald-500/50 text-emerald-400 font-bold' : 'bg-blue-950/20 border-blue-500/50 text-blue-400'
-                          : 'bg-neutral-900 border-neutral-850 text-neutral-500'
-                      }`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => {
+                      const nextMap: Record<string, 'Low' | 'Medium' | 'High'> = { Low: 'Low', Medium: 'Low', High: 'Medium' };
+                      handleParamChange('physicalActivity', nextMap[physicalActivity], setPhysicalActivity, physicalActivity);
+                    }}
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
+                  >
+                    -
+                  </button>
+                  <input 
+                    type="range"
+                    min="1"
+                    max="3"
+                    value={physicalActivity === 'Low' ? 1 : physicalActivity === 'Medium' ? 2 : 3}
+                    onChange={(e) => {
+                      const valMap: Record<number, 'Low' | 'Medium' | 'High'> = { 1: 'Low', 2: 'Medium', 3: 'High' };
+                      handleParamChange('physicalActivity', valMap[Number(e.target.value)], setPhysicalActivity, physicalActivity);
+                    }}
+                    className={`flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer outline-none border-none ${physicalActivity === 'Medium' ? 'accent-emerald-400' : 'accent-blue-400'}`}
+                  />
+                  <button 
+                    onClick={() => {
+                      const nextMap: Record<string, 'Low' | 'Medium' | 'High'> = { Low: 'Medium', Medium: 'High', High: 'High' };
+                      handleParamChange('physicalActivity', nextMap[physicalActivity], setPhysicalActivity, physicalActivity);
+                    }}
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
+                  >
+                    +
+                  </button>
                 </div>
               </div>
             </div>
@@ -508,7 +588,7 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
             <div className="space-y-3 pt-2">
               <h4 className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider font-mono">Mental Focus</h4>
 
-              {/* Stress Selector */}
+              {/* Stress Card */}
               <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-neutral-300">Stress Level</span>
@@ -516,47 +596,79 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
                     {stress}
                   </span>
                 </div>
-                <div className="grid grid-cols-3 gap-1.5 font-mono text-[9px]">
-                  {['Low', 'Medium', 'High'].map((opt) => (
-                    <button
-                      key={opt}
-                      onClick={() => handleParamChange('stress', opt as any, setStress, stress)}
-                      className={`py-1 rounded border transition cursor-pointer ${
-                        stress === opt 
-                          ? opt === 'Low' ? 'bg-emerald-950/20 border-emerald-500/50 text-emerald-400 font-bold' : opt === 'Medium' ? 'bg-amber-950/20 border-amber-500/50 text-amber-400' : 'bg-rose-950/20 border-rose-500/50 text-rose-400 font-bold animate-pulse'
-                          : 'bg-neutral-900 border-neutral-850 text-neutral-500'
-                      }`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => {
+                      const nextMap: Record<string, 'Low' | 'Medium' | 'High'> = { Low: 'Low', Medium: 'Low', High: 'Medium' };
+                      handleParamChange('stress', nextMap[stress], setStress, stress);
+                    }}
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
+                  >
+                    -
+                  </button>
+                  <input 
+                    type="range"
+                    min="1"
+                    max="3"
+                    value={stress === 'Low' ? 1 : stress === 'Medium' ? 2 : 3}
+                    onChange={(e) => {
+                      const valMap: Record<number, 'Low' | 'Medium' | 'High'> = { 1: 'Low', 2: 'Medium', 3: 'High' };
+                      handleParamChange('stress', valMap[Number(e.target.value)], setStress, stress);
+                    }}
+                    className={`flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer outline-none border-none ${stress === 'Low' ? 'accent-emerald-400' : stress === 'Medium' ? 'accent-amber-400' : 'accent-rose-400'}`}
+                  />
+                  <button 
+                    onClick={() => {
+                      const nextMap: Record<string, 'Low' | 'Medium' | 'High'> = { Low: 'Medium', Medium: 'High', High: 'High' };
+                      handleParamChange('stress', nextMap[stress], setStress, stress);
+                    }}
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
+                  >
+                    +
+                  </button>
                 </div>
               </div>
 
-              {/* Endorphins (Distraction check) */}
+              {/* Endorphins Card */}
               <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-neutral-300">Endorphins (Distraction Risk)</span>
-                  <span className={endorphins === 'High' ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>{endorphins}</span>
+                  <span className={endorphins === 'High' ? 'text-rose-400 font-bold animate-pulse' : 'text-emerald-400 font-bold'}>{endorphins}</span>
                 </div>
-                <div className="grid grid-cols-3 gap-1.5 font-mono text-[9px]">
-                  {['Low', 'Medium', 'High'].map((opt) => (
-                    <button
-                      key={opt}
-                      onClick={() => handleParamChange('endorphins', opt as any, setEndorphins, endorphins)}
-                      className={`py-1 rounded border transition cursor-pointer ${
-                        endorphins === opt 
-                          ? opt === 'Low' ? 'bg-emerald-950/20 border-emerald-500/50 text-emerald-400 font-bold' : opt === 'Medium' ? 'bg-amber-950/20 border-amber-500/50 text-amber-400' : 'bg-rose-950/20 border-rose-500/50 text-rose-400 font-bold animate-pulse'
-                          : 'bg-neutral-900 border-neutral-850 text-neutral-500'
-                      }`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => {
+                      const nextMap: Record<string, 'Low' | 'Medium' | 'High'> = { Low: 'Low', Medium: 'Low', High: 'Medium' };
+                      handleParamChange('endorphins', nextMap[endorphins], setEndorphins, endorphins);
+                    }}
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
+                  >
+                    -
+                  </button>
+                  <input 
+                    type="range"
+                    min="1"
+                    max="3"
+                    value={endorphins === 'Low' ? 1 : endorphins === 'Medium' ? 2 : 3}
+                    onChange={(e) => {
+                      const valMap: Record<number, 'Low' | 'Medium' | 'High'> = { 1: 'Low', 2: 'Medium', 3: 'High' };
+                      handleParamChange('endorphins', valMap[Number(e.target.value)], setEndorphins, endorphins);
+                    }}
+                    className={`flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer outline-none border-none ${endorphins === 'Low' ? 'accent-emerald-400' : endorphins === 'Medium' ? 'accent-amber-400' : 'accent-rose-400'}`}
+                  />
+                  <button 
+                    onClick={() => {
+                      const nextMap: Record<string, 'Low' | 'Medium' | 'High'> = { Low: 'Medium', Medium: 'High', High: 'High' };
+                      handleParamChange('endorphins', nextMap[endorphins], setEndorphins, endorphins);
+                    }}
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
+                  >
+                    +
+                  </button>
                 </div>
               </div>
 
-              {/* Pleasantness Slider */}
+              {/* Pleasantness Card */}
               <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-neutral-300">Pleasantness</span>
@@ -565,16 +677,21 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => handleParamChange('pleasantness', Math.max(1, pleasantness - 1), setPleasantness, pleasantness)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer"
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
                   >
                     -
                   </button>
-                  <div className="flex-1 bg-neutral-900 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-emerald-500 h-full" style={{ width: `${pleasantness * 10}%` }} />
-                  </div>
+                  <input 
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={pleasantness}
+                    onChange={(e) => handleParamChange('pleasantness', Number(e.target.value), setPleasantness, pleasantness)}
+                    className="flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer accent-emerald-400 outline-none border-none"
+                  />
                   <button 
                     onClick={() => handleParamChange('pleasantness', Math.min(10, pleasantness + 1), setPleasantness, pleasantness)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer"
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
                   >
                     +
                   </button>
@@ -586,7 +703,7 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
             <div className="space-y-3 pt-2">
               <h4 className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider font-mono">Environment & Sync</h4>
 
-              {/* Schedule Slider */}
+              {/* Schedule Card */}
               <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-neutral-300">Schedule adherence</span>
@@ -595,90 +712,131 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => handleParamChange('schedule', Math.max(1, schedule - 1), setSchedule, schedule)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer"
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
                   >
                     -
                   </button>
-                  <div className="flex-1 bg-neutral-900 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-emerald-500 h-full" style={{ width: `${schedule * 10}%` }} />
-                  </div>
+                  <input 
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={schedule}
+                    onChange={(e) => handleParamChange('schedule', Number(e.target.value), setSchedule, schedule)}
+                    className="flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer accent-emerald-400 outline-none border-none"
+                  />
                   <button 
                     onClick={() => handleParamChange('schedule', Math.min(10, schedule + 1), setSchedule, schedule)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer"
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
                   >
                     +
                   </button>
                 </div>
               </div>
 
-              {/* Socialization Selector */}
+              {/* Socialization Card */}
               <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-neutral-300">Socialization</span>
                   <span className="text-blue-400 font-bold">{socialization}</span>
                 </div>
-                <div className="grid grid-cols-3 gap-1.5 font-mono text-[9px]">
-                  {['Low', 'Medium', 'High'].map((opt) => (
-                    <button
-                      key={opt}
-                      onClick={() => handleParamChange('socialization', opt as any, setSocialization, socialization)}
-                      className={`py-1 rounded border transition cursor-pointer ${
-                        socialization === opt 
-                          ? opt === 'Medium' ? 'bg-emerald-950/20 border-emerald-500/50 text-emerald-400 font-bold' : 'bg-blue-950/20 border-blue-500/50 text-blue-400'
-                          : 'bg-neutral-900 border-neutral-850 text-neutral-500'
-                      }`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => {
+                      const nextMap: Record<string, 'Low' | 'Medium' | 'High'> = { Low: 'Low', Medium: 'Low', High: 'Medium' };
+                      handleParamChange('socialization', nextMap[socialization], setSocialization, socialization);
+                    }}
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
+                  >
+                    -
+                  </button>
+                  <input 
+                    type="range"
+                    min="1"
+                    max="3"
+                    value={socialization === 'Low' ? 1 : socialization === 'Medium' ? 2 : 3}
+                    onChange={(e) => {
+                      const valMap: Record<number, 'Low' | 'Medium' | 'High'> = { 1: 'Low', 2: 'Medium', 3: 'High' };
+                      handleParamChange('socialization', valMap[Number(e.target.value)], setSocialization, socialization);
+                    }}
+                    className={`flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer outline-none border-none ${socialization === 'Medium' ? 'accent-emerald-400' : 'accent-blue-400'}`}
+                  />
+                  <button 
+                    onClick={() => {
+                      const nextMap: Record<string, 'Low' | 'Medium' | 'High'> = { Low: 'Medium', Medium: 'High', High: 'High' };
+                      handleParamChange('socialization', nextMap[socialization], setSocialization, socialization);
+                    }}
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
+                  >
+                    +
+                  </button>
                 </div>
               </div>
 
-              {/* Relations Selector */}
+              {/* Relations Card */}
               <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-neutral-300">Relationship Dynamic</span>
                   <span className={relations === 'Low' ? 'text-rose-400 font-bold animate-pulse' : 'text-emerald-400 font-bold'}>{relations}</span>
                 </div>
-                <div className="grid grid-cols-3 gap-1.5 font-mono text-[9px]">
-                  {['Low', 'Medium', 'High'].map((opt) => (
-                    <button
-                      key={opt}
-                      onClick={() => handleParamChange('relations', opt as any, setRelations, relations)}
-                      className={`py-1 rounded border transition cursor-pointer ${
-                        relations === opt 
-                          ? opt === 'High' ? 'bg-emerald-950/20 border-emerald-500/50 text-emerald-400 font-bold' : opt === 'Medium' ? 'bg-blue-950/20 border-blue-500/50 text-blue-400' : 'bg-rose-950/20 border-rose-500/50 text-rose-400 font-bold animate-pulse'
-                          : 'bg-neutral-900 border-neutral-850 text-neutral-500'
-                      }`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => {
+                      const nextMap: Record<string, 'Low' | 'Medium' | 'High'> = { Low: 'Low', Medium: 'Low', High: 'Medium' };
+                      handleParamChange('relations', nextMap[relations], setRelations, relations);
+                    }}
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
+                  >
+                    -
+                  </button>
+                  <input 
+                    type="range"
+                    min="1"
+                    max="3"
+                    value={relations === 'Low' ? 1 : relations === 'Medium' ? 2 : 3}
+                    onChange={(e) => {
+                      const valMap: Record<number, 'Low' | 'Medium' | 'High'> = { 1: 'Low', 2: 'Medium', 3: 'High' };
+                      handleParamChange('relations', valMap[Number(e.target.value)], setRelations, relations);
+                    }}
+                    className={`flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer outline-none border-none ${relations === 'High' ? 'accent-emerald-400' : relations === 'Medium' ? 'accent-blue-400' : 'accent-rose-400'}`}
+                  />
+                  <button 
+                    onClick={() => {
+                      const nextMap: Record<string, 'Low' | 'Medium' | 'High'> = { Low: 'Medium', Medium: 'High', High: 'High' };
+                      handleParamChange('relations', nextMap[relations], setRelations, relations);
+                    }}
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
+                  >
+                    +
+                  </button>
                 </div>
               </div>
 
-              {/* Technicalities (Present / Absent) */}
+              {/* Technical Blockers Card */}
               <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
                 <div className="flex justify-between text-xs font-mono">
                   <span className="text-neutral-300">Technical Blockers</span>
                   <span className={technicalities === 'Present' ? 'text-rose-400 font-bold animate-pulse' : 'text-emerald-400 font-bold'}>{technicalities}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 font-mono text-[9px]">
-                  <button
-                    onClick={() => handleParamChange('technicalities', 'Absent', setTechnicalities, technicalities)}
-                    className={`py-1 rounded border transition cursor-pointer ${
-                      technicalities === 'Absent' ? 'bg-emerald-950/20 border-emerald-500/50 text-emerald-400 font-bold' : 'bg-neutral-900 border-neutral-850 text-neutral-500'
-                    }`}
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => handleParamChange('technicalities', technicalities === 'Present' ? 'Absent' : 'Present', setTechnicalities, technicalities)}
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
                   >
-                    Absent
+                    -
                   </button>
-                  <button
-                    onClick={() => handleParamChange('technicalities', 'Present', setTechnicalities, technicalities)}
-                    className={`py-1 rounded border transition cursor-pointer ${
-                      technicalities === 'Present' ? 'bg-rose-950/20 border-rose-500/50 text-rose-400 font-bold animate-pulse' : 'bg-neutral-900 border-neutral-850 text-neutral-500'
-                    }`}
+                  <input 
+                    type="range"
+                    min="1"
+                    max="2"
+                    value={technicalities === 'Absent' ? 1 : 2}
+                    onChange={(e) => handleParamChange('technicalities', Number(e.target.value) === 1 ? 'Absent' : 'Present', setTechnicalities, technicalities)}
+                    className={`flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer outline-none border-none ${technicalities === 'Absent' ? 'accent-emerald-400' : 'accent-rose-400'}`}
+                  />
+                  <button 
+                    onClick={() => handleParamChange('technicalities', technicalities === 'Present' ? 'Absent' : 'Present', setTechnicalities, technicalities)}
+                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
                   >
-                    Present
+                    +
                   </button>
                 </div>
               </div>
@@ -733,7 +891,7 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0 }}
-                      className="p-2.5 bg-neutral-900/30 border border-neutral-900 rounded-lg flex flex-col gap-1 hover:bg-neutral-900/50 transition"
+                      className="p-2.5 bg-neutral-900/30 border border-neutral-900 rounded-lg flex flex-col gap-1 hover:bg-neutral-900/50 transition animate-fade-in"
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-neutral-300 flex items-center gap-1">
