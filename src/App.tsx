@@ -50,6 +50,7 @@ export default function App() {
   
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [timeStr, setTimeStr] = useState('');
+  const [lastDbUpdateTime, setLastDbUpdateTime] = useState<Date>(new Date(Date.now() - 5000));
 
   // Database Reset States
   const [isResetOpen, setIsResetOpen] = useState(false);
@@ -58,6 +59,16 @@ export default function App() {
   const [resetProgress, setResetProgress] = useState(0);
   const [resetLogs, setResetLogs] = useState<string[]>([]);
   const [isShaking, setIsShaking] = useState(false);
+
+  const formatRelativeTime = (date: Date) => {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    if (seconds < 5) return 'just now';
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h ago`;
+  };
 
   const handleStartDetonation = () => {
     setResetPhase('deleting');
@@ -240,18 +251,22 @@ export default function App() {
 
   const addEvent = (evt: SystemEvent) => {
     setEvents(prev => [evt, ...prev.slice(0, 29)]);
+    setLastDbUpdateTime(new Date());
   };
 
   const handleUpdateRepo = (repoId: string, updatedRepo: Partial<GitHubRepo>) => {
     setRepos(prev => prev.map(r => r.id === repoId ? { ...r, ...updatedRepo } : r));
+    setLastDbUpdateTime(new Date());
   };
 
   const handleUpdateProject = (projectId: string, updatedProject: Partial<VercelProject>) => {
     setVercelProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...updatedProject } : p));
+    setLastDbUpdateTime(new Date());
   };
 
   const handleUpdateSupabase = (updated: Partial<SupabaseProject>) => {
     setSupabase(prev => ({ ...prev, ...updated }));
+    setLastDbUpdateTime(new Date());
   };
 
   // Helper linking GitHub workflow completion to triggering Vercel build
@@ -528,8 +543,8 @@ export default function App() {
             <span>Unicorn's Desk Panel — Cloud Sync Integration Active</span>
           </div>
           <div className="flex items-center gap-4">
-            <span>Server: aws-us-east-1a</span>
-            <span>API SLA: 99.99%</span>
+            <span>DB Space: {supabase.metrics.dbSize}</span>
+            <span>Last Updated: {formatRelativeTime(lastDbUpdateTime)}</span>
             <button 
               onClick={() => {
                 setIsResetOpen(true);
