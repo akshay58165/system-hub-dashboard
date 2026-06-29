@@ -1,22 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Layers, 
   Globe, 
   Clock, 
   GitBranch, 
-  Plus, 
   Server, 
   AlertTriangle, 
   CheckCircle, 
   TrendingUp, 
-  Cpu, 
-  LineChart, 
   Loader2, 
-  Flame,
-  ArrowUpRight,
+  ArrowUpRight, 
   Sparkles,
-  Search
+  Youtube,
+  User,
+  Activity
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -27,146 +25,296 @@ import {
   Tooltip, 
   CartesianGrid 
 } from 'recharts';
-import { VercelProject, VercelDeployment, SystemEvent } from '../types';
+import { Topic, TopicActivity, SystemEvent } from '../types';
 
 interface VercelViewProps {
-  projects: VercelProject[];
+  projects: any[]; // Kept for interface compatibility in App.tsx
   onAddEvent: (evt: SystemEvent) => void;
-  onUpdateProject: (projectId: string, updatedProject: Partial<VercelProject>) => void;
+  onUpdateProject: (projectId: string, updatedProject: any) => void;
+  topics: Topic[];
+  activities: TopicActivity[];
 }
 
-export default function VercelView({ projects, onAddEvent, onUpdateProject }: VercelViewProps) {
-  const [selectedProjectId, setSelectedProjectId] = useState(projects[0]?.id || '');
-  const [activeDeploymentId, setActiveDeploymentId] = useState<string | null>(null);
-  const [liveLogs, setLiveLogs] = useState<string[]>([]);
-  const [deployStep, setDeployStep] = useState(0);
+export default function VercelView({ 
+  onAddEvent, 
+  topics, 
+  activities 
+}: VercelViewProps) {
+  const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy'>('All');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncLogs, setSyncLogs] = useState<string[]>([]);
+  const [syncStep, setSyncStep] = useState(0);
 
-  const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
+  // Filtered topics
+  const filteredTopics = useMemo(() => {
+    return topics.filter(t => selectedChannel === 'All' || t.channel === selectedChannel);
+  }, [topics, selectedChannel]);
 
-  const handleTriggerDeploy = () => {
-    if (activeDeploymentId) return; // one deployment build at a time
+  // Next upload topic details (nearest future scheduled video)
+  const nextUpload = useMemo(() => {
+    const today = new Date();
+    const scheduled = filteredTopics
+      .filter(t => t.status === 'scheduled' && t.dueDate && new Date(t.dueDate) >= today)
+      .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
+    return scheduled[0]?.name || 'No uploads scheduled';
+  }, [filteredTopics]);
 
-    // 1. Generate a new queued deployment
-    const newDeploymentId = `vdep-manual-${Date.now()}`;
-    const newDeployment: VercelDeployment = {
-      id: newDeploymentId,
-      url: `${selectedProject.name}-manual-${Math.random().toString(36).substring(2, 7)}.vercel.app`,
-      branch: selectedProject.gitBranch,
-      commitMessage: 'manual deploy: manual sync triggered from Developer Console',
-      status: 'building',
-      createdAt: new Date().toISOString(),
-      creator: 'typeakshay@gmail.com',
-      logs: ['Deploy started via manual dashboard trigger...'],
+  // Last workflow update text
+  const lastWorkflowUpdate = useMemo(() => {
+    const subsetActivities = activities.filter(a => selectedChannel === 'All' || a.channel === selectedChannel);
+    if (subsetActivities.length === 0) return 'Never';
+    const dates = subsetActivities.map(a => new Date(a.timestamp).getTime());
+    const latestTime = new Date(Math.max(...dates));
+    
+    // Relative time formatting
+    const seconds = Math.floor((new Date().getTime() - latestTime.getTime()) / 1000);
+    if (seconds < 5) return 'just now';
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return latestTime.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  }, [activities, selectedChannel]);
+
+  // Calculate buffer safety days
+  const bufferDays = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const scheduledFuture = filteredTopics.filter(t => 
+      t.status === 'scheduled' && 
+      t.dueDate &&
+      new Date(t.dueDate) > today
+    );
+    const uniqueFutureDays = new Set(scheduledFuture.map(t => {
+      const d = new Date(t.dueDate!);
+      return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+    }));
+    return uniqueFutureDays.size;
+  }, [filteredTopics]);
+
+  // Calculate weekly production velocity (published & scheduled)
+  const monthlyScheduledCompletedCount = useMemo(() => {
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+    
+    return filteredTopics.filter(t => 
+      t.dueDate && 
+      new Date(t.dueDate) >= startOfMonth && 
+      new Date(t.dueDate) <= endOfMonth &&
+      (t.status === 'scheduled' || t.status === 'edited')
+    ).length;
+  }, [filteredTopics]);
+
+  // Graph Data: Last 7 calendar days topics created vs videos scheduled
+  const graphData = useMemo(() => {
+    const data = [];
+    const today = new Date();
+    
+    for (let i = 6; i >= 0; i--) {
+      const dateObj = new Date(today);
+      dateObj.setDate(today.getDate() - i);
+      const dateStr = dateObj.toISOString().split('T')[0];
+      const dateLabel = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+      // Topics created on this day
+      const added = filteredTopics.filter(t => 
+        t.createdDate && t.createdDate.split('T')[0] === dateStr
+      ).length;
+
+      // Videos scheduled on this day
+      const scheduled = filteredTopics.filter(t => 
+        t.status === 'scheduled' && t.dueDate && t.dueDate.split('T')[0] === dateStr
+      ).length;
+
+      data.push({
+        date: dateLabel,
+        added,
+        scheduled
+      });
+    }
+    return data;
+  }, [filteredTopics]);
+
+  // Recent transitions / logs formatted like deployments
+  const recentHistory = useMemo(() => {
+    const subsetActivities = activities
+      .filter(a => selectedChannel === 'All' || a.channel === selectedChannel)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    
+    return subsetActivities.slice(0, 5);
+  }, [activities, selectedChannel]);
+
+  // Content Lane Velocities (equivalent to serverless APIs)
+  const laneVelocities = useMemo(() => {
+    const isShort = (t: Topic) => {
+      return (
+        (t.revenueLevel && ['Lvl 1', 'Lvl 2', 'Lvl 3', 'Lvl 4'].includes(t.revenueLevel)) ||
+        t.name.toLowerCase().includes('short') ||
+        t.description.toLowerCase().includes('short')
+      );
     };
 
-    const updatedDeployments = [newDeployment, ...selectedProject.deployments];
-    
-    onUpdateProject(selectedProject.id, {
-      status: 'building',
-      deployments: updatedDeployments,
-    });
+    const isLong = (t: Topic) => {
+      return (
+        (t.revenueLevel && ['Lvl 6', 'Lvl 7', 'Lvl 8', 'Lvl 9', 'Lvl 20'].includes(t.revenueLevel)) ||
+        t.name.toLowerCase().includes('long') ||
+        t.description.toLowerCase().includes('long')
+      );
+    };
 
-    setActiveDeploymentId(newDeploymentId);
-    setLiveLogs([
-      'Queuing build runner...',
-      'Allocating hardware node: vpc-node-us-east-4a',
-      'Cloning code repository target from Git server...',
-      'Detected lockfile configuration: package-lock.json',
+    const isMembers = (t: Topic) => {
+      return (
+        (t.revenueLevel && t.revenueLevel === 'Lvl 5') ||
+        t.name.toLowerCase().includes('member') ||
+        t.description.toLowerCase().includes('member')
+      );
+    };
+
+    const lanes = [
+      {
+        id: 'lane-shorts',
+        path: '/shorts',
+        filter: isShort,
+        applicable: true
+      },
+      {
+        id: 'lane-long',
+        path: '/long-videos',
+        filter: isLong,
+        applicable: selectedChannel !== 'DecodeWorthy'
+      },
+      {
+        id: 'lane-members',
+        path: '/members-only',
+        filter: isMembers,
+        applicable: selectedChannel !== 'DecodeWorthy'
+      }
+    ];
+
+    return lanes
+      .filter(l => l.applicable)
+      .map(lane => {
+        const laneTopics = filteredTopics.filter(lane.filter);
+        const totalCount = laneTopics.length;
+        
+        // Gaps: Topics due within next 2 days that are not scheduled/edited
+        const today = new Date();
+        const twoDaysFromNow = new Date();
+        twoDaysFromNow.setDate(today.getDate() + 2);
+        
+        const gapsCount = laneTopics.filter(t => 
+          t.status !== 'scheduled' && 
+          t.status !== 'edited' && 
+          t.dueDate && 
+          new Date(t.dueDate) >= today && 
+          new Date(t.dueDate) <= twoDaysFromNow
+        ).length;
+
+        // Latency: Average days between createdDate and dueDate
+        let avgLeadDays = 0;
+        const validDates = laneTopics.filter(t => t.dueDate && t.createdDate);
+        if (validDates.length > 0) {
+          const totalDays = validDates.reduce((sum, t) => {
+            const diff = new Date(t.dueDate!).getTime() - new Date(t.createdDate).getTime();
+            return sum + (diff / (1000 * 60 * 60 * 24));
+          }, 0);
+          avgLeadDays = Math.round((totalDays / validDates.length) * 10) / 10;
+        }
+
+        return {
+          id: lane.id,
+          path: lane.path,
+          invocations: totalCount,
+          errors: gapsCount,
+          latency: avgLeadDays > 0 ? `${avgLeadDays}d` : 'N/A'
+        };
+      });
+  }, [filteredTopics, selectedChannel]);
+
+  // Sync animation handler
+  const handleTriggerSync = () => {
+    if (isSyncing) return;
+
+    setIsSyncing(true);
+    setSyncStep(0);
+    setSyncLogs([
+      'Initializing YouTube API dashboard gateway credentials...',
+      'Opening partition clusters for LearnDriven and DecodeWorthy playlists...',
+      'Verifying OAuth token status... OK',
+      'Checking Google cloud storage backup endpoints...'
     ]);
-    setDeployStep(0);
 
     onAddEvent({
-      id: `evt-v-dep-${Date.now()}`,
+      id: `evt-progress-sync-${Date.now()}`,
       source: 'vercel',
       type: 'info',
-      message: `Vercel: Commenced manual deployment for project "${selectedProject.name}" on branch "${selectedProject.gitBranch}"`,
+      message: `Content Engine: Commenced content pipeline synchronization for channel selection [${selectedChannel}]`,
       timestamp: new Date().toISOString(),
     });
   };
 
-  // Live streaming logs
   useEffect(() => {
-    if (!activeDeploymentId) return;
+    if (!isSyncing) return;
 
-    const buildSteps = [
-      'Compiling React + Vite core assets using @tailwindcss/vite compiler...',
-      'Minifying index bundles, tree-shaking dead components...',
-      'Generated static html nodes, index assets map parsed.',
-      'Checking API Serverless endpoints: /api/auth/session, /api/checkout...',
-      'Generating routing configurations & response security headers...',
-      'Publishing build assets to Vercel global edge server locations...',
-      'Validating SSL certificate configurations...',
-      'Deployment live! Production routing rule updated successfully.'
+    const steps = [
+      'Validating SEO metadata tags: product tagging, pin promotions check... OK',
+      'Auditing content scheduling gaps for Short videos...',
+      'Checking calendar lock date indicators... August lock parameters nominal.',
+      'Analyzing average production latency curves across content lanes...',
+      'Consolidating stage densities: Idea pool, scripted, filming, editing...',
+      'Synchronizing localized state indicators with permanent database entries...',
+      'Successfully synced! Content dashboard status active.'
     ];
 
-    if (deployStep < buildSteps.length) {
+    if (syncStep < steps.length) {
       const timer = setTimeout(() => {
-        setLiveLogs(prev => [...prev, `[BUILD] ${buildSteps[deployStep]}`]);
-        setDeployStep(prev => prev + 1);
-      }, 1100);
+        setSyncLogs(prev => [...prev, `[SYNC] ${steps[syncStep]}`]);
+        setSyncStep(prev => prev + 1);
+      }, 500);
       return () => clearTimeout(timer);
     } else {
-      // Completed successfully!
       const timer = setTimeout(() => {
-        const updatedDeployments = selectedProject.deployments.map(dep => {
-          if (dep.id === activeDeploymentId) {
-            return {
-              ...dep,
-              status: 'ready' as const,
-              duration: '1m 8s',
-              url: `${selectedProject.name}-prod.vercel.app`
-            };
-          }
-          return dep;
-        });
-
-        onUpdateProject(selectedProject.id, {
-          status: 'ready',
-          updatedAt: new Date().toISOString(),
-          domain: `${selectedProject.name}-prod.vercel.app`,
-          deployments: updatedDeployments,
-        });
-
-        setActiveDeploymentId(null);
-
+        setIsSyncing(false);
         onAddEvent({
-          id: `evt-v-dep-sc-${Date.now()}`,
+          id: `evt-progress-sync-done-${Date.now()}`,
           source: 'vercel',
           type: 'success',
-          message: `Vercel: Deployment for "${selectedProject.name}" is now LIVE at ${selectedProject.name}-prod.vercel.app`,
+          message: `Content Engine: Synchronization complete. Pipeline data refreshed for ${selectedChannel}.`,
           timestamp: new Date().toISOString(),
         });
-      }, 1200);
+      }, 600);
       return () => clearTimeout(timer);
     }
-  }, [activeDeploymentId, deployStep]);
+  }, [isSyncing, syncStep]);
 
   return (
     <div className="space-y-6">
-      {/* Selector banner */}
+      {/* Selector banner (Repurposed Vercel selector banner) */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-neutral-950 border border-neutral-800 rounded-xl p-4">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-neutral-900 border border-neutral-800 rounded-lg text-neutral-300">
             <Layers className="h-5 w-5 text-blue-400" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-neutral-100 font-mono">vercel.com/typeakshay</h2>
-            <p className="text-xs text-neutral-400">Manage hosting endpoints, edge domains, serverless logs, and user traffic.</p>
+            <h2 className="text-sm font-semibold text-neutral-100 font-mono">production-pipeline-sync</h2>
+            <p className="text-xs text-neutral-400">Track channel upload velocities, content lane outputs, and scheduling buffers.</p>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          {projects.map(proj => (
+          {(['All', 'LearnDriven', 'DecodeWorthy'] as const).map(channel => (
             <button
-              key={proj.id}
-              onClick={() => setSelectedProjectId(proj.id)}
+              key={channel}
+              onClick={() => setSelectedChannel(channel)}
               className={`px-3 py-1.5 rounded-lg text-xs font-mono border transition ${
-                selectedProjectId === proj.id
+                selectedChannel === channel
                   ? 'bg-neutral-800 border-neutral-600 text-white'
                   : 'bg-neutral-900 border-neutral-850 text-neutral-400 hover:text-neutral-200 hover:border-neutral-700'
               }`}
             >
-              {proj.name}
+              {channel}
             </button>
           ))}
         </div>
@@ -174,103 +322,106 @@ export default function VercelView({ projects, onAddEvent, onUpdateProject }: Ve
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Side (Deployment Control) */}
+        {/* Left Side (Production Control) */}
         <div className="lg:col-span-2 space-y-6">
           {/* Active project card */}
           <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-5 relative overflow-hidden">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-bold font-mono text-white tracking-tight flex items-center gap-2">
-                  {selectedProject.name}
+                  {selectedChannel === 'All' ? 'Consolidated Channels' : selectedChannel}
                   <span className={`h-2.5 w-2.5 rounded-full ${
-                    selectedProject.status === 'ready' ? 'bg-emerald-500 animate-pulse' :
-                    selectedProject.status === 'building' ? 'bg-blue-400 animate-spin' :
-                    'bg-neutral-600'
+                    isSyncing ? 'bg-blue-400 animate-spin' : 'bg-emerald-500 animate-pulse'
                   }`} />
                 </h3>
                 <div className="flex items-center gap-2 mt-1 text-xs text-neutral-400 font-mono">
                   <Globe className="h-3.5 w-3.5 text-neutral-500" />
-                  <a href={`https://${selectedProject.domain}`} target="_blank" rel="noreferrer" className="hover:text-blue-400 transition flex items-center gap-0.5">
-                    {selectedProject.domain}
-                    <ArrowUpRight className="h-3 w-3" />
-                  </a>
+                  <span className="text-neutral-300">
+                    Active Pipeline: {selectedChannel === 'All' ? 'All active streams' : `${selectedChannel} stream`}
+                  </span>
                 </div>
               </div>
 
               <button 
-                onClick={handleTriggerDeploy}
-                disabled={activeDeploymentId !== null || selectedProject.status === 'building'}
-                className="px-3.5 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-black font-semibold rounded-lg text-xs font-mono flex items-center gap-1.5 transition self-start sm:self-auto"
+                onClick={handleTriggerSync}
+                disabled={isSyncing}
+                className="px-3.5 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-black font-semibold rounded-lg text-xs font-mono flex items-center gap-1.5 transition self-start sm:self-auto cursor-pointer"
               >
-                {activeDeploymentId ? (
+                {isSyncing ? (
                   <>
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    <span>Deploying...</span>
+                    <span>Syncing...</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="h-3.5 w-3.5 fill-black" />
-                    <span>Deploy Latest Code</span>
+                    <span>Sync Pipeline Data</span>
                   </>
                 )}
               </button>
             </div>
 
+            {/* 4 Metric Boxes */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-5 border-t border-neutral-900">
               <div className="p-3 bg-neutral-900 rounded-lg">
-                <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Framework</span>
-                <span className="text-xs font-bold font-mono text-white mt-1 block">
-                  {selectedProject.framework}
+                <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Next Upload</span>
+                <span className="text-xs font-bold font-mono text-white mt-1 block truncate" title={nextUpload}>
+                  {nextUpload}
                 </span>
               </div>
 
               <div className="p-3 bg-neutral-900 rounded-lg">
-                <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Production branch</span>
+                <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Pipeline Velocity</span>
                 <span className="text-xs font-bold font-mono text-white mt-1 flex items-center gap-1">
-                  <GitBranch className="h-3 w-3 text-blue-400" />
-                  {selectedProject.gitBranch}
+                  <Activity className="h-3 w-3 text-blue-400" />
+                  {monthlyScheduledCompletedCount} Videos/mo
                 </span>
               </div>
 
               <div className="p-3 bg-neutral-900 rounded-lg">
-                <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Updated</span>
+                <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Last Update</span>
                 <span className="text-xs font-bold font-mono text-white mt-1 block">
-                  {new Date(selectedProject.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {lastWorkflowUpdate}
                 </span>
               </div>
 
               <div className="p-3 bg-neutral-900 rounded-lg">
-                <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Edge Latency</span>
-                <span className="text-xs font-bold font-mono text-emerald-400 mt-1 block">
-                  14ms (Optimal)
+                <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Buffer Safety</span>
+                <span className={`text-xs font-bold font-mono mt-1 block ${
+                  bufferDays >= 5 ? 'text-emerald-400' :
+                  bufferDays >= 2 ? 'text-orange-400' :
+                  'text-red-400 animate-pulse'
+                }`}>
+                  {bufferDays} Days ({bufferDays >= 5 ? 'Optimal' : bufferDays >= 2 ? 'Warning' : 'Critical'})
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Traffic chart for selected project */}
-          <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-neutral-200 mb-4">Traffic Statistics</h3>
-            <div className="h-60 w-full">
+          {/* Graph: Daily output chart */}
+          <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-5 font-mono">
+            <h3 className="text-sm font-semibold text-neutral-200 mb-4">Production & Upload Velocity</h3>
+            <div className="h-60 w-full select-none">
               <ResponsiveContainer width="100%" height="100%">
-                <RechartLine data={selectedProject.analytics.traffic} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                  <XAxis dataKey="date" stroke="#525252" fontSize={10} fontStyle="italic" />
-                  <YAxis stroke="#525252" fontSize={10} />
+                <RechartLine data={graphData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                  <XAxis dataKey="date" stroke="#525252" fontSize={9} />
+                  <YAxis stroke="#525252" fontSize={9} allowDecimals={false} />
                   <Tooltip 
                     contentStyle={{ backgroundColor: '#171717', borderColor: '#262626', borderRadius: '8px' }}
-                    labelStyle={{ color: '#a3a3a3', fontSize: '11px' }}
+                    labelStyle={{ color: '#a3a3a3', fontSize: '10px' }}
+                    itemStyle={{ fontSize: '10px' }}
                   />
                   <CartesianGrid stroke="#262626" strokeDasharray="3 3" />
-                  <Line type="monotone" dataKey="views" name="Pageviews" stroke="#3b82f6" strokeWidth={2.5} activeDot={{ r: 6 }} />
-                  <Line type="monotone" dataKey="visitors" name="Unique Visitors" stroke="#10b981" strokeWidth={2.5} />
+                  <Line type="monotone" dataKey="added" name="Topics Created" stroke="#3b82f6" strokeWidth={2} strokeDasharray="4 4" activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="scheduled" name="Videos Scheduled" stroke="#10b981" strokeWidth={2.5} activeDot={{ r: 6 }} />
                 </RechartLine>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Logs Terminal */}
+          {/* Sync logs Terminal */}
           <AnimatePresence>
-            {(activeDeploymentId || liveLogs.length > 0) && (
+            {(isSyncing || syncLogs.length > 0) && (
               <motion.div 
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
@@ -279,99 +430,99 @@ export default function VercelView({ projects, onAddEvent, onUpdateProject }: Ve
               >
                 <div className="bg-neutral-900 border-b border-neutral-800 px-4 py-2 flex items-center justify-between font-mono text-xs text-neutral-400">
                   <div className="flex items-center gap-2">
-                    <Loader2 className={`h-4 w-4 text-blue-400 ${activeDeploymentId ? 'animate-spin' : ''}`} />
-                    <span>Vercel Deploy Build Engine Logs</span>
+                    <Loader2 className={`h-4 w-4 text-blue-400 ${isSyncing ? 'animate-spin' : ''}`} />
+                    <span>Content Pipeline Sync Logs</span>
                   </div>
-                  {activeDeploymentId ? (
-                    <span className="text-blue-400 animate-pulse font-bold text-[10px] uppercase">BUILDING</span>
+                  {isSyncing ? (
+                    <span className="text-blue-400 animate-pulse font-bold text-[10px] uppercase">SYNCING</span>
                   ) : (
-                    <span className="text-emerald-400 font-bold text-[10px] uppercase">DEPLOY READY</span>
+                    <span className="text-emerald-400 font-bold text-[10px] uppercase">SYNC COMPLETE</span>
                   )}
                 </div>
                 <div className="p-4 bg-neutral-950 font-mono text-xs text-neutral-400 h-56 overflow-y-auto space-y-1">
-                  {liveLogs.map((log, i) => (
-                    <div key={i} className={`whitespace-pre-wrap ${log.includes('live') || log.includes('successfully') ? 'text-emerald-400 font-bold' : log.includes('[BUILD]') ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                  {syncLogs.map((log, i) => (
+                    <div key={i} className={`whitespace-pre-wrap ${log.includes('Successfully') || log.includes('refresh') ? 'text-emerald-400 font-bold' : log.includes('[SYNC]') ? 'text-neutral-400' : 'text-neutral-500'}`}>
                       {log}
                     </div>
                   ))}
-                  {activeDeploymentId && <span className="inline-block h-3.5 w-2 bg-neutral-300 animate-pulse" />}
+                  {isSyncing && <span className="inline-block h-3.5 w-2 bg-neutral-300 animate-pulse" />}
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        {/* Right Side (Deployments History / Serverless Functions) */}
-        <div className="space-y-6">
+        {/* Right Side widgets */}
+        <div className="space-y-6 font-mono">
           {/* History */}
           <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-neutral-200 mb-4">Deployment History</h3>
+            <h3 className="text-sm font-semibold text-neutral-200 mb-4">Production History</h3>
             <div className="space-y-4 max-h-72 overflow-y-auto pr-1">
-              {selectedProject.deployments.map(dep => (
-                <div key={dep.id} className="p-3 bg-neutral-900/60 border border-neutral-850 rounded-lg space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono text-neutral-500 truncate max-w-[120px]">{dep.url}</span>
-                    <span className={`px-1.5 py-0.2 rounded font-mono text-[9px] uppercase font-semibold ${
-                      dep.status === 'ready' ? 'bg-emerald-950/85 text-emerald-400 border border-emerald-900' :
-                      dep.status === 'building' ? 'bg-blue-950/85 text-blue-400 border border-blue-900 animate-pulse' :
-                      'bg-neutral-800 text-neutral-400'
-                    }`}>
-                      {dep.status}
-                    </span>
-                  </div>
-                  
-                  <p className="text-[11px] text-neutral-300 font-mono break-all font-semibold leading-snug">
-                    {dep.commitMessage}
-                  </p>
-
-                  <div className="flex items-center justify-between text-[10px] text-neutral-500 font-mono pt-1">
-                    <span>by {dep.creator}</span>
-                    <span>{new Date(dep.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Serverless Functions performance list */}
-          <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-neutral-200">Serverless APIs</h3>
-              <Server className="h-4 w-4 text-neutral-500" />
-            </div>
-
-            <div className="space-y-3">
-              {selectedProject.serverlessFunctions.length === 0 ? (
-                <p className="text-xs text-neutral-500 italic font-mono text-center py-4">No serverless functions hosted</p>
+              {recentHistory.length === 0 ? (
+                <p className="text-xs text-neutral-500 italic font-mono text-center py-4">No workflow activity logged</p>
               ) : (
-                selectedProject.serverlessFunctions.map(func => (
-                  <div key={func.id} className="p-3 bg-neutral-900 rounded-lg border border-neutral-850">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs font-mono font-semibold text-neutral-200">{func.path}</span>
-                      {func.errors > 20 ? (
-                        <span className="px-1.5 py-0.2 bg-rose-950 text-rose-400 text-[8px] font-mono font-semibold uppercase rounded">High Errors</span>
-                      ) : (
-                        <span className="px-1.5 py-0.2 bg-emerald-950 text-emerald-400 text-[8px] font-mono font-semibold uppercase rounded">Stable</span>
-                      )}
+                recentHistory.map(act => (
+                  <div key={act.id} className="p-3 bg-neutral-900/60 border border-neutral-850 rounded-lg space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-neutral-500 truncate max-w-[120px]">{act.channel}</span>
+                      <span className={`px-1.5 py-0.2 rounded text-[8px] uppercase font-semibold border ${
+                        act.action.includes('scheduled') ? 'bg-emerald-950/85 text-emerald-400 border-emerald-900' :
+                        act.action.includes('edited') ? 'bg-fuchsia-950/85 text-fuchsia-400 border-fuchsia-900' :
+                        'bg-blue-950/85 text-blue-400 border-blue-900'
+                      }`}>
+                        {act.action.includes('scheduled') ? 'Scheduled' : act.action.includes('edited') ? 'Edited' : 'In Stage'}
+                      </span>
                     </div>
+                    
+                    <p className="text-[11px] text-neutral-300 break-all font-semibold leading-snug">
+                      {act.action} on "{act.topicName}"
+                    </p>
 
-                    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-neutral-850 text-center font-mono text-[10px] text-neutral-500">
-                      <div>
-                        <span className="block text-neutral-500">Invocations</span>
-                        <span className="font-semibold text-neutral-300 mt-0.5 block">{func.invocations.toLocaleString()}</span>
-                      </div>
-                      <div>
-                        <span className="block text-neutral-500">Errors</span>
-                        <span className={`font-semibold mt-0.5 block ${func.errors > 0 ? 'text-rose-400' : 'text-neutral-300'}`}>{func.errors}</span>
-                      </div>
-                      <div>
-                        <span className="block text-neutral-500">Latency</span>
-                        <span className="font-semibold text-neutral-300 mt-0.5 block">{func.avgDurationMs}ms</span>
-                      </div>
+                    <div className="flex items-center justify-between text-[10px] text-neutral-500 pt-1">
+                      <span>by @{act.author}</span>
+                      <span>{new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
                 ))
               )}
+            </div>
+          </div>
+
+          {/* Active content lane velocities */}
+          <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-neutral-200">Content Lane Velocities</h3>
+              <Server className="h-4 w-4 text-neutral-500" />
+            </div>
+
+            <div className="space-y-3">
+              {laneVelocities.map(lane => (
+                <div key={lane.id} className="p-3 bg-neutral-900 rounded-lg border border-neutral-850">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-semibold text-neutral-200">{lane.path}</span>
+                    {lane.errors > 0 ? (
+                      <span className="px-1.5 py-0.2 bg-rose-950 text-rose-400 text-[8px] font-semibold uppercase rounded animate-pulse">Critical Gaps</span>
+                    ) : (
+                      <span className="px-1.5 py-0.2 bg-emerald-950 text-emerald-400 text-[8px] font-semibold uppercase rounded">Buffer Stable</span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-neutral-850 text-center text-[10px] text-neutral-500">
+                    <div>
+                      <span className="block text-neutral-500">Pipeline Load</span>
+                      <span className="font-semibold text-neutral-300 mt-0.5 block">{lane.invocations}</span>
+                    </div>
+                    <div>
+                      <span className="block text-neutral-500">Near Gaps</span>
+                      <span className={`font-semibold mt-0.5 block ${lane.errors > 0 ? 'text-rose-400 font-bold' : 'text-neutral-300'}`}>{lane.errors}</span>
+                    </div>
+                    <div>
+                      <span className="block text-neutral-500">Avg Lead</span>
+                      <span className="font-semibold text-neutral-300 mt-0.5 block">{lane.latency}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

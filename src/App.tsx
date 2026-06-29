@@ -497,6 +497,8 @@ export default function App() {
                 projects={vercelProjects} 
                 onAddEvent={addEvent} 
                 onUpdateProject={handleUpdateProject}
+                topics={topics}
+                activities={activities}
               />
             )}
 
