@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Trophy, 
@@ -46,19 +46,86 @@ interface HistoryEntry {
 }
 
 export default function ScoreView({ repos, vercelProjects, supabase }: ScoreViewProps) {
-  // 12 Daily parameters state variables (All standardized to 1-10 range)
-  const [restfulness, setRestfulness] = useState<number>(8); // 1-10
-  const [nutrition, setNutrition] = useState<number>(7); // 1-10
-  const [hydration, setHydration] = useState<number>(8); // 1-10
-  const [physicalActivity, setPhysicalActivity] = useState<number>(6); // 1-10
-  const [endorphins, setEndorphins] = useState<number>(2); // 1-10
-  const [schedule, setSchedule] = useState<number>(8); // 1-10
-  const [pleasantness, setPleasantness] = useState<number>(8); // 1-10
-  const [socialization, setSocialization] = useState<number>(6); // 1-10
-  const [stomach, setStomach] = useState<number>(8); // 1-10
-  const [technicalities, setTechnicalities] = useState<number>(1); // 1-10
-  const [relations, setRelations] = useState<number>(8); // 1-10
-  const [stress, setStress] = useState<number>(2); // 1-10
+  // 12 Daily parameters state variables (Default to null / N/A, stored in local storage and reset when date changes)
+  const [restfulness, setRestfulness] = useState<number | null>(null);
+  const [nutrition, setNutrition] = useState<number | null>(null);
+  const [hydration, setHydration] = useState<number | null>(null);
+  const [physicalActivity, setPhysicalActivity] = useState<number | null>(null);
+  const [endorphins, setEndorphins] = useState<number | null>(null);
+  const [schedule, setSchedule] = useState<number | null>(null);
+  const [pleasantness, setPleasantness] = useState<number | null>(null);
+  const [socialization, setSocialization] = useState<number | null>(null);
+  const [stomach, setStomach] = useState<number | null>(null);
+  const [technicalities, setTechnicalities] = useState<number | null>(null);
+  const [relations, setRelations] = useState<number | null>(null);
+  const [stress, setStress] = useState<number | null>(null);
+
+  // Load data from LocalStorage on mount
+  useEffect(() => {
+    const today = new Date();
+    const currentDateStr = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+    const storedDate = localStorage.getItem('unicorn_scorecard_date');
+
+    if (storedDate === currentDateStr) {
+      const loadParam = (key: string) => {
+        const val = localStorage.getItem(`unicorn_scorecard_${key}`);
+        return val ? parseInt(val, 10) : null;
+      };
+      
+      setRestfulness(loadParam('restfulness'));
+      setNutrition(loadParam('nutrition'));
+      setHydration(loadParam('hydration'));
+      setPhysicalActivity(loadParam('physicalActivity'));
+      setEndorphins(loadParam('endorphins'));
+      setSchedule(loadParam('schedule'));
+      setPleasantness(loadParam('pleasantness'));
+      setSocialization(loadParam('socialization'));
+      setStomach(loadParam('stomach'));
+      setTechnicalities(loadParam('technicalities'));
+      setRelations(loadParam('relations'));
+      setStress(loadParam('stress'));
+
+      const storedHistory = localStorage.getItem('unicorn_scorecard_history');
+      if (storedHistory) {
+        try {
+          setHistory(JSON.parse(storedHistory));
+        } catch (e) {
+          // ignore
+        }
+      }
+    } else {
+      localStorage.setItem('unicorn_scorecard_date', currentDateStr);
+      setRestfulness(null);
+      setNutrition(null);
+      setHydration(null);
+      setPhysicalActivity(null);
+      setEndorphins(null);
+      setSchedule(null);
+      setPleasantness(null);
+      setSocialization(null);
+      setStomach(null);
+      setTechnicalities(null);
+      setRelations(null);
+      setStress(null);
+
+      const initialHistory = [
+        {
+          id: 'init',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          parameter: 'System',
+          oldVal: 'None',
+          newVal: 'Initialized',
+          scoreEffect: 0,
+          description: 'Daily Readiness Scorecard initialized with baseline levels.'
+        }
+      ];
+      setHistory(initialHistory);
+      localStorage.setItem('unicorn_scorecard_history', JSON.stringify(initialHistory));
+      
+      const keys = ['restfulness', 'nutrition', 'hydration', 'physicalActivity', 'endorphins', 'schedule', 'pleasantness', 'socialization', 'stomach', 'technicalities', 'relations', 'stress'];
+      keys.forEach(k => localStorage.removeItem(`unicorn_scorecard_${k}`));
+    }
+  }, []);
 
   // Change Log History
   const [history, setHistory] = useState<HistoryEntry[]>([
@@ -75,8 +142,8 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
 
   // Debouncing refs to prevent micro-increment logging spam
   const logTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({});
-  const originalValuesRef = useRef<Record<string, number>>({});
-  const latestParamsRef = useRef<Record<string, number>>({});
+  const originalValuesRef = useRef<Record<string, number | null>>({});
+  const latestParamsRef = useRef<Record<string, number | null>>({});
 
   // Maintain the latest values in a ref on every render to prevent stale closure loops
   latestParamsRef.current = {
@@ -96,7 +163,8 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
 
   // Compile calculations (aggregated Bio-Score and Radar Chart vectors)
   const computedMetrics = useMemo(() => {
-    const getPoints = (name: string, val: number) => {
+    const getPoints = (name: string, val: number | null) => {
+      if (val === null) return 0;
       if (['restfulness', 'nutrition', 'hydration', 'schedule', 'pleasantness', 'stomach'].includes(name)) {
         return val;
       }
@@ -141,44 +209,72 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
       return 0;
     };
 
-    const restScore = getPoints('restfulness', restfulness);
-    const nutrScore = getPoints('nutrition', nutrition);
-    const hydrScore = getPoints('hydration', hydration);
-    const physPoints = getPoints('physicalActivity', physicalActivity);
-    const endoPoints = getPoints('endorphins', endorphins);
-    const schedScore = getPoints('schedule', schedule);
-    const pleasScore = getPoints('pleasantness', pleasantness);
-    const socPoints = getPoints('socialization', socialization);
-    const stomPoints = getPoints('stomach', stomach);
-    const techPoints = getPoints('technicalities', technicalities);
-    const relPoints = getPoints('relations', relations);
-    const stressPoints = getPoints('stress', stress);
+    const paramsList = [
+      { name: 'restfulness', val: restfulness },
+      { name: 'nutrition', val: nutrition },
+      { name: 'hydration', val: hydration },
+      { name: 'physicalActivity', val: physicalActivity },
+      { name: 'endorphins', val: endorphins },
+      { name: 'schedule', val: schedule },
+      { name: 'pleasantness', val: pleasantness },
+      { name: 'socialization', val: socialization },
+      { name: 'stomach', val: stomach },
+      { name: 'technicalities', val: technicalities },
+      { name: 'relations', val: relations },
+      { name: 'stress', val: stress }
+    ];
 
-    const totalPoints = restScore + nutrScore + hydrScore + physPoints + endoPoints + 
-                        schedScore + pleasScore + socPoints + stomPoints + techPoints + 
-                        relPoints + stressPoints;
-    
-    const aggregate = Math.round((totalPoints / 120) * 100);
+    const activeParams = paramsList.filter(p => p.val !== null);
+    const activeCount = activeParams.length;
+
+    let aggregate = 0;
+    if (activeCount > 0) {
+      const activePointsSum = activeParams.reduce((sum, p) => sum + getPoints(p.name, p.val), 0);
+      aggregate = Math.round((activePointsSum / (activeCount * 10)) * 100);
+    }
 
     // Compute composite metrics for Recharts Radar Chart (bound 10-100)
-    const physEnergy = Math.min(100, Math.max(10, Math.round(
-      (restfulness * 1.5 + nutrition * 1.5 + hydration * 1.5 + physPoints * 2.0 + 35)
-    )));
-    const focusBandwidth = Math.min(100, Math.max(10, Math.round(
-      (endoPoints * 3.0 + stressPoints * 4.0 + techPoints * 3.0) * 1.0
-    )));
-    const timeEfficiency = Math.min(100, Math.max(10, Math.round(
-      (schedule * 6.0 + socPoints * 4.0) * 1.0
-    )));
-    const emotionalVibe = Math.min(100, Math.max(10, Math.round(
-      (pleasantness * 5.0 + stomPoints * 2.5 + relPoints * 2.5) * 1.0
-    )));
-    const socialHarmony = Math.min(100, Math.max(10, Math.round(
-      (socPoints * 5.0 + relPoints * 5.0) * 1.0
-    )));
-    const biologicalComfort = Math.min(100, Math.max(10, Math.round(
-      (stomPoints * 5.0 + stressPoints * 3.0 + restfulness * 2.0) * 1.0
-    )));
+    const physActive = [restfulness, nutrition, hydration, physicalActivity].filter(v => v !== null) as number[];
+    const physEnergy = physActive.length > 0
+      ? Math.min(100, Math.max(10, Math.round(
+          (physActive.reduce((sum, v) => sum + v, 0) / physActive.length) * 10
+        )))
+      : 10;
+
+    const focusActive = [endorphins, stress, technicalities].filter(v => v !== null) as number[];
+    const focusBandwidth = focusActive.length > 0
+      ? Math.min(100, Math.max(10, Math.round(
+          ((10 - (focusActive[0] || 0)) + (10 - (focusActive[1] || 0)) + (10 - (focusActive[2] || 0))) / focusActive.length * 10
+        )))
+      : 10;
+
+    const timeActive = [schedule, socialization].filter(v => v !== null) as number[];
+    const timeEfficiency = timeActive.length > 0
+      ? Math.min(100, Math.max(10, Math.round(
+          (timeActive.reduce((sum, v) => sum + v, 0) / timeActive.length) * 10
+        )))
+      : 10;
+
+    const emotionalActive = [pleasantness, stomach, relations].filter(v => v !== null) as number[];
+    const emotionalVibe = emotionalActive.length > 0
+      ? Math.min(100, Math.max(10, Math.round(
+          (emotionalActive.reduce((sum, v) => sum + v, 0) / emotionalActive.length) * 10
+        )))
+      : 10;
+
+    const socialActive = [socialization, relations].filter(v => v !== null) as number[];
+    const socialHarmony = socialActive.length > 0
+      ? Math.min(100, Math.max(10, Math.round(
+          (socialActive.reduce((sum, v) => sum + v, 0) / socialActive.length) * 10
+        )))
+      : 10;
+
+    const bioActive = [stomach, stress, restfulness].filter(v => v !== null) as number[];
+    const biologicalComfort = bioActive.length > 0
+      ? Math.min(100, Math.max(10, Math.round(
+          ((bioActive[0] || 0) + (10 - (bioActive[1] || 0)) + (bioActive[2] || 0)) / bioActive.length * 10
+        )))
+      : 10;
 
     return {
       aggregate,
@@ -192,8 +288,9 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
   }, [restfulness, nutrition, hydration, physicalActivity, endorphins, schedule, pleasantness, socialization, stomach, technicalities, relations, stress]);
 
   // Write final transition logs when timer fires after input inactivity
-  const writeFinalLog = (paramName: string, oldVal: number, newVal: number) => {
-    const getPoints = (name: string, val: number) => {
+  const writeFinalLog = (paramName: string, oldVal: number | null, newVal: number) => {
+    const getPoints = (name: string, val: number | null) => {
+      if (val === null) return 0;
       if (['restfulness', 'nutrition', 'hydration', 'schedule', 'pleasantness', 'stomach'].includes(name)) {
         return val;
       }
@@ -238,20 +335,21 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
       return 0;
     };
 
-    const oldPts = getPoints(paramName, oldVal);
+    const oldPts = oldVal !== null ? getPoints(paramName, oldVal) : 5;
     const newPts = getPoints(paramName, newVal);
     const diffScore = Math.round(((newPts - oldPts) / 120) * 100);
 
     let explanation = '';
+    const oldCompareVal = oldVal !== null ? oldVal : 5;
     switch (paramName) {
       case 'restfulness':
-        explanation = newVal > oldVal ? 'Better rest restores vital energy.' : 'Reduced rest triggers cognitive fatigue.';
+        explanation = newVal > oldCompareVal ? 'Better rest restores vital energy.' : 'Reduced rest triggers cognitive fatigue.';
         break;
       case 'nutrition':
-        explanation = newVal > oldVal ? 'Nutrition boosts daily metabolic thresholds.' : 'Poor nutrition drains physical and mental stamina.';
+        explanation = newVal > oldCompareVal ? 'Nutrition boosts daily metabolic thresholds.' : 'Poor nutrition drains physical and mental stamina.';
         break;
       case 'hydration':
-        explanation = newVal > oldVal ? 'Hydration levels normalized.' : 'Dehydration risk triggers mental sluggishness.';
+        explanation = newVal > oldCompareVal ? 'Hydration levels normalized.' : 'Dehydration risk triggers mental sluggishness.';
         break;
       case 'physicalActivity':
         explanation = newVal >= 5 && newVal <= 7 ? 'Optimal active physical movement.' : newVal === 10 ? 'Exhaustive workout loads reduce active energy reservoirs.' : 'Sedentary state blocks optimal metabolic circulation.';
@@ -260,10 +358,10 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
         explanation = newVal <= 2 ? 'Laser focused states restored.' : newVal >= 7 ? 'Dopamine spikes trigger active distraction vulnerabilities.' : 'Mild sensory endorphin buzz present.';
         break;
       case 'schedule':
-        explanation = newVal > oldVal ? 'Calendar alignment restores time slots.' : 'Schedule slips reduce active work windows.';
+        explanation = newVal > oldCompareVal ? 'Calendar alignment restores time slots.' : 'Schedule slips reduce active work windows.';
         break;
       case 'pleasantness':
-        explanation = newVal > oldVal ? 'Positive attitude boosts day value.' : 'Negative mood dampens productivity outcomes.';
+        explanation = newVal > oldCompareVal ? 'Positive attitude boosts day value.' : 'Negative mood dampens productivity outcomes.';
         break;
       case 'socialization':
         explanation = newVal >= 5 && newVal <= 7 ? 'Balanced socialization boosts mental motivation.' : newVal === 10 ? 'Excessive socialization cuts available schedule windows.' : 'Low socialization for today is negligible.';
@@ -283,24 +381,42 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
     }
 
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    setHistory(prev => [
-      {
-        id: `log-${Date.now()}`,
-        timestamp,
-        parameter: paramName.charAt(0).toUpperCase() + paramName.slice(1),
-        oldVal: `${oldVal}/10`,
-        newVal: `${newVal}/10`,
-        scoreEffect: diffScore,
-        description: explanation
-      },
-      ...prev.slice(0, 14)
-    ]);
+    const newLogEntry = {
+      id: `log-${Date.now()}`,
+      timestamp,
+      parameter: paramName.charAt(0).toUpperCase() + paramName.slice(1),
+      oldVal: oldVal !== null ? `${oldVal}/10` : 'N/A',
+      newVal: `${newVal}/10`,
+      scoreEffect: diffScore,
+      description: explanation
+    };
+
+    setHistory(prev => {
+      const updated = [newLogEntry, ...prev.slice(0, 14)];
+      localStorage.setItem('unicorn_scorecard_history', JSON.stringify(updated));
+      return updated;
+    });
+
+    // Save to persistent all-time database logs
+    const dbLogsStr = localStorage.getItem('unicorn_scorecard_db_logs');
+    let dbLogs = [];
+    if (dbLogsStr) {
+      try {
+        dbLogs = JSON.parse(dbLogsStr);
+      } catch (e) {}
+    }
+    dbLogs.push({
+      ...newLogEntry,
+      date: new Date().toISOString().split('T')[0]
+    });
+    localStorage.setItem('unicorn_scorecard_db_logs', JSON.stringify(dbLogs));
   };
 
   // Central trigger to update parameters, debouncing log outcomes
-  const handleParamChange = (paramName: string, newVal: number, setter: (val: number) => void, oldVal: number) => {
+  const handleParamChange = (paramName: string, newVal: number, setter: (val: number | null) => void, oldVal: number | null) => {
     setter(newVal);
     latestParamsRef.current[paramName] = newVal;
+    localStorage.setItem(`unicorn_scorecard_${paramName}`, String(newVal));
 
     if (originalValuesRef.current[paramName] === undefined) {
       originalValuesRef.current[paramName] = oldVal;
@@ -314,8 +430,8 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
       const initialVal = originalValuesRef.current[paramName];
       const finalVal = latestParamsRef.current[paramName];
 
-      if (initialVal !== undefined && finalVal !== undefined && initialVal !== finalVal) {
-        writeFinalLog(paramName, initialVal, finalVal);
+      if (initialVal !== finalVal) {
+        writeFinalLog(paramName, initialVal !== undefined ? initialVal : null, finalVal !== undefined && finalVal !== null ? finalVal : 5);
       }
 
       delete originalValuesRef.current[paramName];
@@ -541,381 +657,157 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
 
           <div className="space-y-4 max-h-[580px] overflow-y-auto pr-1 scrollbar-thin">
             
-            {/* Group 1: Physical Parameters */}
-            <div className="space-y-3">
-              <h4 className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider font-mono">Physical Health</h4>
-              
-              {/* Restfulness Card */}
-              <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-neutral-300">Restfulness</span>
-                  <span className="text-emerald-400 font-bold">{restfulness}/10</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => handleParamChange('restfulness', Math.max(1, restfulness - 1), setRestfulness, restfulness)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    -
-                  </button>
-                  <input 
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={restfulness}
-                    onChange={(e) => handleParamChange('restfulness', Number(e.target.value), setRestfulness, restfulness)}
-                    className="flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer accent-emerald-400 outline-none border-none animate-none"
-                  />
-                  <button 
-                    onClick={() => handleParamChange('restfulness', Math.min(10, restfulness + 1), setRestfulness, restfulness)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
+            {/* Dynamic Parameter Cards */}
+            {(() => {
+              const parameterDefs = [
+                {
+                  group: 'Physical Health',
+                  items: [
+                    { key: 'restfulness', label: 'Restfulness', colorClass: 'text-emerald-400', accent: 'accent-emerald-400', val: restfulness, setter: setRestfulness },
+                    { key: 'nutrition', label: 'Nutrition', colorClass: 'text-emerald-400', accent: 'accent-emerald-400', val: nutrition, setter: setNutrition },
+                    { key: 'hydration', label: 'Hydration', colorClass: 'text-blue-400', accent: 'accent-blue-400', val: hydration, setter: setHydration },
+                    { 
+                      key: 'stomach', 
+                      label: 'Stomach Status', 
+                      val: stomach, 
+                      setter: setStomach,
+                      customLabel: (v: number) => {
+                        const lbl = getStomachLabel(v);
+                        return { text: `${v}/10 (${lbl.text})`, color: lbl.color };
+                      },
+                      getAccent: (v: number) => v >= 7 ? 'accent-emerald-400' : v >= 5 ? 'accent-amber-400' : 'accent-rose-400'
+                    },
+                    { 
+                      key: 'physicalActivity', 
+                      label: 'Physical Activity', 
+                      val: physicalActivity, 
+                      setter: setPhysicalActivity,
+                      customLabel: (v: number) => {
+                        const lbl = getPhysicalActivityLabel(v);
+                        return { text: `${v}/10 (${lbl.text})`, color: lbl.color };
+                      },
+                      getAccent: (v: number) => v >= 5 && v <= 7 ? 'accent-emerald-400' : v === 10 ? 'accent-rose-400' : 'accent-blue-400'
+                    }
+                  ]
+                },
+                {
+                  group: 'Mental Focus',
+                  items: [
+                    { 
+                      key: 'stress', 
+                      label: 'Stress Level', 
+                      val: stress, 
+                      setter: setStress,
+                      customLabel: (v: number) => {
+                        const lbl = getStressLabel(v);
+                        return { text: `${v}/10 (${lbl.text})`, color: lbl.color };
+                      },
+                      getAccent: (v: number) => v <= 4 ? 'accent-emerald-400' : v <= 6 ? 'accent-amber-400' : 'accent-rose-400'
+                    },
+                    { 
+                      key: 'endorphins', 
+                      label: 'Endorphins (Distraction)', 
+                      val: endorphins, 
+                      setter: setEndorphins,
+                      customLabel: (v: number) => {
+                        const lbl = getEndorphinsLabel(v);
+                        return { text: `${v}/10 (${lbl.text})`, color: lbl.color };
+                      },
+                      getAccent: (v: number) => v <= 4 ? 'accent-emerald-400' : v <= 6 ? 'accent-amber-400' : 'accent-rose-400'
+                    },
+                    { key: 'pleasantness', label: 'Pleasantness', colorClass: 'text-emerald-400', accent: 'accent-emerald-400', val: pleasantness, setter: setPleasantness }
+                  ]
+                },
+                {
+                  group: 'Environment & Sync',
+                  items: [
+                    { key: 'schedule', label: 'Schedule Adherence', colorClass: 'text-emerald-400', accent: 'accent-emerald-400', val: schedule, setter: setSchedule },
+                    { 
+                      key: 'socialization', 
+                      label: 'Socialization', 
+                      val: socialization, 
+                      setter: setSocialization,
+                      customLabel: (v: number) => {
+                        const lbl = getSocializationLabel(v);
+                        return { text: `${v}/10 (${lbl.text})`, color: lbl.color };
+                      },
+                      getAccent: (v: number) => v >= 5 && v <= 7 ? 'accent-emerald-400' : v === 10 ? 'accent-rose-400' : 'accent-blue-400'
+                    },
+                    { 
+                      key: 'relations', 
+                      label: 'Relationship Dynamic', 
+                      val: relations, 
+                      setter: setRelations,
+                      customLabel: (v: number) => {
+                        const lbl = getRelationsLabel(v);
+                        return { text: `${v}/10 (${lbl.text})`, color: lbl.color };
+                      },
+                      getAccent: (v: number) => v >= 7 ? 'accent-emerald-400' : v >= 5 ? 'accent-blue-400' : 'accent-rose-400'
+                    },
+                    { 
+                      key: 'technicalities', 
+                      label: 'Technical Blockers', 
+                      val: technicalities, 
+                      setter: setTechnicalities,
+                      customLabel: (v: number) => {
+                        const lbl = getTechnicalitiesLabel(v);
+                        return { text: `${v}/10 (${lbl.text})`, color: lbl.color };
+                      },
+                      getAccent: (v: number) => v <= 2 ? 'accent-emerald-400' : v <= 6 ? 'accent-amber-400' : 'accent-rose-400'
+                    }
+                  ]
+                }
+              ];
 
-              {/* Nutrition Card */}
-              <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-neutral-300">Nutrition</span>
-                  <span className="text-emerald-400 font-bold">{nutrition}/10</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => handleParamChange('nutrition', Math.max(1, nutrition - 1), setNutrition, nutrition)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    -
-                  </button>
-                  <input 
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={nutrition}
-                    onChange={(e) => handleParamChange('nutrition', Number(e.target.value), setNutrition, nutrition)}
-                    className="flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer accent-emerald-400 outline-none border-none animate-none"
-                  />
-                  <button 
-                    onClick={() => handleParamChange('nutrition', Math.min(10, nutrition + 1), setNutrition, nutrition)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
+              return parameterDefs.map((group, gIdx) => (
+                <div key={group.group} className={`space-y-3 ${gIdx > 0 ? 'pt-2' : ''}`}>
+                  <h4 className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider font-mono">{group.group}</h4>
+                  {group.items.map(item => {
+                    const displayValue = item.val !== null 
+                      ? (item.customLabel ? item.customLabel(item.val).text : `${item.val}/10`)
+                      : 'N/A';
+                    const displayColor = item.val !== null
+                      ? (item.customLabel ? item.customLabel(item.val).color : (item.colorClass || 'text-emerald-400'))
+                      : 'text-neutral-500';
+                    
+                    const inputAccent = item.val !== null
+                      ? (item.getAccent ? item.getAccent(item.val) : (item.accent || 'accent-emerald-400'))
+                      : 'accent-neutral-700 opacity-40';
 
-              {/* Hydration Card */}
-              <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-neutral-300">Hydration</span>
-                  <span className="text-blue-400 font-bold">{hydration}/10</span>
+                    return (
+                      <div key={item.key} className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
+                        <div className="flex justify-between text-xs font-mono">
+                          <span className="text-neutral-300">{item.label}</span>
+                          <span className={`${displayColor} font-bold`}>{displayValue}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => handleParamChange(item.key, Math.max(1, (item.val ?? 5) - 1), item.setter, item.val)}
+                            className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
+                          >
+                            -
+                          </button>
+                          <input 
+                            type="range"
+                            min="1"
+                            max="10"
+                            value={item.val ?? 5}
+                            onChange={(e) => handleParamChange(item.key, Number(e.target.value), item.setter, item.val)}
+                            className={`flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer outline-none border-none animate-none ${inputAccent}`}
+                          />
+                          <button 
+                            onClick={() => handleParamChange(item.key, Math.min(10, (item.val ?? 5) + 1), item.setter, item.val)}
+                            className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => handleParamChange('hydration', Math.max(1, hydration - 1), setHydration, hydration)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    -
-                  </button>
-                  <input 
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={hydration}
-                    onChange={(e) => handleParamChange('hydration', Number(e.target.value), setHydration, hydration)}
-                    className="flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer accent-blue-400 outline-none border-none animate-none"
-                  />
-                  <button 
-                    onClick={() => handleParamChange('hydration', Math.min(10, hydration + 1), setHydration, hydration)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              {/* Stomach Status Card (10-steps with descriptions) */}
-              <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-neutral-300">Stomach Status</span>
-                  <span className={`font-bold ${getStomachLabel(stomach).color}`}>{stomach}/10 ({getStomachLabel(stomach).text})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => handleParamChange('stomach', Math.max(1, stomach - 1), setStomach, stomach)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    -
-                  </button>
-                  <input 
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={stomach}
-                    onChange={(e) => handleParamChange('stomach', Number(e.target.value), setStomach, stomach)}
-                    className={`flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer outline-none border-none ${stomach >= 7 ? 'accent-emerald-400' : stomach >= 5 ? 'accent-amber-400' : 'accent-rose-400'}`}
-                  />
-                  <button 
-                    onClick={() => handleParamChange('stomach', Math.min(10, stomach + 1), setStomach, stomach)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              {/* Physical Activity Card (10-steps with descriptions) */}
-              <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-neutral-300">Physical Activity</span>
-                  <span className={`font-bold ${getPhysicalActivityLabel(physicalActivity).color}`}>{physicalActivity}/10 ({getPhysicalActivityLabel(physicalActivity).text})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => handleParamChange('physicalActivity', Math.max(1, physicalActivity - 1), setPhysicalActivity, physicalActivity)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    -
-                  </button>
-                  <input 
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={physicalActivity}
-                    onChange={(e) => handleParamChange('physicalActivity', Number(e.target.value), setPhysicalActivity, physicalActivity)}
-                    className={`flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer outline-none border-none ${physicalActivity >= 5 && physicalActivity <= 7 ? 'accent-emerald-400' : physicalActivity === 10 ? 'accent-rose-400' : 'accent-blue-400'}`}
-                  />
-                  <button 
-                    onClick={() => handleParamChange('physicalActivity', Math.min(10, physicalActivity + 1), setPhysicalActivity, physicalActivity)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Group 2: Cognitive & Mood Parameters */}
-            <div className="space-y-3 pt-2">
-              <h4 className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider font-mono">Mental Focus</h4>
-
-              {/* Stress Card (10-steps with descriptions) */}
-              <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-neutral-300">Stress Level</span>
-                  <span className={`font-bold ${getStressLabel(stress).color}`}>{stress}/10 ({getStressLabel(stress).text})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => handleParamChange('stress', Math.max(1, stress - 1), setStress, stress)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    -
-                  </button>
-                  <input 
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={stress}
-                    onChange={(e) => handleParamChange('stress', Number(e.target.value), setStress, stress)}
-                    className={`flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer outline-none border-none ${stress <= 4 ? 'accent-emerald-400' : stress <= 6 ? 'accent-amber-400' : 'accent-rose-400'}`}
-                  />
-                  <button 
-                    onClick={() => handleParamChange('stress', Math.min(10, stress + 1), setStress, stress)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              {/* Endorphins Card (10-steps with descriptions) */}
-              <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-neutral-300">Endorphins (Distraction)</span>
-                  <span className={`font-bold ${getEndorphinsLabel(endorphins).color}`}>{endorphins}/10 ({getEndorphinsLabel(endorphins).text})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => handleParamChange('endorphins', Math.max(1, endorphins - 1), setEndorphins, endorphins)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    -
-                  </button>
-                  <input 
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={endorphins}
-                    onChange={(e) => handleParamChange('endorphins', Number(e.target.value), setEndorphins, endorphins)}
-                    className={`flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer outline-none border-none ${endorphins <= 4 ? 'accent-emerald-400' : endorphins <= 6 ? 'accent-amber-400' : 'accent-rose-400'}`}
-                  />
-                  <button 
-                    onClick={() => handleParamChange('endorphins', Math.min(10, endorphins + 1), setEndorphins, endorphins)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              {/* Pleasantness Card */}
-              <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-neutral-300">Pleasantness</span>
-                  <span className="text-emerald-400 font-bold">{pleasantness}/10</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => handleParamChange('pleasantness', Math.max(1, pleasantness - 1), setPleasantness, pleasantness)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    -
-                  </button>
-                  <input 
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={pleasantness}
-                    onChange={(e) => handleParamChange('pleasantness', Number(e.target.value), setPleasantness, pleasantness)}
-                    className="flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer accent-emerald-400 outline-none border-none animate-none"
-                  />
-                  <button 
-                    onClick={() => handleParamChange('pleasantness', Math.min(10, pleasantness + 1), setPleasantness, pleasantness)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Group 3: Execution and Context Parameters */}
-            <div className="space-y-3 pt-2">
-              <h4 className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider font-mono">Environment & Sync</h4>
-
-              {/* Schedule Card */}
-              <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-neutral-300">Schedule adherence</span>
-                  <span className="text-emerald-400 font-bold">{schedule}/10</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => handleParamChange('schedule', Math.max(1, schedule - 1), setSchedule, schedule)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    -
-                  </button>
-                  <input 
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={schedule}
-                    onChange={(e) => handleParamChange('schedule', Number(e.target.value), setSchedule, schedule)}
-                    className="flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer accent-emerald-400 outline-none border-none animate-none"
-                  />
-                  <button 
-                    onClick={() => handleParamChange('schedule', Math.min(10, schedule + 1), setSchedule, schedule)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              {/* Socialization Card (10-steps with descriptions) */}
-              <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-neutral-300">Socialization</span>
-                  <span className={`font-bold ${getSocializationLabel(socialization).color}`}>{socialization}/10 ({getSocializationLabel(socialization).text})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => handleParamChange('socialization', Math.max(1, socialization - 1), setSocialization, socialization)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    -
-                  </button>
-                  <input 
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={socialization}
-                    onChange={(e) => handleParamChange('socialization', Number(e.target.value), setSocialization, socialization)}
-                    className={`flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer outline-none border-none ${socialization >= 5 && socialization <= 7 ? 'accent-emerald-400' : socialization === 10 ? 'accent-rose-400' : 'accent-blue-400'}`}
-                  />
-                  <button 
-                    onClick={() => handleParamChange('socialization', Math.min(10, socialization + 1), setSocialization, socialization)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              {/* Relations Card (10-steps with descriptions) */}
-              <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-neutral-300">Relationship Dynamic</span>
-                  <span className={`font-bold ${getRelationsLabel(relations).color}`}>{relations}/10 ({getRelationsLabel(relations).text})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => handleParamChange('relations', Math.max(1, relations - 1), setRelations, relations)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    -
-                  </button>
-                  <input 
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={relations}
-                    onChange={(e) => handleParamChange('relations', Number(e.target.value), setRelations, relations)}
-                    className={`flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer outline-none border-none ${relations >= 7 ? 'accent-emerald-400' : relations >= 5 ? 'accent-blue-400' : 'accent-rose-400'}`}
-                  />
-                  <button 
-                    onClick={() => handleParamChange('relations', Math.min(10, relations + 1), setRelations, relations)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              {/* Technical Blockers Card (10-steps with descriptions) */}
-              <div className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
-                <div className="flex justify-between text-xs font-mono">
-                  <span className="text-neutral-300">Technical Blockers</span>
-                  <span className={`font-bold ${getTechnicalitiesLabel(technicalities).color}`}>{technicalities}/10 ({getTechnicalitiesLabel(technicalities).text})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => handleParamChange('technicalities', Math.max(1, technicalities - 1), setTechnicalities, technicalities)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    -
-                  </button>
-                  <input 
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={technicalities}
-                    onChange={(e) => handleParamChange('technicalities', Number(e.target.value), setTechnicalities, technicalities)}
-                    className={`flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer outline-none border-none ${technicalities <= 2 ? 'accent-emerald-400' : technicalities <= 6 ? 'accent-amber-400' : 'accent-rose-400'}`}
-                  />
-                  <button 
-                    onClick={() => handleParamChange('technicalities', Math.min(10, technicalities + 1), setTechnicalities, technicalities)}
-                    className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            </div>
-
+              ));
+            })()}
           </div>
         </div>
 
