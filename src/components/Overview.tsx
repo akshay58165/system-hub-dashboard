@@ -49,26 +49,37 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
   // YouTube Payment Cycle calculations
   const paymentMetrics = useMemo(() => {
     const today = new Date();
+    const day = today.getDate();
     
-    let lockDate = new Date(today.getFullYear(), today.getMonth(), 10);
-    if (today.getDate() > 10) {
-      lockDate = new Date(today.getFullYear(), today.getMonth() + 1, 10);
+    // Check if current month's payout has been dispatched
+    let payoutMonthOffset = 0;
+    if (day > 21) {
+      payoutMonthOffset = 1;
     }
     
-    let payoutDate = new Date(today.getFullYear(), today.getMonth(), 21);
-    if (today.getDate() > 21) {
-      payoutDate = new Date(today.getFullYear(), today.getMonth() + 1, 21);
-    }
+    // Cycle A: Last Month's Work (incoming payout this month or next)
+    const cycleAWorkDate = new Date(today.getFullYear(), today.getMonth() + payoutMonthOffset - 1, 1);
+    const cycleALockDate = new Date(today.getFullYear(), today.getMonth() + payoutMonthOffset, 10);
+    const cycleAPayoutDate = new Date(today.getFullYear(), today.getMonth() + payoutMonthOffset, 21);
     
-    const lockDiff = lockDate.getTime() - today.getTime();
-    const lockDays = Math.ceil(lockDiff / (1000 * 60 * 60 * 24));
-
-    const payoutDiff = payoutDate.getTime() - today.getTime();
-    const payDays = Math.ceil(payoutDiff / (1000 * 60 * 60 * 24));
+    // Cycle B: Current Month's Work (following payout next month)
+    const cycleBWorkDate = new Date(today.getFullYear(), today.getMonth() + payoutMonthOffset, 1);
+    const cycleBLockDate = new Date(today.getFullYear(), today.getMonth() + payoutMonthOffset + 1, 10);
+    const cycleBPayoutDate = new Date(today.getFullYear(), today.getMonth() + payoutMonthOffset + 1, 21);
+    
+    const formatDays = (targetDate: Date) => {
+      const diff = targetDate.getTime() - today.getTime();
+      const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+      return days <= 0 ? 'Done' : `${days}d`;
+    };
     
     return {
-      lockDays,
-      payDays
+      cycleAWorkName: cycleAWorkDate.toLocaleString('default', { month: 'long' }),
+      cycleALockDays: formatDays(cycleALockDate),
+      cycleAPayDays: formatDays(cycleAPayoutDate),
+      cycleBWorkName: cycleBWorkDate.toLocaleString('default', { month: 'long' }),
+      cycleBLockDays: formatDays(cycleBLockDate),
+      cycleBPayDays: formatDays(cycleBPayoutDate)
     };
   }, []);
 
@@ -142,17 +153,36 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
               <Youtube className="h-4 w-4 text-red-500 group-hover:scale-110 transition-transform duration-300 animate-pulse" />
             </div>
             <span className="text-[10px] font-mono font-semibold text-neutral-200">Payment Cycle</span>
-            <span className="text-sm font-mono font-bold text-emerald-400 mt-1 select-none">
-              {paymentMetrics.payDays}d pending
-            </span>
-            <div className="text-[8px] font-mono text-neutral-500 mt-1.5 pt-1 border-t border-neutral-900/60 w-full flex flex-col gap-0.5">
-              <div className="flex justify-between px-1">
-                <span>Lock:</span>
-                <span className="text-neutral-300">{paymentMetrics.lockDays}d remaining</span>
+            
+            {/* Cycle A: Last Month Work (Incoming) */}
+            <div className="w-full mt-2.5 p-2 bg-emerald-950/10 border border-emerald-900/30 rounded-lg text-left text-[8px] font-mono select-none">
+              <div className="flex justify-between items-center border-b border-emerald-900/20 pb-1 mb-1 font-bold text-emerald-400">
+                <span>{paymentMetrics.cycleAWorkName} (Work Done)</span>
+                <span>{paymentMetrics.cycleAPayDays} left</span>
               </div>
-              <div className="flex justify-between px-1">
-                <span>Pay:</span>
-                <span className="text-neutral-300">{paymentMetrics.payDays}d remaining</span>
+              <div className="flex justify-between text-neutral-400">
+                <span>Revenue Lock:</span>
+                <span className="text-neutral-200 font-bold">{paymentMetrics.cycleALockDays}</span>
+              </div>
+              <div className="flex justify-between text-neutral-400">
+                <span>Bank Dispatch:</span>
+                <span className="text-neutral-200 font-bold">{paymentMetrics.cycleAPayDays}</span>
+              </div>
+            </div>
+
+            {/* Cycle B: Current Month Work (Active) */}
+            <div className="w-full mt-1.5 p-2 bg-neutral-900/10 border border-neutral-900/60 rounded-lg text-left text-[8px] font-mono select-none">
+              <div className="flex justify-between items-center border-b border-neutral-900/40 pb-1 mb-1 font-bold text-neutral-400">
+                <span>{paymentMetrics.cycleBWorkName} (Current)</span>
+                <span>{paymentMetrics.cycleBPayDays} left</span>
+              </div>
+              <div className="flex justify-between text-neutral-500">
+                <span>Revenue Lock:</span>
+                <span className="text-neutral-300 font-bold">{paymentMetrics.cycleBLockDays}</span>
+              </div>
+              <div className="flex justify-between text-neutral-500">
+                <span>Bank Dispatch:</span>
+                <span className="text-neutral-300 font-bold">{paymentMetrics.cycleBPayDays}</span>
               </div>
             </div>
           </div>
