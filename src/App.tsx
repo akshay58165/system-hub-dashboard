@@ -50,11 +50,25 @@ export default function App() {
   });
   const [topics, setTopics] = useState<Topic[]>(() => {
     const stored = localStorage.getItem('unicorn_topics');
-    return stored ? JSON.parse(stored) : [];
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed.length > 0) return parsed;
+      if (localStorage.getItem('unicorn_database_reset') === 'true') {
+        return [];
+      }
+    }
+    return initialTopics;
   });
   const [activities, setActivities] = useState<TopicActivity[]>(() => {
     const stored = localStorage.getItem('unicorn_activities');
-    return stored ? JSON.parse(stored) : [];
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed.length > 0) return parsed;
+      if (localStorage.getItem('unicorn_database_reset') === 'true') {
+        return [];
+      }
+    }
+    return initialActivities;
   });
   
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
@@ -110,6 +124,7 @@ export default function App() {
         // Clear states dynamically at specific progress milestones
         if (percent >= 30 && percent < 60) {
           setTopics([]);
+          localStorage.setItem('unicorn_database_reset', 'true');
           // Purge all biometrics and scorecard keys from local storage
           localStorage.removeItem('unicorn_scorecard_date');
           localStorage.removeItem('unicorn_scorecard_restfulness');
