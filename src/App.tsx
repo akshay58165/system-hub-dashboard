@@ -538,9 +538,9 @@ export default function App() {
                 setResetLogs([]);
                 setResetProgress(0);
               }}
-              className="flex items-center gap-1 text-red-500 hover:text-red-400 bg-red-950/10 border border-red-950/30 px-2 py-0.5 rounded cursor-pointer transition duration-300 ml-2 font-semibold"
+              className="flex items-center gap-1 text-red-400 hover:text-red-300 bg-red-950/40 border border-red-900/50 hover:border-red-800/80 px-2 py-0.5 rounded cursor-pointer transition duration-300 ml-2 font-mono font-medium text-[10px]"
             >
-              <Database className="h-3 w-3 animate-pulse" />
+              <Database className="h-3 w-3 animate-pulse text-red-500" />
               <span>DB Reset</span>
             </button>
           </div>
