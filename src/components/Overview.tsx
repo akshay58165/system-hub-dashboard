@@ -481,13 +481,13 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
   return (
     <div className="space-y-6">
       {/* Integrated Pipeline Pipeline Flow */}
-      <div id="pipeline-card" className="bg-neutral-950 border border-neutral-900 rounded-xl p-6 relative overflow-hidden shadow-[0_4px_25px_rgba(0,0,0,0.2)] hover:border-neutral-850/50 transition duration-300">
+      <div id="pipeline-card" className="bg-neutral-950 border border-neutral-900 rounded-xl p-4 py-3 relative overflow-hidden shadow-[0_4px_25px_rgba(0,0,0,0.2)] hover:border-neutral-850/50 transition duration-300">
         {/* Background design elements */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#0e0e12_1px,transparent_1px),linear-gradient(to_bottom,#0e0e12_1px,transparent_1px)] bg-[size:20px_20px] opacity-40 pointer-events-none" />
         <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
         
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 relative z-10">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 gap-4 relative z-10">
           <div>
             <h2 className="text-sm font-bold text-neutral-100 font-mono tracking-tight flex items-center gap-2">
               <span className="relative flex h-2 w-2">
@@ -516,23 +516,21 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
         </div>
 
         {/* The Pipeline Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-stretch relative py-2 z-10">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-stretch relative py-1 z-10">
           {/* GitHub Source Block */}
           <div 
             onClick={() => onTabChange('topics')}
-            className="md:col-span-2 p-5 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-red-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(239,68,68,0.04)] transition-all duration-300 cursor-pointer flex flex-col justify-between group relative overflow-hidden"
+            className="md:col-span-2 p-3 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-red-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(239,68,68,0.04)] transition-all duration-300 cursor-pointer flex flex-col justify-between group relative overflow-hidden"
           >
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-red-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="flex flex-col items-center text-center">
-              <div className="p-3 bg-neutral-900/50 rounded-full border border-neutral-900 group-hover:border-red-900/30 group-hover:bg-red-950/10 transition-colors duration-300 text-neutral-300 mb-2.5 flex items-center justify-center">
-                <Youtube className="h-5 w-5 text-red-500 group-hover:scale-110 transition-transform duration-300 animate-pulse" />
-              </div>
+            <div className="flex items-center gap-2 border-b border-neutral-900 pb-2 mb-2 w-full text-left">
+              <Youtube className="h-4 w-4 text-red-500 animate-pulse" />
               <span className="text-xs font-mono font-bold text-neutral-200">Payment Cycle</span>
             </div>
             
-            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3.5">
+            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1.5">
               {/* Current Month: Green Card */}
-              <div className="p-3 bg-emerald-950/10 border border-emerald-900/30 rounded-lg text-left text-[10px] font-mono select-none space-y-1">
+              <div className="p-2 bg-emerald-950/10 border border-emerald-900/30 rounded-lg text-left text-[10px] font-mono select-none space-y-1">
                 <div className="flex justify-between items-center border-b border-emerald-900/20 pb-1.5 mb-1.5 font-bold text-emerald-400">
                   <span>Current: {paymentMetrics.curMonthName}</span>
                   <span>{paymentMetrics.curPayDays} left</span>
@@ -556,7 +554,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
               </div>
 
               {/* Bottom Card: Last/Next Month (Neutral) */}
-              <div className="p-3 bg-neutral-900/10 border border-neutral-900/60 rounded-lg text-left text-[10px] font-mono select-none space-y-1">
+              <div className="p-2 bg-neutral-900/10 border border-neutral-900/60 rounded-lg text-left text-[10px] font-mono select-none space-y-1">
                 <div className="flex justify-between items-center border-b border-neutral-900/40 pb-1.5 mb-1.5 font-bold text-neutral-400">
                   <span>{paymentMetrics.bottomLabel}: {paymentMetrics.bottomName}</span>
                   <span>{paymentMetrics.bottomPayDays} left</span>
@@ -576,19 +574,17 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
           {/* Streak Status Block */}
           <div 
             onClick={() => onTabChange('topics')}
-            className="md:col-span-1 p-4 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-amber-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(245,158,11,0.04)] transition-all duration-300 cursor-pointer flex flex-col justify-between group relative overflow-hidden font-mono"
+            className="md:col-span-1 p-3 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-amber-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(245,158,11,0.04)] transition-all duration-300 cursor-pointer flex flex-col justify-between group relative overflow-hidden font-mono"
           >
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-amber-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="flex flex-col items-center text-center">
-              <div className="p-2.5 bg-neutral-900/50 rounded-full border border-neutral-900 group-hover:border-amber-900/30 group-hover:bg-amber-950/10 transition-colors duration-300 text-neutral-300 mb-2">
-                <Zap className="h-4 w-4 text-amber-400 group-hover:scale-110 transition-transform duration-300" />
-              </div>
+            <div className="flex items-center gap-2 border-b border-neutral-900 pb-2 mb-2 w-full text-left">
+              <Zap className="h-4 w-4 text-amber-400" />
               <span className="text-xs font-bold text-neutral-200">Streak Status</span>
             </div>
 
-            <div className="w-full mt-3.5 space-y-2 text-left text-[9px]">
+            <div className="w-full mt-1.5 space-y-2 text-left text-[9px]">
               {/* LearnDriven Streak */}
-              <div className={`p-2.5 rounded-lg border ${getStreakStyle(streakMetrics.learnDriven.status).cardClass}`}>
+              <div className={`p-2 rounded-lg border ${getStreakStyle(streakMetrics.learnDriven.status).cardClass}`}>
                 <div className="flex justify-between items-center mb-1">
                   <span className="font-bold text-neutral-300">LearnDriven</span>
                   <div className="flex items-center gap-1.5">
@@ -607,7 +603,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
               </div>
 
               {/* DecodeWorthy Streak */}
-              <div className={`p-2.5 rounded-lg border ${getStreakStyle(streakMetrics.decodeWorthy.status).cardClass}`}>
+              <div className={`p-2 rounded-lg border ${getStreakStyle(streakMetrics.decodeWorthy.status).cardClass}`}>
                 <div className="flex justify-between items-center mb-1">
                   <span className="font-bold text-neutral-300">DecodeWorthy</span>
                   <div className="flex items-center gap-1.5">
@@ -630,18 +626,18 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
           {/* Month Coverage Block */}
           <div 
             onClick={() => onTabChange('topics')}
-            className="md:col-span-1 p-4 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-emerald-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(16,185,129,0.04)] transition-all duration-300 cursor-pointer flex flex-col justify-between group relative overflow-hidden font-mono"
+            className="md:col-span-1 p-3 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-emerald-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(16,185,129,0.04)] transition-all duration-300 cursor-pointer flex flex-col justify-between group relative overflow-hidden font-mono"
           >
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="flex flex-col items-center text-center">
-              <div className="p-2.5 bg-neutral-900/50 rounded-full border border-neutral-900 group-hover:border-emerald-900/30 group-hover:bg-emerald-950/10 transition-colors duration-300 text-neutral-300 mb-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400 group-hover:scale-110 transition-transform duration-300" />
+            <div className="flex justify-between items-center border-b border-neutral-900 pb-2 mb-2 w-full text-left">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                <span className="text-xs font-bold text-neutral-200">Month Coverage</span>
               </div>
-              <span className="text-xs font-bold text-neutral-200">Month Coverage</span>
-              <span className="text-[9px] text-neutral-500 mt-0.5">{coverageMetrics.passedDays} days elapsed</span>
+              <span className="text-[9px] text-neutral-500">{coverageMetrics.passedDays}d elapsed</span>
             </div>
 
-            <div className="w-full mt-3 space-y-2.5 text-left text-[9px]">
+            <div className="w-full mt-1.5 space-y-2.5 text-left text-[9px]">
               {/* LearnDriven Coverage */}
               <div className="p-2 bg-neutral-900/30 border border-neutral-900/60 rounded-lg space-y-1.5">
                 <div className="flex justify-between items-center text-[8px] font-bold text-neutral-300">
