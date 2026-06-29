@@ -11,21 +11,33 @@
   --color-neutral-900: #141418;
 }
 
-/* Custom scrollbars for high fidelity console output logs */
+/* Set dark color scheme globally to prevent native light-themed scrollbars */
+html {
+  color-scheme: dark;
+}
+
+/* Custom global scrollbars for a premium dark-mode console look */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0a0a0a;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #262626;
-  border-radius: 4px;
+  background: #22222a;
+  border-radius: 9999px;
+  border: 1px solid transparent;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #404040;
+  background: #3a3a46;
+}
+
+/* Standard scrollbar for Firefox support */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #22222a transparent;
 }
