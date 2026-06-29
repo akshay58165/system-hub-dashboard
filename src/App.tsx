@@ -128,6 +128,8 @@ export default function App() {
           localStorage.removeItem('unicorn_scorecard_db_logs');
         } else if (percent >= 60 && percent < 85) {
           setActivities([]);
+          setEvents([]);
+          localStorage.removeItem('unicorn_events');
         }
 
         currentStep++;
@@ -455,7 +457,7 @@ export default function App() {
             {activeTab === 'logs' && (
               <LogsView 
                 events={events} 
-                onClearEvents={() => setEvents([])}
+                onClearEvents={() => { setEvents([]); localStorage.removeItem('unicorn_events'); }}
               />
             )}
 
