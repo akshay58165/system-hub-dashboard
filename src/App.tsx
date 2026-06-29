@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  MonthlyGoals, VideoItem, RevenueLevelConfig, ProductOpportunity, CalibrationNode, WellbeingEntry, DashboardActionTarget
+import {
+  MonthlyGoals, VideoItem, RevenueLevelConfig, ProductOpportunity, CalibrationNode, WellbeingEntry, DashboardActionTarget, WorkWindowSession
 } from './types';
 import Header from './components/Header';
 import MissionControl from './components/MissionControl';
+import StudioHealth from './components/StudioHealth';
 import ChannelLanes from './components/ChannelLanes';
 import PipelineBoard from './components/PipelineBoard';
 import SmartActionPrompts from './components/SmartActionPrompts';
 import SidePanel from './components/SidePanel';
+import WorkWindowManager from './components/WorkWindowManager';
 import DailyStateDashboard from './components/DailyStateDashboard';
 import RawDataViewer from './components/RawDataViewer';
 import MonthlySetupWizard from './components/MonthlySetupWizard';
 import PriorityUpdates from './components/PriorityUpdates';
 import ActionNavigator from './components/ActionNavigator';
 import TimeAwareCoach from './components/TimeAwareCoach';
-import AppMode from './components/AppMode';
-import { AlertTriangle, Clapperboard, Cloud, Database, LogOut, Plus, RefreshCw, Shield } from 'lucide-react';
+import CommandPalette from './components/CommandPalette';
+import { AlertTriangle, Clapperboard, Clock, Cloud, Database, LogOut, Plus, RefreshCw, Search, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { calculateRevenueLevel, getLocalDateString, inferRevenueEligibility, migrateVideo } from './videoLogic';
 import { normalizeMonthlyGoals, normalizeRevenueLevels, useDashboardCloudSync } from './cloudSync';
@@ -66,6 +68,12 @@ const INITIAL_GOALS: MonthlyGoals = {
   dwShortsScheduleType: 'Weekly'
 };
 
+function daysAgo(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().split('T')[0];
+}
+
 const INITIAL_VIDEOS: VideoItem[] = [
   {
     id: 'vid_1',
@@ -73,6 +81,7 @@ const INITIAL_VIDEOS: VideoItem[] = [
     contentLane: 'LearnDriven Long Videos',
     title: 'Intro to React 19 Server Components',
     revenueLevelTarget: 8.5,
+    createdAt: daysAgo(6),
     expectedPublishDate: '2026-06-28',
     pipeline: {
       topic: 'Done',
@@ -95,6 +104,7 @@ const INITIAL_VIDEOS: VideoItem[] = [
     contentLane: 'LearnDriven Shorts',
     title: 'CSS Container Queries are Mind-Blowing!',
     revenueLevelTarget: 3,
+    createdAt: daysAgo(6),
     expectedPublishDate: '2026-06-25',
     actualScheduledDate: '2026-06-25',
     pipeline: {
@@ -117,6 +127,7 @@ const INITIAL_VIDEOS: VideoItem[] = [
     contentLane: 'LearnDriven Long Videos',
     title: 'How to Deploy Express to Cloud Run',
     revenueLevelTarget: 7,
+    createdAt: daysAgo(5),
     expectedPublishDate: '2026-06-26',
     actualScheduledDate: '2026-06-26',
     pipeline: {
@@ -140,6 +151,7 @@ const INITIAL_VIDEOS: VideoItem[] = [
     contentLane: 'DecodeWorthy Shorts',
     title: 'Is Rust Actually Faster than JavaScript?',
     revenueLevelTarget: 2,
+    createdAt: daysAgo(4),
     expectedPublishDate: '2026-06-28',
     pipeline: {
       topic: 'Done',
@@ -161,6 +173,7 @@ const INITIAL_VIDEOS: VideoItem[] = [
     contentLane: 'DecodeWorthy Shorts',
     title: 'We Built a Real-Time Compiler in 100 Lines of C',
     revenueLevelTarget: 3,
+    createdAt: daysAgo(3),
     expectedPublishDate: '2026-06-29',
     pipeline: {
       topic: 'Done',
@@ -182,6 +195,7 @@ const INITIAL_VIDEOS: VideoItem[] = [
     contentLane: 'LearnDriven Long Videos',
     title: 'How I Accidentally Drained my AWS Wallet',
     revenueLevelTarget: 9.5,
+    createdAt: daysAgo(3),
     expectedPublishDate: '2026-06-29',
     pipeline: {
       topic: 'Done',
@@ -204,6 +218,7 @@ const INITIAL_VIDEOS: VideoItem[] = [
     contentLane: 'LearnDriven Members-only Videos',
     title: 'My Secret System to Edit Videos 2x Faster',
     revenueLevelTarget: 5,
+    createdAt: daysAgo(2),
     expectedPublishDate: '2026-06-30',
     pipeline: {
       topic: 'Done',
@@ -227,6 +242,7 @@ const INITIAL_VIDEOS: VideoItem[] = [
     contentLane: 'LearnDriven Shorts',
     title: 'Next.js App Router vs Pages Router in 2026',
     revenueLevelTarget: 1,
+    createdAt: daysAgo(1),
     expectedPublishDate: '2026-06-30',
     pipeline: {
       topic: 'Done',
@@ -248,6 +264,7 @@ const INITIAL_VIDEOS: VideoItem[] = [
     contentLane: 'LearnDriven Long Videos',
     title: 'Building Creator.OS from Scratch',
     revenueLevelTarget: 20,
+    createdAt: daysAgo(0),
     expectedPublishDate: '2026-07-02',
     pipeline: {
       topic: 'Done',
@@ -307,6 +324,49 @@ const INITIAL_CALIBRATION_NODES: CalibrationNode[] = [
   { id: 'endorphins', label: 'ENDORPHINS', value: 0, color: '#fb7185' }
 ];
 
+const SAMPLE_WELLBEING_HISTORY: WellbeingEntry[] = (() => {
+  const today = getLocalDateString();
+  const values: Record<string, number> = {
+    sleep: 7, freshness: 8, eyeComfort: 6, pleasantness: 8, nutrition: 7,
+    hydration: 6, physicalComfort: 7, mood: 8, mindfulness: 6, energy: 7,
+    finances: 7, environment: 8, endorphins: 7
+  };
+  return Object.entries(values).map(([nodeId, value], idx) => ({
+    id: `wb_sample_${idx}`,
+    nodeId,
+    value,
+    timestamp: `${today}T0${8 + idx}:30:00.000Z`
+  }));
+})();
+
+const SAMPLE_WORK_SESSIONS: WorkWindowSession[] = (() => {
+  const today = getLocalDateString();
+  return [
+    {
+      id: 'session_sample_1',
+      date: today,
+      startTime: '09:00',
+      endTime: '12:00',
+      stage: 'Script',
+      isActive: false,
+      isPaused: false,
+      pausePeriods: [
+        { startTime: `${today}T10:15:00.000Z`, endTime: `${today}T10:25:00.000Z` }
+      ]
+    },
+    {
+      id: 'session_sample_2',
+      date: today,
+      startTime: '13:30',
+      endTime: '16:00',
+      stage: 'Edit',
+      isActive: false,
+      isPaused: false,
+      pausePeriods: []
+    }
+  ];
+})();
+
 function migrateWellbeingNodes(savedNodes: CalibrationNode[]): CalibrationNode[] {
   const legacyValues: Record<string, number> = {};
   savedNodes.forEach(node => { legacyValues[node.id] = node.value; });
@@ -323,7 +383,7 @@ const EFFORT_CONFIG = {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'mission' | 'health' | 'app'>('mission');
+  const [activeTab, setActiveTab] = useState<'mission' | 'health'>('mission');
   const [colorTheme, setColorTheme] = useState<'dark' | 'light'>(() => localStorage.getItem('creator_os_theme') === 'light' ? 'light' : 'dark');
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isZoneChoiceOpen, setIsZoneChoiceOpen] = useState(false);
@@ -331,6 +391,26 @@ export default function App() {
   const [wizardGoals, setWizardGoals] = useState<MonthlyGoals>(INITIAL_GOALS);
   const [actionTarget, setActionTarget] = useState<DashboardActionTarget | null>(null);
   const [dailyDate, setDailyDate] = useState(() => getLocalDateString());
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [topBarTime, setTopBarTime] = useState('');
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsPaletteOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const updateClock = () => setTopBarTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    updateClock();
+    const timer = window.setInterval(updateClock, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('creator_os_theme', colorTheme);
@@ -353,9 +433,10 @@ export default function App() {
 
   const [videos, setVideos] = useState<VideoItem[]>(() => {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY_VIDEOS);
-    const source: VideoItem[] = saved ? JSON.parse(saved) : [];
+    if (!saved) return INITIAL_VIDEOS.map(migrateVideo);
+    const source: VideoItem[] = JSON.parse(saved);
     return source
-      .filter(video => !LEGACY_DEMO_VIDEO_IDS.has(video.id) && !LEGACY_GENERATED_TOPICS.has(video.title))
+      .filter(video => !LEGACY_GENERATED_TOPICS.has(video.title))
       .map(migrateVideo);
   });
 
@@ -377,7 +458,15 @@ export default function App() {
 
   const [wellbeingHistory, setWellbeingHistory] = useState<WellbeingEntry[]>(() => {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY_WELLBEING_HISTORY);
-    return saved ? JSON.parse(saved) : [];
+    return saved ? JSON.parse(saved) : SAMPLE_WELLBEING_HISTORY;
+  });
+
+  const [workSessions, setWorkSessions] = useState<WorkWindowSession[]>(() => {
+    const saved = localStorage.getItem('creator_os_work_sessions');
+    if (!saved) return SAMPLE_WORK_SESSIONS;
+    const sessions: WorkWindowSession[] = JSON.parse(saved);
+    const today = new Date().toISOString().split('T')[0];
+    return sessions.filter(s => s.date === today);
   });
 
   const { email, userId, syncStatus, signOut } = useCloud();
@@ -430,6 +519,25 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(LOCAL_STORAGE_KEY_WELLBEING_HISTORY, JSON.stringify(wellbeingHistory));
   }, [wellbeingHistory]);
+
+  useEffect(() => {
+    localStorage.setItem('creator_os_work_sessions', JSON.stringify(workSessions));
+  }, [workSessions]);
+
+  // Update active status of work sessions every minute
+  useEffect(() => {
+    const updateActiveSessions = () => {
+      const now = new Date();
+      const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      setWorkSessions(prev => prev.map(session => ({
+        ...session,
+        isActive: session.startTime <= currentTime && currentTime <= session.endTime
+      })));
+    };
+    updateActiveSessions();
+    const timer = window.setInterval(updateActiveSessions, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // CALCULATION LOGIC SUITE
   const getCycleStats = () => {
@@ -776,8 +884,58 @@ export default function App() {
       </AnimatePresence>
 
       <div className="w-full flex flex-col min-h-screen bg-zinc-950/20 shadow-2xl">
+        {/* Sticky Command Bar */}
+        <header className="border-b border-zinc-850 bg-zinc-950 sticky top-0 z-40">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 shrink-0">
+              <span className="p-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-emerald-400 font-bold tracking-tight text-xs font-mono">COS</span>
+              <div>
+                <h1 className="text-sm font-bold text-white tracking-tight">Creator OS</h1>
+                <p className="text-[10px] text-zinc-500 font-mono hidden sm:block">Private production workspace</p>
+              </div>
+            </div>
+
+            <div className="flex-1 max-w-sm hidden md:block">
+              <button
+                onClick={() => setIsPaletteOpen(true)}
+                className="w-full flex items-center justify-between gap-3 px-3.5 py-1.5 bg-zinc-900 hover:bg-zinc-850 text-zinc-500 hover:text-zinc-300 border border-zinc-800 rounded-lg transition text-xs font-mono"
+              >
+                <div className="flex items-center gap-2">
+                  <Search className="h-3.5 w-3.5 text-zinc-500" />
+                  <span>Search videos or actions...</span>
+                </div>
+                <span className="text-[9px] text-zinc-600 font-semibold uppercase bg-zinc-950 px-1.5 py-0.5 border border-zinc-850 rounded">⌘K</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-4 shrink-0 font-mono text-[11px] text-zinc-400">
+              <div className="flex items-center gap-1.5 text-zinc-500 bg-zinc-900 border border-zinc-850 px-2.5 py-1 rounded-lg">
+                <Clock className="h-3.5 w-3.5" />
+                <span>{topBarTime || 'Loading...'}</span>
+              </div>
+              <div className="hidden lg:flex items-center gap-1.5 text-zinc-400">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+                <span>Workspace Nominal</span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <CommandPalette
+          isOpen={isPaletteOpen}
+          onClose={() => setIsPaletteOpen(false)}
+          videos={videos}
+          onSetTab={setActiveTab}
+          onAddTopic={() => navigateToAction({ type: 'add-video', lane: 'LearnDriven Shorts' })}
+          onOpenPipeline={() => navigateToAction({ type: 'pipeline' })}
+          onOpenVideo={(videoId) => navigateToAction({ type: 'video', videoId })}
+        />
+
         {/* Navigation / Header Strip */}
-        <Header 
+        <Header
           activeTab={activeTab} 
           setActiveTab={setActiveTab} 
           openSetupWizard={openZoneSetup}
@@ -809,8 +967,8 @@ export default function App() {
         />
 
         {/* Quick action dock */}
-        <div className="border-b border-zinc-900 bg-zinc-950 px-6 py-2.5">
-          <div className="flex flex-wrap items-center gap-2 font-mono">
+        <div className="border-b border-zinc-900 bg-zinc-950 px-4 sm:px-6 lg:px-8 py-2.5">
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-2 font-mono">
             <span className="mr-1 text-[8px] font-bold tracking-[0.16em] text-zinc-600">QUICK ACTIONS</span>
             <button type="button" onClick={() => navigateToAction({ type: 'add-video', lane: 'LearnDriven Shorts' })} className="flex items-center gap-1.5 rounded-md border border-emerald-900/60 bg-emerald-950/15 px-3 py-2 text-[9px] font-bold text-emerald-400 transition hover:border-emerald-700 hover:bg-emerald-950/30"><Plus className="h-3.5 w-3.5" />ADD A TOPIC</button>
             <button type="button" onClick={() => navigateToAction({ type: 'pipeline' })} className="flex items-center gap-1.5 rounded-md border border-cyan-900/60 bg-cyan-950/15 px-3 py-2 text-[9px] font-bold text-cyan-400 transition hover:border-cyan-700 hover:bg-cyan-950/30"><Clapperboard className="h-3.5 w-3.5" />VIDEO PRODUCTION BOARD</button>
@@ -819,7 +977,8 @@ export default function App() {
         </div>
 
         {/* Workspace Hub Info strip */}
-        <div className="px-6 py-2.5 bg-zinc-950 border-b border-zinc-900 text-[10px] font-mono flex flex-wrap justify-between items-center gap-2">
+        <div className="px-4 sm:px-6 lg:px-8 py-2.5 bg-zinc-950 border-b border-zinc-900 text-[10px] font-mono">
+          <div className="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2">
           <div className="flex items-center gap-4 text-zinc-500">
             <span>WORKLOAD STATUS: <strong className="text-zinc-300">SAFE</strong></span>
             <span className="text-zinc-700">|</span>
@@ -827,10 +986,12 @@ export default function App() {
             <span className="text-zinc-700">|</span>
             <span>WORK PACE: <strong className="text-amber-400">{goals.intensityMode === 'War mode' ? 'DEADLINE SPRINT' : goals.intensityMode.toUpperCase()}</strong></span>
           </div>
+          </div>
         </div>
 
         {/* Main Workspace content */}
-        <main className="flex-1 p-6 space-y-6">
+        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6">
+          <div className="max-w-7xl mx-auto space-y-6">
           <AnimatePresence mode="wait">
             {activeTab === 'mission' ? (
               <motion.div
@@ -849,8 +1010,18 @@ export default function App() {
                   onNavigate={navigateToAction}
                 />
 
+                {/* Row 0: Studio Health overview */}
+                <StudioHealth
+                  videos={videos}
+                  workSessions={workSessions}
+                  goals={goals}
+                  totalCompleted={totalCompleted}
+                  totalPlanned={totalPlanned}
+                  onNavigate={() => undefined}
+                />
+
                 {/* Row 1: Top level summary stats */}
-                <MissionControl 
+                <MissionControl
                   month={goals.month}
                   todayDay={todayDay}
                   totalDays={totalDays}
@@ -900,8 +1071,29 @@ export default function App() {
 
                 </div>
 
+                {/* Row 2.5: Work Window Manager (Full Width) */}
+                <WorkWindowManager
+                  sessions={workSessions}
+                  onSessionAdd={(session) => {
+                    const newSession: WorkWindowSession = {
+                      ...session,
+                      id: `session_${Date.now()}`,
+                      isActive: false,
+                      isPaused: false,
+                      pausePeriods: []
+                    };
+                    setWorkSessions([...workSessions, newSession]);
+                  }}
+                  onSessionUpdate={(session) => {
+                    setWorkSessions(workSessions.map(s => s.id === session.id ? session : s));
+                  }}
+                  onSessionRemove={(sessionId) => {
+                    setWorkSessions(workSessions.filter(s => s.id !== sessionId));
+                  }}
+                />
+
                 {/* Row 3: Pipeline Board (Full Width) */}
-                <PipelineBoard 
+                <PipelineBoard
                   videos={videos}
                   goals={goals}
                   revenueLevels={revenueLevels}
@@ -909,6 +1101,7 @@ export default function App() {
                   onAddVideo={handleAddVideo}
                   onDeleteVideo={handleDeleteVideo}
                   focusRequest={actionTarget}
+                  workSessions={workSessions}
                 />
 
                 {/* Row 4: Smart Action Prompts (Full Width) */}
@@ -936,7 +1129,7 @@ export default function App() {
                   onDeleteProductOpportunity={handleDeleteProductOpportunity}
                 />
               </motion.div>
-            ) : activeTab === 'health' ? (
+            ) : (
               <motion.div
                 key="health"
                 initial={{ opacity: 0, y: 10 }}
@@ -951,36 +1144,9 @@ export default function App() {
                   onUpdateNode={handleUpdateBiometric}
                 />
               </motion.div>
-            ) : (
-              <motion.div
-                key="app"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-              >
-                <AppMode
-                  goals={goals}
-                  videos={videos}
-                  revenueLevels={revenueLevels}
-                  nodes={nodes}
-                  wellbeingHistory={wellbeingHistory}
-                  todayDay={todayDay}
-                  totalDays={totalDays}
-                  daysRemaining={daysRemaining}
-                  totalPlanned={totalPlanned}
-                  totalCompleted={totalCompleted}
-                  requiredEffortToday={requiredEffortToday}
-                  pressureLevel={pressureLevel}
-                  onUpdateVideo={handleUpdateVideo}
-                  onAddVideo={handleAddVideo}
-                  onDeleteVideo={handleDeleteVideo}
-                  onUpdateNode={handleUpdateBiometric}
-                  onOpenZone={openZoneSetup}
-                />
-              </motion.div>
             )}
           </AnimatePresence>
+          </div>
         </main>
 
         {/* Footer Area */}

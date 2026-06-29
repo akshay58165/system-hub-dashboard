@@ -142,3 +142,28 @@ export type DashboardActionTarget =
   | { type: 'add-video'; lane: VideoItem['contentLane']; requestId?: number }
   | { type: 'health'; requestId?: number }
   | { type: 'pipeline'; requestId?: number };
+
+export interface PausePeriod {
+  startTime: string; // ISO timestamp
+  endTime: string; // ISO timestamp
+}
+
+export interface WorkWindowSession {
+  id: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:MM
+  endTime: string; // HH:MM
+  stage: VideoStage | null; // What stage are they working on, null if not started
+  isActive: boolean; // Currently within this window's time
+  isPaused: boolean; // Currently paused
+  pausePeriods: PausePeriod[]; // Array of pauses within this window
+  pauseStartedAt?: string; // ISO timestamp when pause started (if isPaused=true)
+}
+
+export interface DailySummary {
+  date: string; // YYYY-MM-DD
+  totalMinutesWorked: number; // Total active work time (excluding pauses)
+  totalMinutesPaused: number; // Total pause time
+  stageBreakdown: Record<VideoStage | 'Unassigned', number>; // Minutes per stage
+  sessions: WorkWindowSession[];
+}

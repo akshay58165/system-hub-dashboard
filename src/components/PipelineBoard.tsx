@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { VideoItem, VideoStage, StageStatus, MonthlyGoals, RevenueLevelConfig, VideoRevenueEligibility, VideoStatus, DashboardActionTarget } from '../types';
+import { VideoItem, VideoStage, StageStatus, MonthlyGoals, RevenueLevelConfig, VideoRevenueEligibility, VideoStatus, DashboardActionTarget, WorkWindowSession } from '../types';
 import { 
   Plus, Calendar, HelpCircle, Check, ArrowRight, ArrowLeft, 
   Trash2, ShieldAlert, BadgeDollarSign, Tag, MessageSquare, Flame, Edit3, X, Sparkles, Activity
@@ -15,6 +15,7 @@ interface PipelineBoardProps {
   onAddVideo: (video: Omit<VideoItem, 'id' | 'completionPercentage'>) => void;
   onDeleteVideo: (id: string) => void;
   focusRequest?: DashboardActionTarget | null;
+  workSessions: WorkWindowSession[];
 }
 
 const getStatusConfig = (status: VideoStatus) => {
@@ -63,18 +64,20 @@ const getStatusConfig = (status: VideoStatus) => {
   }
 };
 
-export default function PipelineBoard({ 
-  videos, 
-  goals, 
+export default function PipelineBoard({
+  videos,
+  goals,
   revenueLevels,
-  onUpdateVideo, 
-  onAddVideo, 
+  onUpdateVideo,
+  onAddVideo,
   onDeleteVideo,
-  focusRequest
+  focusRequest,
+  workSessions
 }: PipelineBoardProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
   const [focusedVideoId, setFocusedVideoId] = useState<string | null>(null);
+  const [expandedStage, setExpandedStage] = useState<VideoStage | null>('Topic');
   
   // New Video Form State
   const [newTitle, setNewTitle] = useState('');
@@ -458,199 +461,218 @@ export default function PipelineBoard({
         </form>
       )}
 
-      {/* Kanban Stages Layout */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 w-full select-none">
+      {/* Accordion Tab Headers */}
+      <div className="flex flex-wrap gap-2 border-b border-zinc-900 pb-3 mb-4">
         {stages.map((stage) => {
-          // Filter items corresponding to this active stage
           const stageVideos = videos.filter(v => v.currentStage === stage);
+          const isExpanded = expandedStage === stage;
+          const stageSession = workSessions.find(s => s.stage === stage && s.isActive);
+          const isLEDActive = stage === 'Done' || (stageSession && stageSession.stage === stage);
+          const ledColor = stageSession && stageSession.stage === stage ? 'red' : (stage === 'Done' ? 'emerald' : 'zinc');
 
           return (
-            <div 
-              key={stage} 
-              onDragOver={event => {
-                event.preventDefault();
-                setDragOverStage(stage);
-              }}
-              onDragLeave={() => setDragOverStage(current => current === stage ? null : current)}
-              onDrop={event => {
-                event.preventDefault();
-                const video = videos.find(item => item.id === event.dataTransfer.getData('text/plain'));
-                if (video) moveVideoDirectly(video, stage);
-                setDragOverStage(null);
-              }}
-              className={`bg-zinc-950 border rounded-lg p-3 flex flex-col justify-between space-y-3 transition-colors ${dragOverStage === stage ? 'border-cyan-500/70 bg-cyan-950/10' : 'border-zinc-900'}`}
+            <button
+              key={stage}
+              onClick={() => setExpandedStage(isExpanded ? null : stage)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
+                isExpanded
+                  ? 'border-emerald-500/50 bg-emerald-950/20'
+                  : 'border-zinc-800 bg-zinc-900/30 hover:border-zinc-700'
+              }`}
             >
-              {/* Stage Header */}
-              <div className="border-b border-zinc-900 pb-2 flex justify-between items-center">
-                <div className="flex items-center gap-1.5">
-                  <TactileLED color={stage === 'Done' ? 'emerald' : 'zinc'} importance="low" active={stage === 'Done'} />
-                  <span className="font-bold text-zinc-200 tracking-wider text-[11px] uppercase">{stage}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button type="button" onClick={() => openQuickAdd(stage)} className="h-5 w-5 grid place-items-center rounded border border-zinc-800 text-zinc-500 hover:text-emerald-400 hover:border-emerald-800/60 transition-colors" title={`Add directly to ${stage}`}><Plus className="h-3 w-3" /></button>
-                  <span className="font-mono text-[9px] bg-zinc-900 text-zinc-500 px-1.5 py-0.5 rounded font-bold">
-                    {stageVideos.length}
-                  </span>
-                </div>
+              <TactileLED color={ledColor} importance={stageSession ? 'critical' : 'low'} active={isLEDActive} />
+              <div className="flex flex-col items-start">
+                <span className="font-bold text-zinc-200 text-[10px] uppercase tracking-wider">{stage}</span>
+                <span className="text-[8px] text-zinc-500">{stageVideos.length} videos</span>
               </div>
-
-              {quickAddStage === stage && (
-                <form onSubmit={handleQuickAdd} className="space-y-2 rounded border border-zinc-800 bg-zinc-900/40 p-2 font-mono">
-                  <input autoFocus value={quickTitle} onChange={event => setQuickTitle(event.target.value)} placeholder="Topic / video title" className="w-full rounded border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-[9px] text-zinc-200 outline-none focus:border-emerald-600" />
-                  <select value={quickLane} onChange={event => setQuickLane(event.target.value as VideoItem['contentLane'])} disabled={stage === 'Thumbnail'} className="w-full rounded border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-[8px] text-zinc-400 outline-none disabled:opacity-70">
-                    <option value="LearnDriven Shorts">LearnDriven Shorts</option>
-                    <option value="LearnDriven Long Videos">LearnDriven Long Videos</option>
-                    <option value="LearnDriven Members-only Videos">LearnDriven Members-only</option>
-                    <option value="DecodeWorthy Shorts">DecodeWorthy Shorts</option>
-                  </select>
-                  <div className="flex gap-1">
-                    <button type="submit" className="flex-1 rounded bg-emerald-600 px-2 py-1 text-[8px] font-bold text-white hover:bg-emerald-500">ADD HERE</button>
-                    <button type="button" onClick={() => setQuickAddStage(null)} className="rounded border border-zinc-800 px-2 py-1 text-[8px] text-zinc-500 hover:text-white">CANCEL</button>
-                  </div>
-                </form>
-              )}
-
-              {/* Card List */}
-              <div className="flex-1 space-y-2 max-h-[480px] overflow-y-auto pr-1 min-h-[120px]">
-                {stageVideos.length === 0 ? (
-                  <div className="h-full border border-dashed border-zinc-900/60 rounded flex flex-col items-center justify-center text-center p-6 text-zinc-600 font-mono text-[10px] space-y-1">
-                    <span>NO VIDEOS HERE</span>
-                    <span>This stage is currently empty</span>
-                  </div>
-                ) : (
-                  stageVideos.map((video) => {
-                      const videoStatus = getVideoStatus(video);
-                      const config = getStatusConfig(videoStatus);
-                      return (
-                        <div 
-                          key={video.id}
-                          id={`video-card-${video.id}`}
-                          draggable
-                          onDragStart={event => {
-                            event.dataTransfer.setData('text/plain', video.id);
-                            event.dataTransfer.effectAllowed = 'move';
-                          }}
-                          onDragEnd={() => setDragOverStage(null)}
-                          className={`bg-zinc-900/40 hover:bg-zinc-900/80 border transition-all rounded p-3 space-y-3 relative group ${config.borderClass} ${focusedVideoId === video.id ? 'ring-2 ring-cyan-400 shadow-[0_0_25px_rgba(34,211,238,0.35)] animate-pulse' : ''}`}
-                        >
-                          {/* Channel / Lane Badges */}
-                          <div className="flex flex-wrap items-center justify-between gap-1 text-[8px] font-mono">
-                            <span className={`px-1.5 py-0.5 rounded uppercase font-bold tracking-wider ${
-                              video.channel === 'LearnDriven' 
-                                ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-900/50' 
-                                : 'bg-cyan-950/40 text-cyan-400 border border-cyan-900/50'
-                            }`}>
-                              {video.channel}
-                            </span>
-                            <span className="text-zinc-500 truncate max-w-[130px]">
-                              {video.contentLane}
-                            </span>
-                          </div>
-
-                          {/* Title with potential alerts */}
-                          <h4 className="text-[11px] font-semibold text-zinc-200 tracking-wide leading-tight group-hover:text-white transition-colors flex items-start gap-1.5">
-                            <span className="pt-0.5">
-                              <TactileLED color={config.color} importance={config.importance} />
-                            </span>
-                            {video.title}
-                          </h4>
-
-                          <div className={`border rounded p-1.5 text-[10px] font-mono flex items-start gap-1.5 ${videoStatus === 'critical' ? 'animate-pulse' : ''} ${config.bgClass}`}>
-                              <Activity className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                              <div className="leading-tight">
-                                <span className="font-bold block uppercase text-[8px] tracking-wide">
-                                  STATUS: {config.label}
-                                </span>
-                                {(video.statusNote || video.blockerReason) && <span>{video.statusNote || video.blockerReason}</span>}
-                              </div>
-                          </div>
-
-                        {/* Upgrade and Target metadata */}
-                        <div className="flex flex-wrap justify-between items-center gap-1 pt-1.5 border-t border-zinc-900/60 font-mono text-[9px] text-zinc-500">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3 text-zinc-600" />
-                            ADDED: {video.createdAt || 'DATE UNKNOWN'}
-                          </span>
-                          <span className="bg-zinc-900 text-zinc-400 px-1.5 py-0.5 rounded font-bold border border-zinc-850">
-                            LVL {video.revenueLevelTarget}
-                          </span>
-                        </div>
-
-                        {/* Control buttons & upgrades */}
-                        <div className="flex items-center justify-between gap-1 pt-2 border-t border-zinc-900/80">
-                          <div className="flex gap-1.5">
-                            {/* Product tag click upgrade */}
-                            {goals.productTagsAllowed && inferRevenueEligibility(video).productTag && (
-                              <button
-                                type="button"
-                                onClick={() => handleToggleProductTag(video)}
-                                className={`p-1 rounded border transition-colors ${
-                                  video.productTagStatus === 'Tagged'
-                                    ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-400'
-                                    : 'border-zinc-850 text-zinc-500 hover:text-zinc-300'
-                                }`}
-                                title={video.productTagStatus === 'Tagged' ? 'Product Tagged' : 'Add Product Tag Opportunity'}
-                              >
-                                <Tag className="h-3 w-3" />
-                              </button>
-                            )}
-
-                            {/* Video Status */}
-                            <button
-                              type="button"
-                              onClick={() => openStatusEditor(video)}
-                              className={`p-1 rounded border transition-colors ${config.bgClass}`}
-                              title="Edit video status"
-                            >
-                              <Activity className="h-3 w-3" />
-                            </button>
-
-                            {/* Delete Button */}
-                            <button
-                              type="button"
-                              onClick={() => onDeleteVideo(video.id)}
-                              className="p-1 rounded border border-zinc-850 text-zinc-500 hover:text-rose-400 hover:border-rose-500/30 transition-colors"
-                              title="Delete video"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </div>
-
-                          {/* Progression Flow arrows */}
-                          <div className="flex gap-1">
-                            {stage !== 'Topic' && (
-                              <button
-                                type="button"
-                                onClick={() => moveStage(video, 'backward')}
-                                className="p-1 rounded border border-zinc-850 text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors"
-                                title="Move to previous stage"
-                              >
-                                <ArrowLeft className="h-3 w-3" />
-                              </button>
-                            )}
-                            {stage !== 'Done' && (
-                              <button
-                                type="button"
-                                onClick={() => moveStage(video, 'forward')}
-                                className="bg-emerald-950/20 hover:bg-emerald-500 hover:text-zinc-950 border border-emerald-900/40 text-emerald-400 p-1 rounded transition-all font-bold font-mono text-[9px] flex items-center gap-0.5"
-                                title="Move to next stage"
-                              >
-                                NEXT
-                                <ArrowRight className="h-3 w-3 font-bold" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
+            </button>
           );
         })}
       </div>
+
+      {/* Expanded Stage Content */}
+      {expandedStage && (
+        <div
+          onDragOver={event => {
+            event.preventDefault();
+            setDragOverStage(expandedStage);
+          }}
+          onDragLeave={() => setDragOverStage(null)}
+          onDrop={event => {
+            event.preventDefault();
+            const video = videos.find(item => item.id === event.dataTransfer.getData('text/plain'));
+            if (video) moveVideoDirectly(video, expandedStage);
+            setDragOverStage(null);
+          }}
+          className="border border-zinc-800 rounded-lg p-4 space-y-3"
+        >
+          {/* Quick Add Form */}
+          {quickAddStage === expandedStage && (
+            <form onSubmit={handleQuickAdd} className="space-y-2 rounded border border-zinc-800 bg-zinc-900/40 p-3 font-mono">
+              <input autoFocus value={quickTitle} onChange={event => setQuickTitle(event.target.value)} placeholder="Topic / video title" className="w-full rounded border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-[9px] text-zinc-200 outline-none focus:border-emerald-600" />
+              <select value={quickLane} onChange={event => setQuickLane(event.target.value as VideoItem['contentLane'])} disabled={expandedStage === 'Thumbnail'} className="w-full rounded border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-[8px] text-zinc-400 outline-none disabled:opacity-70">
+                <option value="LearnDriven Shorts">LearnDriven Shorts</option>
+                <option value="LearnDriven Long Videos">LearnDriven Long Videos</option>
+                <option value="LearnDriven Members-only Videos">LearnDriven Members-only</option>
+                <option value="DecodeWorthy Shorts">DecodeWorthy Shorts</option>
+              </select>
+              <div className="flex gap-1">
+                <button type="submit" className="flex-1 rounded bg-emerald-600 px-2 py-1 text-[8px] font-bold text-white hover:bg-emerald-500">ADD HERE</button>
+                <button type="button" onClick={() => setQuickAddStage(null)} className="rounded border border-zinc-800 px-2 py-1 text-[8px] text-zinc-500 hover:text-white">CANCEL</button>
+              </div>
+            </form>
+          )}
+
+          {/* Add Button */}
+          {quickAddStage !== expandedStage && (
+            <button
+              type="button"
+              onClick={() => openQuickAdd(expandedStage)}
+              className="flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 text-[10px] font-bold uppercase"
+            >
+              <Plus className="h-4 w-4" />
+              Add Video to {expandedStage}
+            </button>
+          )}
+
+          {/* Videos Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {videos.filter(v => v.currentStage === expandedStage).length === 0 ? (
+              <div className="col-span-full border border-dashed border-zinc-900/60 rounded flex flex-col items-center justify-center text-center p-8 text-zinc-600 font-mono text-[10px] space-y-1">
+                <span className="font-bold">NO VIDEOS HERE</span>
+                <span>This stage is currently empty</span>
+              </div>
+            ) : (
+              videos.filter(v => v.currentStage === expandedStage).map((video) => {
+                const videoStatus = getVideoStatus(video);
+                const config = getStatusConfig(videoStatus);
+                return (
+                  <div
+                    key={video.id}
+                    id={`video-card-${video.id}`}
+                    draggable
+                    onDragStart={event => {
+                      event.dataTransfer.setData('text/plain', video.id);
+                      event.dataTransfer.effectAllowed = 'move';
+                    }}
+                    onDragEnd={() => setDragOverStage(null)}
+                    className={`bg-zinc-900/40 hover:bg-zinc-900/80 border transition-all rounded p-3 space-y-3 relative group ${config.borderClass} ${focusedVideoId === video.id ? 'ring-2 ring-cyan-400 shadow-[0_0_25px_rgba(34,211,238,0.35)] animate-pulse' : ''}`}
+                  >
+                    {/* Channel / Lane Badges */}
+                    <div className="flex flex-wrap items-center justify-between gap-1 text-[8px] font-mono">
+                      <span className={`px-1.5 py-0.5 rounded uppercase font-bold tracking-wider ${
+                        video.channel === 'LearnDriven'
+                          ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-900/50'
+                          : 'bg-cyan-950/40 text-cyan-400 border border-cyan-900/50'
+                      }`}>
+                        {video.channel}
+                      </span>
+                      <span className="text-zinc-500 truncate max-w-[130px]">
+                        {video.contentLane}
+                      </span>
+                    </div>
+
+                    {/* Title with potential alerts */}
+                    <h4 className="text-[11px] font-semibold text-zinc-200 tracking-wide leading-tight group-hover:text-white transition-colors flex items-start gap-1.5">
+                      <span className="pt-0.5">
+                        <TactileLED color={config.color} importance={config.importance} />
+                      </span>
+                      {video.title}
+                    </h4>
+
+                    <div className={`border rounded p-1.5 text-[10px] font-mono flex items-start gap-1.5 ${videoStatus === 'critical' ? 'animate-pulse' : ''} ${config.bgClass}`}>
+                      <Activity className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                      <div className="leading-tight">
+                        <span className="font-bold block uppercase text-[8px] tracking-wide">
+                          STATUS: {config.label}
+                        </span>
+                        {(video.statusNote || video.blockerReason) && <span>{video.statusNote || video.blockerReason}</span>}
+                      </div>
+                    </div>
+
+                    {/* Upgrade and Target metadata */}
+                    <div className="flex flex-wrap justify-between items-center gap-1 pt-1.5 border-t border-zinc-900/60 font-mono text-[9px] text-zinc-500">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3 text-zinc-600" />
+                        ADDED: {video.createdAt || 'DATE UNKNOWN'}
+                      </span>
+                      <span className="bg-zinc-900 text-zinc-400 px-1.5 py-0.5 rounded font-bold border border-zinc-850">
+                        LVL {video.revenueLevelTarget}
+                      </span>
+                    </div>
+
+                    {/* Control buttons & upgrades */}
+                    <div className="flex items-center justify-between gap-1 pt-2 border-t border-zinc-900/80 flex-wrap">
+                      <div className="flex gap-1.5">
+                        {/* Product tag click upgrade */}
+                        {goals.productTagsAllowed && inferRevenueEligibility(video).productTag && (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleProductTag(video)}
+                            className={`p-1 rounded border transition-colors ${
+                              video.productTagStatus === 'Tagged'
+                                ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-400'
+                                : 'border-zinc-850 text-zinc-500 hover:text-zinc-300'
+                            }`}
+                            title={video.productTagStatus === 'Tagged' ? 'Product Tagged' : 'Add Product Tag Opportunity'}
+                          >
+                            <Tag className="h-3 w-3" />
+                          </button>
+                        )}
+
+                        {/* Video Status */}
+                        <button
+                          type="button"
+                          onClick={() => openStatusEditor(video)}
+                          className={`p-1 rounded border transition-colors ${config.bgClass}`}
+                          title="Edit video status"
+                        >
+                          <Activity className="h-3 w-3" />
+                        </button>
+
+                        {/* Delete Button */}
+                        <button
+                          type="button"
+                          onClick={() => onDeleteVideo(video.id)}
+                          className="p-1 rounded border border-zinc-850 text-zinc-500 hover:text-rose-400 hover:border-rose-500/30 transition-colors"
+                          title="Delete video"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+
+                      {/* Progression Flow arrows */}
+                      <div className="flex gap-1">
+                        {expandedStage !== 'Topic' && (
+                          <button
+                            type="button"
+                            onClick={() => moveStage(video, 'backward')}
+                            className="p-1 rounded border border-zinc-850 text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors"
+                            title="Move to previous stage"
+                          >
+                            <ArrowLeft className="h-3 w-3" />
+                          </button>
+                        )}
+                        {expandedStage !== 'Done' && (
+                          <button
+                            type="button"
+                            onClick={() => moveStage(video, 'forward')}
+                            className="bg-emerald-950/20 hover:bg-emerald-500 hover:text-zinc-950 border border-emerald-900/40 text-emerald-400 p-1 rounded transition-all font-bold font-mono text-[9px] flex items-center gap-0.5"
+                            title="Move to next stage"
+                          >
+                            NEXT
+                            <ArrowRight className="h-3 w-3 font-bold" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Video status editor */}
       {selectedVideo && (

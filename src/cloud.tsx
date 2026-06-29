@@ -138,6 +138,7 @@ export function CloudProvider({ children }: { children: React.ReactNode }) {
   const [pinReady, setPinReady] = useState(() => localStorage.getItem(PIN_READY_KEY) === 'true');
   const [loading, setLoading] = useState(Boolean(supabase));
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(supabase ? 'loading' : 'local');
+  const isDev = import.meta.env.DEV;
 
   useEffect(() => {
     if (!supabase) return;
@@ -151,6 +152,7 @@ export function CloudProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   if (!supabase) return <CloudContext.Provider value={{ userId: null, email: null, syncStatus: 'local', setSyncStatus, signOut: async () => undefined }}>{children}</CloudContext.Provider>;
+  if (isDev) return <CloudContext.Provider value={{ userId: 'dev-user-id', email: 'dev@local', syncStatus: 'local', setSyncStatus, signOut: async () => undefined }}>{children}</CloudContext.Provider>;
   if (loading) return <div className="min-h-screen bg-[#07080a] grid place-items-center"><Loader2 className="h-7 w-7 text-emerald-400 animate-spin" /></div>;
   if (!session) return <SignInScreen onRequirePinSetup={() => setPinReady(false)} />;
   if (!pinReady && session.user.email) return <PinSetupScreen email={session.user.email} onComplete={() => setPinReady(true)} />;

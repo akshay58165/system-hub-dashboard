@@ -4,8 +4,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import TactileLED from './TactileLED';
 
 interface HeaderProps {
-  activeTab: 'mission' | 'health' | 'app';
-  setActiveTab: (tab: 'mission' | 'health' | 'app') => void;
+  activeTab: 'mission' | 'health';
+  setActiveTab: (tab: 'mission' | 'health') => void;
   openSetupWizard: () => void;
   isHardReset: boolean;
   selectedMonth: string;
@@ -319,20 +319,6 @@ export default function Header({
           </div>
         </button>
 
-        <button
-          onClick={() => setActiveTab('app')}
-          className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2 text-xs font-mono font-semibold tracking-wider transition-all duration-300 rounded-md group relative overflow-hidden ${
-            activeTab === 'app'
-              ? `border ${theme.tabActiveClass}`
-              : 'border border-transparent text-zinc-500 hover:text-zinc-350 hover:bg-zinc-900/40'
-          }`}
-        >
-          <PanelsTopLeft className="h-3.5 w-3.5 group-hover:scale-110 transition-transform" />
-          APP MODE
-          <div className="ml-1">
-            <TactileLED color={activeTab === 'app' ? theme.pulseLed : 'zinc'} importance="low" active={activeTab === 'app'} />
-          </div>
-        </button>
       </div>
 
       {/* Right section: Active workspace, setup trigger, digital clock */}
