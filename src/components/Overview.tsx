@@ -13,7 +13,8 @@ import {
   Zap, 
   Users, 
   Server, 
-  Wifi 
+  Wifi,
+  Youtube
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -44,6 +45,30 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
   const activeDeploymentsCount = useMemo(() => {
     return vercelProjects.filter(p => p.status === 'ready').length;
   }, [vercelProjects]);
+
+  // YouTube Payment Cycle calculations
+  const paymentMetrics = useMemo(() => {
+    const today = new Date();
+    
+    let lockDate = new Date(today.getFullYear(), today.getMonth(), 10);
+    if (today.getDate() > 10) {
+      lockDate = new Date(today.getFullYear(), today.getMonth() + 1, 10);
+    }
+    
+    let payoutDate = new Date(today.getFullYear(), today.getMonth(), 21);
+    if (today.getDate() > 21) {
+      payoutDate = new Date(today.getFullYear(), today.getMonth() + 1, 21);
+    }
+    
+    const diffTime = payoutDate.getTime() - today.getTime();
+    const daysPending = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return {
+      lockDate,
+      payoutDate,
+      daysPending
+    };
+  }, []);
 
   // Merge traffic data across projects for the combined chart
   const combinedTraffic = useMemo(() => {
@@ -108,15 +133,26 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
           {/* GitHub Source Block */}
           <div 
             onClick={() => onTabChange('topics')}
-            className="md:col-span-1 p-5 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-blue-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(59,130,246,0.04)] transition-all duration-300 cursor-pointer flex flex-col items-center text-center group relative overflow-hidden"
+            className="md:col-span-1 p-4 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-red-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(239,68,68,0.04)] transition-all duration-300 cursor-pointer flex flex-col items-center text-center group relative overflow-hidden"
           >
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-blue-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="p-3 bg-neutral-900/50 rounded-full border border-neutral-900 group-hover:border-blue-900/30 group-hover:bg-blue-950/10 transition-colors duration-300 text-neutral-300 mb-2">
-              <GitBranch className="h-5 w-5 text-blue-400 group-hover:scale-110 transition-transform duration-300" />
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-red-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="p-2.5 bg-neutral-900/50 rounded-full border border-neutral-900 group-hover:border-red-900/30 group-hover:bg-red-950/10 transition-colors duration-300 text-neutral-300 mb-1.5 flex items-center justify-center">
+              <Youtube className="h-4 w-4 text-red-500 group-hover:scale-110 transition-transform duration-300 animate-pulse" />
             </div>
-            <span className="text-xs font-mono font-semibold text-neutral-200">Topic Repos</span>
-            <span className="text-[10px] text-neutral-500 font-mono mt-1">{repos.length} Repositories</span>
-            <span className="text-[9px] text-emerald-400 font-mono mt-0.5 bg-emerald-950/20 border border-emerald-900/30 px-1.5 py-0.2 rounded">Actions: Green</span>
+            <span className="text-[10px] font-mono font-semibold text-neutral-200">Payment Cycle</span>
+            <span className="text-sm font-mono font-bold text-emerald-400 mt-1 select-none">
+              {paymentMetrics.daysPending}d pending
+            </span>
+            <div className="text-[8px] font-mono text-neutral-500 mt-1.5 pt-1 border-t border-neutral-900/60 w-full flex flex-col gap-0.5">
+              <div className="flex justify-between px-1">
+                <span>Lock:</span>
+                <span className="text-neutral-300">{paymentMetrics.lockDate.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+              </div>
+              <div className="flex justify-between px-1">
+                <span>Pay:</span>
+                <span className="text-neutral-300">{paymentMetrics.payoutDate.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+              </div>
+            </div>
           </div>
 
           {/* Connection Vector 1 */}
