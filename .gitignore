@@ -6,7 +6,3 @@ coverage/
 *.log
 .env*
 !.env.example
-
-.vercel
-/scripts/apply-supabase-schema.ps1
-/supabase/.temp/

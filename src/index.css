@@ -1,274 +1,31 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Space Grotesk", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  /* Softer, low-contrast dark charcoal values for global lines/borders */
+  --color-neutral-850: #1e1e24;
+  --color-neutral-800: #2b2b35;
+  --color-neutral-900: #141418;
 }
 
-@layer base {
-  body {
-    background-color: #080809;
-    color: #e4e4e7;
-    font-family: var(--font-sans);
-    overflow-x: hidden;
-  }
-}
-
-/* Custom glow animations and aesthetic grid patterns mimicking the screenshot */
-.bg-grid-pattern {
-  background-size: 24px 24px;
-  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-}
-
-.glow-green {
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
-}
-
-.glow-red {
-  box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
-}
-
-.glow-blue {
-  box-shadow: 0 0 10px rgba(6, 182, 212, 0.35);
-}
-
-.glow-purple {
-  box-shadow: 0 0 10px rgba(168, 85, 247, 0.35);
-}
-
-.glow-amber {
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.35);
-}
-
-/* Scanline / CRT effect overlay if needed */
-.scanlines {
-  background: linear-gradient(
-    rgba(18, 16, 16, 0) 50%, 
-    rgba(0, 0, 0, 0.25) 50%
-  );
-  background-size: 100% 4px;
-  z-index: 20;
-}
-
-/* Custom scrollbars */
+/* Custom scrollbars for high fidelity console output logs */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
-  background: #09090b;
+  background: #0a0a0a;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
-  border-radius: 3px;
+  background: #262626;
+  border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: #404040;
 }
-
-/* Tactile LEDs Keyframes and Animations */
-@keyframes led-blink-critical {
-  0% { 
-    opacity: 0.3; 
-    transform: scale(0.9); 
-    filter: brightness(0.5); 
-  }
-  100% { 
-    opacity: 1; 
-    transform: scale(1.1); 
-    filter: brightness(1.6); 
-  }
-}
-
-@keyframes led-blink-high {
-  0% { 
-    opacity: 0.4; 
-    transform: scale(0.93); 
-    filter: brightness(0.65); 
-  }
-  100% { 
-    opacity: 1; 
-    transform: scale(1.07); 
-    filter: brightness(1.35); 
-  }
-}
-
-@keyframes led-blink-medium {
-  0% { 
-    opacity: 0.55; 
-    transform: scale(0.96); 
-    filter: brightness(0.8); 
-  }
-  100% { 
-    opacity: 1; 
-    transform: scale(1.04); 
-    filter: brightness(1.15); 
-  }
-}
-
-@keyframes led-blink-low {
-  0% { 
-    opacity: 0.75; 
-    transform: scale(0.98); 
-    filter: brightness(0.9); 
-  }
-  100% { 
-    opacity: 1; 
-    transform: scale(1.02); 
-    filter: brightness(1.05); 
-  }
-}
-
-.animate-led-critical {
-  animation: led-blink-critical 0.22s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.animate-led-high {
-  animation: led-blink-high 0.55s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.animate-led-medium {
-  animation: led-blink-medium 1.25s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.animate-led-low {
-  animation: led-blink-low 2.8s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Tactile Analog Gauge Keyframes and Styles */
-@keyframes needle-flutter-critical {
-  0% { transform: rotate(var(--needle-angle)) translate(-50%, -100%) rotate(-0.75deg); }
-  50% { transform: rotate(var(--needle-angle)) translate(-50%, -100%) rotate(0.85deg); }
-  100% { transform: rotate(var(--needle-angle)) translate(-50%, -100%) rotate(-0.6deg); }
-}
-
-@keyframes needle-flutter-warning {
-  0% { transform: rotate(var(--needle-angle)) translate(-50%, -100%) rotate(-0.3deg); }
-  50% { transform: rotate(var(--needle-angle)) translate(-50%, -100%) rotate(0.35deg); }
-  100% { transform: rotate(var(--needle-angle)) translate(-50%, -100%) rotate(-0.25deg); }
-}
-
-@keyframes backlight-pulsate {
-  0% { opacity: 0.15; }
-  100% { opacity: 0.45; }
-}
-
-@keyframes backlight-critical-pulse {
-  0% { opacity: 0.3; filter: brightness(0.8); }
-  100% { opacity: 0.85; filter: brightness(1.5); }
-}
-
-.animate-needle-critical {
-  animation: needle-flutter-critical 0.08s infinite alternate ease-in-out;
-}
-
-.animate-needle-warning {
-  animation: needle-flutter-warning 0.15s infinite alternate ease-in-out;
-}
-
-.animate-backlight-critical {
-  animation: backlight-critical-pulse 0.3s infinite alternate ease-in-out;
-}
-
-.animate-backlight-standard {
-  animation: backlight-pulsate 1.8s infinite alternate ease-in-out;
-}
-
-/* High contrast scanlines to make it feel like an old physical cathode CRT tube display */
-.crt-bezel {
-  position: relative;
-  overflow: hidden;
-}
-
-.crt-bezel::after {
-  content: " ";
-  display: block;
-  position: absolute;
-  top: 0; left: 0; bottom: 0; right: 0;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-  z-index: 20;
-  background-size: 100% 3px, 3px 100%;
-  pointer-events: none;
-}
-
-/* Optional light workspace. The dark theme remains the unmodified default. */
-html.theme-light body {
-  background-color: #e9eef5;
-  color: #1f2937;
-}
-
-html.theme-light .bg-grid-pattern {
-  background-color: #edf2f7 !important;
-  background-image: radial-gradient(circle, rgba(15, 23, 42, 0.08) 1px, transparent 1px);
-}
-
-html.theme-light [class*="bg-zinc-950"] {
-  background-color: rgba(248, 250, 252, 0.96) !important;
-}
-
-html.theme-light [class*="bg-zinc-900"] {
-  background-color: rgba(226, 232, 240, 0.82) !important;
-}
-
-html.theme-light [class*="border-zinc-900"],
-html.theme-light [class*="border-zinc-850"],
-html.theme-light [class*="border-zinc-800"] {
-  border-color: rgba(148, 163, 184, 0.5) !important;
-}
-
-html.theme-light [class*="border-zinc-700"] {
-  border-color: rgba(100, 116, 139, 0.55) !important;
-}
-
-html.theme-light [class*="text-white"],
-html.theme-light [class*="text-zinc-100"],
-html.theme-light [class*="text-zinc-150"],
-html.theme-light [class*="text-zinc-200"],
-html.theme-light [class*="text-zinc-300"] {
-  color: #172033 !important;
-}
-
-html.theme-light [class*="text-zinc-400"] {
-  color: #3f4d63 !important;
-}
-
-html.theme-light [class*="text-zinc-500"],
-html.theme-light [class*="text-zinc-600"] {
-  color: #64748b !important;
-}
-
-html.theme-light input,
-html.theme-light select,
-html.theme-light textarea {
-  color: #172033 !important;
-  background-color: #f8fafc !important;
-}
-
-html.theme-light input::placeholder,
-html.theme-light textarea::placeholder {
-  color: #94a3b8 !important;
-}
-
-html.theme-light .preserve-dark,
-html.theme-light .preserve-dark [class*="bg-zinc-950"],
-html.theme-light .preserve-dark [class*="bg-zinc-900"] {
-  background-color: #09090b !important;
-}
-
-html.theme-light .preserve-dark [class*="text-white"],
-html.theme-light .preserve-dark [class*="text-zinc-100"],
-html.theme-light .preserve-dark [class*="text-zinc-200"] {
-  color: #f4f4f5 !important;
-}
-
-html.theme-light ::-webkit-scrollbar-track {
-  background: #e2e8f0;
-}
-
-html.theme-light ::-webkit-scrollbar-thumb {
-  background: #94a3b8;
-}
-
-

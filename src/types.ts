@@ -1,169 +1,141 @@
-export interface MonthlyGoals {
-  month: string; // e.g. "2026-06"
-  cycleStartDate: string; // YYYY-MM-DD start of cycle
-  cycleEndDate: string; // YYYY-MM-DD end of cycle
-  intensityMode: 'Relaxed' | 'Balanced' | 'Aggressive' | 'War mode';
-  workdaysAvailable: number;
-  plannedBreakDays: number;
-  hoursPerDay: number;
-  workWindowStart: string; // "11:00"
-  workWindowEnd: string; // "20:00"
-  
-  // Toggles
-  enabledRevenueLevels: number[];
-  brandCollabsTargeted: boolean;
-  longVideoAbove8MinTargeted: boolean;
-  viralTopicsTargeted: boolean;
-  productTagsAllowed: boolean;
-  pinnedCommentsAllowed: boolean;
-
-  // Lane targets
-  ldShortsTarget: number | null;
-  ldLongTarget: number | null;
-  ldMembersTarget: number | null;
-  dwShortsTarget: number | null;
-
-  ldLongWeeklyTarget: number;
-  ldMembersWeeklyTarget: number;
-  dwShortsScheduleType: 'Daily' | 'Weekly' | 'Monthly';
-}
-
-export type StageStatus = 'Not started' | 'In progress' | 'Done' | 'Blocked';
-
-export interface VideoPipeline {
-  topic: StageStatus;
-  script: StageStatus;
-  shoot: StageStatus;
-  edit: StageStatus;
-  thumbnail?: StageStatus; // Only present for Long Videos
-  schedule: StageStatus;
-}
-
-export type VideoStage = 'Topic' | 'Script' | 'Shoot' | 'Edit' | 'Thumbnail' | 'Schedule' | 'Done';
-
-export type VideoStatus = 'neutral' | 'good' | 'attention' | 'warning' | 'critical';
-
-export interface VideoRevenueEligibility {
-  neutral: boolean;
-  viralPotential: boolean;
-  productTag: boolean;
-  pinnedComment: boolean;
-  overEightMinutes: boolean;
-  breakoutAttempt: boolean;
-  brandCollaboration: boolean;
-}
-
-export interface VideoItem {
+export interface GitHubRepo {
   id: string;
-  channel: 'LearnDriven' | 'DecodeWorthy';
-  contentLane: 'LearnDriven Shorts' | 'LearnDriven Long Videos' | 'LearnDriven Members-only Videos' | 'DecodeWorthy Shorts';
-  title: string;
-  revenueLevelTarget: number;
-  createdAt?: string; // YYYY-MM-DD, automatically recorded when the topic is added
-  expectedPublishDate?: string; // YYYY-MM-DD, optional until publishing is planned
-  actualScheduledDate?: string; // YYYY-MM-DD
-  pipeline: VideoPipeline;
-  currentStage: VideoStage;
-  isBlocked: boolean;
-  blockerReason?: string;
-  blockerSeverity?: 'attention' | 'warning' | 'critical';
-  status?: VideoStatus;
-  statusNote?: string;
-  revenueEligibility?: VideoRevenueEligibility;
-  productTagStatus: 'Unsuitable' | 'Available' | 'Tagged';
-  pinnedCommentStatus: 'None' | 'Added';
-  membersPromotionStatus: 'None' | 'Promoted';
-  brandCollabStatus: 'None' | 'Attached';
-  notes?: string;
-}
-
-export interface RevenueLevelConfig {
-  level: number;
+  name: string;
   description: string;
-  difficulty: 'Easy' | 'Medium' | 'Hard' | 'Very hard' | 'Unpredictable';
-  requiredConditions: string[];
-  suggestedActions: string[];
+  stars: number;
+  forks: number;
+  openIssues: number;
+  branches: string[];
+  currentBranch: string;
+  pullRequests: GitHubPR[];
+  workflows: GitHubWorkflow[];
+  commits: GitHubCommit[];
 }
 
-export interface ProductOpportunity {
+export interface GitHubPR {
   id: string;
-  topic: string;
-  channel: 'LearnDriven' | 'DecodeWorthy';
-  productCategory: string;
-  relevanceScore: number; // 1-10
-  revenueUpgrade: string; // e.g. "Level 2 to Level 3"
-  forcedRisk: 'Low' | 'Medium' | 'High';
-  suggestedTag: string;
-  status: 'Pending' | 'Added' | 'Ignored';
+  title: string;
+  number: number;
+  author: string;
+  status: 'open' | 'merged' | 'closed';
+  createdAt: string;
+  branch: string;
 }
 
-export interface CalibrationNode {
+export interface GitHubWorkflow {
   id: string;
-  label: string;
-  value: number; // 1-10
-  color: string;
+  name: string;
+  status: 'success' | 'failure' | 'running' | 'queued';
+  lastRun: string;
+  duration: string;
+  commitHash: string;
+  logs: string[];
 }
 
-export interface WellbeingEntry {
+export interface GitHubCommit {
   id: string;
-  nodeId: string;
-  value: number;
+  message: string;
+  author: string;
+  date: string;
+  hash: string;
+}
+
+export interface VercelProject {
+  id: string;
+  name: string;
+  framework: string;
+  status: 'ready' | 'building' | 'failed' | 'offline';
+  domain: string;
+  gitBranch: string;
+  updatedAt: string;
+  deployments: VercelDeployment[];
+  analytics: VercelAnalytics;
+  serverlessFunctions: ServerlessFunction[];
+}
+
+export interface VercelDeployment {
+  id: string;
+  url: string;
+  branch: string;
+  commitMessage: string;
+  status: 'ready' | 'building' | 'failed' | 'queued';
+  createdAt: string;
+  creator: string;
+  duration?: string;
+  logs: string[];
+}
+
+export interface VercelAnalytics {
+  webVitals: {
+    lcp: number; // Largest Contentful Paint (ms)
+    fid: number; // First Input Delay (ms)
+    cls: number; // Cumulative Layout Shift
+  };
+  traffic: {
+    date: string;
+    views: number;
+    visitors: number;
+  }[];
+  latency: {
+    date: string;
+    avgMs: number;
+  }[];
+}
+
+export interface ServerlessFunction {
+  id: string;
+  path: string;
+  invocations: number;
+  errors: number;
+  avgDurationMs: number;
+}
+
+export interface SupabaseProject {
+  id: string;
+  name: string;
+  status: 'active' | 'pausing' | 'restoring';
+  region: string;
+  dbVersion: string;
+  tables: SupabaseTable[];
+  authUsers: SupabaseUser[];
+  apiLogs: SupabaseApiLog[];
+  metrics: {
+    dbSize: string;
+    activeConnections: number;
+    cpuUsage: number;
+    memoryUsage: number;
+  };
+}
+
+export interface SupabaseTable {
+  name: string;
+  rowCount: number;
+  columns: { name: string; type: string; isNullable: boolean }[];
+  rows: Record<string, any>[];
+}
+
+export interface SupabaseUser {
+  id: string;
+  email: string;
+  provider: string;
+  lastSignIn: string;
+  createdAt: string;
+  status: 'active' | 'banned' | 'unconfirmed';
+}
+
+export interface SupabaseApiLog {
+  id: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  path: string;
+  status: number;
+  latencyMs: number;
   timestamp: string;
 }
 
-export interface ClimateData {
-  temp: string;
-  humidity: string;
-  wind: string;
-  sunrise: string;
-  sunset: string;
-  pressure: string;
-  airQuality: string;
-  precipitation: string;
-  stationId: string;
-  moonPhase: string;
-}
-
-export interface ActionPromptLog {
+export interface SystemEvent {
   id: string;
-  date: string;
-  prompt: string;
-  reason: string;
-  priority: 'Urgent' | 'High' | 'Medium' | 'Low';
-  completed: boolean;
-  timeMode: 'quick' | 'medium' | 'deep';
-  alternative: string;
-  impact: string;
-  target?: DashboardActionTarget;
-}
-
-export type DashboardActionTarget =
-  | { type: 'video'; videoId: string; requestId?: number }
-  | { type: 'add-video'; lane: VideoItem['contentLane']; requestId?: number }
-  | { type: 'health'; requestId?: number }
-  | { type: 'pipeline'; requestId?: number };
-
-export interface PausePeriod {
-  startTime: string; // ISO timestamp
-  endTime: string; // ISO timestamp
-}
-
-export interface WorkWindowSession {
-  id: string;
-  date: string; // YYYY-MM-DD
-  startTime: string; // HH:MM
-  endTime: string; // HH:MM
-  stage: VideoStage | null; // What stage are they working on, null if not started
-  isActive: boolean; // Currently within this window's time
-  isPaused: boolean; // Currently paused
-  pausePeriods: PausePeriod[]; // Array of pauses within this window
-  pauseStartedAt?: string; // ISO timestamp when pause started (if isPaused=true)
-}
-
-export interface DailySummary {
-  date: string; // YYYY-MM-DD
-  totalMinutesWorked: number; // Total active work time (excluding pauses)
-  totalMinutesPaused: number; // Total pause time
-  stageBreakdown: Record<VideoStage | 'Unassigned', number>; // Minutes per stage
-  sessions: WorkWindowSession[];
+  source: 'github' | 'vercel' | 'supabase' | 'system';
+  type: 'info' | 'success' | 'warning' | 'error';
+  message: string;
+  timestamp: string;
 }
