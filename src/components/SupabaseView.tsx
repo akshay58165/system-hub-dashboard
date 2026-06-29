@@ -14,6 +14,7 @@ import {
   FileText
 } from 'lucide-react';
 import { SupabaseProject, SupabaseApiLog, SystemEvent, Topic, TopicActivity } from '../types';
+import { callOpenAI, getChannelSystemPrompt } from '../services/openai';
 
 interface SupabaseViewProps {
   supabase: SupabaseProject;
@@ -64,6 +65,111 @@ export default function SupabaseView({
     }
     return '';
   });
+
+  // OpenAI Integration States
+  const [openaiKey, setOpenaiKey] = useState<string>(() => {
+    return localStorage.getItem('unicorn_openai_api_key') || '';
+  });
+  const [tempKey, setTempKey] = useState('');
+  const [customInstruction, setCustomInstruction] = useState('');
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const handleSaveApiKey = () => {
+    if (!tempKey.trim().startsWith('sk-')) {
+      alert("Please enter a valid OpenAI API Key starting with 'sk-'");
+      return;
+    }
+    const cleanKey = tempKey.trim();
+    localStorage.setItem('unicorn_openai_api_key', cleanKey);
+    setOpenaiKey(cleanKey);
+    setTempKey('');
+    setAiError(null);
+    onAddEvent({
+      id: `evt-key-save-${Date.now()}`,
+      source: 'system',
+      type: 'success',
+      message: 'Secure Integration: OpenAI API credentials saved locally in web sandbox.',
+      timestamp: new Date().toISOString()
+    });
+  };
+
+  const handleClearApiKey = () => {
+    if (window.confirm("Remove local OpenAI API Key?")) {
+      localStorage.removeItem('unicorn_openai_api_key');
+      setOpenaiKey('');
+      onAddEvent({
+        id: `evt-key-clear-${Date.now()}`,
+        source: 'system',
+        type: 'warning',
+        message: 'Secure Integration: OpenAI API credentials purged from browser local storage.',
+        timestamp: new Date().toISOString()
+      });
+    }
+  };
+
+  const handleTriggerAI = async (mode: 'outline' | 'enhance') => {
+    if (!selectedScriptTopicId) return;
+    const topic = topics.find(t => t.id === selectedScriptTopicId);
+    if (!topic) return;
+
+    setIsAiLoading(true);
+    setAiError(null);
+
+    const targetChannel = topic.channel;
+    const topicName = topic.name;
+    const topicDesc = topic.description;
+
+    onAddEvent({
+      id: `evt-ai-request-${Date.now()}`,
+      source: 'system',
+      type: 'info',
+      message: `AI Core: Requesting ${mode} completion from OpenAI for topic "${topicName}" on channel [${targetChannel}]`,
+      timestamp: new Date().toISOString()
+    });
+
+    try {
+      const systemPrompt = getChannelSystemPrompt(targetChannel, customInstruction);
+      let userPrompt = '';
+
+      if (mode === 'outline') {
+        userPrompt = `Topic Title: ${topicName}
+Topic Description: ${topicDesc}
+Please write a structured script outline with standard video pacing segments.`;
+      } else {
+        userPrompt = `Topic Title: ${topicName}
+Current Draft:
+"""
+${scriptText}
+"""
+Please rewrite/enhance this draft based on the system persona rules and the user instructions. Optimize the speech flow and pacing.`;
+      }
+
+      const result = await callOpenAI(openaiKey, systemPrompt, userPrompt);
+      handleUpdateScript(result);
+
+      onAddEvent({
+        id: `evt-ai-success-${Date.now()}`,
+        source: 'system',
+        type: 'success',
+        message: `AI Core: Successfully received GPT completion. Updated draft for "${topicName}".`,
+        timestamp: new Date().toISOString()
+      });
+    } catch (err: any) {
+      console.error(err);
+      const errMsg = err.message || "An unexpected error occurred.";
+      setAiError(errMsg);
+      onAddEvent({
+        id: `evt-ai-error-${Date.now()}`,
+        source: 'system',
+        type: 'error',
+        message: `AI Core Error: ${errMsg}`,
+        timestamp: new Date().toISOString()
+      });
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
 
   // Handler to load script for selected topic
   const handleSelectScriptTopic = (topicId: string) => {
@@ -880,6 +986,7 @@ export default function SupabaseView({
                   <span className="text-[10px] font-mono text-neutral-400">Target Topic:</span>
                   <select
                     value={selectedScriptTopicId}
+                    disabled={isAiLoading}
                     onChange={(e) => handleSelectScriptTopic(e.target.value)}
                     className="bg-neutral-900 border border-neutral-800 text-xs text-neutral-200 font-mono rounded px-2.5 py-1.5 focus:border-emerald-800 outline-none"
                   >
@@ -893,13 +1000,96 @@ export default function SupabaseView({
                 </div>
               </div>
 
+              {/* API Key Configurations or AI Toolbar Controls */}
+              {!openaiKey ? (
+                <div className="bg-rose-950/10 border border-rose-900/30 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 font-mono text-[10px]">
+                  <div className="space-y-1">
+                    <span className="font-bold text-rose-400 uppercase tracking-wider flex items-center gap-1">
+                      <AlertCircle className="h-3.5 w-3.5" /> OpenAI API Integration Required
+                    </span>
+                    <p className="text-neutral-400">Please provide an OpenAI API key (sk-...) to unlock automated outline generation and draft enhancements. Credentials are saved locally inside your browser sandbox.</p>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <input 
+                      type="password"
+                      placeholder="sk-..."
+                      value={tempKey}
+                      onChange={(e) => setTempKey(e.target.value)}
+                      className="bg-neutral-950 border border-neutral-800 focus:border-rose-900 outline-none text-xs rounded px-2.5 py-1.5 text-white w-48 font-mono"
+                    />
+                    <button
+                      onClick={handleSaveApiKey}
+                      className="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-black font-bold rounded transition cursor-pointer"
+                    >
+                      Save Key
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-neutral-900/40 border border-neutral-850 rounded-xl p-3 flex flex-col md:flex-row items-center gap-3 relative z-10">
+                  {/* Custom AI Instructions Input Box */}
+                  <div className="flex-1 w-full flex items-center gap-2 bg-neutral-950 border border-neutral-800 rounded px-2.5 py-1.5 focus-within:border-emerald-800 transition">
+                    <span className="text-[10px] text-neutral-500 font-mono uppercase shrink-0">Custom AI Rule:</span>
+                    <input 
+                      type="text"
+                      value={customInstruction}
+                      disabled={isAiLoading || !selectedScriptTopicId}
+                      onChange={(e) => setCustomInstruction(e.target.value)}
+                      placeholder={selectedScriptTopicId ? "e.g., 'Make it punchier', 'Explain details using train analogies', 'Keep it short'" : "Select a topic first to write AI rules"}
+                      className="w-full bg-transparent text-xs text-neutral-200 outline-none border-none placeholder-neutral-600 font-mono"
+                    />
+                  </div>
+
+                  {/* AI Quick Triggers */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => handleTriggerAI('outline')}
+                      disabled={isAiLoading || !selectedScriptTopicId}
+                      className="px-3 py-1.5 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed text-neutral-200 font-mono text-[10px] rounded transition cursor-pointer flex items-center gap-1"
+                    >
+                      <span>Generate Outline</span>
+                    </button>
+                    <button
+                      onClick={() => handleTriggerAI('enhance')}
+                      disabled={isAiLoading || !selectedScriptTopicId}
+                      className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-black font-mono font-bold text-[10px] rounded transition cursor-pointer flex items-center gap-1"
+                    >
+                      <span>Enhance Draft</span>
+                    </button>
+                    <button
+                      onClick={handleClearApiKey}
+                      disabled={isAiLoading}
+                      className="px-2 py-1.5 text-neutral-500 hover:text-neutral-300 font-mono text-[9px] cursor-pointer"
+                      title="Remove API Key Credentials"
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* AI Processing and Error Display Banner */}
+              {isAiLoading && (
+                <div className="bg-emerald-950/20 border border-emerald-900/30 rounded-xl p-3 flex items-center gap-3 font-mono text-[10px] text-emerald-400 animate-pulse">
+                  <div className="h-2 w-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                  <span>AI Core is compiling data model and calling OpenAI (gpt-4o-mini)... Please wait.</span>
+                </div>
+              )}
+
+              {aiError && (
+                <div className="bg-rose-950/20 border border-rose-900/30 rounded-xl p-3 flex items-center gap-3 font-mono text-[10px] text-rose-400">
+                  <AlertCircle className="h-4 w-4 text-rose-500 shrink-0" />
+                  <span className="truncate">AI Request Error: {aiError}</span>
+                </div>
+              )}
+
               {/* Editor Workspace Layout */}
               <div className="flex flex-col lg:flex-row gap-5 flex-1 min-h-[350px]">
                 {/* Textarea Editor Area */}
                 <div className="flex-1 flex flex-col space-y-2">
                   <textarea
                     value={scriptText}
-                    disabled={!selectedScriptTopicId}
+                    disabled={!selectedScriptTopicId || isAiLoading}
                     onChange={(e) => handleUpdateScript(e.target.value)}
                     placeholder={selectedScriptTopicId ? "Start writing your video script here... Speaking pace is calculated at 150 words per minute." : "Please select a target topic from the dropdown to start scripting."}
                     className="w-full flex-1 min-h-[250px] bg-neutral-950 border border-neutral-800 focus:border-emerald-800 outline-none rounded-lg p-4 font-sans text-xs text-neutral-300 leading-relaxed resize-none disabled:opacity-40 disabled:cursor-not-allowed"
@@ -918,6 +1108,7 @@ export default function SupabaseView({
                       <div className="flex gap-2">
                         <button
                           type="button"
+                          disabled={isAiLoading}
                           onClick={() => {
                             navigator.clipboard.writeText(scriptText);
                             onAddEvent({
@@ -928,18 +1119,19 @@ export default function SupabaseView({
                               timestamp: new Date().toISOString()
                             });
                           }}
-                          className="px-2 py-1 bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-300 rounded transition cursor-pointer"
+                          className="px-2 py-1 bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-300 rounded transition cursor-pointer disabled:opacity-40"
                         >
                           Copy Script
                         </button>
                         <button
                           type="button"
+                          disabled={isAiLoading}
                           onClick={() => {
                             if (window.confirm("Are you sure you want to clear the script for this topic?")) {
                               handleUpdateScript('');
                             }
                           }}
-                          className="px-2 py-1 bg-neutral-900 border border-neutral-800 hover:border-rose-900/60 hover:text-rose-400 text-neutral-400 rounded transition cursor-pointer"
+                          className="px-2 py-1 bg-neutral-900 border border-neutral-800 hover:border-rose-900/60 hover:text-rose-400 text-neutral-400 rounded transition cursor-pointer disabled:opacity-40"
                         >
                           Clear
                         </button>
