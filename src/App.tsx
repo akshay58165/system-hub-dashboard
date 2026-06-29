@@ -44,14 +44,17 @@ export default function App() {
   const [repos, setRepos] = useState<GitHubRepo[]>(initialGitHubRepos);
   const [vercelProjects, setVercelProjects] = useState<VercelProject[]>(initialVercelProjects);
   const [supabase, setSupabase] = useState<SupabaseProject>(initialSupabaseProject);
-  const [events, setEvents] = useState<SystemEvent[]>(initialSystemEvents);
+  const [events, setEvents] = useState<SystemEvent[]>(() => {
+    const stored = localStorage.getItem('unicorn_events');
+    return stored ? JSON.parse(stored) : [];
+  });
   const [topics, setTopics] = useState<Topic[]>(() => {
     const stored = localStorage.getItem('unicorn_topics');
-    return stored ? JSON.parse(stored) : initialTopics;
+    return stored ? JSON.parse(stored) : [];
   });
   const [activities, setActivities] = useState<TopicActivity[]>(() => {
     const stored = localStorage.getItem('unicorn_activities');
-    return stored ? JSON.parse(stored) : initialActivities;
+    return stored ? JSON.parse(stored) : [];
   });
   
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
@@ -166,6 +169,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('unicorn_activities', JSON.stringify(activities));
   }, [activities]);
+
+  useEffect(() => {
+    localStorage.setItem('unicorn_events', JSON.stringify(events));
+  }, [events]);
 
   // Update clock
   useEffect(() => {
