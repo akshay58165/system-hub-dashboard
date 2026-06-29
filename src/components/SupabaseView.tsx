@@ -10,7 +10,8 @@ import {
   CheckCircle, 
   AlertCircle, 
   FileSpreadsheet, 
-  Clock
+  Clock,
+  FileText
 } from 'lucide-react';
 import { SupabaseProject, SupabaseApiLog, SystemEvent, Topic, TopicActivity } from '../types';
 
@@ -33,7 +34,7 @@ export default function SupabaseView({
   activities,
   setActivities
 }: SupabaseViewProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'tables' | 'sql' | 'auth' | 'logs'>('tables');
+  const [activeSubTab, setActiveSubTab] = useState<'tables' | 'sql' | 'auth' | 'logs' | 'script'>('tables');
   
   // Mapped Table Editor states
   const [selectedTableName, setSelectedTableName] = useState<string>('topics');
@@ -48,6 +49,51 @@ export default function SupabaseView({
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserProvider, setNewUserProvider] = useState('github');
+
+  // Script Editor states
+  const [selectedScriptTopicId, setSelectedScriptTopicId] = useState<string>(topics[0]?.id || '');
+  const [scriptText, setScriptText] = useState<string>(() => {
+    try {
+      const stored = localStorage.getItem('unicorn_video_scripts');
+      if (stored && topics[0]?.id) {
+        const parsed = JSON.parse(stored);
+        return parsed[topics[0].id] || '';
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return '';
+  });
+
+  // Handler to load script for selected topic
+  const handleSelectScriptTopic = (topicId: string) => {
+    setSelectedScriptTopicId(topicId);
+    try {
+      const stored = localStorage.getItem('unicorn_video_scripts');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setScriptText(parsed[topicId] || '');
+        return;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setScriptText('');
+  };
+
+  // Handler to update script
+  const handleUpdateScript = (text: string) => {
+    setScriptText(text);
+    if (!selectedScriptTopicId) return;
+    try {
+      const stored = localStorage.getItem('unicorn_video_scripts');
+      const parsed = stored ? JSON.parse(stored) : {};
+      parsed[selectedScriptTopicId] = text;
+      localStorage.setItem('unicorn_video_scripts', JSON.stringify(parsed));
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Load biometrics logs from localStorage
   const biometricsLogs = useMemo(() => {
@@ -433,12 +479,22 @@ export default function SupabaseView({
 
           <button 
             onClick={() => setActiveSubTab('logs')}
-            className={`px-4 py-3 text-xs font-mono font-semibold flex items-center gap-1.5 transition ${
+            className={`px-4 py-3 text-xs font-mono font-semibold border-r border-neutral-800 flex items-center gap-1.5 transition ${
               activeSubTab === 'logs' ? 'bg-neutral-950 text-emerald-400 border-b-2 border-b-emerald-400' : 'text-neutral-400 hover:text-neutral-200'
             }`}
           >
             <Clock className="h-3.5 w-3.5" />
             <span>API Telemetry Logs</span>
+          </button>
+
+          <button 
+            onClick={() => setActiveSubTab('script')}
+            className={`px-4 py-3 text-xs font-mono font-semibold flex items-center gap-1.5 transition ${
+              activeSubTab === 'script' ? 'bg-neutral-950 text-emerald-400 border-b-2 border-b-emerald-400' : 'text-neutral-400 hover:text-neutral-200'
+            }`}
+          >
+            <FileText className="h-3.5 w-3.5" />
+            <span>Script Editor</span>
           </button>
         </div>
 
@@ -806,6 +862,160 @@ export default function SupabaseView({
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Sub Tab: Script Editor */}
+          {activeSubTab === 'script' && (
+            <div className="space-y-4 flex-1 flex flex-col">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <h3 className="text-xs font-semibold text-neutral-300">Video Script Workspace</h3>
+                  <p className="text-[11px] text-neutral-500">Draft your script, measure pacing, and track estimated duration for publishing.</p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-neutral-400">Target Topic:</span>
+                  <select
+                    value={selectedScriptTopicId}
+                    onChange={(e) => handleSelectScriptTopic(e.target.value)}
+                    className="bg-neutral-900 border border-neutral-800 text-xs text-neutral-200 font-mono rounded px-2.5 py-1.5 focus:border-emerald-800 outline-none"
+                  >
+                    <option value="">-- Select a Topic --</option>
+                    {topics.map(t => (
+                      <option key={t.id} value={t.id}>
+                        [{t.channel === 'LearnDriven' ? 'LD' : 'DW'}] {t.name.length > 35 ? t.name.substring(0, 35) + '...' : t.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Editor Workspace Layout */}
+              <div className="flex flex-col lg:flex-row gap-5 flex-1 min-h-[350px]">
+                {/* Textarea Editor Area */}
+                <div className="flex-1 flex flex-col space-y-2">
+                  <textarea
+                    value={scriptText}
+                    disabled={!selectedScriptTopicId}
+                    onChange={(e) => handleUpdateScript(e.target.value)}
+                    placeholder={selectedScriptTopicId ? "Start writing your video script here... Speaking pace is calculated at 150 words per minute." : "Please select a target topic from the dropdown to start scripting."}
+                    className="w-full flex-1 min-h-[250px] bg-neutral-950 border border-neutral-800 focus:border-emerald-800 outline-none rounded-lg p-4 font-sans text-xs text-neutral-300 leading-relaxed resize-none disabled:opacity-40 disabled:cursor-not-allowed"
+                  />
+                  
+                  {selectedScriptTopicId && (
+                    <div className="flex justify-between items-center text-[10px] font-mono text-neutral-500">
+                      <div className="flex items-center gap-1.5">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <span>Auto-saved to topic local storage</span>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(scriptText);
+                            onAddEvent({
+                              id: `evt-script-copy-${Date.now()}`,
+                              source: 'system',
+                              type: 'success',
+                              message: 'Script Editor: Copied script contents to system clipboard.',
+                              timestamp: new Date().toISOString()
+                            });
+                          }}
+                          className="px-2 py-1 bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-300 rounded transition cursor-pointer"
+                        >
+                          Copy Script
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm("Are you sure you want to clear the script for this topic?")) {
+                              handleUpdateScript('');
+                            }
+                          }}
+                          className="px-2 py-1 bg-neutral-900 border border-neutral-800 hover:border-rose-900/60 hover:text-rose-400 text-neutral-400 rounded transition cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Analytics Sidebar Card */}
+                <div className="lg:w-[280px] bg-neutral-950 border border-neutral-800 rounded-lg p-4 flex flex-col justify-between font-mono text-[10px] text-neutral-400 space-y-4">
+                  <div className="space-y-4">
+                    <span className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider">Script Analytics</span>
+                    
+                    {/* Est. Duration Stat Card */}
+                    <div className="p-3 bg-neutral-900/40 border border-neutral-850 rounded-lg space-y-1">
+                      <span className="text-neutral-500 uppercase text-[9px]">Estimated Duration</span>
+                      {(() => {
+                        const words = scriptText.trim() === "" ? 0 : scriptText.trim().split(/\s+/).length;
+                        const totalSecs = Math.round((words / 150) * 60);
+                        const mins = Math.floor(totalSecs / 60);
+                        const secs = totalSecs % 60;
+                        return (
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-2xl font-bold text-emerald-400">
+                              {mins}m {secs}s
+                            </span>
+                            <span className="text-neutral-600">@ 150 WPM</span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Word / Char Counter Grid */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 bg-neutral-900/20 border border-neutral-850 rounded-lg">
+                        <span className="text-neutral-500 block mb-0.5 text-[8px] uppercase">Word Count</span>
+                        <span className="text-lg font-bold text-white">
+                          {scriptText.trim() === "" ? 0 : scriptText.trim().split(/\s+/).length}
+                        </span>
+                      </div>
+                      <div className="p-3 bg-neutral-900/20 border border-neutral-850 rounded-lg">
+                        <span className="text-neutral-500 block mb-0.5 text-[8px] uppercase">Characters</span>
+                        <span className="text-lg font-bold text-white">
+                          {scriptText.length}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Classification details */}
+                    <div className="p-3 bg-neutral-900/10 border border-neutral-900 rounded-lg space-y-2 text-[9px]">
+                      <div className="flex justify-between border-b border-neutral-850 pb-1.5">
+                        <span className="text-neutral-500">Video Format</span>
+                        {(() => {
+                          const words = scriptText.trim() === "" ? 0 : scriptText.trim().split(/\s+/).length;
+                          const totalSecs = Math.round((words / 150) * 60);
+                          if (totalSecs === 0) return <span className="text-neutral-600">No Content</span>;
+                          if (totalSecs < 60) return <span className="text-blue-400 font-bold">Shorts (&lt; 60s)</span>;
+                          if (totalSecs >= 480) return <span className="text-purple-400 font-bold">Longform (8m+)</span>;
+                          return <span className="text-amber-400 font-bold">Standard Video</span>;
+                        })()}
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-500">Ad Placement</span>
+                        {(() => {
+                          const words = scriptText.trim() === "" ? 0 : scriptText.trim().split(/\s+/).length;
+                          const totalSecs = Math.round((words / 150) * 60);
+                          if (totalSecs >= 480) return <span className="text-emerald-400">Mid-roll Eligible</span>;
+                          return <span className="text-neutral-500">Preroll / Postroll Only</span>;
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-neutral-900 text-[8px] text-neutral-600 leading-normal">
+                    Tip: speaking speed defaults to standard conversational rate. Classifications adapt dynamically based on your content guidelines.
+                  </div>
                 </div>
               </div>
             </div>
