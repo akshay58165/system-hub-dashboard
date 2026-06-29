@@ -507,6 +507,10 @@ export default function App() {
                 supabase={supabase} 
                 onAddEvent={addEvent} 
                 onUpdateSupabase={handleUpdateSupabase}
+                topics={topics}
+                setTopics={setTopics}
+                activities={activities}
+                setActivities={setActivities}
               />
             )}
 

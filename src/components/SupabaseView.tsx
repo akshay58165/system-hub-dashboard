@@ -1,114 +1,229 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Database, 
   Terminal, 
   Users, 
-  Server, 
-  Settings, 
   Plus, 
   Trash2, 
   Play, 
   CheckCircle, 
   AlertCircle, 
   FileSpreadsheet, 
-  Sparkles, 
-  Search, 
-  ShieldAlert, 
-  KeyRound,
-  RefreshCw,
-  Clock,
-  Code
+  Clock
 } from 'lucide-react';
-import { SupabaseProject, SupabaseTable, SupabaseUser, SupabaseApiLog, SystemEvent } from '../types';
-import { runSqlSimulation } from '../data';
+import { SupabaseProject, SupabaseApiLog, SystemEvent, Topic, TopicActivity } from '../types';
 
 interface SupabaseViewProps {
   supabase: SupabaseProject;
   onAddEvent: (evt: SystemEvent) => void;
   onUpdateSupabase: (updated: Partial<SupabaseProject>) => void;
+  topics: Topic[];
+  setTopics: React.Dispatch<React.SetStateAction<Topic[]>>;
+  activities: TopicActivity[];
+  setActivities: React.Dispatch<React.SetStateAction<TopicActivity[]>>;
 }
 
-export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }: SupabaseViewProps) {
+export default function SupabaseView({ 
+  supabase, 
+  onAddEvent, 
+  onUpdateSupabase,
+  topics,
+  setTopics,
+  activities,
+  setActivities
+}: SupabaseViewProps) {
   const [activeSubTab, setActiveSubTab] = useState<'tables' | 'sql' | 'auth' | 'logs'>('tables');
   
-  // Table Editor states
-  const [selectedTableName, setSelectedTableName] = useState<string>(supabase.tables[0]?.name || '');
+  // Mapped Table Editor states
+  const [selectedTableName, setSelectedTableName] = useState<string>('topics');
   const [isAddRowOpen, setIsAddRowOpen] = useState(false);
   const [rowInputs, setRowInputs] = useState<Record<string, string>>({});
 
   // SQL Editor states
-  const [sqlQuery, setSqlQuery] = useState<string>('SELECT * FROM profiles;');
+  const [sqlQuery, setSqlQuery] = useState<string>('SELECT * FROM topics;');
   const [sqlResult, setSqlResult] = useState<{ success: boolean; message: string; rows?: Record<string, any>[]; columns?: string[] } | null>(null);
 
-  // Auth states
+  // Auth/Collaborators states
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserProvider, setNewUserProvider] = useState('github');
 
-  const selectedTable = supabase.tables.find(t => t.name === selectedTableName) || supabase.tables[0];
+  // Load biometrics logs from localStorage
+  const biometricsLogs = useMemo(() => {
+    try {
+      const stored = localStorage.getItem('unicorn_scorecard_db_logs');
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return [
+      { id: 'log-1', timestamp: new Date().toISOString(), parameter: 'Sleep Quality', oldValue: 'N/A', newValue: 8.5 },
+      { id: 'log-2', timestamp: new Date(Date.now() - 3600000).toISOString(), parameter: 'Deep Work Session', oldValue: 'N/A', newValue: 4 }
+    ];
+  }, [supabase.apiLogs]); // Refresh logs when actions occur
+
+  // Active relations mock metadata definitions
+  const activeTables = useMemo(() => {
+    return [
+      {
+        name: 'topics',
+        rowCount: topics.length,
+        columns: [
+          { name: 'id', type: 'text' },
+          { name: 'name', type: 'text' },
+          { name: 'channel', type: 'text' },
+          { name: 'status', type: 'text' },
+          { name: 'priority', type: 'bigint' },
+          { name: 'dueDate', type: 'timestamp' }
+        ],
+        rows: topics
+      },
+      {
+        name: 'activities',
+        rowCount: activities.length,
+        columns: [
+          { name: 'id', type: 'text' },
+          { name: 'topicName', type: 'text' },
+          { name: 'channel', type: 'text' },
+          { name: 'action', type: 'text' },
+          { name: 'author', type: 'text' },
+          { name: 'timestamp', type: 'timestamp' }
+        ],
+        rows: activities
+      },
+      {
+        name: 'biometrics_logs',
+        rowCount: biometricsLogs.length,
+        columns: [
+          { name: 'id', type: 'text' },
+          { name: 'timestamp', type: 'timestamp' },
+          { name: 'parameter', type: 'text' },
+          { name: 'oldValue', type: 'text' },
+          { name: 'newValue', type: 'numeric' }
+        ],
+        rows: biometricsLogs
+      }
+    ];
+  }, [topics, activities, biometricsLogs]);
+
+  const selectedTable = activeTables.find(t => t.name === selectedTableName) || activeTables[0];
 
   // SQL Quick Templates
   const sqlTemplates = [
-    { label: 'Select Profiles', sql: 'SELECT * FROM profiles;' },
-    { label: 'Select Posts', sql: 'SELECT * FROM posts WHERE published = true;' },
-    { label: 'Select Transactions', sql: 'SELECT * FROM transactions WHERE amount > 100;' },
+    { label: 'Select Topics', sql: 'SELECT * FROM topics;' },
+    { label: 'Select Activities', sql: 'SELECT * FROM activities;' },
+    { label: 'Select Biometrics', sql: 'SELECT * FROM biometrics_logs;' },
   ];
 
   // Execute SQL simulation
   const handleRunSql = (query: string) => {
-    const result = runSqlSimulation(query, supabase.tables);
-    setSqlResult(result);
+    const q = query.trim().toLowerCase();
+    
+    let resultRows: Record<string, any>[] = [];
+    let resultColumns: string[] = [];
+    
+    if (q.includes('from topics')) {
+      let filtered = [...topics];
+      if (q.includes("status = 'scheduled'") || q.includes("status='scheduled'")) {
+        filtered = filtered.filter(t => t.status === 'scheduled');
+      } else if (q.includes("channel = 'learndriven'") || q.includes("channel='learndriven'")) {
+        filtered = filtered.filter(t => t.channel === 'LearnDriven');
+      } else if (q.includes("channel = 'decodeworthy'") || q.includes("channel='decodeworthy'")) {
+        filtered = filtered.filter(t => t.channel === 'DecodeWorthy');
+      }
+      resultRows = filtered;
+      resultColumns = ['id', 'name', 'channel', 'status', 'priority', 'dueDate'];
+    } else if (q.includes('from activities')) {
+      resultRows = activities;
+      resultColumns = ['id', 'topicName', 'channel', 'action', 'author', 'timestamp'];
+    } else if (q.includes('from biometrics_logs')) {
+      resultRows = biometricsLogs;
+      resultColumns = ['id', 'timestamp', 'parameter', 'oldValue', 'newValue'];
+    } else {
+      setSqlResult({
+        success: false,
+        message: 'ERROR: Table target not found or syntax error in PostgreSQL SQL console.'
+      });
+      return;
+    }
+
+    setSqlResult({
+      success: true,
+      message: `Success: SQL query returned ${resultRows.length} rows.`,
+      rows: resultRows,
+      columns: resultColumns
+    });
 
     onAddEvent({
       id: `evt-sb-sql-${Date.now()}`,
       source: 'supabase',
-      type: result.success ? 'success' : 'error',
-      message: `Supabase SQL: Executed query "${query.substring(0, 45)}${query.length > 45 ? '...' : ''}"`,
+      type: 'success',
+      message: `Action Hub SQL: Executed query "${query.substring(0, 45)}${query.length > 45 ? '...' : ''}"`,
       timestamp: new Date().toISOString()
     });
   };
 
-  // Create Row
+  // Create Row inside Table Editor
   const handleAddRow = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTable) return;
 
-    // Build the row object
-    const newRow: Record<string, any> = {};
-    selectedTable.columns.forEach(col => {
-      const inputVal = rowInputs[col.name];
-      if (col.type === 'bigint') {
-        newRow[col.name] = parseInt(inputVal) || Date.now();
-      } else if (col.type === 'numeric') {
-        newRow[col.name] = parseFloat(inputVal) || 0.0;
-      } else if (col.type === 'boolean') {
-        newRow[col.name] = inputVal === 'true';
-      } else {
-        newRow[col.name] = inputVal || (col.name === 'id' ? `uuid_${Math.random().toString(36).substring(2, 9)}` : '');
-      }
-    });
+    if (selectedTableName === 'topics') {
+      const newTopic: Topic = {
+        id: rowInputs.id || `t-manual-${Date.now()}`,
+        name: rowInputs.name || 'Untitled Content Idea',
+        description: rowInputs.description || '',
+        channel: (rowInputs.channel as 'LearnDriven' | 'DecodeWorthy') || 'LearnDriven',
+        status: (rowInputs.status as 'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled') || 'topic',
+        priority: (parseInt(rowInputs.priority) as 1 | 2 | 3 | 4 | 5) || 1,
+        dueDate: rowInputs.dueDate ? new Date(rowInputs.dueDate).toISOString() : null,
+        createdDate: new Date().toISOString(),
+        lastUpdated: new Date().toISOString()
+      };
+      setTopics(prev => [newTopic, ...prev]);
 
-    const updatedTables = supabase.tables.map(t => {
-      if (t.name === selectedTable.name) {
-        return {
-          ...t,
-          rowCount: t.rowCount + 1,
-          rows: [...t.rows, newRow]
-        };
-      }
-      return t;
-    });
+      // Add log
+      const newActivity: TopicActivity = {
+        id: `act-manual-${Date.now()}`,
+        topicName: newTopic.name,
+        channel: newTopic.channel,
+        action: `Inserted topic row manually in ${newTopic.status} stage`,
+        author: 'db_admin',
+        timestamp: new Date().toISOString()
+      };
+      setActivities(prev => [newActivity, ...prev]);
+    } else if (selectedTableName === 'activities') {
+      const newAct: TopicActivity = {
+        id: rowInputs.id || `act-manual-${Date.now()}`,
+        topicName: rowInputs.topicName || 'Generic Topic Task',
+        channel: (rowInputs.channel as 'LearnDriven' | 'DecodeWorthy') || 'LearnDriven',
+        action: rowInputs.action || 'Performed database schema update',
+        author: rowInputs.author || 'db_admin',
+        timestamp: rowInputs.timestamp || new Date().toISOString()
+      };
+      setActivities(prev => [newAct, ...prev]);
+    } else if (selectedTableName === 'biometrics_logs') {
+      const newLog = {
+        id: rowInputs.id || `log-${Date.now()}`,
+        timestamp: rowInputs.timestamp || new Date().toISOString(),
+        parameter: rowInputs.parameter || 'Sleep Quality',
+        oldValue: rowInputs.oldValue || 'N/A',
+        newValue: parseFloat(rowInputs.newValue) || 7.5
+      };
+      const updatedLogs = [newLog, ...biometricsLogs];
+      localStorage.setItem('unicorn_scorecard_db_logs', JSON.stringify(updatedLogs));
+    }
 
-    onUpdateSupabase({ tables: updatedTables });
-    
-    // Add API log
+    // Add API connection telemetry log
     const newApiLog: SupabaseApiLog = {
       id: `log-${Date.now()}`,
       method: 'POST',
       path: `/rest/v1/${selectedTable.name}`,
       status: 201,
-      latencyMs: 24,
+      latencyMs: 22,
       timestamp: new Date().toISOString()
     };
 
@@ -120,7 +235,7 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
       id: `evt-sb-cr-${Date.now()}`,
       source: 'supabase',
       type: 'success',
-      message: `Supabase: Created a new record in table "${selectedTable.name}"`,
+      message: `Action Hub: Created a new record in relation table "${selectedTable.name}"`,
       timestamp: new Date().toISOString()
     });
 
@@ -128,33 +243,24 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
     setIsAddRowOpen(false);
   };
 
-  // Delete Row
-  const handleDeleteRow = (index: number) => {
-    if (!selectedTable) return;
+  // Delete Row from Table Editor
+  const handleDeleteRow = (id: string, index: number) => {
+    if (selectedTableName === 'topics') {
+      setTopics(prev => prev.filter(t => t.id !== id));
+    } else if (selectedTableName === 'activities') {
+      setActivities(prev => prev.filter(a => a.id !== id));
+    } else if (selectedTableName === 'biometrics_logs') {
+      const updatedLogs = biometricsLogs.filter((l: any) => l.id !== id);
+      localStorage.setItem('unicorn_scorecard_db_logs', JSON.stringify(updatedLogs));
+    }
 
-    const rowToDelete = selectedTable.rows[index];
-    const updatedRows = selectedTable.rows.filter((_, i) => i !== index);
-
-    const updatedTables = supabase.tables.map(t => {
-      if (t.name === selectedTable.name) {
-        return {
-          ...t,
-          rowCount: Math.max(0, t.rowCount - 1),
-          rows: updatedRows
-        };
-      }
-      return t;
-    });
-
-    onUpdateSupabase({ tables: updatedTables });
-
-    // Add API log
+    // Add API telemetry log
     const newApiLog: SupabaseApiLog = {
       id: `log-${Date.now()}`,
       method: 'DELETE',
-      path: `/rest/v1/${selectedTable.name}?id=eq.${rowToDelete.id || index}`,
+      path: `/rest/v1/${selectedTable.name}?id=eq.${id}`,
       status: 200,
-      latencyMs: 18,
+      latencyMs: 15,
       timestamp: new Date().toISOString()
     };
 
@@ -166,36 +272,35 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
       id: `evt-sb-dl-${Date.now()}`,
       source: 'supabase',
       type: 'warning',
-      message: `Supabase: Deleted a record from table "${selectedTable.name}"`,
+      message: `Action Hub: Deleted a record from relation table "${selectedTable.name}"`,
       timestamp: new Date().toISOString()
     });
   };
 
-  // Create Auth User
+  // Create Auth User (Collaborators)
   const handleAddUser = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUserEmail) return;
 
-    const newUser: SupabaseUser = {
+    const newUser = {
       id: `usr-${Date.now()}`,
       email: newUserEmail,
       provider: newUserProvider,
       lastSignIn: 'Never signed in',
       createdAt: new Date().toISOString(),
-      status: 'active'
+      status: 'active' as const
     };
 
     onUpdateSupabase({
       authUsers: [newUser, ...supabase.authUsers]
     });
 
-    // Add API log
     const newApiLog: SupabaseApiLog = {
       id: `log-${Date.now()}`,
       method: 'POST',
-      path: '/auth/v1/signup',
+      path: '/auth/v1/invite',
       status: 200,
-      latencyMs: 45,
+      latencyMs: 38,
       timestamp: new Date().toISOString()
     };
 
@@ -207,7 +312,7 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
       id: `evt-sb-usr-${Date.now()}`,
       source: 'supabase',
       type: 'success',
-      message: `Supabase Auth: Created new auth user account "${newUserEmail}" with provider "${newUserProvider}"`,
+      message: `Action Hub: Invited collaborator "${newUserEmail}" with access role provider "${newUserProvider}"`,
       timestamp: new Date().toISOString()
     });
 
@@ -217,7 +322,7 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
 
   return (
     <div className="space-y-6">
-      {/* Selector banner */}
+      {/* Selector banner (Supabase cluster header) */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-neutral-950 border border-neutral-800 rounded-xl p-4">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-neutral-900 border border-neutral-800 rounded-lg text-neutral-300">
@@ -239,7 +344,7 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
       {/* Hardware Performance Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
-          <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Allocated Disk</span>
+          <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Database Space</span>
           <div className="flex items-baseline gap-1.5 mt-1.5">
             <span className="text-xl font-bold font-mono text-white">{supabase.metrics.dbSize}</span>
             <span className="text-[10px] text-neutral-500 font-mono">/ 2.0 GB</span>
@@ -250,9 +355,9 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
         </div>
 
         <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
-          <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Direct Connections</span>
+          <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Active Collaborators</span>
           <div className="flex items-baseline gap-1.5 mt-1.5">
-            <span className="text-xl font-bold font-mono text-white">{supabase.metrics.activeConnections}</span>
+            <span className="text-xl font-bold font-mono text-white">{supabase.authUsers.length}</span>
             <span className="text-[10px] text-neutral-500 font-mono">active pool</span>
           </div>
           <div className="w-full bg-neutral-900 rounded-full h-1 mt-2.5 overflow-hidden">
@@ -261,13 +366,13 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
         </div>
 
         <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
-          <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Database CPU</span>
+          <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Pipeline Health</span>
           <div className="flex items-baseline gap-1.5 mt-1.5">
-            <span className="text-xl font-bold font-mono text-white">{supabase.metrics.cpuUsage}%</span>
-            <span className="text-[10px] text-emerald-400 font-mono">Healthy</span>
+            <span className="text-xl font-bold font-mono text-white">96%</span>
+            <span className="text-[10px] text-emerald-400 font-mono">Optimal</span>
           </div>
           <div className="w-full bg-neutral-900 rounded-full h-1 mt-2.5 overflow-hidden">
-            <div className="bg-emerald-500 h-1 rounded-full" style={{ width: `${supabase.metrics.cpuUsage}%` }} />
+            <div className="bg-emerald-500 h-1 rounded-full" style={{ width: '96%' }} />
           </div>
         </div>
 
@@ -285,7 +390,7 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
 
       {/* Main Section */}
       <div className="bg-neutral-950 border border-neutral-800 rounded-xl overflow-hidden flex flex-col min-h-[500px]">
-        {/* Sub Navigation */}
+        {/* Sub Navigation Tabs */}
         <div className="flex border-b border-neutral-800 bg-neutral-900/40">
           <button 
             onClick={() => setActiveSubTab('tables')}
@@ -338,7 +443,7 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-mono text-neutral-400">Active Relation:</span>
                   <div className="flex gap-1">
-                    {supabase.tables.map(t => (
+                    {activeTables.map(t => (
                       <button
                         key={t.name}
                         onClick={() => {
@@ -346,7 +451,7 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
                           setIsAddRowOpen(false);
                           setRowInputs({});
                         }}
-                        className={`px-2 py-1 border rounded text-[10px] font-mono transition ${
+                        className={`px-2.5 py-1 border rounded text-[10px] font-mono transition ${
                           selectedTableName === t.name 
                             ? 'bg-emerald-950 border-emerald-800 text-emerald-400'
                             : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-neutral-200'
@@ -360,7 +465,7 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
 
                 <button 
                   onClick={() => setIsAddRowOpen(!isAddRowOpen)}
-                  className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 text-black rounded text-[10px] font-mono font-bold flex items-center gap-1 transition"
+                  className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 text-black rounded text-[10px] font-mono font-bold flex items-center gap-1 transition cursor-pointer"
                 >
                   <Plus className="h-3 w-3" />
                   <span>Insert Row</span>
@@ -381,25 +486,14 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
                         <label className="block text-[10px] font-mono text-neutral-400 uppercase">
                           {col.name} <span className="text-[9px] text-neutral-500 font-normal">({col.type})</span>
                         </label>
-                        {col.type === 'boolean' ? (
-                          <select
-                            value={rowInputs[col.name] || 'true'}
-                            onChange={(e) => setRowInputs(prev => ({ ...prev, [col.name]: e.target.value }))}
-                            className="w-full bg-neutral-950 border border-neutral-800 outline-none text-xs rounded px-2.5 py-1.5 mt-1 text-white font-mono"
-                          >
-                            <option value="true">True</option>
-                            <option value="false">False</option>
-                          </select>
-                        ) : (
-                          <input 
-                            type="text"
-                            placeholder={col.name === 'id' ? 'Auto-generated UUID' : `Enter value for ${col.name}`}
-                            required={!col.isNullable && col.name !== 'id'}
-                            value={rowInputs[col.name] || ''}
-                            onChange={(e) => setRowInputs(prev => ({ ...prev, [col.name]: e.target.value }))}
-                            className="w-full bg-neutral-950 border border-neutral-800 focus:border-emerald-800 outline-none text-xs rounded px-2.5 py-1.5 mt-1 text-white font-mono"
-                          />
-                        )}
+                        <input 
+                          type="text"
+                          placeholder={col.name === 'id' ? 'Auto-generated ID' : `Value for ${col.name}`}
+                          required={col.name !== 'id' && col.name !== 'dueDate'}
+                          value={rowInputs[col.name] || ''}
+                          onChange={(e) => setRowInputs(prev => ({ ...prev, [col.name]: e.target.value }))}
+                          className="w-full bg-neutral-950 border border-neutral-800 focus:border-emerald-800 outline-none text-xs rounded px-2.5 py-1.5 mt-1 text-white font-mono"
+                        />
                       </div>
                     ))}
                   </div>
@@ -408,13 +502,13 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
                     <button 
                       type="button" 
                       onClick={() => setIsAddRowOpen(false)}
-                      className="px-3 py-1.5 text-neutral-400 hover:text-neutral-200 font-mono"
+                      className="px-3 py-1.5 text-neutral-400 hover:text-neutral-200 font-mono cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button 
                       type="submit"
-                      className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold font-mono rounded"
+                      className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold font-mono rounded cursor-pointer"
                     >
                       Save Row
                     </button>
@@ -423,34 +517,31 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
               )}
 
               {/* Grid Table rendering */}
-              <div className="flex-1 overflow-x-auto border border-neutral-800 rounded-lg">
+              <div className="flex-1 overflow-x-auto border border-neutral-800 rounded-lg max-h-[360px]">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-neutral-900 border-b border-neutral-800 text-[10px] text-neutral-400 font-mono">
+                    <tr className="bg-neutral-900 border-b border-neutral-800 text-[10px] text-neutral-400 font-mono sticky top-0 z-10">
                       {selectedTable.columns.map(col => (
-                        <th key={col.name} className="px-4 py-2.5 font-semibold">
+                        <th key={col.name} className="px-4 py-2.5 font-semibold bg-neutral-900">
                           {col.name}
                           <span className="text-[8px] text-neutral-500 font-normal block italic">{col.type}</span>
                         </th>
                       ))}
-                      <th className="px-4 py-2.5 font-semibold text-right">Actions</th>
+                      <th className="px-4 py-2.5 font-semibold text-right bg-neutral-900">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-neutral-850 font-mono text-xs">
-                    {selectedTable.rows.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-neutral-900/40 text-neutral-300">
+                  <tbody className="divide-y divide-neutral-850 font-mono text-[11px]">
+                    {selectedTable.rows.map((row: any, idx) => (
+                      <tr key={row.id || idx} className="hover:bg-neutral-900/40 text-neutral-300">
                         {selectedTable.columns.map(col => (
                           <td key={col.name} className="px-4 py-3 max-w-[200px] truncate">
-                            {col.name === 'avatar_url' && row[col.name] ? (
-                              <img src={row[col.name]} alt="Avatar" className="h-6 w-6 rounded-full inline mr-1 object-cover" referrerPolicy="no-referrer" />
-                            ) : null}
-                            <span>{row[col.name] !== null ? String(row[col.name]) : <span className="text-neutral-600">NULL</span>}</span>
+                            <span>{row[col.name] !== null && row[col.name] !== undefined ? String(row[col.name]) : <span className="text-neutral-600">NULL</span>}</span>
                           </td>
                         ))}
                         <td className="px-4 py-3 text-right">
                           <button 
-                            onClick={() => handleDeleteRow(idx)}
-                            className="p-1 hover:bg-neutral-850 rounded text-neutral-500 hover:text-rose-500 transition"
+                            onClick={() => handleDeleteRow(row.id || '', idx)}
+                            className="p-1 hover:bg-neutral-850 rounded text-neutral-500 hover:text-rose-500 transition cursor-pointer"
                             title="Delete Row"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -467,18 +558,18 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
           {/* Sub Tab: SQL Console */}
           {activeSubTab === 'sql' && (
             <div className="space-y-4 flex-1 flex flex-col">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
                   <h3 className="text-xs font-semibold text-neutral-300">Interactive PostgreSQL Terminal</h3>
-                  <p className="text-[11px] text-neutral-500">Run safe SELECT queries directly on profiles, posts, or transactions.</p>
+                  <p className="text-[11px] text-neutral-500">Run safe SELECT queries directly on topics, activities, or biometrics_logs.</p>
                 </div>
 
-                <div className="flex gap-1.5">
+                <div className="flex gap-1.5 flex-wrap">
                   {sqlTemplates.map(tmp => (
                     <button
                       key={tmp.label}
                       onClick={() => setSqlQuery(tmp.sql)}
-                      className="px-2 py-0.5 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-neutral-200 text-[10px] font-mono rounded"
+                      className="px-2 py-0.5 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-neutral-200 text-[10px] font-mono rounded cursor-pointer"
                     >
                       {tmp.label}
                     </button>
@@ -489,7 +580,7 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
               {/* Code Area */}
               <div className="flex flex-col lg:flex-row gap-4 flex-1">
                 <div className="flex-1 flex flex-col space-y-2">
-                  <div className="relative flex-1 min-h-[150px] bg-neutral-900 rounded-lg overflow-hidden border border-neutral-800 flex flex-col">
+                  <div className="relative flex-1 min-h-[180px] bg-neutral-900 rounded-lg overflow-hidden border border-neutral-800 flex flex-col">
                     <textarea
                       value={sqlQuery}
                       onChange={(e) => setSqlQuery(e.target.value)}
@@ -498,7 +589,7 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
                     
                     <button 
                       onClick={() => handleRunSql(sqlQuery)}
-                      className="absolute bottom-3 right-3 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold font-mono rounded text-xs flex items-center gap-1 transition shadow-lg"
+                      className="absolute bottom-3 right-3 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold font-mono rounded text-xs flex items-center gap-1 transition shadow-lg cursor-pointer"
                     >
                       <Play className="h-3 w-3 fill-black" />
                       <span>Run SQL</span>
@@ -508,7 +599,7 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
 
                 {/* SQL Result Console Output */}
                 <div className="lg:w-1/2 flex flex-col">
-                  <div className="flex-1 bg-neutral-950 rounded-lg border border-neutral-800 p-4 font-mono text-xs overflow-y-auto min-h-[150px] space-y-2">
+                  <div className="flex-1 bg-neutral-950 rounded-lg border border-neutral-800 p-4 font-mono text-xs overflow-y-auto min-h-[180px] space-y-2">
                     <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Console Result Output</span>
                     
                     {sqlResult ? (
@@ -521,12 +612,12 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
                         </div>
 
                         {sqlResult.success && sqlResult.rows && sqlResult.rows.length > 0 && (
-                          <div className="border border-neutral-850 rounded overflow-x-auto">
+                          <div className="border border-neutral-850 rounded overflow-x-auto max-h-[140px]">
                             <table className="w-full text-left text-[10px]">
                               <thead>
-                                <tr className="bg-neutral-900 text-neutral-400 border-b border-neutral-800">
+                                <tr className="bg-neutral-900 text-neutral-400 border-b border-neutral-800 sticky top-0">
                                   {sqlResult.columns?.map(c => (
-                                    <th key={c} className="px-2.5 py-1.5 font-semibold font-mono">{c}</th>
+                                    <th key={c} className="px-2.5 py-1.5 font-semibold font-mono bg-neutral-900">{c}</th>
                                   ))}
                                 </tr>
                               </thead>
@@ -544,7 +635,7 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
                         )}
                       </div>
                     ) : (
-                      <p className="text-neutral-500 italic py-4">Terminal ready. Click "Run SQL" to execute queries.</p>
+                      <p className="text-neutral-500 italic py-4">Terminal ready. Click "Run SQL" to execute queries on active relations.</p>
                     )}
                   </div>
                 </div>
@@ -558,12 +649,12 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
               <div className="flex justify-between items-center">
                 <div>
                   <h3 className="text-xs font-semibold text-neutral-300">Authentication Manager</h3>
-                  <p className="text-[11px] text-neutral-500">Add, track, and manage developers or auth users credentials securely.</p>
+                  <p className="text-[11px] text-neutral-500">Invite, configure and coordinate active content team developers or script collaborators.</p>
                 </div>
 
                 <button 
                   onClick={() => setIsAddUserOpen(!isAddUserOpen)}
-                  className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 text-black rounded text-[10px] font-mono font-bold flex items-center gap-1 transition"
+                  className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 text-black rounded text-[10px] font-mono font-bold flex items-center gap-1 transition cursor-pointer"
                 >
                   <Plus className="h-3 w-3" />
                   <span>Add Auth User</span>
@@ -584,7 +675,7 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
                       <input 
                         type="email"
                         required
-                        placeholder="developer@gmail.com"
+                        placeholder="collaborator@gmail.com"
                         value={newUserEmail}
                         onChange={(e) => setNewUserEmail(e.target.value)}
                         className="w-full bg-neutral-950 border border-neutral-800 focus:border-emerald-800 outline-none text-xs rounded px-2.5 py-1.5 mt-1 text-white font-mono"
@@ -592,7 +683,7 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-mono text-neutral-400 uppercase">OAuth Provider</label>
+                      <label className="block text-[10px] font-mono text-neutral-400 uppercase">Access Provider</label>
                       <select
                         value={newUserProvider}
                         onChange={(e) => setNewUserProvider(e.target.value)}
@@ -600,7 +691,7 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
                       >
                         <option value="github">GitHub</option>
                         <option value="google">Google</option>
-                        <option value="email">Email Sign in</option>
+                        <option value="email">Email Invite</option>
                       </select>
                     </div>
                   </div>
@@ -609,13 +700,13 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
                     <button 
                       type="button" 
                       onClick={() => setIsAddUserOpen(false)}
-                      className="px-3 py-1.5 text-neutral-400 hover:text-neutral-200 font-mono"
+                      className="px-3 py-1.5 text-neutral-400 hover:text-neutral-200 font-mono cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button 
                       type="submit"
-                      className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold font-mono rounded"
+                      className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold font-mono rounded cursor-pointer"
                     >
                       Invite User
                     </button>
@@ -624,16 +715,16 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
               )}
 
               {/* Users list */}
-              <div className="flex-1 border border-neutral-800 rounded-lg overflow-x-auto">
+              <div className="flex-1 border border-neutral-800 rounded-lg overflow-x-auto max-h-[300px]">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-neutral-900 border-b border-neutral-800 text-[10px] text-neutral-400 font-mono">
-                      <th className="px-4 py-2.5">User UUID</th>
-                      <th className="px-4 py-2.5">Email</th>
-                      <th className="px-4 py-2.5">Provider</th>
-                      <th className="px-4 py-2.5">Created Date</th>
-                      <th className="px-4 py-2.5">Last Signed In</th>
-                      <th className="px-4 py-2.5 text-right">Status</th>
+                    <tr className="bg-neutral-900 border-b border-neutral-800 text-[10px] text-neutral-400 font-mono sticky top-0">
+                      <th className="px-4 py-2.5 bg-neutral-900">User UUID</th>
+                      <th className="px-4 py-2.5 bg-neutral-900">Email</th>
+                      <th className="px-4 py-2.5 bg-neutral-900">Provider</th>
+                      <th className="px-4 py-2.5 bg-neutral-900">Created Date</th>
+                      <th className="px-4 py-2.5 bg-neutral-900">Last Signed In</th>
+                      <th className="px-4 py-2.5 text-right bg-neutral-900">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-850 font-mono text-xs text-neutral-300">
@@ -666,7 +757,7 @@ export default function SupabaseView({ supabase, onAddEvent, onUpdateSupabase }:
             <div className="space-y-4 flex-1 flex flex-col">
               <div>
                 <h3 className="text-xs font-semibold text-neutral-300">Live API logs Stream</h3>
-                <p className="text-[11px] text-neutral-500 font-mono">Sub-millisecond tracking of REST, RPC and Auth edge invokes.</p>
+                <p className="text-[11px] text-neutral-500 font-mono">Sub-millisecond tracking of REST, RPC and Auth database invokes.</p>
               </div>
 
               <div className="flex-1 border border-neutral-800 rounded-lg overflow-hidden">
