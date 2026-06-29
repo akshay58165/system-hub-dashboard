@@ -1,0 +1,6 @@
+{
+  "name": "System Dashboard",
+  "description": "An integrated developer dashboard combining GitHub repositories, Vercel deployments, and Supabase databases in a single unified cockpit.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
