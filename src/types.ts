@@ -145,11 +145,12 @@ export interface Topic {
   name: string;
   description: string;
   channel: 'LearnDriven' | 'DecodeWorthy';
-  status: 'scripted' | 'shot' | 'edited' | 'pending';
+  status: 'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled';
   priority: 1 | 2 | 3 | 4 | 5;
   dueDate: string | null;
   createdDate: string;
   lastUpdated: string;
+  revenueLevel?: string;
 }
 
 export interface TopicActivity {

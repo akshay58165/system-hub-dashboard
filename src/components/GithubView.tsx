@@ -88,14 +88,59 @@ export default function GithubView({
   const [newTopicName, setNewTopicName] = useState('');
   const [newTopicDesc, setNewTopicDesc] = useState('');
   const [newTopicChannel, setNewTopicChannel] = useState<'LearnDriven' | 'DecodeWorthy'>('LearnDriven');
-  const [newTopicStatus, setNewTopicStatus] = useState<'scripted' | 'shot' | 'edited' | 'pending'>('scripted');
+  const [newTopicStatus, setNewTopicStatus] = useState<'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled'>('topic');
   const [newTopicPriority, setNewTopicPriority] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [newTopicDueDate, setNewTopicDueDate] = useState('');
+  const [newTopicLane, setNewTopicLane] = useState<'Long Videos' | 'Shorts'>('Long Videos');
+  const [eligibility, setEligibility] = useState({
+    neutral: false,
+    viral: false,
+    productTag: false,
+    pinnedPromo: false,
+    exceed8Min: false,
+    experimentalBreakout: false,
+    brandCollab: false
+  });
+
+  const getAutomaticRevenueLevel = () => {
+    if (eligibility.neutral) return 'Lvl 0.5';
+    if (newTopicLane === 'Shorts') {
+      if (eligibility.brandCollab) return 'Lvl 20';
+      if (eligibility.experimentalBreakout) return 'Lvl 5';
+      if (eligibility.pinnedPromo && eligibility.productTag && eligibility.viral) return 'Lvl 4';
+      if (eligibility.productTag && eligibility.viral) return 'Lvl 3';
+      if (eligibility.viral) return 'Lvl 2';
+      return 'Lvl 1';
+    } else {
+      if (eligibility.brandCollab) return 'Lvl 20';
+      if (eligibility.experimentalBreakout) return 'Lvl 10';
+      
+      const isOver8 = eligibility.exceed8Min;
+      const isStrongReach = eligibility.viral;
+      const hasTag = eligibility.productTag;
+      
+      if (isStrongReach) {
+        if (isOver8) {
+          return hasTag ? 'Lvl 9.5' : 'Lvl 9';
+        } else {
+          return hasTag ? 'Lvl 8.5' : 'Lvl 8';
+        }
+      } else {
+        if (isOver8) {
+          return hasTag ? 'Lvl 7.5' : 'Lvl 7';
+        } else {
+          return hasTag ? 'Lvl 6.5' : 'Lvl 6';
+        }
+      }
+    }
+  };
 
   // Handle adding a new Topic
   const handleAddTopic = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTopicName.trim()) return;
+
+    const revLvl = getAutomaticRevenueLevel();
 
     const newTopic: Topic = {
       id: `t-manual-${Date.now()}`,
@@ -107,6 +152,7 @@ export default function GithubView({
       dueDate: newTopicDueDate ? new Date(newTopicDueDate).toISOString() : null,
       createdDate: new Date().toISOString(),
       lastUpdated: new Date().toISOString(),
+      revenueLevel: revLvl
     };
 
     setTopics(prev => [newTopic, ...prev]);
@@ -116,7 +162,7 @@ export default function GithubView({
       id: `act-manual-${Date.now()}`,
       topicName: newTopicName,
       channel: newTopicChannel,
-      action: `Created new topic in ${newTopicStatus} stage`,
+      action: `Created new topic in ${newTopicStatus} stage with ${revLvl}`,
       author: 'typeakshay',
       timestamp: new Date().toISOString()
     };
@@ -127,7 +173,7 @@ export default function GithubView({
       id: `evt-topic-created-${Date.now()}`,
       source: 'github',
       type: 'success',
-      message: `Topic Engine: Added topic "${newTopicName}" under ${newTopicChannel}`,
+      message: `Topic Engine: Added topic "${newTopicName}" under ${newTopicChannel} (${revLvl})`,
       timestamp: new Date().toISOString()
     });
 
@@ -135,6 +181,18 @@ export default function GithubView({
     setNewTopicName('');
     setNewTopicDesc('');
     setNewTopicDueDate('');
+    setNewTopicLane('Long Videos');
+    setEligibility({
+      neutral: false,
+      viral: false,
+      productTag: false,
+      pinnedPromo: false,
+      exceed8Min: false,
+      experimentalBreakout: false,
+      brandCollab: false
+    });
+    setNewTopicStatus('topic');
+    setNewTopicPriority(1);
     setIsAddFormOpen(false);
   };
 
@@ -159,10 +217,11 @@ export default function GithubView({
   // Compute aggregate stats based on channel
   const stats = useMemo(() => {
     const subset = topics.filter(t => selectedChannel === 'All' || t.channel === selectedChannel);
+    const topicCount = subset.filter(t => t.status === 'topic').length;
     const scripted = subset.filter(t => t.status === 'scripted').length;
     const shot = subset.filter(t => t.status === 'shot').length;
     const edited = subset.filter(t => t.status === 'edited').length;
-    const pending = subset.filter(t => t.status === 'pending').length;
+    const scheduled = subset.filter(t => t.status === 'scheduled').length;
 
     // Last created date
     let lastCreatedText = 'No topics';
@@ -182,10 +241,11 @@ export default function GithubView({
 
     return {
       total: subset.length,
+      topicCount,
       scripted,
       shot,
       edited,
-      pending,
+      scheduled,
       lastCreatedText,
       lastUpdatedText
     };
@@ -276,8 +336,16 @@ export default function GithubView({
               </div>
             </div>
 
-            {/* Metrics Row: scripted, shot, edited, pending */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-5 border-t border-neutral-900/60 font-mono">
+            {/* Metrics Row: Topic, Scripted, Shot, Edited, Scheduled */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5 mt-6 pt-5 border-t border-neutral-900/60 font-mono">
+              <div className="p-3 bg-purple-950/5 rounded-lg border border-purple-950/30 hover:border-purple-900/30 hover:bg-purple-950/10 transition duration-300 group/metric">
+                <span className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider">Topic</span>
+                <span className="text-xs font-bold text-purple-400 mt-1 flex items-center gap-1.5 group-hover/metric:translate-x-0.5 transition-transform duration-300">
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  {stats.topicCount} ideas
+                </span>
+              </div>
+
               <div className="p-3 bg-blue-950/5 rounded-lg border border-blue-950/30 hover:border-blue-900/30 hover:bg-blue-950/10 transition duration-300 group/metric">
                 <span className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider">Scripted</span>
                 <span className="text-xs font-bold text-blue-400 mt-1 flex items-center gap-1.5 group-hover/metric:translate-x-0.5 transition-transform duration-300">
@@ -302,11 +370,11 @@ export default function GithubView({
                 </span>
               </div>
 
-              <div className="p-3 bg-neutral-900/20 rounded-lg border border-neutral-900 hover:border-neutral-800 hover:bg-neutral-900/40 transition duration-300 group/metric">
-                <span className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider">Pending</span>
-                <span className="text-xs font-bold text-neutral-300 mt-1 flex items-center gap-1.5 group-hover/metric:translate-x-0.5 transition-transform duration-300">
+              <div className="p-3 bg-pink-950/5 rounded-lg border border-pink-950/30 hover:border-pink-900/30 hover:bg-pink-950/10 transition duration-300 group/metric">
+                <span className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider">Scheduled</span>
+                <span className="text-xs font-bold text-pink-400 mt-1 flex items-center gap-1.5 group-hover/metric:translate-x-0.5 transition-transform duration-300">
                   <Clock className="h-3.5 w-3.5" />
-                  {stats.pending} topics
+                  {stats.scheduled} scheduled
                 </span>
               </div>
             </div>
@@ -355,10 +423,11 @@ export default function GithubView({
 
                   // Colors for statuses
                   const statusColors = {
+                    topic: 'text-purple-400 bg-purple-950/20 border-purple-900/20',
                     scripted: 'text-blue-400 bg-blue-950/20 border-blue-900/20',
                     shot: 'text-amber-400 bg-amber-950/20 border-amber-900/20',
                     edited: 'text-emerald-400 bg-emerald-950/20 border-emerald-900/20',
-                    pending: 'text-neutral-400 bg-neutral-900 border-neutral-900'
+                    scheduled: 'text-pink-400 bg-pink-950/20 border-pink-900/20'
                   }[topic.status];
 
                   return (
@@ -389,6 +458,11 @@ export default function GithubView({
                             <span className="px-1.5 py-0.2 bg-neutral-900/40 text-neutral-500 border border-neutral-900 rounded text-[9px]">
                               {topic.channel}
                             </span>
+                            {topic.revenueLevel && (
+                              <span className="px-1.5 py-0.2 bg-emerald-950/20 text-emerald-400 border border-emerald-900/30 rounded text-[9px] font-bold">
+                                {topic.revenueLevel}
+                              </span>
+                            )}
                           </div>
                           <p className="text-[10px] text-neutral-400 font-sans leading-relaxed">{topic.description}</p>
                           
@@ -406,7 +480,7 @@ export default function GithubView({
                       {/* Status and Priority Badges */}
                       <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
                         <span className={`px-2 py-0.5 rounded border text-[9px] font-bold uppercase ${statusColors}`}>
-                          {topic.status === 'edited' ? 'Ready (Edit)' : topic.status === 'pending' ? 'Pending (Sched)' : topic.status}
+                          {topic.status}
                         </span>
 
                         <span className={`px-2 py-0.5 rounded border text-[9px] font-bold ${prio.style}`}>
@@ -449,7 +523,7 @@ export default function GithubView({
                   <input 
                     type="text" 
                     required
-                    placeholder="e.g. Next.js Routing hooks"
+                    placeholder="e.g. Next-Generation TypeScript Strategies"
                     value={newTopicName}
                     onChange={(e) => setNewTopicName(e.target.value)}
                     className="w-full bg-neutral-950 border border-neutral-900 focus:border-neutral-800 outline-none text-xs rounded px-2.5 py-1.5 mt-1 text-white transition-colors"
@@ -469,10 +543,13 @@ export default function GithubView({
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block uppercase text-neutral-500">Channel</label>
+                    <label className="block uppercase text-neutral-500">Creator Channel</label>
                     <select 
                       value={newTopicChannel}
-                      onChange={(e) => setNewTopicChannel(e.target.value as 'LearnDriven' | 'DecodeWorthy')}
+                      onChange={(e) => {
+                        const val = e.target.value as 'LearnDriven' | 'DecodeWorthy';
+                        setNewTopicChannel(val);
+                      }}
                       className="w-full bg-neutral-950 border border-neutral-900 focus:border-neutral-800 outline-none text-xs rounded px-2 py-1 mt-1 text-white"
                     >
                       <option value="LearnDriven">LearnDriven</option>
@@ -480,34 +557,176 @@ export default function GithubView({
                     </select>
                   </div>
                   <div>
-                    <label className="block uppercase text-neutral-500">Work Stage</label>
+                    <label className="block uppercase text-neutral-500">Content Lane</label>
                     <select 
-                      value={newTopicStatus}
-                      onChange={(e) => setNewTopicStatus(e.target.value as any)}
+                      value={newTopicLane}
+                      onChange={(e) => setNewTopicLane(e.target.value as 'Long Videos' | 'Shorts')}
                       className="w-full bg-neutral-950 border border-neutral-900 focus:border-neutral-800 outline-none text-xs rounded px-2 py-1 mt-1 text-white"
                     >
-                      <option value="scripted">Scripted</option>
-                      <option value="shot">Shot</option>
-                      <option value="edited">Edited</option>
-                      <option value="pending">Pending</option>
+                      {newTopicChannel === 'LearnDriven' ? (
+                        <>
+                          <option value="Long Videos">LearnDriven Long Videos</option>
+                          <option value="Shorts">LearnDriven Shorts</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="Long Videos">DecodeWorthy Long Videos</option>
+                          <option value="Shorts">DecodeWorthy Shorts</option>
+                        </>
+                      )}
                     </select>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block uppercase text-neutral-500">Priority</label>
+                    <label className="block uppercase text-neutral-500">Auto Revenue Level</label>
+                    <div className="w-full bg-neutral-950/60 border border-neutral-900 text-emerald-400 font-bold text-xs rounded px-2.5 py-1.5 mt-1 select-none">
+                      {getAutomaticRevenueLevel()}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block uppercase text-neutral-500">Current Production Stage</label>
                     <select 
-                      value={newTopicPriority}
-                      onChange={(e) => setNewTopicPriority(parseInt(e.target.value) as any)}
+                      value={newTopicStatus}
+                      onChange={(e) => setNewTopicStatus(e.target.value as any)}
                       className="w-full bg-neutral-950 border border-neutral-900 focus:border-neutral-800 outline-none text-xs rounded px-2 py-1 mt-1 text-white"
                     >
-                      <option value={1}>1: Neutral</option>
-                      <option value={2}>2: Attention</option>
-                      <option value={3}>3: Hot Topic</option>
-                      <option value={4}>4: Important</option>
-                      <option value={5}>5: Automatic</option>
+                      <option value="topic">Topic</option>
+                      <option value="scripted">Scripted</option>
+                      <option value="shot">Shot</option>
+                      <option value="edited">Edited</option>
+                      <option value="scheduled">Scheduled</option>
                     </select>
+                  </div>
+                </div>
+
+                {/* Revenue Eligibility Checklist */}
+                <div className="space-y-1.5 pt-1.5 border-t border-neutral-900/60">
+                  <label className="block uppercase text-neutral-500">Revenue Eligibility</label>
+                  <p className="text-[8px] text-neutral-600 font-sans">Options change depending on content lane selected.</p>
+                  
+                  <div className="grid grid-cols-2 gap-2 mt-1 font-sans text-[9px] text-neutral-400">
+                    <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                      <input 
+                        type="checkbox"
+                        checked={eligibility.neutral}
+                        onChange={(e) => setEligibility(prev => ({ ...prev, neutral: e.target.checked }))}
+                        className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+                      />
+                      <span>Neutral - Level 0.5</span>
+                    </label>
+
+                    {newTopicLane === 'Shorts' ? (
+                      <>
+                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                          <input 
+                            type="checkbox"
+                            checked={eligibility.viral}
+                            onChange={(e) => setEligibility(prev => ({ ...prev, viral: e.target.checked }))}
+                            className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+                          />
+                          <span>Viral potential</span>
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                          <input 
+                            type="checkbox"
+                            checked={eligibility.productTag}
+                            onChange={(e) => setEligibility(prev => ({ ...prev, productTag: e.target.checked }))}
+                            className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+                          />
+                          <span>Product tag</span>
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                          <input 
+                            type="checkbox"
+                            checked={eligibility.pinnedPromo}
+                            onChange={(e) => setEligibility(prev => ({ ...prev, pinnedPromo: e.target.checked }))}
+                            className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+                          />
+                          <span>Pinned link</span>
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                          <input 
+                            type="checkbox"
+                            checked={eligibility.experimentalBreakout}
+                            onChange={(e) => setEligibility(prev => ({ ...prev, experimentalBreakout: e.target.checked }))}
+                            className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+                          />
+                          <span>Members-only subscription</span>
+                        </label>
+                      </>
+                    ) : (
+                      <>
+                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                          <input 
+                            type="checkbox"
+                            checked={eligibility.exceed8Min}
+                            onChange={(e) => setEligibility(prev => ({ ...prev, exceed8Min: e.target.checked }))}
+                            className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+                          />
+                          <span>Exceeds 8 minutes</span>
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                          <input 
+                            type="checkbox"
+                            checked={eligibility.productTag}
+                            onChange={(e) => setEligibility(prev => ({ ...prev, productTag: e.target.checked }))}
+                            className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+                          />
+                          <span>Product tag</span>
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                          <input 
+                            type="checkbox"
+                            checked={eligibility.viral}
+                            onChange={(e) => setEligibility(prev => ({ ...prev, viral: e.target.checked }))}
+                            className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+                          />
+                          <span>Strong reach potential</span>
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                          <input 
+                            type="checkbox"
+                            checked={eligibility.experimentalBreakout}
+                            onChange={(e) => setEligibility(prev => ({ ...prev, experimentalBreakout: e.target.checked }))}
+                            className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+                          />
+                          <span>Breakout attempt</span>
+                        </label>
+                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                          <input 
+                            type="checkbox"
+                            checked={eligibility.brandCollab}
+                            onChange={(e) => setEligibility(prev => ({ ...prev, brandCollab: e.target.checked }))}
+                            className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+                          />
+                          <span>Brand collaboration</span>
+                        </label>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-1 border-t border-neutral-900/60">
+                  <div>
+                    <label className="block uppercase text-neutral-500">Priority</label>
+                    <div className="flex gap-1.5 mt-1.5">
+                      {([1, 2, 3, 4, 5] as const).map(num => (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => setNewTopicPriority(num)}
+                          className={`w-5.5 h-5.5 rounded border font-mono font-bold flex items-center justify-center transition text-[9px] select-none cursor-pointer ${
+                            newTopicPriority === num
+                              ? 'bg-rose-500 border-rose-400 text-white shadow-[0_0_8px_rgba(244,63,94,0.3)]'
+                              : 'bg-neutral-950 border-neutral-900 text-neutral-400 hover:text-neutral-200 hover:border-neutral-800'
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div>
                     <label className="block uppercase text-neutral-500">Due Date</label>
@@ -515,22 +734,45 @@ export default function GithubView({
                       type="date"
                       value={newTopicDueDate}
                       onChange={(e) => setNewTopicDueDate(e.target.value)}
-                      className="w-full bg-neutral-950 border border-neutral-900 focus:border-neutral-800 outline-none text-xs rounded px-2 py-1 mt-1 text-white"
+                      className="w-full bg-neutral-950 border border-neutral-900 focus:border-neutral-800 outline-none text-[10px] rounded px-2 py-1 mt-1 text-white"
                     />
+                    <div className="flex gap-1.5 mt-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const d = new Date();
+                          setNewTopicDueDate(d.toISOString().split('T')[0]);
+                        }}
+                        className="px-2 py-0.5 bg-neutral-950 border border-neutral-900 text-[8px] text-neutral-400 hover:text-neutral-200 hover:border-neutral-800 rounded transition cursor-pointer select-none"
+                      >
+                        Today
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const d = new Date();
+                          d.setDate(d.getDate() + 1);
+                          setNewTopicDueDate(d.toISOString().split('T')[0]);
+                        }}
+                        className="px-2 py-0.5 bg-neutral-950 border border-neutral-900 text-[8px] text-neutral-400 hover:text-neutral-200 hover:border-neutral-800 rounded transition cursor-pointer select-none"
+                      >
+                        Tomorrow
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-2 text-[10px] pt-1">
+                <div className="flex justify-end gap-2 text-[10px] pt-1.5 border-t border-neutral-900/60">
                   <button 
                     type="button" 
                     onClick={() => setIsAddFormOpen(false)}
-                    className="px-2.5 py-1 text-neutral-500 hover:text-neutral-300"
+                    className="px-2.5 py-1 text-neutral-500 hover:text-neutral-300 cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button 
                     type="submit" 
-                    className="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white font-semibold rounded transition-colors"
+                    className="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white font-semibold rounded transition-colors cursor-pointer"
                   >
                     Save Topic
                   </button>
@@ -585,12 +827,12 @@ export default function GithubView({
                   </div>
                   <div className="flex flex-col items-end">
                     <span className="text-sm font-bold text-white">
-                      {Math.round(((stats.edited + stats.pending) / (stats.total || 1)) * 100)}%
+                      {Math.round(((stats.edited + stats.scheduled) / (stats.total || 1)) * 100)}%
                     </span>
                     <div className="w-16 bg-neutral-950 rounded-full h-1 overflow-hidden mt-1">
                       <div 
                         className="bg-blue-400 h-1 rounded-full" 
-                        style={{ width: `${Math.round(((stats.edited + stats.pending) / (stats.total || 1)) * 100)}%` }} 
+                        style={{ width: `${Math.round(((stats.edited + stats.scheduled) / (stats.total || 1)) * 100)}%` }} 
                       />
                     </div>
                   </div>
@@ -604,6 +846,10 @@ export default function GithubView({
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex justify-between items-center text-[9px]">
+                      <span className="text-purple-400">Topic Idea Pool</span>
+                      <span className="text-neutral-300 font-bold">{stats.topicCount} ideas</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[9px]">
                       <span className="text-blue-400">Scripting Load</span>
                       <span className="text-neutral-300 font-bold">{stats.scripted} tasks</span>
                     </div>
@@ -613,7 +859,7 @@ export default function GithubView({
                     </div>
                     <div className="flex justify-between items-center text-[9px]">
                       <span className="text-emerald-400">Ready to Publish</span>
-                      <span className="text-neutral-300 font-bold">{stats.edited + stats.pending} scheduled</span>
+                      <span className="text-neutral-300 font-bold">{stats.edited + stats.scheduled} scheduled</span>
                     </div>
                   </div>
                 </div>
