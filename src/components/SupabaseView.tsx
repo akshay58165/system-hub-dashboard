@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Database, 
+  Clapperboard, 
   Terminal, 
   Users, 
   Plus, 
@@ -145,7 +145,7 @@ export default function SupabaseView({
     } else {
       setSqlResult({
         success: false,
-        message: 'ERROR: Table target not found or syntax error in PostgreSQL SQL console.'
+        message: 'ERROR: Table target not found or syntax error in query console.'
       });
       return;
     }
@@ -326,66 +326,78 @@ export default function SupabaseView({
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-neutral-950 border border-neutral-800 rounded-xl p-4">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-neutral-900 border border-neutral-800 rounded-lg text-neutral-300">
-            <Database className="h-5 w-5 text-emerald-400" />
+            <Clapperboard className="h-5 w-5 text-emerald-400" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-neutral-100 font-mono">supabase.com/prod-cluster-east</h2>
-            <p className="text-xs text-neutral-400">PostgreSQL database tables, secure API log telemetry, and User authentication credentials.</p>
+            <h2 className="text-sm font-semibold text-neutral-100 font-mono">content-engine/pipeline-control</h2>
+            <p className="text-xs text-neutral-400">Manage content tables, run queries on topics & activities, and coordinate team collaborators.</p>
           </div>
         </div>
 
         <div className="flex gap-1.5 font-mono text-xs bg-neutral-900 p-1 border border-neutral-800 rounded-lg">
-          <span className="px-2 py-0.5 text-neutral-400">Region: us-east-1</span>
+          <span className="px-2 py-0.5 text-neutral-400">Channels: 2 Active</span>
           <span className="text-neutral-600">|</span>
-          <span className="px-2 py-0.5 text-emerald-400 font-bold">● CLUSTER OK</span>
+          <span className="px-2 py-0.5 text-emerald-400 font-bold">● PIPELINE OK</span>
         </div>
       </div>
 
       {/* Hardware Performance Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
-          <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Database Space</span>
-          <div className="flex items-baseline gap-1.5 mt-1.5">
-            <span className="text-xl font-bold font-mono text-white">{supabase.metrics.dbSize}</span>
-            <span className="text-[10px] text-neutral-500 font-mono">/ 2.0 GB</span>
-          </div>
-          <div className="w-full bg-neutral-900 rounded-full h-1 mt-2.5 overflow-hidden">
-            <div className="bg-emerald-500 h-1 rounded-full" style={{ width: '8.2%' }} />
-          </div>
-        </div>
+        {(() => {
+          const totalTopics = topics.length;
+          const scheduledTopics = topics.filter(t => t.status === 'scheduled').length;
+          const inProgressTopics = topics.filter(t => t.status !== 'topic' && t.status !== 'scheduled').length;
+          const pendingTopics = topics.filter(t => t.status === 'topic').length;
+          const throughputPct = totalTopics > 0 ? Math.round((scheduledTopics / totalTopics) * 100) : 0;
+          const collabCount = supabase.authUsers.length;
+          return (
+            <>
+              <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
+                <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Total Topics</span>
+                <div className="flex items-baseline gap-1.5 mt-1.5">
+                  <span className="text-xl font-bold font-mono text-white">{totalTopics}</span>
+                  <span className="text-[10px] text-neutral-500 font-mono">across channels</span>
+                </div>
+                <div className="w-full bg-neutral-900 rounded-full h-1 mt-2.5 overflow-hidden">
+                  <div className="bg-emerald-500 h-1 rounded-full" style={{ width: totalTopics > 0 ? '100%' : '0%' }} />
+                </div>
+              </div>
 
-        <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
-          <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Active Collaborators</span>
-          <div className="flex items-baseline gap-1.5 mt-1.5">
-            <span className="text-xl font-bold font-mono text-white">{supabase.authUsers.length}</span>
-            <span className="text-[10px] text-neutral-500 font-mono">active pool</span>
-          </div>
-          <div className="w-full bg-neutral-900 rounded-full h-1 mt-2.5 overflow-hidden">
-            <div className="bg-emerald-500 h-1 rounded-full" style={{ width: '36%' }} />
-          </div>
-        </div>
+              <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
+                <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Team Members</span>
+                <div className="flex items-baseline gap-1.5 mt-1.5">
+                  <span className="text-xl font-bold font-mono text-white">{collabCount}</span>
+                  <span className="text-[10px] text-neutral-500 font-mono">collaborators</span>
+                </div>
+                <div className="w-full bg-neutral-900 rounded-full h-1 mt-2.5 overflow-hidden">
+                  <div className="bg-emerald-500 h-1 rounded-full" style={{ width: collabCount > 0 ? `${Math.min(collabCount * 20, 100)}%` : '0%' }} />
+                </div>
+              </div>
 
-        <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
-          <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Pipeline Health</span>
-          <div className="flex items-baseline gap-1.5 mt-1.5">
-            <span className="text-xl font-bold font-mono text-white">96%</span>
-            <span className="text-[10px] text-emerald-400 font-mono">Optimal</span>
-          </div>
-          <div className="w-full bg-neutral-900 rounded-full h-1 mt-2.5 overflow-hidden">
-            <div className="bg-emerald-500 h-1 rounded-full" style={{ width: '96%' }} />
-          </div>
-        </div>
+              <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
+                <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Completion Rate</span>
+                <div className="flex items-baseline gap-1.5 mt-1.5">
+                  <span className="text-xl font-bold font-mono text-white">{throughputPct}%</span>
+                  <span className="text-[10px] text-emerald-400 font-mono">{throughputPct >= 50 ? 'On Track' : throughputPct > 0 ? 'In Progress' : 'No Data'}</span>
+                </div>
+                <div className="w-full bg-neutral-900 rounded-full h-1 mt-2.5 overflow-hidden">
+                  <div className="bg-emerald-500 h-1 rounded-full" style={{ width: `${throughputPct}%` }} />
+                </div>
+              </div>
 
-        <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
-          <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Allocated Memory</span>
-          <div className="flex items-baseline gap-1.5 mt-1.5">
-            <span className="text-xl font-bold font-mono text-white">{supabase.metrics.memoryUsage}%</span>
-            <span className="text-[10px] text-neutral-500 font-mono">/ 4 GB RAM</span>
-          </div>
-          <div className="w-full bg-neutral-900 rounded-full h-1 mt-2.5 overflow-hidden">
-            <div className="bg-emerald-500 h-1 rounded-full" style={{ width: `${supabase.metrics.memoryUsage}%` }} />
-          </div>
-        </div>
+              <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
+                <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Pending Actions</span>
+                <div className="flex items-baseline gap-1.5 mt-1.5">
+                  <span className="text-xl font-bold font-mono text-white">{inProgressTopics + pendingTopics}</span>
+                  <span className="text-[10px] text-neutral-500 font-mono">items in pipeline</span>
+                </div>
+                <div className="w-full bg-neutral-900 rounded-full h-1 mt-2.5 overflow-hidden">
+                  <div className="bg-emerald-500 h-1 rounded-full" style={{ width: totalTopics > 0 ? `${Math.round(((inProgressTopics + pendingTopics) / totalTopics) * 100)}%` : '0%' }} />
+                </div>
+              </div>
+            </>
+          );
+        })()}
       </div>
 
       {/* Main Section */}
@@ -560,8 +572,8 @@ export default function SupabaseView({
             <div className="space-y-4 flex-1 flex flex-col">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
-                  <h3 className="text-xs font-semibold text-neutral-300">Interactive PostgreSQL Terminal</h3>
-                  <p className="text-[11px] text-neutral-500">Run safe SELECT queries directly on topics, activities, or biometrics_logs.</p>
+                  <h3 className="text-xs font-semibold text-neutral-300">Interactive Query Console</h3>
+                  <p className="text-[11px] text-neutral-500 font-mono">Run SELECT queries on topics, activities, or biometrics_logs data tables.</p>
                 </div>
 
                 <div className="flex gap-1.5 flex-wrap">
@@ -756,8 +768,8 @@ export default function SupabaseView({
           {activeSubTab === 'logs' && (
             <div className="space-y-4 flex-1 flex flex-col">
               <div>
-                <h3 className="text-xs font-semibold text-neutral-300">Live API logs Stream</h3>
-                <p className="text-[11px] text-neutral-500 font-mono">Sub-millisecond tracking of REST, RPC and Auth database invokes.</p>
+                <h3 className="text-xs font-semibold text-neutral-300">Action Log Stream</h3>
+                <p className="text-[11px] text-neutral-500 font-mono">Tracking all insert, update, and delete operations across content tables.</p>
               </div>
 
               <div className="flex-1 border border-neutral-800 rounded-lg overflow-hidden">
