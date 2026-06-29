@@ -216,6 +216,48 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
     }
   };
 
+  // Month coverage calculations
+  const coverageMetrics = useMemo(() => {
+    const today = new Date();
+    const passedDays = today.getDate(); // e.g. 30 on June 30
+    
+    const isShortVideo = (t: Topic) => {
+      return (
+        (t.revenueLevel && ['Lvl 1', 'Lvl 2', 'Lvl 3', 'Lvl 4'].includes(t.revenueLevel)) ||
+        t.name.toLowerCase().includes('short') ||
+        t.description.toLowerCase().includes('short')
+      );
+    };
+
+    const getCoverageForChannel = (channel: 'LearnDriven' | 'DecodeWorthy') => {
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+      
+      const monthShorts = topics.filter(t => {
+        if (t.channel !== channel) return false;
+        if (!isShortVideo(t)) return false;
+        if (!t.dueDate) return false;
+        
+        const d = new Date(t.dueDate);
+        return d >= startOfMonth && d <= endOfToday;
+      });
+
+      // Find unique days covered in this month up to today
+      const uniqueDays = new Set(monthShorts.map(t => new Date(t.dueDate!).getDate()));
+      
+      return {
+        secured: uniqueDays.size,
+        totalPassed: passedDays
+      };
+    };
+
+    return {
+      learnDriven: getCoverageForChannel('LearnDriven'),
+      decodeWorthy: getCoverageForChannel('DecodeWorthy'),
+      passedDays
+    };
+  }, [topics]);
+
   const getLockGlowStyle = (daysStr: string) => {
     if (daysStr === 'Locked') {
       return {
@@ -584,18 +626,51 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
             </div>
           </div>
 
-          {/* Supabase Storage Block */}
+          {/* Month Coverage Block */}
           <div 
-            onClick={() => onTabChange('actionhub')}
-            className="md:col-span-1 p-5 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-emerald-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(16,185,129,0.04)] transition-all duration-300 cursor-pointer flex flex-col items-center text-center group relative overflow-hidden"
+            onClick={() => onTabChange('topics')}
+            className="md:col-span-1 p-4 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-emerald-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(16,185,129,0.04)] transition-all duration-300 cursor-pointer flex flex-col items-center text-center group relative overflow-hidden font-mono"
           >
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="p-3 bg-neutral-900/50 rounded-full border border-neutral-900 group-hover:border-emerald-900/30 group-hover:bg-emerald-950/10 transition-colors duration-300 text-neutral-300 mb-2">
-              <Database className="h-5 w-5 text-emerald-400 group-hover:scale-110 transition-transform duration-300" />
+            <div className="p-2.5 bg-neutral-900/50 rounded-full border border-neutral-900 group-hover:border-emerald-900/30 group-hover:bg-emerald-950/10 transition-colors duration-300 text-neutral-300 mb-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400 group-hover:scale-110 transition-transform duration-300" />
             </div>
-            <span className="text-xs font-mono font-semibold text-neutral-200">Action Hub</span>
-            <span className="text-[10px] text-neutral-500 font-mono mt-1">{supabase.tables.length} Scheduled Lists</span>
-            <span className="text-[9px] text-emerald-400 font-mono mt-0.5 bg-emerald-950/20 border border-emerald-900/30 px-1.5 py-0.2 rounded">{supabase.metrics.activeConnections} Tasks Queue</span>
+            <span className="text-xs font-bold text-neutral-200">Month Coverage</span>
+            <span className="text-[9px] text-neutral-500 mt-0.5">{coverageMetrics.passedDays} days elapsed</span>
+
+            <div className="w-full mt-3 space-y-2.5 text-left text-[9px]">
+              {/* LearnDriven Coverage */}
+              <div className="p-2 bg-neutral-900/30 border border-neutral-900/60 rounded-lg space-y-1.5">
+                <div className="flex justify-between items-center text-[8px] font-bold text-neutral-300">
+                  <span>LearnDriven</span>
+                  <span className="text-emerald-400 font-mono">
+                    {coverageMetrics.learnDriven.secured} / {coverageMetrics.passedDays}d
+                  </span>
+                </div>
+                <div className="w-full bg-neutral-950 rounded-full h-1 overflow-hidden">
+                  <div 
+                    className="bg-emerald-500 h-1 rounded-full" 
+                    style={{ width: `${(coverageMetrics.learnDriven.secured / (coverageMetrics.passedDays || 1)) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* DecodeWorthy Coverage */}
+              <div className="p-2 bg-neutral-900/30 border border-neutral-900/60 rounded-lg space-y-1.5">
+                <div className="flex justify-between items-center text-[8px] font-bold text-neutral-300">
+                  <span>DecodeWorthy</span>
+                  <span className="text-emerald-400 font-mono">
+                    {coverageMetrics.decodeWorthy.secured} / {coverageMetrics.passedDays}d
+                  </span>
+                </div>
+                <div className="w-full bg-neutral-950 rounded-full h-1 overflow-hidden">
+                  <div 
+                    className="bg-emerald-500 h-1 rounded-full" 
+                    style={{ width: `${(coverageMetrics.decodeWorthy.secured / (coverageMetrics.passedDays || 1)) * 100}%` }}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
