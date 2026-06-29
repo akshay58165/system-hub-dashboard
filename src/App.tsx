@@ -475,6 +475,7 @@ export default function App() {
                 events={events}
                 onTabChange={setActiveTab}
                 topics={topics}
+                activities={activities}
               />
             )}
 

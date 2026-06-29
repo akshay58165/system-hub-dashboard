@@ -31,7 +31,7 @@ import {
   Legend,
   Brush
 } from 'recharts';
-import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic } from '../types';
+import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity } from '../types';
 
 interface OverviewProps {
   repos: GitHubRepo[];
@@ -40,9 +40,10 @@ interface OverviewProps {
   events: SystemEvent[];
   onTabChange: (tab: 'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score') => void;
   topics: Topic[];
+  activities: TopicActivity[];
 }
 
-export default function Overview({ repos, vercelProjects, supabase, events, onTabChange, topics }: OverviewProps) {
+export default function Overview({ repos, vercelProjects, supabase, events, onTabChange, topics, activities }: OverviewProps) {
   // Compute some high-level metrics
   const totalStars = useMemo(() => repos.reduce((sum, r) => sum + r.stars, 0), [repos]);
   const totalIssues = useMemo(() => repos.reduce((sum, r) => sum + r.openIssues, 0), [repos]);
@@ -391,6 +392,13 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
 
     return data;
   }, [topics]);
+
+  // Compute last 25 content activities sorted by timestamp descending
+  const last25Activities = useMemo(() => {
+    return [...activities]
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 25);
+  }, [activities]);
 
   const getLockGlowStyle = (daysStr: string) => {
     if (daysStr === 'Locked') {
@@ -991,51 +999,54 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
         </div>
       </div>
 
-      {/* Live Event Ticker Feed */}
+      {/* Content Pipeline Activities */}
       <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-5 shadow-sm hover:border-neutral-850/30 transition duration-300">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-sm font-semibold text-neutral-200">Content Pipeline Telemetry</h3>
-            <p className="text-xs text-neutral-500">Live feed showing content tasks, scheduled items, and channel state activity.</p>
+            <h3 className="text-sm font-semibold text-neutral-200">Content Pipeline Activities</h3>
+            <p className="text-xs text-neutral-500 font-sans">Real-time log of the last 25 workflow state transitions and video scheduling.</p>
           </div>
           <span className="px-2 py-0.5 bg-neutral-900 text-neutral-400 font-mono text-[10px] border border-neutral-900 rounded-full">
-            {events.length} logs
+            {last25Activities.length} logs
           </span>
         </div>
 
-        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-          {events.map((evt) => (
-            <div 
-              key={evt.id} 
-              className="p-3 bg-neutral-900/20 border border-neutral-900 rounded-lg flex items-start gap-3 hover:bg-neutral-900/40 transition text-xs"
-            >
-              {/* Event Badge Icon */}
-              <div className="mt-0.5">
-                {evt.type === 'success' && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
-                {evt.type === 'info' && <Wifi className="h-4 w-4 text-blue-400" />}
-                {evt.type === 'warning' && <AlertTriangle className="h-4 w-4 text-amber-500" />}
-                {evt.type === 'error' && <AlertTriangle className="h-4 w-4 text-rose-500" />}
-              </div>
+        <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+          {last25Activities.map((act) => {
+            const dateObj = new Date(act.timestamp);
+            const dateStr = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+            const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
 
-              {/* Event details */}
-              <div className="flex-1 min-w-0">
-                <p className="text-neutral-300 tracking-wide font-mono break-all">{evt.message}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`px-1.5 py-0.2 rounded font-mono text-[9px] uppercase font-semibold tracking-wider ${
-                    evt.source === 'github' ? 'bg-neutral-800 text-neutral-300' :
-                    evt.source === 'vercel' ? 'bg-blue-950 text-blue-400' :
-                    evt.source === 'supabase' ? 'bg-emerald-950 text-emerald-400' :
-                    'bg-neutral-800 text-neutral-400'
-                  }`}>
-                    {evt.source}
-                  </span>
-                  <span className="text-neutral-500 font-mono text-[10px] italic">
-                    {new Date(evt.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                  </span>
+            return (
+              <div 
+                key={act.id} 
+                className="p-3 bg-neutral-900/20 border border-neutral-900 rounded-lg flex items-start gap-3 hover:bg-neutral-900/40 transition text-xs font-mono"
+              >
+                {/* Event Badge Icon */}
+                <div className="mt-0.5">
+                  <Youtube className={`h-4 w-4 ${act.channel === 'LearnDriven' ? 'text-blue-400' : 'text-emerald-400'}`} />
+                </div>
+
+                {/* Event details */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-neutral-300 tracking-wide font-mono">
+                    <span className="text-white font-bold">@{act.author}</span> {act.action} <span className={`font-bold ${act.channel === 'LearnDriven' ? 'text-blue-400' : 'text-emerald-400'}`}>"{act.topicName}"</span>
+                  </p>
+                  <div className="flex items-center gap-2.5 mt-1">
+                    <span className={`px-1.5 py-0.2 rounded font-mono text-[9px] uppercase font-semibold tracking-wider ${
+                      act.channel === 'LearnDriven' ? 'bg-blue-950/40 text-blue-400 border border-blue-900/20' :
+                      'bg-emerald-950/40 text-emerald-400 border border-emerald-900/20'
+                    }`}>
+                      {act.channel}
+                    </span>
+                    <span className="text-neutral-500 font-mono text-[10px] italic">
+                      {dateStr} - {timeStr}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
