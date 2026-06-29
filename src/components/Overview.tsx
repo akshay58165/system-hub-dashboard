@@ -258,6 +258,81 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
     };
   }, [topics]);
 
+  // Buffer and Frequency calculations
+  const bufferAndFrequency = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const isShortVideo = (t: Topic) => {
+      return (
+        (t.revenueLevel && ['Lvl 1', 'Lvl 2', 'Lvl 3', 'Lvl 4'].includes(t.revenueLevel)) ||
+        t.name.toLowerCase().includes('short') ||
+        t.description.toLowerCase().includes('short')
+      );
+    };
+
+    const isLongVideo = (t: Topic) => {
+      return (
+        (t.revenueLevel && ['Lvl 6', 'Lvl 7', 'Lvl 8', 'Lvl 9', 'Lvl 20'].includes(t.revenueLevel)) ||
+        t.name.toLowerCase().includes('long') ||
+        t.description.toLowerCase().includes('long')
+      );
+    };
+
+    const isMembersOnly = (t: Topic) => {
+      return (
+        (t.revenueLevel && t.revenueLevel === 'Lvl 5') ||
+        t.name.toLowerCase().includes('member') ||
+        t.description.toLowerCase().includes('member')
+      );
+    };
+
+    const getMetricsForChannel = (channel: 'LearnDriven' | 'DecodeWorthy') => {
+      // Buffer: Only scheduled in the future
+      const scheduledFuture = topics.filter(t => 
+        t.channel === channel && 
+        t.status === 'scheduled' && 
+        t.dueDate &&
+        new Date(t.dueDate) > today
+      );
+
+      // Unique days covered in the future
+      const uniqueFutureDays = new Set(scheduledFuture.map(t => {
+        const d = new Date(t.dueDate!);
+        return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+      }));
+
+      const bufferDays = uniqueFutureDays.size;
+
+      // Frequency (current month scheduled + completed/published)
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+      
+      const monthVideos = topics.filter(t => 
+        t.channel === channel && 
+        t.dueDate && 
+        new Date(t.dueDate) >= startOfMonth && 
+        new Date(t.dueDate) <= endOfMonth
+      );
+
+      const shortsCount = monthVideos.filter(isShortVideo).length;
+      const longsCount = monthVideos.filter(isLongVideo).length;
+      const membersCount = monthVideos.filter(isMembersOnly).length;
+
+      return {
+        bufferDays,
+        shortsCount,
+        longsCount,
+        membersCount
+      };
+    };
+
+    return {
+      learnDriven: getMetricsForChannel('LearnDriven'),
+      decodeWorthy: getMetricsForChannel('DecodeWorthy')
+    };
+  }, [topics]);
+
   const getLockGlowStyle = (daysStr: string) => {
     if (daysStr === 'Locked') {
       return {
@@ -799,54 +874,60 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
           </div>
         </div>
 
-        {/* Right: Server / Web Vitals & Hardware Speeds */}
-        <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-5 flex flex-col justify-between space-y-4 shadow-sm hover:border-neutral-850/30 transition duration-300">
+        {/* Right: Video Buffer & Frequency */}
+        <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-5 flex flex-col justify-between space-y-4 shadow-sm hover:border-neutral-850/30 transition duration-300 font-mono">
           <div>
-            <h3 className="text-sm font-semibold text-neutral-200">Video SEO & CTR</h3>
-            <p className="text-xs text-neutral-500 font-mono">Real-time search optimization and click performance.</p>
+            <h3 className="text-sm font-semibold text-neutral-200">Video Buffer & Frequency</h3>
+            <p className="text-xs text-neutral-500">Publishing safety margin and monthly output volume.</p>
           </div>
 
-          {/* CTR Speedometer */}
-          <div className="space-y-4 py-2 font-mono">
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs">
-                <span className="text-neutral-400">Click-Through Rate (CTR)</span>
-                <span className="text-emerald-400 font-semibold">8.2% (Optimal)</span>
+          <div className="space-y-4 py-1 text-xs">
+            {/* LearnDriven Block */}
+            <div className="p-3 bg-neutral-900/20 border border-neutral-900 rounded-lg space-y-2">
+              <div className="flex justify-between items-center border-b border-neutral-900/60 pb-1.5 font-bold">
+                <span className="text-neutral-300">LearnDriven</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded ${
+                  bufferAndFrequency.learnDriven.bufferDays >= 5 ? 'bg-emerald-950 text-emerald-400 border border-emerald-900/40' :
+                  bufferAndFrequency.learnDriven.bufferDays >= 2 ? 'bg-amber-950/40 text-orange-400 border border-amber-900/40' :
+                  'bg-red-950 text-red-400 border border-red-900/40 animate-pulse'
+                }`}>
+                  {bufferAndFrequency.learnDriven.bufferDays}d Buffer
+                </span>
               </div>
-              <div className="w-full bg-neutral-900 rounded-full h-1.5 overflow-hidden">
-                <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: '82%' }} />
+              <div className="grid grid-cols-3 gap-2 text-center text-[10px] text-neutral-400">
+                <div className="bg-neutral-950/40 p-1.5 rounded border border-neutral-900/60">
+                  <span className="text-[8px] uppercase text-neutral-500 block">Shorts</span>
+                  <span className="font-bold text-white mt-0.5 block">{bufferAndFrequency.learnDriven.shortsCount}/mo</span>
+                </div>
+                <div className="bg-neutral-950/40 p-1.5 rounded border border-neutral-900/60">
+                  <span className="text-[8px] uppercase text-neutral-500 block">Longs</span>
+                  <span className="font-bold text-white mt-0.5 block">{bufferAndFrequency.learnDriven.longsCount}/mo</span>
+                </div>
+                <div className="bg-neutral-950/40 p-1.5 rounded border border-neutral-900/60">
+                  <span className="text-[8px] uppercase text-neutral-500 block">Members</span>
+                  <span className="font-bold text-white mt-0.5 block">{bufferAndFrequency.learnDriven.membersCount}/mo</span>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs">
-                <span className="text-neutral-400">Viewer Engagement Index</span>
-                <span className="text-emerald-400 font-semibold">92% (High)</span>
+            {/* DecodeWorthy Block */}
+            <div className="p-3 bg-neutral-900/20 border border-neutral-900 rounded-lg space-y-2">
+              <div className="flex justify-between items-center border-b border-neutral-900/60 pb-1.5 font-bold">
+                <span className="text-neutral-300">DecodeWorthy</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded ${
+                  bufferAndFrequency.decodeWorthy.bufferDays >= 5 ? 'bg-emerald-950 text-emerald-400 border border-emerald-900/40' :
+                  bufferAndFrequency.decodeWorthy.bufferDays >= 2 ? 'bg-amber-950/40 text-orange-400 border border-amber-900/40' :
+                  'bg-red-950 text-red-400 border border-red-900/40 animate-pulse'
+                }`}>
+                  {bufferAndFrequency.decodeWorthy.bufferDays}d Buffer
+                </span>
               </div>
-              <div className="w-full bg-neutral-900 rounded-full h-1.5 overflow-hidden">
-                <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: '92%' }} />
+              <div className="grid grid-cols-3 gap-2 text-center text-[10px] text-neutral-400">
+                <div className="bg-neutral-950/40 p-1.5 rounded border border-neutral-900/60 col-span-3">
+                  <span className="text-[8px] uppercase text-neutral-500 block">Shorts Frequency</span>
+                  <span className="font-bold text-white mt-0.5 block">{bufferAndFrequency.decodeWorthy.shortsCount}/mo (Long/Member N/A)</span>
+                </div>
               </div>
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs">
-                <span className="text-neutral-400">SEO Search Visibility</span>
-                <span className="text-emerald-400 font-semibold">98/100 (Excellent)</span>
-              </div>
-              <div className="w-full bg-neutral-900 rounded-full h-1.5 overflow-hidden">
-                <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: '98%' }} />
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-neutral-900 grid grid-cols-2 gap-4">
-            <div className="p-3 bg-neutral-900/40 border border-neutral-900 rounded-lg text-center font-mono">
-              <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider block">Active Scripts</span>
-              <span className="text-lg font-bold text-emerald-400 mt-1 block">{supabase.metrics.activeConnections}</span>
-            </div>
-            <div className="p-3 bg-neutral-900/40 border border-neutral-900 rounded-lg text-center font-mono">
-              <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider block">Publish Delay</span>
-              <span className="text-lg font-bold text-blue-400 mt-1 block">0.5h</span>
             </div>
           </div>
         </div>
