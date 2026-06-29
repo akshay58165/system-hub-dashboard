@@ -59,10 +59,7 @@ export default function SupabaseView({
     } catch (e) {
       console.error(e);
     }
-    return [
-      { id: 'log-1', timestamp: new Date().toISOString(), parameter: 'Sleep Quality', oldValue: 'N/A', newValue: 8.5 },
-      { id: 'log-2', timestamp: new Date(Date.now() - 3600000).toISOString(), parameter: 'Deep Work Session', oldValue: 'N/A', newValue: 4 }
-    ];
+    return [];
   }, [supabase.apiLogs]); // Refresh logs when actions occur
 
   // Active relations mock metadata definitions
