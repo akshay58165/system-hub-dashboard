@@ -7,6 +7,7 @@ import {
   Activity, 
   Cpu, 
   CheckCircle2, 
+  CheckCircle,
   ArrowUpRight, 
   AlertTriangle, 
   Clock, 
@@ -14,7 +15,8 @@ import {
   Users, 
   Server, 
   Wifi,
-  Youtube
+  Youtube,
+  FileText
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -819,75 +821,75 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
 
       {/* Grid of 4 Status Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Combined Traffic */}
+        {/* Card 1: Total Topics */}
         <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-5 hover:border-neutral-800 transition duration-300 shadow-sm">
           <div className="flex items-center justify-between text-neutral-400 mb-3">
-            <span className="text-[10px] font-bold uppercase tracking-wider font-mono">Audience Reach</span>
-            <Users className="h-4 w-4 text-blue-400" />
+            <span className="text-[10px] font-bold uppercase tracking-wider font-mono">Total Topics</span>
+            <FileText className="h-4 w-4 text-blue-400" />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono tracking-tight text-white">24.5K</span>
-            <span className="text-xs text-emerald-400 font-mono flex items-center gap-0.5">
-              +14.2% MoM
+            <span className="text-2xl font-bold font-mono tracking-tight text-white">{topics.length}</span>
+            <span className="text-xs text-neutral-400 font-mono">
+              across channels
             </span>
           </div>
           <div className="mt-2 text-[10px] text-neutral-500 font-mono flex items-center justify-between">
-            <span>Subscribers & Members</span>
-            <span className="text-neutral-400">Target: 50K</span>
+            <span>Content ideas in pipeline</span>
+            <span className="text-neutral-400">{topics.filter(t => t.channel === 'LearnDriven').length} LD / {topics.filter(t => t.channel === 'DecodeWorthy').length} DW</span>
           </div>
         </div>
 
-        {/* Card 2: Serverless Latency */}
+        {/* Card 2: Scheduled Videos */}
         <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-5 hover:border-neutral-800 transition duration-300 shadow-sm">
           <div className="flex items-center justify-between text-neutral-400 mb-3">
-            <span className="text-[10px] font-bold uppercase tracking-wider font-mono">Viewer Retention</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider font-mono">Scheduled Videos</span>
+            <CheckCircle className="h-4 w-4 text-emerald-400" />
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold font-mono tracking-tight text-white">{topics.filter(t => t.status === 'scheduled').length}</span>
+            <span className="text-xs text-neutral-400 font-mono">
+              ready to publish
+            </span>
+          </div>
+          <div className="mt-2 text-[10px] text-neutral-500 font-mono flex items-center justify-between">
+            <span>Completion rate</span>
+            <span className={`${topics.length > 0 ? 'text-emerald-400' : 'text-neutral-500'}`}>{topics.length > 0 ? Math.round((topics.filter(t => t.status === 'scheduled').length / topics.length) * 100) : 0}%</span>
+          </div>
+        </div>
+
+        {/* Card 3: In Progress */}
+        <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-5 hover:border-neutral-800 transition duration-300 shadow-sm">
+          <div className="flex items-center justify-between text-neutral-400 mb-3">
+            <span className="text-[10px] font-bold uppercase tracking-wider font-mono">In Progress</span>
             <Activity className="h-4 w-4 text-amber-400" />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono tracking-tight text-white">6:45m</span>
-            <span className="text-xs text-emerald-400 font-mono flex items-center gap-0.5">
-              +8.4% watchtime
-            </span>
-          </div>
-          <div className="mt-2 text-[10px] text-neutral-500 font-mono flex items-center justify-between">
-            <span>Average watch duration</span>
-            <span className="text-emerald-400">Status: High</span>
-          </div>
-        </div>
-
-        {/* Card 3: Supabase Database Pool */}
-        <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-5 hover:border-neutral-800 transition duration-300 shadow-sm">
-          <div className="flex items-center justify-between text-neutral-400 mb-3">
-            <span className="text-[10px] font-bold uppercase tracking-wider font-mono">Action Hub Items</span>
-            <Database className="h-4 w-4 text-emerald-400" />
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono tracking-tight text-white">14 Tasks</span>
+            <span className="text-2xl font-bold font-mono tracking-tight text-white">{topics.filter(t => t.status !== 'topic' && t.status !== 'scheduled').length}</span>
             <span className="text-xs text-neutral-400 font-mono">
-              {supabase.tables.length} Tables Active
+              being worked on
             </span>
           </div>
           <div className="mt-2 text-[10px] text-neutral-500 font-mono flex items-center justify-between">
-            <span>Completed tasks ratio</span>
-            <span className="text-neutral-400">82% Efficiency</span>
+            <span>Scripted / Shot / Edited</span>
+            <span className="text-neutral-400">{topics.filter(t => t.status === 'scripted').length}S / {topics.filter(t => t.status === 'shot').length}H / {topics.filter(t => t.status === 'edited').length}E</span>
           </div>
         </div>
 
-        {/* Card 4: Action Runs */}
+        {/* Card 4: Recent Activity */}
         <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-5 hover:border-neutral-800 transition duration-300 shadow-sm">
           <div className="flex items-center justify-between text-neutral-400 mb-3">
-            <span className="text-[10px] font-bold uppercase tracking-wider font-mono">Published Catalogue</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider font-mono">Recent Activity</span>
             <GitBranch className="h-4 w-4 text-purple-400" />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono tracking-tight text-white">{repos.length} Channels</span>
-            <span className="text-xs text-emerald-400 font-mono flex items-center gap-0.5">
-              152 Videos
+            <span className="text-2xl font-bold font-mono tracking-tight text-white">{activities.length}</span>
+            <span className="text-xs text-neutral-400 font-mono">
+              logged actions
             </span>
           </div>
           <div className="mt-2 text-[10px] text-neutral-500 font-mono flex items-center justify-between">
-            <span>Content Rating</span>
-            <span className="text-yellow-500 font-mono">★ 4.9 Rating</span>
+            <span>Content workflow events</span>
+            <span className="text-neutral-400">{events.length} telemetry</span>
           </div>
         </div>
       </div>
