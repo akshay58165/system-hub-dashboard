@@ -949,8 +949,12 @@ export default function GithubView({
                       <span className="text-neutral-300 font-bold">{stats.shot} videos</span>
                     </div>
                     <div className="flex justify-between items-center text-[9px]">
+                      <span className="text-fuchsia-400">To Be Edited</span>
+                      <span className="text-neutral-300 font-bold">{stats.edited} videos</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[9px]">
                       <span className="text-emerald-400">Ready to Publish</span>
-                      <span className="text-neutral-300 font-bold">{stats.edited + stats.scheduled} scheduled</span>
+                      <span className="text-neutral-300 font-bold">{stats.scheduled} scheduled</span>
                     </div>
                   </div>
                 </div>
