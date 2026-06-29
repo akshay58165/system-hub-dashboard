@@ -87,58 +87,81 @@ export default function GithubView({
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
   const [newTopicName, setNewTopicName] = useState('');
   const [newTopicDesc, setNewTopicDesc] = useState('');
-  const [newTopicChannel, setNewTopicChannel] = useState<'LearnDriven' | 'DecodeWorthy'>('LearnDriven');
+  const [newTopicChannel, setNewTopicChannel] = useState<'LearnDriven' | 'DecodeWorthy' | null>(null);
   const [newTopicStatus, setNewTopicStatus] = useState<'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled'>('topic');
   const [newTopicPriority, setNewTopicPriority] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [newTopicDueDate, setNewTopicDueDate] = useState('');
-  const [newTopicLane, setNewTopicLane] = useState<'Long Videos' | 'Shorts'>('Long Videos');
+  const [newTopicLane, setNewTopicLane] = useState<'Shorts' | 'Long' | 'Members-Only' | null>(null);
   const [eligibility, setEligibility] = useState({
     neutral: false,
-    viral: false,
     productTag: false,
+    viral: false,
     pinnedPromo: false,
+    below8Min: false,
     exceed8Min: false,
-    experimentalBreakout: false,
-    brandCollab: false
+    strongReach: false,
+    brandCollab: false,
+    productLinks: false,
+    membersOnly: false
   });
 
   const getAutomaticRevenueLevel = () => {
+    // Check if any eligibility is selected
+    const isAnySelected = 
+      eligibility.neutral ||
+      eligibility.productTag ||
+      eligibility.viral ||
+      eligibility.pinnedPromo ||
+      eligibility.below8Min ||
+      eligibility.exceed8Min ||
+      eligibility.strongReach ||
+      eligibility.brandCollab ||
+      eligibility.productLinks ||
+      eligibility.membersOnly;
+
+    if (!isAnySelected) return '';
+
     if (eligibility.neutral) return 'Lvl 0.5';
+
     if (newTopicLane === 'Shorts') {
-      if (eligibility.brandCollab) return 'Lvl 20';
-      if (eligibility.experimentalBreakout) return 'Lvl 5';
-      if (eligibility.pinnedPromo && eligibility.productTag && eligibility.viral) return 'Lvl 4';
-      if (eligibility.productTag && eligibility.viral) return 'Lvl 3';
-      if (eligibility.viral) return 'Lvl 2';
+      if (eligibility.viral) {
+        if (eligibility.productTag && eligibility.pinnedPromo) return 'Lvl 4';
+        if (eligibility.productTag) return 'Lvl 3';
+        return 'Lvl 2';
+      }
       return 'Lvl 1';
-    } else {
+    } else if (newTopicLane === 'Long') {
       if (eligibility.brandCollab) return 'Lvl 20';
-      if (eligibility.experimentalBreakout) return 'Lvl 10';
       
       const isOver8 = eligibility.exceed8Min;
-      const isStrongReach = eligibility.viral;
-      const hasTag = eligibility.productTag;
+      const isStrongReach = eligibility.strongReach;
+      const hasProduct = eligibility.productTag || eligibility.productLinks;
       
       if (isStrongReach) {
         if (isOver8) {
-          return hasTag ? 'Lvl 9.5' : 'Lvl 9';
+          return hasProduct ? 'Lvl 9.5' : 'Lvl 9';
         } else {
-          return hasTag ? 'Lvl 8.5' : 'Lvl 8';
+          return hasProduct ? 'Lvl 8.5' : 'Lvl 8';
         }
       } else {
         if (isOver8) {
-          return hasTag ? 'Lvl 7.5' : 'Lvl 7';
+          return hasProduct ? 'Lvl 7.5' : 'Lvl 7';
         } else {
-          return hasTag ? 'Lvl 6.5' : 'Lvl 6';
+          return hasProduct ? 'Lvl 6.5' : 'Lvl 6';
         }
       }
+    } else if (newTopicLane === 'Members-Only') {
+      if (eligibility.membersOnly) return 'Lvl 5';
+      return '';
     }
+
+    return '';
   };
 
   // Handle adding a new Topic
   const handleAddTopic = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTopicName.trim()) return;
+    if (!newTopicChannel || !newTopicName.trim()) return;
 
     const revLvl = getAutomaticRevenueLevel();
 
@@ -152,7 +175,7 @@ export default function GithubView({
       dueDate: newTopicDueDate ? new Date(newTopicDueDate).toISOString() : null,
       createdDate: new Date().toISOString(),
       lastUpdated: new Date().toISOString(),
-      revenueLevel: revLvl
+      revenueLevel: revLvl || undefined
     };
 
     setTopics(prev => [newTopic, ...prev]);
@@ -162,7 +185,7 @@ export default function GithubView({
       id: `act-manual-${Date.now()}`,
       topicName: newTopicName,
       channel: newTopicChannel,
-      action: `Created new topic in ${newTopicStatus} stage with ${revLvl}`,
+      action: `Created new topic in ${newTopicStatus} stage` + (revLvl ? ` with ${revLvl}` : ''),
       author: 'typeakshay',
       timestamp: new Date().toISOString()
     };
@@ -173,7 +196,7 @@ export default function GithubView({
       id: `evt-topic-created-${Date.now()}`,
       source: 'github',
       type: 'success',
-      message: `Topic Engine: Added topic "${newTopicName}" under ${newTopicChannel} (${revLvl})`,
+      message: `Topic Engine: Added topic "${newTopicName}" under ${newTopicChannel}` + (revLvl ? ` (${revLvl})` : ''),
       timestamp: new Date().toISOString()
     });
 
@@ -181,15 +204,19 @@ export default function GithubView({
     setNewTopicName('');
     setNewTopicDesc('');
     setNewTopicDueDate('');
-    setNewTopicLane('Long Videos');
+    setNewTopicChannel(null);
+    setNewTopicLane(null);
     setEligibility({
       neutral: false,
-      viral: false,
       productTag: false,
+      viral: false,
       pinnedPromo: false,
+      below8Min: false,
       exceed8Min: false,
-      experimentalBreakout: false,
-      brandCollab: false
+      strongReach: false,
+      brandCollab: false,
+      productLinks: false,
+      membersOnly: false
     });
     setNewTopicStatus('topic');
     setNewTopicPriority(1);
@@ -541,48 +568,88 @@ export default function GithubView({
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block uppercase text-neutral-500">Creator Channel</label>
-                    <select 
-                      value={newTopicChannel}
-                      onChange={(e) => {
-                        const val = e.target.value as 'LearnDriven' | 'DecodeWorthy';
-                        setNewTopicChannel(val);
+                <div>
+                  <label className="block uppercase text-neutral-500">Creator Channel</label>
+                  <div className="flex gap-2.5 mt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newTopicChannel === 'LearnDriven') {
+                          setNewTopicChannel(null);
+                          setNewTopicLane(null);
+                        } else {
+                          setNewTopicChannel('LearnDriven');
+                          setNewTopicLane(null);
+                        }
                       }}
-                      className="w-full bg-neutral-950 border border-neutral-900 focus:border-neutral-800 outline-none text-xs rounded px-2 py-1 mt-1 text-white"
+                      className={`flex-1 py-1.5 rounded border font-mono font-bold text-center transition text-xs select-none cursor-pointer ${
+                        newTopicChannel === 'LearnDriven'
+                          ? 'bg-rose-500 border-rose-400 text-white shadow-[0_0_8px_rgba(244,63,94,0.25)]'
+                          : 'bg-neutral-950 border-neutral-900 text-neutral-400 hover:text-neutral-200 hover:border-neutral-800'
+                      }`}
                     >
-                      <option value="LearnDriven">LearnDriven</option>
-                      <option value="DecodeWorthy">DecodeWorthy</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block uppercase text-neutral-500">Content Lane</label>
-                    <select 
-                      value={newTopicLane}
-                      onChange={(e) => setNewTopicLane(e.target.value as 'Long Videos' | 'Shorts')}
-                      className="w-full bg-neutral-950 border border-neutral-900 focus:border-neutral-800 outline-none text-xs rounded px-2 py-1 mt-1 text-white"
+                      LearnDriven
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newTopicChannel === 'DecodeWorthy') {
+                          setNewTopicChannel(null);
+                          setNewTopicLane(null);
+                        } else {
+                          setNewTopicChannel('DecodeWorthy');
+                          setNewTopicLane('Shorts');
+                        }
+                      }}
+                      className={`flex-1 py-1.5 rounded border font-mono font-bold text-center transition text-xs select-none cursor-pointer ${
+                        newTopicChannel === 'DecodeWorthy'
+                          ? 'bg-rose-500 border-rose-400 text-white shadow-[0_0_8px_rgba(244,63,94,0.25)]'
+                          : 'bg-neutral-950 border-neutral-900 text-neutral-400 hover:text-neutral-200 hover:border-neutral-800'
+                      }`}
                     >
-                      {newTopicChannel === 'LearnDriven' ? (
-                        <>
-                          <option value="Long Videos">LearnDriven Long Videos</option>
-                          <option value="Shorts">LearnDriven Shorts</option>
-                        </>
-                      ) : (
-                        <>
-                          <option value="Long Videos">DecodeWorthy Long Videos</option>
-                          <option value="Shorts">DecodeWorthy Shorts</option>
-                        </>
-                      )}
-                    </select>
+                      DecodeWorthy
+                    </button>
                   </div>
                 </div>
+
+                {newTopicChannel && (
+                  <div>
+                    <label className="block uppercase text-neutral-500">Content Lane</label>
+                    <div className="flex gap-2 mt-1">
+                      {newTopicChannel === 'LearnDriven' ? (
+                        (['Shorts', 'Long', 'Members-Only'] as const).map(lane => (
+                          <button
+                            key={lane}
+                            type="button"
+                            onClick={() => setNewTopicLane(lane)}
+                            className={`flex-1 py-1.5 rounded border font-mono font-bold text-center transition text-[10px] select-none cursor-pointer ${
+                              newTopicLane === lane
+                                ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_8px_rgba(37,99,235,0.25)]'
+                                : 'bg-neutral-950 border-neutral-900 text-neutral-400 hover:text-neutral-200 hover:border-neutral-800'
+                            }`}
+                          >
+                            {lane}
+                          </button>
+                        ))
+                      ) : (
+                        <button
+                          key="DW-Shorts"
+                          type="button"
+                          onClick={() => setNewTopicLane('Shorts')}
+                          className="flex-1 py-1.5 rounded border border-blue-500 bg-blue-600 text-white font-mono font-bold text-center text-[10px] select-none cursor-pointer shadow-[0_0_8px_rgba(37,99,235,0.25)]"
+                        >
+                          Shorts
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block uppercase text-neutral-500">Auto Revenue Level</label>
-                    <div className="w-full bg-neutral-950/60 border border-neutral-900 text-emerald-400 font-bold text-xs rounded px-2.5 py-1.5 mt-1 select-none">
-                      {getAutomaticRevenueLevel()}
+                    <div className="w-full bg-neutral-950/60 border border-neutral-900 text-emerald-400 font-bold text-xs rounded px-2.5 py-1.5 mt-1 select-none h-[28px] flex items-center">
+                      {getAutomaticRevenueLevel() || '—'}
                     </div>
                   </div>
                   <div>
@@ -590,7 +657,7 @@ export default function GithubView({
                     <select 
                       value={newTopicStatus}
                       onChange={(e) => setNewTopicStatus(e.target.value as any)}
-                      className="w-full bg-neutral-950 border border-neutral-900 focus:border-neutral-800 outline-none text-xs rounded px-2 py-1 mt-1 text-white"
+                      className="w-full bg-neutral-950 border border-neutral-900 focus:border-neutral-800 outline-none text-xs rounded px-2 py-1 mt-1 text-white h-[28px]"
                     >
                       <option value="topic">Topic</option>
                       <option value="scripted">Scripted</option>
@@ -602,111 +669,135 @@ export default function GithubView({
                 </div>
 
                 {/* Revenue Eligibility Checklist */}
-                <div className="space-y-1.5 pt-1.5 border-t border-neutral-900/60">
-                  <label className="block uppercase text-neutral-500">Revenue Eligibility</label>
-                  <p className="text-[8px] text-neutral-600 font-sans">Options change depending on content lane selected.</p>
-                  
-                  <div className="grid grid-cols-2 gap-2 mt-1 font-sans text-[9px] text-neutral-400">
-                    <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
-                      <input 
-                        type="checkbox"
-                        checked={eligibility.neutral}
-                        onChange={(e) => setEligibility(prev => ({ ...prev, neutral: e.target.checked }))}
-                        className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
-                      />
-                      <span>Neutral - Level 0.5</span>
-                    </label>
+                {newTopicLane && (
+                  <div className="space-y-1.5 pt-1.5 border-t border-neutral-900/60">
+                    <label className="block uppercase text-neutral-500">Revenue streams</label>
+                    <p className="text-[8px] text-neutral-600 font-sans">Options change depending on content lane selected.</p>
+                    
+                    <div className="grid grid-cols-2 gap-2 mt-1 font-sans text-[9px] text-neutral-400">
+                      <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                        <input 
+                          type="checkbox"
+                          checked={eligibility.neutral}
+                          onChange={(e) => setEligibility(prev => ({ ...prev, neutral: e.target.checked }))}
+                          className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+                        />
+                        <span>Neutral - Level 0.5</span>
+                      </label>
 
-                    {newTopicLane === 'Shorts' ? (
-                      <>
-                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                      {newTopicLane === 'Shorts' && (
+                        <>
+                          <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                            <input 
+                              type="checkbox"
+                              checked={eligibility.productTag}
+                              onChange={(e) => setEligibility(prev => ({ ...prev, productTag: e.target.checked }))}
+                              className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+                            />
+                            <span>Product tag</span>
+                          </label>
+                          <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                            <input 
+                              type="checkbox"
+                              checked={eligibility.viral}
+                              onChange={(e) => setEligibility(prev => ({ ...prev, viral: e.target.checked }))}
+                              className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+                            />
+                            <span>Viral potential</span>
+                          </label>
+                          <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                            <input 
+                              type="checkbox"
+                              checked={eligibility.pinnedPromo}
+                              onChange={(e) => setEligibility(prev => ({ ...prev, pinnedPromo: e.target.checked }))}
+                              className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+                            />
+                            <span>Pinned promotion</span>
+                          </label>
+                        </>
+                      )}
+
+                      {newTopicLane === 'Long' && (
+                        <>
+                          <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                            <input 
+                              type="checkbox"
+                              checked={eligibility.below8Min}
+                              onChange={(e) => setEligibility(prev => ({ 
+                                ...prev, 
+                                below8Min: e.target.checked,
+                                exceed8Min: e.target.checked ? false : prev.exceed8Min
+                              }))}
+                              className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+                            />
+                            <span>Below 8 mins</span>
+                          </label>
+                          <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                            <input 
+                              type="checkbox"
+                              checked={eligibility.exceed8Min}
+                              onChange={(e) => setEligibility(prev => ({ 
+                                ...prev, 
+                                exceed8Min: e.target.checked,
+                                below8Min: e.target.checked ? false : prev.below8Min
+                              }))}
+                              className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+                            />
+                            <span>Exceeds 8 mins</span>
+                          </label>
+                          <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                            <input 
+                              type="checkbox"
+                              checked={eligibility.strongReach}
+                              onChange={(e) => setEligibility(prev => ({ ...prev, strongReach: e.target.checked }))}
+                              className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+                            />
+                            <span>Strong reach potential</span>
+                          </label>
+                          <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                            <input 
+                              type="checkbox"
+                              checked={eligibility.brandCollab}
+                              onChange={(e) => setEligibility(prev => ({ ...prev, brandCollab: e.target.checked }))}
+                              className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+                            />
+                            <span>Brand collab</span>
+                          </label>
+                          <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                            <input 
+                              type="checkbox"
+                              checked={eligibility.productTag}
+                              onChange={(e) => setEligibility(prev => ({ ...prev, productTag: e.target.checked }))}
+                              className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+                            />
+                            <span>Product tags</span>
+                          </label>
+                          <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
+                            <input 
+                              type="checkbox"
+                              checked={eligibility.productLinks}
+                              onChange={(e) => setEligibility(prev => ({ ...prev, productLinks: e.target.checked }))}
+                              className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+                            />
+                            <span>Product links in description</span>
+                          </label>
+                        </>
+                      )}
+
+                      {newTopicLane === 'Members-Only' && (
+                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200 col-span-2">
                           <input 
                             type="checkbox"
-                            checked={eligibility.viral}
-                            onChange={(e) => setEligibility(prev => ({ ...prev, viral: e.target.checked }))}
+                            checked={eligibility.membersOnly}
+                            onChange={(e) => setEligibility(prev => ({ ...prev, membersOnly: e.target.checked }))}
                             className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
                           />
-                          <span>Viral potential</span>
+                          <span>Members-only subscription value</span>
                         </label>
-                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
-                          <input 
-                            type="checkbox"
-                            checked={eligibility.productTag}
-                            onChange={(e) => setEligibility(prev => ({ ...prev, productTag: e.target.checked }))}
-                            className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
-                          />
-                          <span>Product tag</span>
-                        </label>
-                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
-                          <input 
-                            type="checkbox"
-                            checked={eligibility.pinnedPromo}
-                            onChange={(e) => setEligibility(prev => ({ ...prev, pinnedPromo: e.target.checked }))}
-                            className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
-                          />
-                          <span>Pinned link</span>
-                        </label>
-                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
-                          <input 
-                            type="checkbox"
-                            checked={eligibility.experimentalBreakout}
-                            onChange={(e) => setEligibility(prev => ({ ...prev, experimentalBreakout: e.target.checked }))}
-                            className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
-                          />
-                          <span>Members-only subscription</span>
-                        </label>
-                      </>
-                    ) : (
-                      <>
-                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
-                          <input 
-                            type="checkbox"
-                            checked={eligibility.exceed8Min}
-                            onChange={(e) => setEligibility(prev => ({ ...prev, exceed8Min: e.target.checked }))}
-                            className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
-                          />
-                          <span>Exceeds 8 minutes</span>
-                        </label>
-                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
-                          <input 
-                            type="checkbox"
-                            checked={eligibility.productTag}
-                            onChange={(e) => setEligibility(prev => ({ ...prev, productTag: e.target.checked }))}
-                            className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
-                          />
-                          <span>Product tag</span>
-                        </label>
-                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
-                          <input 
-                            type="checkbox"
-                            checked={eligibility.viral}
-                            onChange={(e) => setEligibility(prev => ({ ...prev, viral: e.target.checked }))}
-                            className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
-                          />
-                          <span>Strong reach potential</span>
-                        </label>
-                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
-                          <input 
-                            type="checkbox"
-                            checked={eligibility.experimentalBreakout}
-                            onChange={(e) => setEligibility(prev => ({ ...prev, experimentalBreakout: e.target.checked }))}
-                            className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
-                          />
-                          <span>Breakout attempt</span>
-                        </label>
-                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
-                          <input 
-                            type="checkbox"
-                            checked={eligibility.brandCollab}
-                            onChange={(e) => setEligibility(prev => ({ ...prev, brandCollab: e.target.checked }))}
-                            className="rounded border-neutral-900 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
-                          />
-                          <span>Brand collaboration</span>
-                        </label>
-                      </>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-3 pt-1 border-t border-neutral-900/60">
                   <div>
