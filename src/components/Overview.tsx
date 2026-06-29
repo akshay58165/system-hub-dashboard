@@ -494,39 +494,41 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              System Pipeline Flow
+              Content Pipeline Flow
             </h2>
-            <p className="text-[10px] text-neutral-400 font-mono">Real-time interconnection of your repository, build engine, and server cluster.</p>
+            <p className="text-[10px] text-neutral-400 font-mono">Real-time tracking of content schedules, creation streaks, and monthly channel coverage.</p>
           </div>
           
           <div className="flex items-center gap-4 text-[10px] font-mono">
             <div className="flex items-center gap-1.5 text-neutral-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-              <span>Topic Repos Live</span>
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+              <span>Payment Cycle</span>
             </div>
             <div className="flex items-center gap-1.5 text-neutral-400">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-              <span>Progress Edge</span>
+              <span>Streak Status</span>
             </div>
             <div className="flex items-center gap-1.5 text-neutral-400">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              <span>Action Hub Primary</span>
+              <span>Month Coverage</span>
             </div>
           </div>
         </div>
 
-        {/* The Pipeline Connection Graphic */}
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-center relative py-4 z-10">
+        {/* The Pipeline Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-stretch relative py-2 z-10">
           {/* GitHub Source Block */}
           <div 
             onClick={() => onTabChange('topics')}
-            className="md:col-span-2 p-5 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-red-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(239,68,68,0.04)] transition-all duration-300 cursor-pointer flex flex-col items-center text-center group relative overflow-hidden"
+            className="md:col-span-2 p-5 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-red-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(239,68,68,0.04)] transition-all duration-300 cursor-pointer flex flex-col justify-between group relative overflow-hidden"
           >
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-red-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="p-3 bg-neutral-900/50 rounded-full border border-neutral-900 group-hover:border-red-900/30 group-hover:bg-red-950/10 transition-colors duration-300 text-neutral-300 mb-2.5 flex items-center justify-center">
-              <Youtube className="h-5 w-5 text-red-500 group-hover:scale-110 transition-transform duration-300 animate-pulse" />
+            <div className="flex flex-col items-center text-center">
+              <div className="p-3 bg-neutral-900/50 rounded-full border border-neutral-900 group-hover:border-red-900/30 group-hover:bg-red-950/10 transition-colors duration-300 text-neutral-300 mb-2.5 flex items-center justify-center">
+                <Youtube className="h-5 w-5 text-red-500 group-hover:scale-110 transition-transform duration-300 animate-pulse" />
+              </div>
+              <span className="text-xs font-mono font-bold text-neutral-200">Payment Cycle</span>
             </div>
-            <span className="text-xs font-mono font-bold text-neutral-200">Payment Cycle</span>
             
             <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3.5">
               {/* Current Month: Green Card */}
@@ -571,93 +573,18 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
             </div>
           </div>
 
-          {/* Connection Vector 1 */}
-          <div className="hidden md:flex md:col-span-1 h-20 items-center justify-center relative">
-            <svg className="w-full h-12 overflow-visible" fill="none">
-              <defs>
-                <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.8" />
-                  <stop offset="50%" stopColor="#a78bfa" stopOpacity="0.8" />
-                  <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.8" />
-                </linearGradient>
-                <filter id="glow">
-                  <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-                  <feMerge>
-                    <feMergeNode in="coloredBlur"/>
-                    <feMergeNode in="SourceGraphic"/>
-                  </feMerge>
-                </filter>
-              </defs>
-              
-              {/* Base track */}
-              <line x1="0" y1="24" x2="100%" y2="24" stroke="#121214" strokeWidth="4" strokeLinecap="round" />
-              <line x1="0" y1="24" x2="100%" y2="24" stroke="#1e1e24" strokeWidth="2" strokeLinecap="round" />
-              
-              {/* Active flow trace */}
-              <motion.line 
-                x1="0" 
-                y1="24" 
-                x2="100%" 
-                y2="24" 
-                stroke="url(#grad1)" 
-                strokeWidth="2" 
-                strokeLinecap="round"
-                strokeDasharray="6 6"
-                animate={{ strokeDashoffset: [0, -24] }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 1.2,
-                  ease: "linear"
-                }}
-                filter="url(#glow)"
-              />
-
-              {/* Moving data packets */}
-              <motion.circle
-                r="3.5"
-                fill="#60a5fa"
-                filter="url(#glow)"
-                animate={{ cx: ["0%", "100%"] }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 2.2,
-                  ease: "easeInOut"
-                }}
-                cy="24"
-              />
-              <motion.circle
-                r="2"
-                fill="#fbbf24"
-                filter="url(#glow)"
-                animate={{ cx: ["0%", "100%"] }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 2.2,
-                  delay: 1.1,
-                  ease: "easeInOut"
-                }}
-                cy="24"
-              />
-            </svg>
-            
-            <div className="absolute top-1 text-[8px] font-mono text-neutral-500 uppercase tracking-widest pointer-events-none select-none animate-pulse">
-              Script & Film
-            </div>
-            <div className="absolute bottom-1 text-[8px] font-mono text-neutral-600">
-              Flow: High
-            </div>
-          </div>
-
           {/* Streak Status Block */}
           <div 
             onClick={() => onTabChange('topics')}
-            className="md:col-span-1 p-4 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-amber-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(245,158,11,0.04)] transition-all duration-300 cursor-pointer flex flex-col items-center text-center group relative overflow-hidden font-mono"
+            className="md:col-span-1 p-4 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-amber-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(245,158,11,0.04)] transition-all duration-300 cursor-pointer flex flex-col justify-between group relative overflow-hidden font-mono"
           >
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-amber-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="p-2.5 bg-neutral-900/50 rounded-full border border-neutral-900 group-hover:border-amber-900/30 group-hover:bg-amber-950/10 transition-colors duration-300 text-neutral-300 mb-2">
-              <Zap className="h-4 w-4 text-amber-400 group-hover:scale-110 transition-transform duration-300" />
+            <div className="flex flex-col items-center text-center">
+              <div className="p-2.5 bg-neutral-900/50 rounded-full border border-neutral-900 group-hover:border-amber-900/30 group-hover:bg-amber-950/10 transition-colors duration-300 text-neutral-300 mb-2">
+                <Zap className="h-4 w-4 text-amber-400 group-hover:scale-110 transition-transform duration-300" />
+              </div>
+              <span className="text-xs font-bold text-neutral-200">Streak Status</span>
             </div>
-            <span className="text-xs font-bold text-neutral-200">Streak Status</span>
 
             <div className="w-full mt-3.5 space-y-2 text-left text-[9px]">
               {/* LearnDriven Streak */}
@@ -700,87 +627,19 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
             </div>
           </div>
 
-          {/* Connection Vector 2 */}
-          <div className="hidden md:flex md:col-span-1 h-20 items-center justify-center relative">
-            <svg className="w-full h-12 overflow-visible" fill="none">
-              <defs>
-                <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.8" />
-                  <stop offset="50%" stopColor="#34d399" stopOpacity="0.8" />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity="0.8" />
-                </linearGradient>
-              </defs>
-              
-              {/* Base track */}
-              <line x1="0" y1="24" x2="100%" y2="24" stroke="#121214" strokeWidth="4" strokeLinecap="round" />
-              <line x1="0" y1="24" x2="100%" y2="24" stroke="#1e1e24" strokeWidth="2" strokeLinecap="round" />
-              
-              {/* Active flow trace */}
-              <motion.line 
-                x1="0" 
-                y1="24" 
-                x2="100%" 
-                y2="24" 
-                stroke="url(#grad2)" 
-                strokeWidth="2" 
-                strokeLinecap="round"
-                strokeDasharray="6 6"
-                animate={{ strokeDashoffset: [0, -24] }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 1.5,
-                  ease: "linear"
-                }}
-                filter="url(#glow)"
-              />
-
-              {/* Moving data packets */}
-              <motion.circle
-                r="3.5"
-                fill="#fbbf24"
-                filter="url(#glow)"
-                animate={{ cx: ["0%", "100%"] }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 2.5,
-                  ease: "easeInOut"
-                }}
-                cy="24"
-              />
-              <motion.circle
-                r="2"
-                fill="#34d399"
-                filter="url(#glow)"
-                animate={{ cx: ["0%", "100%"] }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 2.5,
-                  delay: 1.25,
-                  ease: "easeInOut"
-                }}
-                cy="24"
-              />
-            </svg>
-            
-            <div className="absolute top-1 text-[8px] font-mono text-neutral-500 uppercase tracking-widest pointer-events-none select-none animate-pulse">
-              Edit & Schedule
-            </div>
-            <div className="absolute bottom-1 text-[8px] font-mono text-neutral-600">
-              Polish Stage
-            </div>
-          </div>
-
           {/* Month Coverage Block */}
           <div 
             onClick={() => onTabChange('topics')}
-            className="md:col-span-1 p-4 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-emerald-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(16,185,129,0.04)] transition-all duration-300 cursor-pointer flex flex-col items-center text-center group relative overflow-hidden font-mono"
+            className="md:col-span-1 p-4 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-emerald-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(16,185,129,0.04)] transition-all duration-300 cursor-pointer flex flex-col justify-between group relative overflow-hidden font-mono"
           >
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="p-2.5 bg-neutral-900/50 rounded-full border border-neutral-900 group-hover:border-emerald-900/30 group-hover:bg-emerald-950/10 transition-colors duration-300 text-neutral-300 mb-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400 group-hover:scale-110 transition-transform duration-300" />
+            <div className="flex flex-col items-center text-center">
+              <div className="p-2.5 bg-neutral-900/50 rounded-full border border-neutral-900 group-hover:border-emerald-900/30 group-hover:bg-emerald-950/10 transition-colors duration-300 text-neutral-300 mb-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400 group-hover:scale-110 transition-transform duration-300" />
+              </div>
+              <span className="text-xs font-bold text-neutral-200">Month Coverage</span>
+              <span className="text-[9px] text-neutral-500 mt-0.5">{coverageMetrics.passedDays} days elapsed</span>
             </div>
-            <span className="text-xs font-bold text-neutral-200">Month Coverage</span>
-            <span className="text-[9px] text-neutral-500 mt-0.5">{coverageMetrics.passedDays} days elapsed</span>
 
             <div className="w-full mt-3 space-y-2.5 text-left text-[9px]">
               {/* LearnDriven Coverage */}
