@@ -139,3 +139,24 @@ export interface SystemEvent {
   message: string;
   timestamp: string;
 }
+
+export interface Topic {
+  id: string;
+  name: string;
+  description: string;
+  channel: 'LearnDriven' | 'DecodeWorthy';
+  status: 'scripted' | 'shot' | 'edited' | 'pending';
+  priority: 1 | 2 | 3 | 4 | 5;
+  dueDate: string | null;
+  createdDate: string;
+  lastUpdated: string;
+}
+
+export interface TopicActivity {
+  id: string;
+  topicName: string;
+  channel: 'LearnDriven' | 'DecodeWorthy';
+  action: string;
+  author: string;
+  timestamp: string;
+}

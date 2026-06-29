@@ -22,34 +22,17 @@ import {
   SlidersHorizontal,
   ChevronDown
 } from 'lucide-react';
-import { GitHubRepo, SystemEvent } from '../types';
+import { GitHubRepo, SystemEvent, Topic, TopicActivity } from '../types';
 
 interface GithubViewProps {
   repos: GitHubRepo[];
   onAddEvent: (evt: SystemEvent) => void;
   onUpdateRepo: (repoId: string, updatedRepo: Partial<GitHubRepo>) => void;
   onTriggerDeploy: (projectName: string) => void;
-}
-
-interface Topic {
-  id: string;
-  name: string;
-  description: string;
-  channel: 'LearnDriven' | 'DecodeWorthy';
-  status: 'scripted' | 'shot' | 'edited' | 'pending';
-  priority: 1 | 2 | 3 | 4 | 5; // 1: Neutral, 2: Attention, 3: Hot Topic, 4: Important, 5: Automatic
-  dueDate: string | null;
-  createdDate: string;
-  lastUpdated: string;
-}
-
-interface TopicActivity {
-  id: string;
-  topicName: string;
-  channel: 'LearnDriven' | 'DecodeWorthy';
-  action: string;
-  author: string;
-  timestamp: string;
+  topics: Topic[];
+  setTopics: React.Dispatch<React.SetStateAction<Topic[]>>;
+  activities: TopicActivity[];
+  setActivities: React.Dispatch<React.SetStateAction<TopicActivity[]>>;
 }
 
 // Time formatting helper
@@ -79,7 +62,16 @@ function shouldBlink(dueDateStr: string | null) {
   return diffDays >= -0.5 && diffDays <= 2;
 }
 
-export default function GithubView({ repos, onAddEvent, onUpdateRepo, onTriggerDeploy }: GithubViewProps) {
+export default function GithubView({ 
+  repos, 
+  onAddEvent, 
+  onUpdateRepo, 
+  onTriggerDeploy,
+  topics,
+  setTopics,
+  activities,
+  setActivities
+}: GithubViewProps) {
   // 1. Selected channel filter: 'All' | 'LearnDriven' | 'DecodeWorthy'
   const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy'>('All');
 
@@ -89,171 +81,7 @@ export default function GithubView({ repos, onAddEvent, onUpdateRepo, onTriggerD
   // 3. Search filter
   const [searchQuery, setSearchQuery] = useState('');
 
-  // 4. Local state for Topics
-  const [topics, setTopics] = useState<Topic[]>([
-    {
-      id: 't-1',
-      name: 'React 19 Server Actions Deep Dive',
-      description: 'Step-by-step instructions on handling form actions, pending states, and optimistic updates.',
-      channel: 'LearnDriven',
-      status: 'scripted',
-      priority: 4,
-      dueDate: new Date(Date.now() + 1000 * 60 * 60 * 20).toISOString(), // ~20 hours from now
-      createdDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4).toISOString(), // 4 days ago
-      lastUpdated: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-    },
-    {
-      id: 't-2',
-      name: 'Framer Motion 3D Layout Animations',
-      description: 'Creating premium fluid layout transitions using AnimatePresence and layoutId.',
-      channel: 'LearnDriven',
-      status: 'shot',
-      priority: 2,
-      dueDate: null,
-      createdDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(), // 3 days ago
-      lastUpdated: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    },
-    {
-      id: 't-3',
-      name: 'Tailwind CSS v4 Custom Compiler Hooks',
-      description: 'Integrating Tailwind CSS v4 with Vite compiler and configuring custom screens.',
-      channel: 'LearnDriven',
-      status: 'edited',
-      priority: 3,
-      dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 5).toISOString(), // 5 days from now
-      createdDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), // 2 days ago
-      lastUpdated: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-    },
-    {
-      id: 't-4',
-      name: 'Next.js Middleware JWT Token Validation',
-      description: 'Securing Edge API routes using custom middleware and jose token decryption.',
-      channel: 'LearnDriven',
-      status: 'pending',
-      priority: 5,
-      dueDate: new Date(Date.now() + 1000 * 60 * 60 * 12).toISOString(), // ~12 hours from now
-      createdDate: new Date(Date.now() - 1000 * 60 * 60 * 20).toISOString(), // 20 hours ago
-      lastUpdated: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    },
-    {
-      id: 't-5',
-      name: 'Supabase Realtime Postgres Listeners',
-      description: 'Subscribing to Postgres changes in React using supabase-js client channels.',
-      channel: 'LearnDriven',
-      status: 'scripted',
-      priority: 1,
-      dueDate: null,
-      createdDate: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(), // 6 hours ago
-      lastUpdated: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-    },
-    {
-      id: 't-6',
-      name: 'Vite + TS Config Optimizations',
-      description: 'Configuring compiler options, path aliases, and bundler chunks inside tsconfig.json.',
-      channel: 'LearnDriven',
-      status: 'shot',
-      priority: 3,
-      dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 3).toISOString(),
-      createdDate: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(), // 8 hours ago
-      lastUpdated: new Date(Date.now() - 1000 * 60 * 60 * 7).toISOString(),
-    },
-    {
-      id: 't-7',
-      name: 'Decoding OAuth2 Authorization Flows',
-      description: 'In-depth visual walkthrough of OAuth2 code grants, PKCE, and token exchange.',
-      channel: 'DecodeWorthy',
-      status: 'edited',
-      priority: 4,
-      dueDate: new Date(Date.now() + 1000 * 60 * 60 * 22).toISOString(), // ~22 hours from now
-      createdDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(), // 5 days ago
-      lastUpdated: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
-    },
-    {
-      id: 't-8',
-      name: 'WebSockets vs SSE: Scalability Audit',
-      description: 'Benchmarking active socket connections vs HTTP/2 Server-Sent Events under load.',
-      channel: 'DecodeWorthy',
-      status: 'pending',
-      priority: 3,
-      dueDate: null,
-      createdDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), // 2 days ago
-      lastUpdated: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
-    },
-    {
-      id: 't-9',
-      name: 'Cold Start Latency on Vercel Functions',
-      description: 'Auditing Node.js vs Edge runtime bundle sizes, import overhead, and cold execution.',
-      channel: 'DecodeWorthy',
-      status: 'scripted',
-      priority: 2,
-      dueDate: null,
-      createdDate: new Date(Date.now() - 1000 * 60 * 60 * 10).toISOString(), // 10 hours ago
-      lastUpdated: new Date(Date.now() - 1000 * 60 * 60 * 9).toISOString(),
-    },
-    {
-      id: 't-10',
-      name: 'Postgres Locking & Row Lock Types',
-      description: 'Visualizing FOR UPDATE, FOR SHARE, and deadlock conditions in heavy transactions.',
-      channel: 'DecodeWorthy',
-      status: 'shot',
-      priority: 1,
-      dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(),
-      createdDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
-      lastUpdated: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    }
-  ]);
-
-  // 5. Local state for activities
-  const [activities, setActivities] = useState<TopicActivity[]>([
-    {
-      id: 'act-1',
-      topicName: 'React 19 Server Actions Deep Dive',
-      channel: 'LearnDriven',
-      action: 'Completed script draft structure',
-      author: 'alex-dev',
-      timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString()
-    },
-    {
-      id: 'act-2',
-      topicName: 'Next.js Middleware JWT Token Validation',
-      channel: 'LearnDriven',
-      action: 'Configured jose decrypt middleware tests',
-      author: 'sarah-ops',
-      timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString()
-    },
-    {
-      id: 'act-3',
-      topicName: 'Decoding OAuth2 Authorization Flows',
-      channel: 'DecodeWorthy',
-      action: 'Rendered visual layout diagrams',
-      author: 'tony-design',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString()
-    },
-    {
-      id: 'act-4',
-      topicName: 'Cold Start Latency on Vercel Functions',
-      channel: 'DecodeWorthy',
-      action: 'Conducted edge runtime bundle audit',
-      author: 'typeakshay',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 9).toISOString()
-    },
-    {
-      id: 'act-5',
-      topicName: 'Framer Motion 3D Layout Animations',
-      channel: 'LearnDriven',
-      action: 'Filmed raw transitions and dynamic tests',
-      author: 'tony-design',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString()
-    },
-    {
-      id: 'act-6',
-      topicName: 'WebSockets vs SSE: Scalability Audit',
-      channel: 'DecodeWorthy',
-      action: 'Reviewed socket allocation thresholds',
-      author: 'alex-dev',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString()
-    }
-  ]);
+  // Topics and activities are now passed as props from App.tsx to support selective DB reset integrity.
 
   // Form states for creating a new Topic
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
