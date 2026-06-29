@@ -100,9 +100,25 @@ export default function App() {
 
         // Clear states dynamically at specific progress milestones
         if (percent >= 30 && percent < 60) {
-          setTopics(prev => prev.filter(t => !t.id.startsWith('t-manual-')));
+          setTopics([]);
+          // Purge all biometrics and scorecard keys from local storage
+          localStorage.removeItem('unicorn_scorecard_date');
+          localStorage.removeItem('unicorn_scorecard_restfulness');
+          localStorage.removeItem('unicorn_scorecard_nutrition');
+          localStorage.removeItem('unicorn_scorecard_hydration');
+          localStorage.removeItem('unicorn_scorecard_physicalActivity');
+          localStorage.removeItem('unicorn_scorecard_endorphins');
+          localStorage.removeItem('unicorn_scorecard_schedule');
+          localStorage.removeItem('unicorn_scorecard_pleasantness');
+          localStorage.removeItem('unicorn_scorecard_socialization');
+          localStorage.removeItem('unicorn_scorecard_stomach');
+          localStorage.removeItem('unicorn_scorecard_technicalities');
+          localStorage.removeItem('unicorn_scorecard_relations');
+          localStorage.removeItem('unicorn_scorecard_stress');
+          localStorage.removeItem('unicorn_scorecard_history');
+          localStorage.removeItem('unicorn_scorecard_db_logs');
         } else if (percent >= 60 && percent < 85) {
-          setActivities(prev => prev.filter(a => !a.id.startsWith('act-manual-')));
+          setActivities([]);
         }
 
         currentStep++;
