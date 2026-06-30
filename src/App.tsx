@@ -22,7 +22,8 @@ import {
   Plus,
   LogIn,
   LogOut,
-  User as UserIcon
+  User as UserIcon,
+  AlertCircle
 } from 'lucide-react';
 import { supabase } from './services/supabase';
 
@@ -49,15 +50,7 @@ export default function App() {
     return (localStorage.getItem('unicorn_active_tab') as any) || 'overview';
   });
 
-  const [cycleGoals, setCycleGoals] = useState<CycleGoal | null>(() => {
-    try {
-      const stored = localStorage.getItem('unicorn_cycle_goals');
-      return stored ? JSON.parse(stored) : null;
-    } catch (e) {
-      console.error(e);
-      return null;
-    }
-  });
+  const [cycleGoals, setCycleGoals] = useState<CycleGoal | null>(null);
 
   const [scorecard, setScorecard] = useState<any>(() => {
     const today = new Date();
@@ -92,32 +85,9 @@ export default function App() {
   const [repos, setRepos] = useState<GitHubRepo[]>(initialGitHubRepos);
   const [vercelProjects, setVercelProjects] = useState<VercelProject[]>(initialVercelProjects);
   const [supabase, setSupabase] = useState<SupabaseProject>(initialSupabaseProject);
-  const [events, setEvents] = useState<SystemEvent[]>(() => {
-    const stored = localStorage.getItem('unicorn_events');
-    return stored ? JSON.parse(stored) : [];
-  });
-  const [topics, setTopics] = useState<Topic[]>(() => {
-    const stored = localStorage.getItem('unicorn_topics');
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (parsed.length > 0) return parsed;
-      if (localStorage.getItem('unicorn_database_reset') === 'true') {
-        return [];
-      }
-    }
-    return initialTopics;
-  });
-  const [activities, setActivities] = useState<TopicActivity[]>(() => {
-    const stored = localStorage.getItem('unicorn_activities');
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (parsed.length > 0) return parsed;
-      if (localStorage.getItem('unicorn_database_reset') === 'true') {
-        return [];
-      }
-    }
-    return initialActivities;
-  });
+  const [events, setEvents] = useState<SystemEvent[]>([]);
+  const [topics, setTopics] = useState<Topic[]>(initialTopics);
+  const [activities, setActivities] = useState<TopicActivity[]>(initialActivities);
   
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [timeStr, setTimeStr] = useState('');
@@ -132,6 +102,8 @@ export default function App() {
   const [authPassword, setAuthPassword] = useState('');
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isStateLoaded, setIsStateLoaded] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   // Database Reset States
   const [isResetOpen, setIsResetOpen] = useState(false);
@@ -236,61 +208,78 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Sync state mutations to localStorage
-  useEffect(() => {
-    localStorage.setItem('unicorn_topics', JSON.stringify(topics));
-  }, [topics]);
-
-  useEffect(() => {
-    localStorage.setItem('unicorn_activities', JSON.stringify(activities));
-  }, [activities]);
-
-  useEffect(() => {
-    localStorage.setItem('unicorn_events', JSON.stringify(events));
-  }, [events]);
-
+  // Sync active tab to localStorage for reload memory
   useEffect(() => {
     localStorage.setItem('unicorn_active_tab', activeTab);
   }, [activeTab]);
-
-  useEffect(() => {
-    if (cycleGoals) {
-      localStorage.setItem('unicorn_cycle_goals', JSON.stringify(cycleGoals));
-    } else {
-      localStorage.removeItem('unicorn_cycle_goals');
-    }
-  }, [cycleGoals]);
 
   // 1. Listen for Supabase auth state change on mount
   useEffect(() => {
     if (!supabase) {
       setAuthLoading(false);
+      setIsStateLoaded(true);
       return;
     }
     
     let unsubscribeFn: (() => void) | null = null;
     
-    try {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        setUser(session?.user ?? null);
-        setAuthLoading(false);
-      }).catch((e: any) => {
-        console.error("Supabase getSession error:", e);
-        setAuthLoading(false);
-      });
+    const initAuth = async () => {
+      try {
+        // 1. Get current active session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+          setUser(session.user);
+          setAuthLoading(false);
+        } else {
+          // 2. Perform auto-login for creators
+          const email = "creator@dashboard.com";
+          const password = "creatorpassword123!";
+          
+          console.log("Supabase Auto-Auth: Logging in to creator sync gateway...");
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password
+          });
+          
+          if (signInError) {
+            console.log("Supabase Auto-Auth: Account not found. Registering sync node...");
+            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+              email,
+              password
+            });
+            
+            if (signUpError) {
+              console.error("Supabase Auto-Auth: Registration failed:", signUpError.message);
+              setAuthLoading(false);
+              setIsStateLoaded(true); // Let app render in local-mode
+            } else if (signUpData?.user) {
+              setUser(signUpData.user);
+              setAuthLoading(false);
+            }
+          } else if (signInData?.user) {
+            setUser(signInData.user);
+            setAuthLoading(false);
+          }
+        }
 
-      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-        setUser(session?.user ?? null);
-        setAuthLoading(false);
-      });
+        // 3. Listen for auth changes
+        const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+          setUser(session?.user ?? null);
+          setAuthLoading(false);
+        });
 
-      if (data && data.subscription) {
-        unsubscribeFn = () => data.subscription.unsubscribe();
+        if (data && data.subscription) {
+          unsubscribeFn = () => data.subscription.unsubscribe();
+        }
+      } catch (err: any) {
+        console.error("Supabase Auto-Auth listener crash:", err);
+        setAuthLoading(false);
+        setIsStateLoaded(true);
       }
-    } catch (err) {
-      console.error("Supabase auth listener crash:", err);
-      setAuthLoading(false);
-    }
+    };
+
+    initAuth();
 
     return () => {
       if (unsubscribeFn) {
@@ -305,12 +294,18 @@ export default function App() {
 
   // 2. Fetch dashboard state from Supabase when user logs in
   useEffect(() => {
-    if (!supabase || !user) return;
+    if (!supabase || !user) {
+      if (!user) {
+        setIsStateLoaded(true);
+      }
+      return;
+    }
 
     let channel: any = null;
 
     const fetchAndSubscribe = async () => {
       try {
+        setSyncError(null);
         const { data, error } = await supabase
           .from('dashboard_state')
           .select('state')
@@ -319,7 +314,16 @@ export default function App() {
 
         if (error) {
           console.error("Error fetching state from Supabase:", error.message);
-        } else if (data && data.state) {
+          if (error.message.includes('relation "public.dashboard_state" does not exist') || error.code === 'P0001') {
+            setSyncError("Supabase error: Table 'public.dashboard_state' does not exist. Please run SQL migrations in your Supabase dashboard.");
+          } else {
+            setSyncError(`Supabase connection error: ${error.message}`);
+          }
+          setIsStateLoaded(true); // Let client render local fallback
+          return;
+        }
+
+        if (data && data.state) {
           const remoteState = data.state as any;
           if (remoteState.topics) setTopics(remoteState.topics);
           if (remoteState.activities) setActivities(remoteState.activities);
@@ -333,7 +337,22 @@ export default function App() {
             message: 'Supabase Cloud: Device state synchronized with database cluster.',
             timestamp: new Date().toISOString()
           });
+        } else {
+          // If no remote state exists yet for this auto-created user, write initial state to seed it
+          console.log("Supabase Sync: Seeding new database row for creator...");
+          await supabase.from('dashboard_state').upsert({
+            user_id: user.id,
+            state: {
+              topics,
+              activities,
+              cycleGoals,
+              scorecard
+            },
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'user_id' });
         }
+        
+        setIsStateLoaded(true); // Completed initial load
 
         // 3. Subscribe to Real-time database changes for this user
         channel = supabase.channel(`realtime:dashboard_state:${user.id}`)
@@ -360,8 +379,10 @@ export default function App() {
             }
           )
           .subscribe();
-      } catch (e) {
+      } catch (e: any) {
         console.error("Supabase sync initialization failed:", e);
+        setSyncError(`Sync engine failure: ${e.message}`);
+        setIsStateLoaded(true);
       }
     };
 
@@ -380,7 +401,7 @@ export default function App() {
 
   // 4. Save local state changes back to Supabase
   const saveStateToSupabase = async (newTopics: Topic[], newActs: TopicActivity[], newGoals: CycleGoal | null, newScorecard: any) => {
-    if (!supabase || !user) return;
+    if (!supabase || !user || syncError) return;
     try {
       const { error } = await supabase
         .from('dashboard_state')
@@ -397,14 +418,18 @@ export default function App() {
 
       if (error) {
         console.error("Error saving state to Supabase:", error.message);
+        // Do not block local updates, but log warning
+        if (error.message.includes('relation "public.dashboard_state" does not exist')) {
+          setSyncError("Supabase error: Table 'public.dashboard_state' does not exist. Please run SQL migrations.");
+        }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
     }
   };
 
   useEffect(() => {
-    if (!user || authLoading) return;
+    if (!user || authLoading || !isStateLoaded) return;
 
     // Debounce updates to 800ms
     const timer = setTimeout(() => {
@@ -489,6 +514,40 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-200 antialiased font-sans">
+
+      {/* Cloud State Loading Overlay */}
+      <AnimatePresence>
+        {!isStateLoaded && (
+          <motion.div 
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-neutral-950 flex flex-col items-center justify-center font-mono p-6"
+          >
+            <div className="space-y-4 max-w-sm w-full text-center">
+              <div className="relative w-12 h-12 mx-auto">
+                <div className="absolute inset-0 rounded-full border-2 border-emerald-950" />
+                <div className="absolute inset-0 rounded-full border-2 border-t-emerald-400 animate-spin" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-white uppercase tracking-widest font-bold animate-pulse">
+                  Initializing Cloud Gateway...
+                </p>
+                <p className="text-[10px] text-neutral-500">
+                  Syncing secure schema partitions with Supabase...
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Database Warning Banner */}
+      {syncError && (
+        <div className="bg-red-950/40 border-b border-red-900/60 px-4 py-2.5 text-center text-xs font-mono text-red-400 flex items-center justify-center gap-2 select-none">
+          <AlertCircle className="h-4 w-4 shrink-0 text-red-500 animate-pulse" />
+          <span>{syncError}</span>
+        </div>
+      )}
       
       {/* Top Main Header */}
       <header className="bg-neutral-950 sticky top-0 z-40">
