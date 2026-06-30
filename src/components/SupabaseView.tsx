@@ -100,6 +100,13 @@ export default function SupabaseView({
   );
 
   const [saveNotification, setSaveNotification] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
+  const [isEditingGoals, setIsEditingGoals] = useState<boolean>(!cycleGoals);
+
+  useEffect(() => {
+    if (!cycleGoals) {
+      setIsEditingGoals(true);
+    }
+  }, [cycleGoals]);
 
   const dateCalculation = useMemo(() => {
     const now = new Date();
@@ -1322,6 +1329,7 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                 };
 
                 setCycleGoals(newGoals);
+                setIsEditingGoals(false);
                 
                 onAddEvent({
                   id: `evt-goals-updated-${Date.now()}`,
@@ -1365,6 +1373,7 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                         value="this-month"
                         checked={goalCycleType === 'this-month'}
                         onChange={() => setGoalCycleType('this-month')}
+                        disabled={!isEditingGoals}
                         className="accent-emerald-500"
                       />
                       <span>This Month ({dateCalculation.thisMonthName})</span>
@@ -1377,6 +1386,7 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                         value="next-month"
                         checked={goalCycleType === 'next-month'}
                         onChange={() => setGoalCycleType('next-month')}
+                        disabled={!isEditingGoals}
                         className="accent-emerald-500"
                       />
                       <span>Next Month ({dateCalculation.nextMonthName})</span>
@@ -1389,6 +1399,7 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                         value="custom"
                         checked={goalCycleType === 'custom'}
                         onChange={() => setGoalCycleType('custom')}
+                        disabled={!isEditingGoals}
                         className="accent-emerald-500"
                       />
                       <span>Custom Range</span>
@@ -1403,6 +1414,7 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                           type="date"
                           value={goalCustomStart}
                           onChange={(e) => setGoalCustomStart(e.target.value)}
+                          disabled={!isEditingGoals}
                           className="w-full bg-neutral-900 border border-neutral-850 rounded px-2 py-1 text-white outline-none font-mono"
                         />
                       </div>
@@ -1412,6 +1424,7 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                           type="date"
                           value={goalCustomEnd}
                           onChange={(e) => setGoalCustomEnd(e.target.value)}
+                          disabled={!isEditingGoals}
                           className="w-full bg-neutral-900 border border-neutral-850 rounded px-2 py-1 text-white outline-none font-mono"
                         />
                       </div>
@@ -1426,36 +1439,63 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                   <div className="space-y-3">
                     <div>
                       <label className="block text-neutral-500 mb-1">Shorts Goal (Leave empty for Free Flow)</label>
-                      <input 
-                        type="number" 
-                        min="0"
-                        placeholder="e.g. 5"
-                        value={ldShortsGoal}
-                        onChange={(e) => setLdShortsGoal(e.target.value)}
-                        className="w-full bg-neutral-900 border border-neutral-850 rounded px-2 py-1.5 text-white outline-none"
-                      />
+                      {isEditingGoals ? (
+                        <input 
+                          type="number" 
+                          min="0"
+                          placeholder="e.g. 5"
+                          value={ldShortsGoal}
+                          onChange={(e) => setLdShortsGoal(e.target.value)}
+                          className="w-full bg-neutral-900 border border-neutral-850 rounded px-2 py-1.5 text-white outline-none"
+                        />
+                      ) : (
+                        <input 
+                          type="text" 
+                          readOnly
+                          value={ldShortsGoal || 'Free Flow'}
+                          className="w-full bg-neutral-900/40 border border-neutral-850/50 text-neutral-400 rounded px-2 py-1.5 outline-none font-semibold cursor-default"
+                        />
+                      )}
                     </div>
                     <div>
                       <label className="block text-neutral-500 mb-1">Long-form Goal (Leave empty for Free Flow)</label>
-                      <input 
-                        type="number" 
-                        min="0"
-                        placeholder="e.g. 3"
-                        value={ldLongGoal}
-                        onChange={(e) => setLdLongGoal(e.target.value)}
-                        className="w-full bg-neutral-900 border border-neutral-850 rounded px-2 py-1.5 text-white outline-none"
-                      />
+                      {isEditingGoals ? (
+                        <input 
+                          type="number" 
+                          min="0"
+                          placeholder="e.g. 3"
+                          value={ldLongGoal}
+                          onChange={(e) => setLdLongGoal(e.target.value)}
+                          className="w-full bg-neutral-900 border border-neutral-850 rounded px-2 py-1.5 text-white outline-none"
+                        />
+                      ) : (
+                        <input 
+                          type="text" 
+                          readOnly
+                          value={ldLongGoal || 'Free Flow'}
+                          className="w-full bg-neutral-900/40 border border-neutral-850/50 text-neutral-400 rounded px-2 py-1.5 outline-none font-semibold cursor-default"
+                        />
+                      )}
                     </div>
                     <div>
                       <label className="block text-neutral-500 mb-1">Members-Only Goal (Leave empty for Free Flow)</label>
-                      <input 
-                        type="number" 
-                        min="0"
-                        placeholder="e.g. 2"
-                        value={ldMembersGoal}
-                        onChange={(e) => setLdMembersGoal(e.target.value)}
-                        className="w-full bg-neutral-900 border border-neutral-850 rounded px-2 py-1.5 text-white outline-none"
-                      />
+                      {isEditingGoals ? (
+                        <input 
+                          type="number" 
+                          min="0"
+                          placeholder="e.g. 2"
+                          value={ldMembersGoal}
+                          onChange={(e) => setLdMembersGoal(e.target.value)}
+                          className="w-full bg-neutral-900 border border-neutral-850 rounded px-2 py-1.5 text-white outline-none"
+                        />
+                      ) : (
+                        <input 
+                          type="text" 
+                          readOnly
+                          value={ldMembersGoal || 'Free Flow'}
+                          className="w-full bg-neutral-900/40 border border-neutral-850/50 text-neutral-400 rounded px-2 py-1.5 outline-none font-semibold cursor-default"
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1467,50 +1507,71 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                   <div className="space-y-3">
                     <div>
                       <label className="block text-neutral-500 mb-1">Shorts Goal (Leave empty for Free Flow)</label>
-                      <input 
-                        type="number" 
-                        min="0"
-                        placeholder="e.g. 10"
-                        value={dwShortsGoal}
-                        onChange={(e) => setDwShortsGoal(e.target.value)}
-                        className="w-full bg-neutral-900 border border-neutral-850 rounded px-2 py-1.5 text-white outline-none"
-                      />
+                      {isEditingGoals ? (
+                        <input 
+                          type="number" 
+                          min="0"
+                          placeholder="e.g. 10"
+                          value={dwShortsGoal}
+                          onChange={(e) => setDwShortsGoal(e.target.value)}
+                          className="w-full bg-neutral-900 border border-neutral-850 rounded px-2 py-1.5 text-white outline-none"
+                        />
+                      ) : (
+                        <input 
+                          type="text" 
+                          readOnly
+                          value={dwShortsGoal || 'Free Flow'}
+                          className="w-full bg-neutral-900/40 border border-neutral-850/50 text-neutral-400 rounded px-2 py-1.5 outline-none font-semibold cursor-default"
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
 
               <div className="flex gap-2 justify-end border-t border-neutral-900 pt-4">
-                {cycleGoals && (
+                {isEditingGoals ? (
+                  <>
+                    {cycleGoals && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCycleGoals(null);
+                          setLdShortsGoal('');
+                          setLdLongGoal('');
+                          setLdMembersGoal('');
+                          setDwShortsGoal('');
+                          onAddEvent({
+                            id: `evt-goals-purged-${Date.now()}`,
+                            source: 'system',
+                            type: 'warning',
+                            message: 'Goals Engine: Active goals purged. All content lanes reverted to Free Flow.',
+                            timestamp: new Date().toISOString()
+                          });
+                          setSaveNotification({ message: "⚠️ Cycle goals purged successfully.", type: 'warning' });
+                          setTimeout(() => setSaveNotification(null), 3000);
+                        }}
+                        className="px-3.5 py-2 bg-neutral-900 hover:bg-rose-950/20 text-neutral-400 hover:text-rose-400 border border-neutral-800 hover:border-rose-900/40 rounded transition cursor-pointer"
+                      >
+                        Clear Goals
+                      </button>
+                    )}
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded transition cursor-pointer"
+                    >
+                      Save Goals Target
+                    </button>
+                  </>
+                ) : (
                   <button
                     type="button"
-                    onClick={() => {
-                      setCycleGoals(null);
-                      setLdShortsGoal('');
-                      setLdLongGoal('');
-                      setLdMembersGoal('');
-                      setDwShortsGoal('');
-                      onAddEvent({
-                        id: `evt-goals-purged-${Date.now()}`,
-                        source: 'system',
-                        type: 'warning',
-                        message: 'Goals Engine: Active goals purged. All content lanes reverted to Free Flow.',
-                        timestamp: new Date().toISOString()
-                      });
-                      setSaveNotification({ message: "⚠️ Cycle goals purged successfully.", type: 'warning' });
-                      setTimeout(() => setSaveNotification(null), 3000);
-                    }}
-                    className="px-3.5 py-2 bg-neutral-900 hover:bg-rose-950/20 text-neutral-400 hover:text-rose-400 border border-neutral-800 hover:border-rose-900/40 rounded transition cursor-pointer"
+                    onClick={() => setIsEditingGoals(true)}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded transition cursor-pointer"
                   >
-                    Clear Goals
+                    Edit Goals
                   </button>
                 )}
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded transition cursor-pointer"
-                >
-                  Save Goals Target
-                </button>
               </div>
             </form>
           )}
