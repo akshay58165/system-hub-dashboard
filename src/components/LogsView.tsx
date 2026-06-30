@@ -1,25 +1,27 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Terminal, 
-  Search, 
-  Trash2, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Wifi, 
-  Cpu, 
-  Clock, 
+import {
+  Terminal,
+  Search,
+  Trash2,
+  CheckCircle2,
+  AlertTriangle,
+  Wifi,
+  Cpu,
+  Clock,
   RefreshCw,
-  SlidersHorizontal
+  SlidersHorizontal,
+  ArrowLeft
 } from 'lucide-react';
 import { SystemEvent } from '../types';
 
 interface LogsViewProps {
   events: SystemEvent[];
   onClearEvents?: () => void;
+  onBack?: () => void;
 }
 
-export default function LogsView({ events, onClearEvents }: LogsViewProps) {
+export default function LogsView({ events, onClearEvents, onBack }: LogsViewProps) {
   const [search, setSearch] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -66,14 +68,24 @@ export default function LogsView({ events, onClearEvents }: LogsViewProps) {
           <div>
             <h2 className="text-lg font-semibold text-neutral-100 tracking-tight flex items-center gap-2">
               <Terminal className="h-5 w-5 text-purple-400" />
-              Console Telemetry Logs
+              Backlog Activities
             </h2>
             <p className="text-xs text-neutral-400 mt-1">
-              Live consolidated telemetry of all pipelines: Topic Repos, Progress, and Action Hub.
+              Read-only backend/system telemetry: connection status, sync events, and technical logs.
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button 
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="px-3 py-2 bg-neutral-950 border border-neutral-850 hover:border-neutral-700 rounded-lg text-neutral-400 hover:text-white text-xs font-semibold font-mono flex items-center gap-1.5 transition cursor-pointer"
+                title="Back to Content Activity Log"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                <span>Content Activity</span>
+              </button>
+            )}
+            <button
               onClick={handleRefresh}
               className="p-2 bg-neutral-950 border border-neutral-850 hover:border-neutral-700 rounded-lg text-neutral-400 hover:text-white transition"
               title="Refresh Logs"

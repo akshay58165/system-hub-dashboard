@@ -22,7 +22,8 @@ import {
   SlidersHorizontal,
   ChevronDown,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Trash2
 } from 'lucide-react';
 import { GitHubRepo, SystemEvent, Topic, TopicActivity } from '../types';
 
@@ -575,6 +576,26 @@ export default function GithubView({
                         <span className={`px-2 py-0.5 rounded border text-[9px] font-bold ${prio.style}`}>
                           {prio.text}
                         </span>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!window.confirm(`Delete "${topic.name}"? This removes the topic permanently.`)) return;
+                            setTopics(prev => prev.filter(t => t.id !== topic.id));
+                            setActivities(prev => prev.filter(a => a.topicName !== topic.name));
+                            onAddEvent({
+                              id: `evt-topic-delete-${Date.now()}`,
+                              source: 'github',
+                              type: 'warning',
+                              message: `Topic Repos: Deleted topic "${topic.name}".`,
+                              timestamp: new Date().toISOString()
+                            });
+                          }}
+                          className="p-1 rounded text-neutral-600 hover:text-rose-400 hover:bg-rose-950/20 transition cursor-pointer"
+                          title="Delete topic"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </div>
                   );

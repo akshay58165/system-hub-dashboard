@@ -42,6 +42,7 @@ import GithubView from './components/GithubView';
 import VercelView from './components/VercelView';
 import SupabaseView from './components/SupabaseView';
 import LogsView from './components/LogsView';
+import ContentActivityView from './components/ContentActivityView';
 import ScoreView from './components/ScoreView';
 import CommandPalette from './components/CommandPalette';
 
@@ -95,6 +96,7 @@ export default function App() {
   const [timeStr, setTimeStr] = useState('');
   const [lastDbUpdateTime, setLastDbUpdateTime] = useState<Date>(new Date(Date.now() - 5000));
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
+  const [logsSubView, setLogsSubView] = useState<'content' | 'backlog'>('content');
 
   // Supabase Auth and Real-time Gateway States
   const [user, setUser] = useState<any>(null);
@@ -918,10 +920,19 @@ export default function App() {
             )}
 
             {activeTab === 'logs' && (
-              <LogsView 
-                events={events} 
-                onClearEvents={() => { setEvents([]); localStorage.removeItem('unicorn_events'); }}
-              />
+              logsSubView === 'content' ? (
+                <ContentActivityView
+                  activities={activities}
+                  topics={topics}
+                  onShowBacklog={() => setLogsSubView('backlog')}
+                />
+              ) : (
+                <LogsView
+                  events={events}
+                  onClearEvents={() => { setEvents([]); localStorage.removeItem('unicorn_events'); }}
+                  onBack={() => setLogsSubView('content')}
+                />
+              )
             )}
 
             {activeTab === 'score' && (

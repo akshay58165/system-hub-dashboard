@@ -2,11 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Clapperboard,
-  Terminal,
   Plus,
-  Trash2,
-  Play,
-  CheckCircle,
   AlertCircle,
   FileSpreadsheet,
   FileText
@@ -37,16 +33,10 @@ export default function SupabaseView({
   cycleGoals,
   setCycleGoals
 }: SupabaseViewProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'tables' | 'sql' | 'script' | 'goals'>('tables');
-  
-  // Mapped Table Editor states
-  const [selectedTableName, setSelectedTableName] = useState<string>('topics');
-  const [isAddRowOpen, setIsAddRowOpen] = useState(false);
-  const [rowInputs, setRowInputs] = useState<Record<string, string>>({});
+  const [activeSubTab, setActiveSubTab] = useState<'tables' | 'script' | 'goals'>('tables');
 
-  // SQL Editor states
-  const [sqlQuery, setSqlQuery] = useState<string>('SELECT * FROM topics;');
-  const [sqlResult, setSqlResult] = useState<{ success: boolean; message: string; rows?: Record<string, any>[]; columns?: string[] } | null>(null);
+  // Table Editor — read-only relation viewer (no insert/delete from here)
+  const [selectedTableName, setSelectedTableName] = useState<string>('topics');
 
   // Script Editor states
   const [selectedScriptTopicId, setSelectedScriptTopicId] = useState<string>(topics[0]?.id || '');
@@ -259,8 +249,8 @@ Please rewrite/enhance this draft based on the system persona rules and the user
     }
   };
 
-  // Biometrics logs — real state backed by localStorage, updated directly by handleAddRow/handleDeleteRow
-  const [biometricsLogs, setBiometricsLogs] = useState<any[]>(() => {
+  // Biometrics logs — read-only snapshot of what the Score tab's sliders have written to localStorage
+  const [biometricsLogs] = useState<any[]>(() => {
     try {
       const stored = localStorage.getItem('unicorn_scorecard_db_logs');
       return stored ? JSON.parse(stored) : [];
@@ -315,146 +305,6 @@ Please rewrite/enhance this draft based on the system persona rules and the user
   }, [topics, activities, biometricsLogs]);
 
   const selectedTable = activeTables.find(t => t.name === selectedTableName) || activeTables[0];
-
-  // SQL Quick Templates
-  const sqlTemplates = [
-    { label: 'Select Topics', sql: 'SELECT * FROM topics;' },
-    { label: 'Select Activities', sql: 'SELECT * FROM activities;' },
-    { label: 'Select Biometrics', sql: 'SELECT * FROM biometrics_logs;' },
-  ];
-
-  // Execute SQL simulation
-  const handleRunSql = (query: string) => {
-    const q = query.trim().toLowerCase();
-    
-    let resultRows: Record<string, any>[] = [];
-    let resultColumns: string[] = [];
-    
-    if (q.includes('from topics')) {
-      let filtered = [...topics];
-      if (q.includes("status = 'scheduled'") || q.includes("status='scheduled'")) {
-        filtered = filtered.filter(t => t.status === 'scheduled');
-      } else if (q.includes("channel = 'learndriven'") || q.includes("channel='learndriven'")) {
-        filtered = filtered.filter(t => t.channel === 'LearnDriven');
-      } else if (q.includes("channel = 'decodeworthy'") || q.includes("channel='decodeworthy'")) {
-        filtered = filtered.filter(t => t.channel === 'DecodeWorthy');
-      }
-      resultRows = filtered;
-      resultColumns = ['id', 'name', 'channel', 'status', 'priority', 'dueDate'];
-    } else if (q.includes('from activities')) {
-      resultRows = activities;
-      resultColumns = ['id', 'topicName', 'channel', 'action', 'author', 'timestamp'];
-    } else if (q.includes('from biometrics_logs')) {
-      resultRows = biometricsLogs;
-      resultColumns = ['id', 'timestamp', 'parameter', 'oldValue', 'newValue'];
-    } else {
-      setSqlResult({
-        success: false,
-        message: 'ERROR: Table target not found or syntax error in query console.'
-      });
-      return;
-    }
-
-    setSqlResult({
-      success: true,
-      message: `Success: SQL query returned ${resultRows.length} rows.`,
-      rows: resultRows,
-      columns: resultColumns
-    });
-
-    onAddEvent({
-      id: `evt-sb-sql-${Date.now()}`,
-      source: 'supabase',
-      type: 'success',
-      message: `Action Hub SQL: Executed query "${query.substring(0, 45)}${query.length > 45 ? '...' : ''}"`,
-      timestamp: new Date().toISOString()
-    });
-  };
-
-  // Create Row inside Table Editor
-  const handleAddRow = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedTable) return;
-
-    if (selectedTableName === 'topics') {
-      const newTopic: Topic = {
-        id: rowInputs.id || `t-manual-${Date.now()}`,
-        name: rowInputs.name || 'Untitled Content Idea',
-        description: rowInputs.description || '',
-        channel: (rowInputs.channel as 'LearnDriven' | 'DecodeWorthy') || 'LearnDriven',
-        status: (rowInputs.status as 'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled') || 'topic',
-        priority: (parseInt(rowInputs.priority) as 1 | 2 | 3 | 4 | 5) || 1,
-        dueDate: rowInputs.dueDate ? new Date(rowInputs.dueDate).toISOString() : null,
-        createdDate: new Date().toISOString(),
-        lastUpdated: new Date().toISOString()
-      };
-      setTopics(prev => [newTopic, ...prev]);
-
-      // Add log
-      const newActivity: TopicActivity = {
-        id: `act-manual-${Date.now()}`,
-        topicName: newTopic.name,
-        channel: newTopic.channel,
-        action: `Inserted topic row manually in ${newTopic.status} stage`,
-        author: 'db_admin',
-        timestamp: new Date().toISOString()
-      };
-      setActivities(prev => [newActivity, ...prev]);
-    } else if (selectedTableName === 'activities') {
-      const newAct: TopicActivity = {
-        id: rowInputs.id || `act-manual-${Date.now()}`,
-        topicName: rowInputs.topicName || 'Generic Topic Task',
-        channel: (rowInputs.channel as 'LearnDriven' | 'DecodeWorthy') || 'LearnDriven',
-        action: rowInputs.action || 'Performed database schema update',
-        author: rowInputs.author || 'db_admin',
-        timestamp: rowInputs.timestamp || new Date().toISOString()
-      };
-      setActivities(prev => [newAct, ...prev]);
-    } else if (selectedTableName === 'biometrics_logs') {
-      const newLog = {
-        id: rowInputs.id || `log-${Date.now()}`,
-        timestamp: rowInputs.timestamp || new Date().toISOString(),
-        parameter: rowInputs.parameter || 'Sleep Quality',
-        oldValue: rowInputs.oldValue || 'N/A',
-        newValue: parseFloat(rowInputs.newValue) || 7.5
-      };
-      const updatedLogs = [newLog, ...biometricsLogs];
-      localStorage.setItem('unicorn_scorecard_db_logs', JSON.stringify(updatedLogs));
-      setBiometricsLogs(updatedLogs);
-    }
-
-    onAddEvent({
-      id: `evt-sb-cr-${Date.now()}`,
-      source: 'supabase',
-      type: 'success',
-      message: `Action Hub: Created a new record in relation table "${selectedTable.name}"`,
-      timestamp: new Date().toISOString()
-    });
-
-    setRowInputs({});
-    setIsAddRowOpen(false);
-  };
-
-  // Delete Row from Table Editor
-  const handleDeleteRow = (id: string, index: number) => {
-    if (selectedTableName === 'topics') {
-      setTopics(prev => prev.filter(t => t.id !== id));
-    } else if (selectedTableName === 'activities') {
-      setActivities(prev => prev.filter(a => a.id !== id));
-    } else if (selectedTableName === 'biometrics_logs') {
-      const updatedLogs = biometricsLogs.filter((l: any) => l.id !== id);
-      localStorage.setItem('unicorn_scorecard_db_logs', JSON.stringify(updatedLogs));
-      setBiometricsLogs(updatedLogs);
-    }
-
-    onAddEvent({
-      id: `evt-sb-dl-${Date.now()}`,
-      source: 'supabase',
-      type: 'warning',
-      message: `Action Hub: Deleted a record from relation table "${selectedTable.name}"`,
-      timestamp: new Date().toISOString()
-    });
-  };
 
   return (
     <div className="space-y-6">
@@ -538,16 +388,6 @@ Please rewrite/enhance this draft based on the system persona rules and the user
             <span>Table Editor</span>
           </button>
 
-          <button 
-            onClick={() => setActiveSubTab('sql')}
-            className={`px-4 py-3 text-xs font-mono font-semibold border-r border-neutral-800 flex items-center gap-1.5 transition ${
-              activeSubTab === 'sql' ? 'bg-neutral-950 text-emerald-400 border-b-2 border-b-emerald-400' : 'text-neutral-400 hover:text-neutral-200'
-            }`}
-          >
-            <Terminal className="h-3.5 w-3.5" />
-            <span>SQL Console</span>
-          </button>
-
           <button
             onClick={() => setActiveSubTab('script')}
             className={`px-4 py-3 text-xs font-mono font-semibold border-r border-neutral-800 flex items-center gap-1.5 transition ${
@@ -582,13 +422,9 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                     {activeTables.map(t => (
                       <button
                         key={t.name}
-                        onClick={() => {
-                          setSelectedTableName(t.name);
-                          setIsAddRowOpen(false);
-                          setRowInputs({});
-                        }}
+                        onClick={() => setSelectedTableName(t.name)}
                         className={`px-2.5 py-1 border rounded text-[10px] font-mono transition ${
-                          selectedTableName === t.name 
+                          selectedTableName === t.name
                             ? 'bg-emerald-950 border-emerald-800 text-emerald-400'
                             : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-neutral-200'
                         }`}
@@ -598,61 +434,12 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                     ))}
                   </div>
                 </div>
-
-                <button 
-                  onClick={() => setIsAddRowOpen(!isAddRowOpen)}
-                  className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 text-black rounded text-[10px] font-mono font-bold flex items-center gap-1 transition cursor-pointer"
-                >
-                  <Plus className="h-3 w-3" />
-                  <span>Insert Row</span>
-                </button>
+                <span className="text-[9px] font-mono uppercase tracking-wider text-neutral-600 border border-neutral-850 rounded px-2 py-1">
+                  Read-only — manage topics from Topic Repos
+                </span>
               </div>
 
-              {/* Add row form */}
-              {isAddRowOpen && selectedTable && (
-                <motion.form 
-                  initial={{ opacity: 0, y: -5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  onSubmit={handleAddRow}
-                  className="p-4 bg-neutral-900 border border-neutral-800 rounded-lg space-y-4"
-                >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {selectedTable.columns.map(col => (
-                      <div key={col.name}>
-                        <label className="block text-[10px] font-mono text-neutral-400 uppercase">
-                          {col.name} <span className="text-[9px] text-neutral-500 font-normal">({col.type})</span>
-                        </label>
-                        <input 
-                          type="text"
-                          placeholder={col.name === 'id' ? 'Auto-generated ID' : `Value for ${col.name}`}
-                          required={col.name !== 'id' && col.name !== 'dueDate'}
-                          value={rowInputs[col.name] || ''}
-                          onChange={(e) => setRowInputs(prev => ({ ...prev, [col.name]: e.target.value }))}
-                          className="w-full bg-neutral-950 border border-neutral-800 focus:border-emerald-800 outline-none text-xs rounded px-2.5 py-1.5 mt-1 text-white font-mono"
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex justify-end gap-2 text-[10px]">
-                    <button 
-                      type="button" 
-                      onClick={() => setIsAddRowOpen(false)}
-                      className="px-3 py-1.5 text-neutral-400 hover:text-neutral-200 font-mono cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      type="submit"
-                      className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold font-mono rounded cursor-pointer"
-                    >
-                      Save Row
-                    </button>
-                  </div>
-                </motion.form>
-              )}
-
-              {/* Grid Table rendering */}
+              {/* Grid Table rendering — read-only view, no insert/delete from here */}
               <div className="flex-1 overflow-x-auto border border-neutral-800 rounded-lg max-h-[360px]">
                 <table className="w-full text-left border-collapse">
                   <thead>
@@ -663,7 +450,6 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                           <span className="text-[8px] text-neutral-500 font-normal block italic">{col.type}</span>
                         </th>
                       ))}
-                      <th className="px-4 py-2.5 font-semibold text-right bg-neutral-900">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-850 font-mono text-[11px]">
@@ -674,107 +460,10 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                             <span>{row[col.name] !== null && row[col.name] !== undefined ? String(row[col.name]) : <span className="text-neutral-600">NULL</span>}</span>
                           </td>
                         ))}
-                        <td className="px-4 py-3 text-right">
-                          <button 
-                            onClick={() => handleDeleteRow(row.id || '', idx)}
-                            className="p-1 hover:bg-neutral-850 rounded text-neutral-500 hover:text-rose-500 transition cursor-pointer"
-                            title="Delete Row"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
-            </div>
-          )}
-
-          {/* Sub Tab: SQL Console */}
-          {activeSubTab === 'sql' && (
-            <div className="space-y-4 flex-1 flex flex-col">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                <div>
-                  <h3 className="text-xs font-semibold text-neutral-300">Interactive Query Console</h3>
-                  <p className="text-[11px] text-neutral-500 font-mono">Run SELECT queries on topics, activities, or biometrics_logs data tables.</p>
-                </div>
-
-                <div className="flex gap-1.5 flex-wrap">
-                  {sqlTemplates.map(tmp => (
-                    <button
-                      key={tmp.label}
-                      onClick={() => setSqlQuery(tmp.sql)}
-                      className="px-2 py-0.5 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-neutral-200 text-[10px] font-mono rounded cursor-pointer"
-                    >
-                      {tmp.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Code Area */}
-              <div className="flex flex-col lg:flex-row gap-4 flex-1">
-                <div className="flex-1 flex flex-col space-y-2">
-                  <div className="relative flex-1 min-h-[180px] bg-neutral-900 rounded-lg overflow-hidden border border-neutral-800 flex flex-col">
-                    <textarea
-                      value={sqlQuery}
-                      onChange={(e) => setSqlQuery(e.target.value)}
-                      className="w-full flex-1 bg-neutral-950 p-4 font-mono text-xs text-neutral-300 outline-none resize-none focus:border-emerald-800"
-                    />
-                    
-                    <button 
-                      onClick={() => handleRunSql(sqlQuery)}
-                      className="absolute bottom-3 right-3 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold font-mono rounded text-xs flex items-center gap-1 transition shadow-lg cursor-pointer"
-                    >
-                      <Play className="h-3 w-3 fill-black" />
-                      <span>Run SQL</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* SQL Result Console Output */}
-                <div className="lg:w-1/2 flex flex-col">
-                  <div className="flex-1 bg-neutral-950 rounded-lg border border-neutral-800 p-4 font-mono text-xs overflow-y-auto min-h-[180px] space-y-2">
-                    <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Console Result Output</span>
-                    
-                    {sqlResult ? (
-                      <div className="space-y-3 pt-2">
-                        <div className={`p-2 rounded text-[11px] ${sqlResult.success ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-900/50' : 'bg-rose-950/40 text-rose-400 border border-rose-900/50'}`}>
-                          <div className="flex items-center gap-1.5">
-                            {sqlResult.success ? <CheckCircle className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
-                            <span>{sqlResult.message}</span>
-                          </div>
-                        </div>
-
-                        {sqlResult.success && sqlResult.rows && sqlResult.rows.length > 0 && (
-                          <div className="border border-neutral-850 rounded overflow-x-auto max-h-[140px]">
-                            <table className="w-full text-left text-[10px]">
-                              <thead>
-                                <tr className="bg-neutral-900 text-neutral-400 border-b border-neutral-800 sticky top-0">
-                                  {sqlResult.columns?.map(c => (
-                                    <th key={c} className="px-2.5 py-1.5 font-semibold font-mono bg-neutral-900">{c}</th>
-                                  ))}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {sqlResult.rows.map((row, idx) => (
-                                  <tr key={idx} className="border-b border-neutral-850/50 hover:bg-neutral-900/20 text-neutral-300">
-                                    {sqlResult.columns?.map(c => (
-                                      <td key={c} className="px-2.5 py-1.5 truncate max-w-[120px]">{row[c] !== undefined ? String(row[c]) : 'null'}</td>
-                                    ))}
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-neutral-500 italic py-4">Terminal ready. Click "Run SQL" to execute queries on active relations.</p>
-                    )}
-                  </div>
-                </div>
               </div>
             </div>
           )}
