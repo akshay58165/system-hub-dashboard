@@ -233,7 +233,7 @@ export default function App() {
           setAuthLoading(false);
         } else {
           // 2. Perform auto-login for creators
-          const email = "creator@dashboard.com";
+          const email = "creator-sync@dashboard.com";
           const password = "creatorpassword123!";
           
           console.log("Supabase Auto-Auth: Logging in to creator sync gateway...");
