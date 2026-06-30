@@ -557,10 +557,10 @@ export default function GithubView({
               <h3 className="text-sm font-semibold text-neutral-200">Topic Management</h3>
               <button 
                 onClick={() => setIsAddFormOpen(!isAddFormOpen)}
-                className="p-1 bg-neutral-900/50 hover:bg-neutral-800 text-neutral-300 rounded border border-neutral-900 transition"
+                className="p-1.5 bg-rose-950/20 hover:bg-rose-900/30 text-rose-400 rounded border border-rose-500/40 hover:border-rose-400 transition animate-pulse cursor-pointer shadow-[0_0_10px_rgba(244,63,94,0.15)]"
                 title="Create a New Topic"
               >
-                <Plus className="h-3.5 w-3.5 text-rose-400" />
+                <Plus className="h-5 w-5" />
               </button>
             </div>
 
