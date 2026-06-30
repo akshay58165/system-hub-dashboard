@@ -99,7 +99,6 @@ export default function App() {
   // Supabase Auth and Real-time Gateway States
   const [user, setUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [isSignUpMode, setIsSignUpMode] = useState(false);
@@ -716,44 +715,29 @@ export default function App() {
               <span>All Cloud Systems Nominal</span>
             </div>
 
-            {/* Supabase Sync Auth Control */}
-            {authLoading ? (
-              <div className="h-6 w-16 bg-neutral-900 border border-neutral-850 rounded-lg animate-pulse" />
-            ) : user ? (
-              <div className="flex items-center gap-2 bg-emerald-950/20 border border-emerald-900/30 rounded-lg px-2.5 py-1 text-emerald-400 select-none font-mono">
-                <UserIcon className="h-3.5 w-3.5 text-emerald-400" />
-                <span className="max-w-[90px] truncate text-[9px] font-bold">{user.email}</span>
-                <button 
-                  onClick={async () => {
-                    if (supabase) {
-                      await supabase.auth.signOut();
-                    }
-                    addEvent({
-                      id: `evt-supabase-logout-${Date.now()}`,
-                      source: 'supabase',
-                      type: 'warning',
-                      message: 'Supabase Auth: Logged out from database sync session.',
-                      timestamp: new Date().toISOString()
-                    });
-                  }}
-                  className="hover:text-red-400 ml-1 cursor-pointer transition"
-                  title="Logout / Disconnect Sync"
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ) : (
+            {/* Supabase Sync Auth Control — header only renders once `user` is set */}
+            <div className="flex items-center gap-2 bg-emerald-950/20 border border-emerald-900/30 rounded-lg px-2.5 py-1 text-emerald-400 select-none font-mono">
+              <UserIcon className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="max-w-[90px] truncate text-[9px] font-bold">{user.email}</span>
               <button
-                onClick={() => {
-                  setAuthError(null);
-                  setIsAuthModalOpen(true);
+                onClick={async () => {
+                  if (supabase) {
+                    await supabase.auth.signOut();
+                  }
+                  addEvent({
+                    id: `evt-supabase-logout-${Date.now()}`,
+                    source: 'supabase',
+                    type: 'warning',
+                    message: 'Supabase Auth: Logged out from database sync session.',
+                    timestamp: new Date().toISOString()
+                  });
                 }}
-                className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-950/45 hover:bg-blue-900/20 text-blue-400 border border-blue-900/40 hover:border-blue-500 rounded-lg transition text-[9px] font-bold cursor-pointer select-none font-mono"
+                className="hover:text-red-400 ml-1 cursor-pointer transition"
+                title="Logout / Disconnect Sync"
               >
-                <LogIn className="h-3.5 w-3.5" />
-                <span>Cloud Sync</span>
+                <LogOut className="h-3.5 w-3.5" />
               </button>
-            )}
+            </div>
           </div>
 
         </div>
