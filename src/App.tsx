@@ -41,7 +41,9 @@ import ScoreView from './components/ScoreView';
 import CommandPalette from './components/CommandPalette';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score'>(() => {
+    return (localStorage.getItem('unicorn_active_tab') as any) || 'overview';
+  });
   const [repos, setRepos] = useState<GitHubRepo[]>(initialGitHubRepos);
   const [vercelProjects, setVercelProjects] = useState<VercelProject[]>(initialVercelProjects);
   const [supabase, setSupabase] = useState<SupabaseProject>(initialSupabaseProject);
@@ -193,6 +195,10 @@ export default function App() {
     localStorage.setItem('unicorn_events', JSON.stringify(events));
   }, [events]);
 
+  useEffect(() => {
+    localStorage.setItem('unicorn_active_tab', activeTab);
+  }, [activeTab]);
+
   // Update clock
   useEffect(() => {
     const updateTime = () => {
@@ -273,10 +279,14 @@ export default function App() {
       <header className="bg-neutral-950 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           
-          {/* Logo & title */}
-          <div className="flex items-center gap-3 shrink-0">
+          {/* Logo & title with invisible box wrapper to go home */}
+          <div 
+            onClick={() => setActiveTab('overview')}
+            className="flex items-center gap-3 shrink-0 cursor-pointer select-none group/logo hover:opacity-95 transition-opacity"
+            title="Return Home"
+          >
             <div className="flex items-center">
-              <span className="p-1.5 bg-neutral-900 border border-neutral-800 rounded-lg text-emerald-400 font-bold tracking-tight text-xs font-mono">
+              <span className="p-1.5 bg-neutral-900 border border-neutral-800 group-hover/logo:border-neutral-700 rounded-lg text-emerald-400 font-bold tracking-tight text-xs font-mono transition-colors">
                 UNI
               </span>
             </div>
