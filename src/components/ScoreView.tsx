@@ -340,6 +340,8 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
     whatChanged: string;
     factors: { label: string; detail: string }[];
     action: string;
+    score: number;
+    readiness: 'optimal' | 'stable' | 'cautious' | 'impaired';
   }
 
   const [aiInsight, setAiInsight] = useState<LiveInsight | null>(null);
@@ -380,6 +382,8 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
 
 Each time a parameter changes, analyze the change in the context of their full current state and recent history. Ground every claim in the specific numbers given, never give generic platitudes.
 
+You are also responsible for judging the creator's overall Daily Readiness score and status yourself, holistically, the same way a human coach would, not by applying a fixed formula. Weigh which parameters matter most right now, compounding effects between them (e.g. low hydration plus high stress is worse than either alone), and how concerning or healthy the overall picture is. Two profiles with the same average can deserve different scores if one has a single critical risk and the other is evenly mediocre.
+
 Respond with ONLY valid JSON in exactly this shape, no markdown fences, no commentary outside the JSON:
 {
   "mood": "positive" | "neutral" | "concern" | "critical",
@@ -388,7 +392,9 @@ Respond with ONLY valid JSON in exactly this shape, no markdown fences, no comme
   "factors": [
     { "label": "2 to 4 word tag naming a compounding relationship, e.g. 'Hydration -> Focus'", "detail": "one short sentence explaining that specific connection using the real numbers" }
   ],
-  "action": "one single, specific, concrete next step, starting with a verb"
+  "action": "one single, specific, concrete next step, starting with a verb",
+  "score": integer from 0 to 100, your own holistic judgment of overall daily readiness right now,
+  "readiness": "optimal" | "stable" | "cautious" | "impaired", your own judgment of status matching the score (optimal = excellent across the board, stable = solid with minor gaps, cautious = real concerns building, impaired = multiple serious risk factors right now)
 }
 
 Include 2 to 4 items in factors, only the ones that are actually meaningful right now given the real numbers. Choose mood honestly: positive if things are genuinely going well, neutral if mixed/stable, concern if multiple metrics are compounding negatively, critical if something needs immediate attention.`;
@@ -399,7 +405,7 @@ ${recentChanges}
 Full current parameter snapshot:
 ${currentSnapshot}
 
-Current Bio-Focus Score: ${computedMetrics.aggregate}/100
+Reference: a simple point-based formula puts today's score at ${computedMetrics.aggregate}/100. You do not have to match this, it is only a rough reference. Use your own holistic judgment for the final score and readiness status.
 
 Analyze what just changed and return the JSON.`;
 
@@ -407,7 +413,20 @@ Analyze what just changed and return the JSON.`;
         const raw = await callOpenAI(systemPrompt, userPrompt);
         const cleanJSON = raw.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
         const parsed = JSON.parse(cleanJSON);
-        setAiInsight(parsed);
+
+        // Guard the AI-controlled score/readiness since they now drive a
+        // visible status badge and chart colors — fall back to the
+        // deterministic formula's values if the model returns something
+        // malformed rather than letting a bad value reach the UI.
+        const validReadiness = ['optimal', 'stable', 'cautious', 'impaired'];
+        const safeScore = Number.isFinite(parsed.score)
+          ? Math.max(0, Math.min(100, Math.round(parsed.score)))
+          : computedMetrics.aggregate;
+        const safeReadiness = validReadiness.includes(parsed.readiness)
+          ? parsed.readiness
+          : (safeScore >= 90 ? 'optimal' : safeScore >= 75 ? 'stable' : safeScore >= 50 ? 'cautious' : 'impaired');
+
+        setAiInsight({ ...parsed, score: safeScore, readiness: safeReadiness });
         setAiInsightTimestamp(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
       } catch (err: any) {
         setAiInsightError(err.message || 'Live analysis failed.');
@@ -650,7 +669,21 @@ Analyze what just changed and return the JSON.`;
     return { label: 'IMPAIRED', color: 'text-rose-400', border: 'border-rose-950/40', bg: 'bg-rose-500/10' };
   }, [computedMetrics.aggregate]);
 
-  const statusInfoColor = statusInfo.color;
+  // Daily Readiness / Bio-Focus Score shown in the header are AI-controlled
+  // once the Live AI Analyst has weighed in for this session — its holistic
+  // judgment (compounding effects, asymmetric risk) overrides the simple
+  // point formula. Falls back to the deterministic formula before the first
+  // AI response lands, or if a request ever fails.
+  const READINESS_META: Record<string, { label: string; color: string; border: string; bg: string }> = {
+    optimal: { label: 'OPTIMAL', color: 'text-emerald-400', border: 'border-emerald-950/40', bg: 'bg-emerald-500/10' },
+    stable: { label: 'STABLE', color: 'text-blue-400', border: 'border-blue-950/40', bg: 'bg-blue-500/10' },
+    cautious: { label: 'CAUTIOUS', color: 'text-amber-400', border: 'border-amber-950/40', bg: 'bg-amber-500/10' },
+    impaired: { label: 'IMPAIRED', color: 'text-rose-400', border: 'border-rose-950/40', bg: 'bg-rose-500/10' }
+  };
+
+  const displayScore = aiInsight ? aiInsight.score : computedMetrics.aggregate;
+  const displayStatusInfo = aiInsight ? READINESS_META[aiInsight.readiness] : statusInfo;
+  const statusInfoColor = displayStatusInfo.color;
 
   // Dynamic recommendations list
   const activeWarnings = useMemo(() => {
@@ -775,17 +808,20 @@ Analyze what just changed and return the JSON.`;
           </div>
           <div className="flex items-center gap-4 bg-neutral-950 border border-neutral-850 px-5 py-3 rounded-xl font-mono">
             <div className="text-center">
-              <span className="text-[10px] uppercase text-neutral-500 tracking-wider block font-bold">Daily Readiness</span>
+              <span className="text-[10px] uppercase text-neutral-500 tracking-wider block font-bold flex items-center justify-center gap-1">
+                Daily Readiness
+                {aiInsight && <Sparkles className="h-2.5 w-2.5 text-blue-400" title="Judged by Live AI Analyst" />}
+              </span>
               <span className={`text-sm font-bold mt-0.5 block flex items-center justify-center gap-1 ${statusInfoColor}`}>
                 <ShieldCheck className="h-4 w-4" />
-                {statusInfo.label}
+                {displayStatusInfo.label}
               </span>
             </div>
             <div className="w-px h-8 bg-neutral-850" />
             <div className="text-center">
               <span className="text-[10px] uppercase text-neutral-500 tracking-wider block font-bold">Bio-Focus Score</span>
               <span className={`text-xl font-bold mt-0.5 block ${statusInfoColor}`}>
-                {computedMetrics.aggregate}/100
+                {displayScore}/100
               </span>
             </div>
           </div>
@@ -1110,12 +1146,12 @@ Analyze what just changed and return the JSON.`;
                     <PolarGrid stroke="#1f1f24" />
                     <PolarAngleAxis dataKey="subject" stroke="#a3a3a3" fontSize={8} />
                     <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#2b2b35" fontSize={8} />
-                    <Radar 
-                      name="Bio Performance" 
-                      dataKey="A" 
-                      stroke={computedMetrics.aggregate >= 90 ? '#34d399' : computedMetrics.aggregate >= 75 ? '#60a5fa' : computedMetrics.aggregate >= 50 ? '#fbbf24' : '#f87171'} 
-                      fill={computedMetrics.aggregate >= 90 ? '#34d399' : computedMetrics.aggregate >= 75 ? '#60a5fa' : computedMetrics.aggregate >= 50 ? '#fbbf24' : '#f87171'} 
-                      fillOpacity={0.15} 
+                    <Radar
+                      name="Bio Performance"
+                      dataKey="A"
+                      stroke={displayScore >= 90 ? '#34d399' : displayScore >= 75 ? '#60a5fa' : displayScore >= 50 ? '#fbbf24' : '#f87171'}
+                      fill={displayScore >= 90 ? '#34d399' : displayScore >= 75 ? '#60a5fa' : displayScore >= 50 ? '#fbbf24' : '#f87171'}
+                      fillOpacity={0.15}
                       strokeWidth={2}
                     />
                   </RadarChart>
