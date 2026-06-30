@@ -232,6 +232,11 @@ export default function App() {
 
   // 1. Listen for Supabase auth state change on mount
   useEffect(() => {
+    if (!supabase) {
+      setAuthLoading(false);
+      return;
+    }
+    
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setAuthLoading(false);
@@ -249,7 +254,7 @@ export default function App() {
 
   // 2. Fetch dashboard state from Supabase when user logs in
   useEffect(() => {
-    if (!user) return;
+    if (!supabase || !user) return;
 
     const fetchState = async () => {
       try {
@@ -311,13 +316,15 @@ export default function App() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (supabase) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [user]);
 
   // 4. Save local state changes back to Supabase
   const saveStateToSupabase = async (newTopics: Topic[], newActs: TopicActivity[], newGoals: CycleGoal | null) => {
-    if (!user) return;
+    if (!supabase || !user) return;
     try {
       const { error } = await supabase
         .from('dashboard_state')
@@ -492,7 +499,9 @@ export default function App() {
                 <span className="max-w-[90px] truncate text-[9px] font-bold">{user.email}</span>
                 <button 
                   onClick={async () => {
-                    await supabase.auth.signOut();
+                    if (supabase) {
+                      await supabase.auth.signOut();
+                    }
                     addEvent({
                       id: `evt-supabase-logout-${Date.now()}`,
                       source: 'supabase',
@@ -922,6 +931,10 @@ export default function App() {
                 onSubmit={async (e) => {
                   e.preventDefault();
                   setAuthError(null);
+                  if (!supabase) {
+                    setAuthError("Supabase is not configured or failed to initialize.");
+                    return;
+                  }
                   try {
                     if (isSignUpMode) {
                       const { data, error } = await supabase.auth.signUp({

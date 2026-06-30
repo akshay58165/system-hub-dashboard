@@ -6,4 +6,14 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 // Clean up URL: remove trailing /rest/v1/ if present
 const cleanUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '');
 
-export const supabase = createClient(cleanUrl, supabaseAnonKey);
+let client: any = null;
+
+if (cleanUrl && supabaseAnonKey) {
+  try {
+    client = createClient(cleanUrl, supabaseAnonKey);
+  } catch (e) {
+    console.error("Failed to initialize Supabase client:", e);
+  }
+}
+
+export const supabase = client;
