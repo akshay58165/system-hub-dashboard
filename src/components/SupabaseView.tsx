@@ -22,6 +22,19 @@ interface SupabaseViewProps {
   setCycleGoals: React.Dispatch<React.SetStateAction<CycleGoal | null>>;
 }
 
+const TOPIC_REVENUE_OPTIONS = [
+  { key: 'neutral', label: 'Neutral - Level 0.5', lanes: ['Shorts', 'Long', 'Members-Only'] },
+  { key: 'productTag', label: 'Product tag', lanes: ['Shorts', 'Long'] },
+  { key: 'viral', label: 'Viral potential', lanes: ['Shorts'] },
+  { key: 'pinnedPromo', label: 'Pinned promotion', lanes: ['Shorts'] },
+  { key: 'below8Min', label: 'Below 8 mins', lanes: ['Long'] },
+  { key: 'exceed8Min', label: 'Exceeds 8 mins', lanes: ['Long'] },
+  { key: 'strongReach', label: 'Strong reach potential', lanes: ['Long'] },
+  { key: 'brandCollab', label: 'Brand collaboration', lanes: ['Long'] },
+  { key: 'productLinks', label: 'Product links in description', lanes: ['Long'] },
+  { key: 'membersOnly', label: 'Members-only subscription value', lanes: ['Members-Only'] }
+] as const;
+
 export default function SupabaseView({
   supabase,
   onAddEvent,
@@ -40,6 +53,26 @@ export default function SupabaseView({
 
   // Script Editor states
   const [selectedScriptTopicId, setSelectedScriptTopicId] = useState<string>(topics[0]?.id || '');
+  const [isTopicFormOpen, setIsTopicFormOpen] = useState(false);
+  const [newTopicName, setNewTopicName] = useState('');
+  const [newTopicDesc, setNewTopicDesc] = useState('');
+  const [newTopicChannel, setNewTopicChannel] = useState<'LearnDriven' | 'DecodeWorthy' | null>(null);
+  const [newTopicLane, setNewTopicLane] = useState<'Shorts' | 'Long' | 'Members-Only' | null>(null);
+  const [newTopicStatus, setNewTopicStatus] = useState<Topic['status']>('topic');
+  const [newTopicPriority, setNewTopicPriority] = useState<Topic['priority']>(1);
+  const [newTopicDueDate, setNewTopicDueDate] = useState('');
+  const [topicEligibility, setTopicEligibility] = useState({
+    neutral: false,
+    productTag: false,
+    viral: false,
+    pinnedPromo: false,
+    below8Min: false,
+    exceed8Min: false,
+    strongReach: false,
+    brandCollab: false,
+    productLinks: false,
+    membersOnly: false
+  });
   const [scriptText, setScriptText] = useState<string>(() => {
     try {
       const stored = localStorage.getItem('unicorn_video_scripts');
@@ -86,6 +119,100 @@ export default function SupabaseView({
       setIsEditingGoals(true);
     }
   }, [cycleGoals]);
+
+  const getTopicRevenueLevel = () => {
+    const eligibility = topicEligibility;
+    if (!Object.values(eligibility).some(Boolean)) return '';
+    if (eligibility.neutral) return 'Lvl 0.5';
+
+    if (newTopicLane === 'Shorts') {
+      if (eligibility.viral) {
+        if (eligibility.productTag && eligibility.pinnedPromo) return 'Lvl 4';
+        if (eligibility.productTag) return 'Lvl 3';
+        return 'Lvl 2';
+      }
+      return 'Lvl 1';
+    }
+
+    if (newTopicLane === 'Long') {
+      if (eligibility.brandCollab) return 'Lvl 20';
+      const hasProduct = eligibility.productTag || eligibility.productLinks;
+      if (eligibility.strongReach) {
+        if (eligibility.exceed8Min) return hasProduct ? 'Lvl 9.5' : 'Lvl 9';
+        return hasProduct ? 'Lvl 8.5' : 'Lvl 8';
+      }
+      if (eligibility.exceed8Min) return hasProduct ? 'Lvl 7.5' : 'Lvl 7';
+      return hasProduct ? 'Lvl 6.5' : 'Lvl 6';
+    }
+
+    return newTopicLane === 'Members-Only' && eligibility.membersOnly ? 'Lvl 5' : '';
+  };
+
+  const resetTopicForm = () => {
+    setNewTopicName('');
+    setNewTopicDesc('');
+    setNewTopicChannel(null);
+    setNewTopicLane(null);
+    setNewTopicStatus('topic');
+    setNewTopicPriority(1);
+    setNewTopicDueDate('');
+    setTopicEligibility({
+      neutral: false,
+      productTag: false,
+      viral: false,
+      pinnedPromo: false,
+      below8Min: false,
+      exceed8Min: false,
+      strongReach: false,
+      brandCollab: false,
+      productLinks: false,
+      membersOnly: false
+    });
+  };
+
+  const handleCreateScriptTopic = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!newTopicName.trim() || !newTopicChannel || !newTopicLane) return;
+
+    const now = new Date().toISOString();
+    const revenueLevel = getTopicRevenueLevel();
+    const topic: Topic = {
+      id: `t-manual-${Date.now()}`,
+      name: newTopicName.trim(),
+      description: newTopicDesc.trim(),
+      channel: newTopicChannel,
+      status: newTopicStatus,
+      priority: newTopicPriority,
+      dueDate: newTopicDueDate ? new Date(newTopicDueDate).toISOString() : null,
+      createdDate: now,
+      lastUpdated: now,
+      revenueLevel: revenueLevel || undefined,
+      format: newTopicLane === 'Members-Only' ? 'Members' : newTopicLane === 'Shorts' ? 'Short' : 'Long',
+      category: 'User Created'
+    };
+
+    setTopics(prev => [topic, ...prev]);
+    setActivities(prev => [{
+      id: `act-manual-${Date.now()}`,
+      topicName: topic.name,
+      channel: topic.channel,
+      action: `Created new topic in ${topic.status} stage${revenueLevel ? ` with ${revenueLevel}` : ''}`,
+      author: 'typeakshay',
+      timestamp: now
+    }, ...prev]);
+    setSelectedScriptTopicId(topic.id);
+    setScriptText('');
+    setAiError(null);
+    setIsTopicFormOpen(false);
+    resetTopicForm();
+    onAddEvent({
+      id: `evt-topic-created-${Date.now()}`,
+      source: 'github',
+      type: 'success',
+      message: `Script Editor: Added and selected topic "${topic.name}" under ${topic.channel}.`,
+      timestamp: now
+    });
+  };
 
   const dateCalculation = useMemo(() => {
     const now = new Date();
@@ -467,8 +594,138 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                       </option>
                     ))}
                   </select>
+                  <button
+                    type="button"
+                    onClick={() => setIsTopicFormOpen(open => !open)}
+                    disabled={isAiLoading}
+                    className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-black font-mono font-bold text-[10px] rounded transition cursor-pointer flex items-center gap-1.5 shrink-0"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Topic
+                  </button>
                 </div>
               </div>
+
+              <AnimatePresence initial={false}>
+                {isTopicFormOpen && (
+                  <motion.form
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    onSubmit={handleCreateScriptTopic}
+                    className="overflow-hidden"
+                  >
+                    <div className="p-4 bg-neutral-900/50 border border-emerald-900/30 rounded-xl space-y-4 font-mono text-[10px]">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-xs font-bold text-emerald-400">Create Topic</h4>
+                          <p className="text-[9px] text-neutral-500 mt-0.5">Uses the Topic Inventory fields and selects the new topic for scripting.</p>
+                        </div>
+                        <button type="button" onClick={() => setIsTopicFormOpen(false)} className="text-neutral-500 hover:text-white text-lg leading-none">×</button>
+                      </div>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                        <label className="space-y-1">
+                          <span className="uppercase text-neutral-500">Topic Title</span>
+                          <input required value={newTopicName} onChange={event => setNewTopicName(event.target.value)} placeholder="e.g. How recommendation engines predict your next click" className="w-full bg-neutral-950 border border-neutral-800 focus:border-emerald-800 outline-none text-xs rounded px-2.5 py-2 text-white" />
+                        </label>
+                        <label className="space-y-1">
+                          <span className="uppercase text-neutral-500">Description</span>
+                          <input value={newTopicDesc} onChange={event => setNewTopicDesc(event.target.value)} placeholder="Provide details of topic work..." className="w-full bg-neutral-950 border border-neutral-800 focus:border-emerald-800 outline-none text-xs rounded px-2.5 py-2 text-white font-sans" />
+                        </label>
+                      </div>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                        <div>
+                          <span className="uppercase text-neutral-500">Creator Channel</span>
+                          <div className="flex gap-2 mt-1">
+                            {(['LearnDriven', 'DecodeWorthy'] as const).map(channel => (
+                              <button
+                                key={channel}
+                                type="button"
+                                onClick={() => {
+                                  setNewTopicChannel(channel);
+                                  setNewTopicLane(channel === 'DecodeWorthy' ? 'Shorts' : null);
+                                }}
+                                className={`flex-1 py-2 rounded border font-bold transition ${newTopicChannel === channel ? 'bg-rose-500 border-rose-400 text-white' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'}`}
+                              >
+                                {channel}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="uppercase text-neutral-500">Content Lane</span>
+                          <div className="flex gap-2 mt-1">
+                            {(newTopicChannel === 'DecodeWorthy' ? ['Shorts'] : ['Shorts', 'Long', 'Members-Only']).map(lane => (
+                              <button
+                                key={lane}
+                                type="button"
+                                disabled={!newTopicChannel}
+                                onClick={() => setNewTopicLane(lane as typeof newTopicLane)}
+                                className={`flex-1 py-2 rounded border font-bold text-[9px] transition disabled:opacity-30 ${newTopicLane === lane ? 'bg-blue-600 border-blue-500 text-white' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'}`}
+                              >
+                                {lane}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <label className="space-y-1">
+                          <span className="uppercase text-neutral-500">Production Stage</span>
+                          <select value={newTopicStatus} onChange={event => setNewTopicStatus(event.target.value as Topic['status'])} className="w-full bg-neutral-950 border border-neutral-800 rounded px-2 py-2 text-xs text-white">
+                            <option value="topic">Topic</option><option value="scripted">Scripted</option><option value="shot">Shot</option><option value="edited">Edited</option><option value="scheduled">Scheduled</option>
+                          </select>
+                        </label>
+                        <label className="space-y-1">
+                          <span className="uppercase text-neutral-500">Priority</span>
+                          <select value={newTopicPriority} onChange={event => setNewTopicPriority(Number(event.target.value) as Topic['priority'])} className="w-full bg-neutral-950 border border-neutral-800 rounded px-2 py-2 text-xs text-white">
+                            {[1, 2, 3, 4, 5].map(priority => <option key={priority} value={priority}>{priority}</option>)}
+                          </select>
+                        </label>
+                        <label className="space-y-1">
+                          <span className="uppercase text-neutral-500">Due Date</span>
+                          <input type="date" value={newTopicDueDate} onChange={event => setNewTopicDueDate(event.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded px-2 py-2 text-xs text-white" />
+                        </label>
+                        <div className="space-y-1">
+                          <span className="uppercase text-neutral-500">Auto Revenue Level</span>
+                          <div className="h-[34px] bg-neutral-950/60 border border-neutral-800 rounded px-2.5 flex items-center text-xs font-bold text-emerald-400">{getTopicRevenueLevel() || '—'}</div>
+                        </div>
+                      </div>
+
+                      {newTopicLane && (
+                        <div className="pt-3 border-t border-neutral-800/70">
+                          <span className="uppercase text-neutral-500">Revenue Streams</span>
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-2 font-sans text-[9px] text-neutral-400">
+                            {TOPIC_REVENUE_OPTIONS.filter(option => (option.lanes as readonly string[]).includes(newTopicLane)).map(option => (
+                              <label key={option.key} className="flex items-center gap-1.5 cursor-pointer hover:text-white">
+                                <input
+                                  type="checkbox"
+                                  checked={topicEligibility[option.key]}
+                                  onChange={event => setTopicEligibility(previous => ({
+                                    ...previous,
+                                    [option.key]: event.target.checked,
+                                    ...(option.key === 'below8Min' && event.target.checked ? { exceed8Min: false } : {}),
+                                    ...(option.key === 'exceed8Min' && event.target.checked ? { below8Min: false } : {})
+                                  }))}
+                                />
+                                {option.label}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex justify-end gap-2 pt-2 border-t border-neutral-800/70">
+                        <button type="button" onClick={() => { setIsTopicFormOpen(false); resetTopicForm(); }} className="px-3 py-1.5 text-neutral-500 hover:text-white">Cancel</button>
+                        <button type="submit" disabled={!newTopicName.trim() || !newTopicChannel || !newTopicLane} className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-30 disabled:cursor-not-allowed text-black font-bold rounded transition">Save & Select Topic</button>
+                      </div>
+                    </div>
+                  </motion.form>
+                )}
+              </AnimatePresence>
 
               {/* Secure AI Toolbar Controls */}
               <div className="bg-neutral-900/40 border border-neutral-850 rounded-xl p-3 flex flex-col md:flex-row items-center gap-3 relative z-10">
