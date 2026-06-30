@@ -20,7 +20,9 @@ import {
   Filter,
   User,
   SlidersHorizontal,
-  ChevronDown
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { GitHubRepo, SystemEvent, Topic, TopicActivity } from '../types';
 
@@ -98,6 +100,24 @@ export default function GithubView({
   const [newTopicStatus, setNewTopicStatus] = useState<'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled'>('topic');
   const [newTopicPriority, setNewTopicPriority] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [newTopicDueDate, setNewTopicDueDate] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pickerDate, setPickerDate] = useState(() => {
+    const now = new Date();
+    return { month: now.getMonth(), year: now.getFullYear() };
+  });
+
+  const getScheduledTopicChannelsForDate = (dateStr: string) => {
+    const matchingTopics = topics.filter(t => {
+      if (t.status !== 'scheduled' || !t.dueDate) return false;
+      const formattedDue = t.dueDate.split('T')[0];
+      return formattedDue === dateStr;
+    });
+    return {
+      hasLearnDriven: matchingTopics.some(t => t.channel === 'LearnDriven'),
+      hasDecodeWorthy: matchingTopics.some(t => t.channel === 'DecodeWorthy')
+    };
+  };
+
   const [newTopicLane, setNewTopicLane] = useState<'Shorts' | 'Long' | 'Members-Only' | null>(null);
   const [eligibility, setEligibility] = useState({
     neutral: false,
@@ -828,12 +848,150 @@ export default function GithubView({
                   </div>
                   <div>
                     <label className="block uppercase text-neutral-500">Due Date</label>
-                    <input 
-                      type="date"
-                      value={newTopicDueDate}
-                      onChange={(e) => setNewTopicDueDate(e.target.value)}
-                      className="w-full bg-neutral-950 border border-neutral-900 focus:border-neutral-800 outline-none text-[10px] rounded px-2 py-1 mt-1 text-white"
-                    />
+                    <div className="relative">
+                      <div
+                        onClick={() => setShowDatePicker(!showDatePicker)}
+                        className="w-full bg-neutral-950 border border-neutral-900 focus-within:border-neutral-800 outline-none text-[10px] rounded px-2 py-1.5 mt-1 text-white flex items-center justify-between cursor-pointer select-none"
+                      >
+                        <span className={newTopicDueDate ? 'text-white' : 'text-neutral-500'}>
+                          {newTopicDueDate || 'dd - mm - yyyy'}
+                        </span>
+                        <Calendar className="h-3.5 w-3.5 text-neutral-500" />
+                      </div>
+
+                      {showDatePicker && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-40" 
+                            onClick={() => setShowDatePicker(false)} 
+                          />
+                          <div className="absolute right-0 mt-1.5 w-64 backdrop-blur-md bg-neutral-950/90 border border-neutral-800 rounded-xl p-3 shadow-2xl z-50 font-mono text-[9px] select-none">
+                            {/* Month Selector Header */}
+                            <div className="flex items-center justify-between mb-3 text-neutral-200">
+                              <span className="font-bold text-[10px] text-neutral-200">
+                                {(() => {
+                                  const monthNames = [
+                                    "January", "February", "March", "April", "May", "June", 
+                                    "July", "August", "September", "October", "November", "December"
+                                  ];
+                                  return `${monthNames[pickerDate.month]} ${pickerDate.year}`;
+                                })()}
+                              </span>
+                              <div className="flex gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPickerDate(prev => {
+                                      let m = prev.month - 1;
+                                      let y = prev.year;
+                                      if (m < 0) { m = 11; y -= 1; }
+                                      return { month: m, year: y };
+                                    });
+                                  }}
+                                  className="p-1 bg-neutral-900 hover:bg-neutral-850 rounded border border-neutral-800 text-neutral-400 hover:text-neutral-200 transition"
+                                >
+                                  <ChevronLeft className="h-3 w-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPickerDate(prev => {
+                                      let m = prev.month + 1;
+                                      let y = prev.year;
+                                      if (m > 11) { m = 0; y += 1; }
+                                      return { month: m, year: y };
+                                    });
+                                  }}
+                                  className="p-1 bg-neutral-900 hover:bg-neutral-850 rounded border border-neutral-800 text-neutral-400 hover:text-neutral-200 transition"
+                                >
+                                  <ChevronRight className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Days of Week headers */}
+                            <div className="grid grid-cols-7 gap-1 text-center font-bold text-neutral-500 mb-1">
+                              <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+                            </div>
+
+                            {/* Calendar Grid of Days */}
+                            <div className="grid grid-cols-7 gap-1">
+                              {/* Offset empty cells */}
+                              {(() => {
+                                const firstDayIndex = new Date(pickerDate.year, pickerDate.month, 1).getDay();
+                                const startOffset = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
+                                return Array.from({ length: startOffset }).map((_, idx) => (
+                                  <span key={`empty-${idx}`} />
+                                ));
+                              })()}
+
+                              {/* Actual Month Days */}
+                              {(() => {
+                                const daysInMonth = new Date(pickerDate.year, pickerDate.month + 1, 0).getDate();
+                                return Array.from({ length: daysInMonth }).map((_, idx) => {
+                                  const dayNum = idx + 1;
+                                  const dateStr = `${pickerDate.year}-${String(pickerDate.month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                                  const isSelected = newTopicDueDate === dateStr;
+                                  const { hasLearnDriven, hasDecodeWorthy } = getScheduledTopicChannelsForDate(dateStr);
+
+                                  return (
+                                    <button
+                                      key={`day-${dayNum}`}
+                                      type="button"
+                                      onClick={() => {
+                                        setNewTopicDueDate(dateStr);
+                                        setShowDatePicker(false);
+                                      }}
+                                      className={`py-1.5 rounded flex flex-col items-center justify-between transition cursor-pointer relative ${
+                                        isSelected 
+                                          ? 'bg-blue-600/80 text-white font-bold' 
+                                          : 'bg-neutral-900/40 hover:bg-neutral-800 text-neutral-300'
+                                      }`}
+                                    >
+                                      <span>{dayNum}</span>
+                                      {/* Dots indicator row */}
+                                      <div className="flex gap-0.5 mt-0.5 justify-center">
+                                        {hasLearnDriven && (
+                                          <span className="h-1 w-1 rounded-full bg-purple-500 shadow-[0_0_4px_#a855f7]" title="LearnDriven Video Scheduled" />
+                                        )}
+                                        {hasDecodeWorthy && (
+                                          <span className="h-1 w-1 rounded-full bg-yellow-400 shadow-[0_0_4px_#facc15]" title="DecodeWorthy Video Scheduled" />
+                                        )}
+                                      </div>
+                                    </button>
+                                  );
+                                });
+                              })()}
+                            </div>
+
+                            {/* Quick Actions Footer */}
+                            <div className="flex justify-between border-t border-neutral-900 mt-2.5 pt-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNewTopicDueDate('');
+                                  setShowDatePicker(false);
+                                }}
+                                className="text-neutral-500 hover:text-neutral-300 transition"
+                              >
+                                Clear
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const d = new Date();
+                                  setNewTopicDueDate(d.toISOString().split('T')[0]);
+                                  setShowDatePicker(false);
+                                }}
+                                className="text-blue-400 hover:text-blue-300 transition font-bold"
+                              >
+                                Today
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
                     <div className="flex gap-1.5 mt-1.5">
                       <button
                         type="button"
