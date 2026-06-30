@@ -22,7 +22,7 @@ import {
   Plus
 } from 'lucide-react';
 
-import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity } from './types';
+import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal } from './types';
 import { 
   initialGitHubRepos, 
   initialVercelProjects, 
@@ -43,6 +43,16 @@ import CommandPalette from './components/CommandPalette';
 export default function App() {
   const [activeTab, setActiveTab] = useState<'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score'>(() => {
     return (localStorage.getItem('unicorn_active_tab') as any) || 'overview';
+  });
+
+  const [cycleGoals, setCycleGoals] = useState<CycleGoal | null>(() => {
+    try {
+      const stored = localStorage.getItem('unicorn_cycle_goals');
+      return stored ? JSON.parse(stored) : null;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
   });
   const [repos, setRepos] = useState<GitHubRepo[]>(initialGitHubRepos);
   const [vercelProjects, setVercelProjects] = useState<VercelProject[]>(initialVercelProjects);
@@ -198,6 +208,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('unicorn_active_tab', activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    if (cycleGoals) {
+      localStorage.setItem('unicorn_cycle_goals', JSON.stringify(cycleGoals));
+    } else {
+      localStorage.removeItem('unicorn_cycle_goals');
+    }
+  }, [cycleGoals]);
 
   // Update clock
   useEffect(() => {
@@ -492,6 +510,7 @@ export default function App() {
                 activities={activities}
                 setActivities={setActivities}
                 setActiveTab={setActiveTab}
+                cycleGoals={cycleGoals}
               />
             )}
 
@@ -504,6 +523,8 @@ export default function App() {
                 setTopics={setTopics}
                 activities={activities}
                 setActivities={setActivities}
+                cycleGoals={cycleGoals}
+                setCycleGoals={setCycleGoals}
               />
             )}
 

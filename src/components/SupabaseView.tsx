@@ -13,7 +13,7 @@ import {
   Clock,
   FileText
 } from 'lucide-react';
-import { SupabaseProject, SupabaseApiLog, SystemEvent, Topic, TopicActivity } from '../types';
+import { SupabaseProject, SupabaseApiLog, SystemEvent, Topic, TopicActivity, CycleGoal } from '../types';
 import { callOpenAI, getChannelSystemPrompt } from '../services/openai';
 
 interface SupabaseViewProps {
@@ -24,6 +24,8 @@ interface SupabaseViewProps {
   setTopics: React.Dispatch<React.SetStateAction<Topic[]>>;
   activities: TopicActivity[];
   setActivities: React.Dispatch<React.SetStateAction<TopicActivity[]>>;
+  cycleGoals: CycleGoal | null;
+  setCycleGoals: React.Dispatch<React.SetStateAction<CycleGoal | null>>;
 }
 
 export default function SupabaseView({ 
@@ -33,9 +35,11 @@ export default function SupabaseView({
   topics,
   setTopics,
   activities,
-  setActivities
+  setActivities,
+  cycleGoals,
+  setCycleGoals
 }: SupabaseViewProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'tables' | 'sql' | 'auth' | 'logs' | 'script'>('tables');
+  const [activeSubTab, setActiveSubTab] = useState<'tables' | 'sql' | 'auth' | 'logs' | 'script' | 'goals'>('tables');
   
   // Mapped Table Editor states
   const [selectedTableName, setSelectedTableName] = useState<string>('topics');
@@ -74,6 +78,58 @@ export default function SupabaseView({
   const [customInstruction, setCustomInstruction] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+
+  // Content Cycle Goals form states
+  const [goalCycleType, setGoalCycleType] = useState<'this-month' | 'next-month' | 'custom'>(
+    cycleGoals?.cycleType || 'this-month'
+  );
+  const [goalCustomStart, setGoalCustomStart] = useState(cycleGoals?.startDate || '');
+  const [goalCustomEnd, setGoalCustomEnd] = useState(cycleGoals?.endDate || '');
+  
+  const [ldShortsGoal, setLdShortsGoal] = useState<string>(
+    cycleGoals?.learnDrivenShorts !== undefined && cycleGoals?.learnDrivenShorts !== null ? String(cycleGoals?.learnDrivenShorts) : ''
+  );
+  const [ldLongGoal, setLdLongGoal] = useState<string>(
+    cycleGoals?.learnDrivenLong !== undefined && cycleGoals?.learnDrivenLong !== null ? String(cycleGoals?.learnDrivenLong) : ''
+  );
+  const [ldMembersGoal, setLdMembersGoal] = useState<string>(
+    cycleGoals?.learnDrivenMembers !== undefined && cycleGoals?.learnDrivenMembers !== null ? String(cycleGoals?.learnDrivenMembers) : ''
+  );
+  const [dwShortsGoal, setDwShortsGoal] = useState<string>(
+    cycleGoals?.decodeWorthyShorts !== undefined && cycleGoals?.decodeWorthyShorts !== null ? String(cycleGoals?.decodeWorthyShorts) : ''
+  );
+
+  const dateCalculation = useMemo(() => {
+    const now = new Date();
+    
+    // This month
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth();
+    const thisMonthStart = `${curYear}-${String(curMonth + 1).padStart(2, '0')}-01`;
+    const thisMonthEnd = `${curYear}-${String(curMonth + 1).padStart(2, '0')}-${new Date(curYear, curMonth + 1, 0).getDate()}`;
+    const thisMonthName = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+    
+    // Next month
+    let nextYear = curYear;
+    let nextMonth = curMonth + 1;
+    if (nextMonth > 11) {
+      nextMonth = 0;
+      nextYear += 1;
+    }
+    const nextMonthStart = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-01`;
+    const nextMonthEnd = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-${new Date(nextYear, nextMonth + 1, 0).getDate()}`;
+    const nextDate = new Date(nextYear, nextMonth, 1);
+    const nextMonthName = nextDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+    return {
+      thisMonthStart,
+      thisMonthEnd,
+      thisMonthName,
+      nextMonthStart,
+      nextMonthEnd,
+      nextMonthName
+    };
+  }, []);
 
   const handleSaveApiKey = () => {
     if (!tempKey.trim().startsWith('sk-')) {
@@ -595,12 +651,22 @@ Please rewrite/enhance this draft based on the system persona rules and the user
 
           <button 
             onClick={() => setActiveSubTab('script')}
-            className={`px-4 py-3 text-xs font-mono font-semibold flex items-center gap-1.5 transition ${
+            className={`px-4 py-3 text-xs font-mono font-semibold border-r border-neutral-800 flex items-center gap-1.5 transition ${
               activeSubTab === 'script' ? 'bg-neutral-950 text-emerald-400 border-b-2 border-b-emerald-400' : 'text-neutral-400 hover:text-neutral-200'
             }`}
           >
             <FileText className="h-3.5 w-3.5" />
             <span>Script Editor</span>
+          </button>
+
+          <button 
+            onClick={() => setActiveSubTab('goals')}
+            className={`px-4 py-3 text-xs font-mono font-semibold flex items-center gap-1.5 transition ${
+              activeSubTab === 'goals' ? 'bg-neutral-950 text-emerald-400 border-b-2 border-b-emerald-400' : 'text-neutral-400 hover:text-neutral-200'
+            }`}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>🎯 Content Goals</span>
           </button>
         </div>
 
@@ -1211,6 +1277,227 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Sub Tab: Content Cycle Goals */}
+          {activeSubTab === 'goals' && (
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                
+                let start = '';
+                let end = '';
+                let name = '';
+
+                if (goalCycleType === 'this-month') {
+                  start = dateCalculation.thisMonthStart;
+                  end = dateCalculation.thisMonthEnd;
+                  name = dateCalculation.thisMonthName;
+                } else if (goalCycleType === 'next-month') {
+                  start = dateCalculation.nextMonthStart;
+                  end = dateCalculation.nextMonthEnd;
+                  name = dateCalculation.nextMonthName;
+                } else {
+                  if (!goalCustomStart || !goalCustomEnd) {
+                    alert("Please select both start and end dates for custom cycle.");
+                    return;
+                  }
+                  start = goalCustomStart;
+                  end = goalCustomEnd;
+                  name = `Custom (${new Date(goalCustomStart).toLocaleDateString()} - ${new Date(goalCustomEnd).toLocaleDateString()})`;
+                }
+
+                const newGoals: CycleGoal = {
+                  cycleType: goalCycleType,
+                  monthName: name,
+                  startDate: start,
+                  endDate: end,
+                  learnDrivenShorts: ldShortsGoal ? Number(ldShortsGoal) : null,
+                  learnDrivenLong: ldLongGoal ? Number(ldLongGoal) : null,
+                  learnDrivenMembers: ldMembersGoal ? Number(ldMembersGoal) : null,
+                  decodeWorthyShorts: dwShortsGoal ? Number(dwShortsGoal) : null
+                };
+
+                setCycleGoals(newGoals);
+                
+                onAddEvent({
+                  id: `evt-goals-updated-${Date.now()}`,
+                  source: 'system',
+                  type: 'success',
+                  message: `Goals Engine: Configured content targets for cycle "${name}" [${start} to ${end}].`,
+                  timestamp: new Date().toISOString()
+                });
+
+                alert("Content Cycle Goals configured successfully!");
+              }}
+              className="space-y-5 flex-1 flex flex-col font-mono text-[10px]"
+            >
+              <div>
+                <h3 className="text-xs font-semibold text-neutral-300">🎯 Content Cycle Target Goals</h3>
+                <p className="text-[11px] text-neutral-500 font-sans mt-0.5">Specify video frequency targets for each channel. Unconfigured streams default to "Free Flow" mode.</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                {/* Duration Column */}
+                <div className="bg-neutral-950 border border-neutral-900 rounded-lg p-4 space-y-4">
+                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block border-b border-neutral-900 pb-1.5">1. Content Cycle</span>
+                  
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-2 cursor-pointer text-neutral-300">
+                      <input 
+                        type="radio" 
+                        name="cycleType" 
+                        value="this-month"
+                        checked={goalCycleType === 'this-month'}
+                        onChange={() => setGoalCycleType('this-month')}
+                        className="accent-emerald-500"
+                      />
+                      <span>This Month ({dateCalculation.thisMonthName})</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer text-neutral-300">
+                      <input 
+                        type="radio" 
+                        name="cycleType" 
+                        value="next-month"
+                        checked={goalCycleType === 'next-month'}
+                        onChange={() => setGoalCycleType('next-month')}
+                        className="accent-emerald-500"
+                      />
+                      <span>Next Month ({dateCalculation.nextMonthName})</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer text-neutral-300">
+                      <input 
+                        type="radio" 
+                        name="cycleType" 
+                        value="custom"
+                        checked={goalCycleType === 'custom'}
+                        onChange={() => setGoalCycleType('custom')}
+                        className="accent-emerald-500"
+                      />
+                      <span>Custom Range</span>
+                    </label>
+                  </div>
+
+                  {goalCycleType === 'custom' && (
+                    <div className="space-y-2 mt-2 pt-2 border-t border-neutral-900 animate-fadeIn">
+                      <div>
+                        <label className="block text-neutral-500 mb-0.5">Start Date</label>
+                        <input 
+                          type="date"
+                          value={goalCustomStart}
+                          onChange={(e) => setGoalCustomStart(e.target.value)}
+                          className="w-full bg-neutral-900 border border-neutral-850 rounded px-2 py-1 text-white outline-none font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-neutral-500 mb-0.5">End Date</label>
+                        <input 
+                          type="date"
+                          value={goalCustomEnd}
+                          onChange={(e) => setGoalCustomEnd(e.target.value)}
+                          className="w-full bg-neutral-900 border border-neutral-850 rounded px-2 py-1 text-white outline-none font-mono"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* LearnDriven Column */}
+                <div className="bg-neutral-950 border border-neutral-900 rounded-lg p-4 space-y-4">
+                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block border-b border-neutral-900 pb-1.5">2. LearnDriven Targets</span>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-neutral-500 mb-1">Shorts Goal (Leave empty for Free Flow)</label>
+                      <input 
+                        type="number" 
+                        min="0"
+                        placeholder="e.g. 5"
+                        value={ldShortsGoal}
+                        onChange={(e) => setLdShortsGoal(e.target.value)}
+                        className="w-full bg-neutral-900 border border-neutral-850 rounded px-2 py-1.5 text-white outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-neutral-500 mb-1">Long-form Goal (Leave empty for Free Flow)</label>
+                      <input 
+                        type="number" 
+                        min="0"
+                        placeholder="e.g. 3"
+                        value={ldLongGoal}
+                        onChange={(e) => setLdLongGoal(e.target.value)}
+                        className="w-full bg-neutral-900 border border-neutral-850 rounded px-2 py-1.5 text-white outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-neutral-500 mb-1">Members-Only Goal (Leave empty for Free Flow)</label>
+                      <input 
+                        type="number" 
+                        min="0"
+                        placeholder="e.g. 2"
+                        value={ldMembersGoal}
+                        onChange={(e) => setLdMembersGoal(e.target.value)}
+                        className="w-full bg-neutral-900 border border-neutral-850 rounded px-2 py-1.5 text-white outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* DecodeWorthy Column */}
+                <div className="bg-neutral-950 border border-neutral-900 rounded-lg p-4 space-y-4">
+                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block border-b border-neutral-900 pb-1.5">3. DecodeWorthy Targets</span>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-neutral-500 mb-1">Shorts Goal (Leave empty for Free Flow)</label>
+                      <input 
+                        type="number" 
+                        min="0"
+                        placeholder="e.g. 10"
+                        value={dwShortsGoal}
+                        onChange={(e) => setDwShortsGoal(e.target.value)}
+                        className="w-full bg-neutral-900 border border-neutral-850 rounded px-2 py-1.5 text-white outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 justify-end border-t border-neutral-900 pt-4">
+                {cycleGoals && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm("Purge and delete all cycle goals? This returns all content lanes to 'Free Flow' tracking.")) {
+                        setCycleGoals(null);
+                        setLdShortsGoal('');
+                        setLdLongGoal('');
+                        setLdMembersGoal('');
+                        setDwShortsGoal('');
+                        onAddEvent({
+                          id: `evt-goals-purged-${Date.now()}`,
+                          source: 'system',
+                          type: 'warning',
+                          message: 'Goals Engine: Active goals purged. All content lanes reverted to Free Flow.',
+                          timestamp: new Date().toISOString()
+                        });
+                      }
+                    }}
+                    className="px-3.5 py-2 bg-neutral-900 hover:bg-rose-950/20 text-neutral-400 hover:text-rose-400 border border-neutral-800 hover:border-rose-900/40 rounded transition cursor-pointer"
+                  >
+                    Clear Goals
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded transition cursor-pointer"
+                >
+                  Save Goals Target
+                </button>
+              </div>
+            </form>
           )}
 
         </div>

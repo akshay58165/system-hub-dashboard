@@ -163,3 +163,14 @@ export interface TopicActivity {
   author: string;
   timestamp: string;
 }
+
+export interface CycleGoal {
+  cycleType: 'this-month' | 'next-month' | 'custom';
+  monthName: string;
+  startDate: string;
+  endDate: string;
+  learnDrivenShorts: number | null;
+  learnDrivenLong: number | null;
+  learnDrivenMembers: number | null;
+  decodeWorthyShorts: number | null;
+}

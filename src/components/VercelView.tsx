@@ -232,15 +232,60 @@ export default function VercelView({
           avgLeadDays = Math.round((totalDays / validDates.length) * 10) / 10;
         }
 
+        // Compute active cycle goals details
+        let targetGoal: number | null = null;
+        let scheduledInCycle = 0;
+
+        if (cycleGoals) {
+          const start = new Date(cycleGoals.startDate);
+          const end = new Date(cycleGoals.endDate);
+          
+          // Count scheduled videos in cycle
+          scheduledInCycle = laneTopics.filter(t => {
+            if (t.status !== 'scheduled' || !t.dueDate) return false;
+            const due = new Date(t.dueDate);
+            return due >= start && due <= end;
+          }).length;
+
+          // Determine target goal based on lane ID
+          if (lane.id === 'lane-shorts') {
+            if (selectedChannel === 'All') {
+              const ld = cycleGoals.learnDrivenShorts || 0;
+              const dw = cycleGoals.decodeWorthyShorts || 0;
+              targetGoal = (cycleGoals.learnDrivenShorts !== null || cycleGoals.decodeWorthyShorts !== null) ? (ld + dw) : null;
+            } else if (selectedChannel === 'LearnDriven') {
+              targetGoal = cycleGoals.learnDrivenShorts;
+            } else {
+              targetGoal = cycleGoals.decodeWorthyShorts;
+            }
+          } else if (lane.id === 'lane-long') {
+            targetGoal = selectedChannel !== 'DecodeWorthy' ? cycleGoals.learnDrivenLong : null;
+          } else if (lane.id === 'lane-members') {
+            targetGoal = selectedChannel !== 'DecodeWorthy' ? cycleGoals.learnDrivenMembers : null;
+          }
+        }
+
+        let bufferStatus: 'free-flow' | 'safe' | 'gaps' = 'free-flow';
+        if (targetGoal !== null) {
+          if (scheduledInCycle >= targetGoal) {
+            bufferStatus = 'safe';
+          } else {
+            bufferStatus = 'gaps';
+          }
+        }
+
         return {
           id: lane.id,
           path: lane.path,
           invocations: totalCount,
           errors: gapsCount,
-          latency: avgLeadDays > 0 ? `${avgLeadDays}d` : 'N/A'
+          latency: avgLeadDays > 0 ? `${avgLeadDays}d` : 'N/A',
+          targetGoal,
+          scheduledInCycle,
+          bufferStatus
         };
       });
-  }, [filteredTopics, selectedChannel]);
+  }, [filteredTopics, selectedChannel, cycleGoals]);
 
   // Sync animation handler
   const handleTriggerSync = () => {
@@ -778,25 +823,39 @@ export default function VercelView({
                 <div key={lane.id} className="p-3 bg-neutral-900 rounded-lg border border-neutral-850">
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-xs font-semibold text-neutral-200">{lane.path}</span>
-                    {lane.errors > 0 ? (
-                      <span className="px-1.5 py-0.2 bg-rose-950 text-rose-400 text-[8px] font-semibold uppercase rounded animate-pulse">Critical Gaps</span>
+                    {lane.bufferStatus === 'free-flow' ? (
+                      <span className="px-1.5 py-0.2 bg-neutral-900 border border-neutral-800 text-neutral-400 text-[8px] font-semibold uppercase rounded">
+                        Free Flow
+                      </span>
+                    ) : lane.bufferStatus === 'safe' ? (
+                      <span className="px-1.5 py-0.2 bg-emerald-950 border border-emerald-900 text-emerald-400 text-[8px] font-semibold uppercase rounded">
+                        Safe Buffer
+                      </span>
                     ) : (
-                      <span className="px-1.5 py-0.2 bg-emerald-950 text-emerald-400 text-[8px] font-semibold uppercase rounded">Buffer Stable</span>
+                      <span className="px-1.5 py-0.2 bg-amber-950/80 border border-amber-900/60 text-amber-400 text-[8px] font-semibold uppercase rounded animate-pulse">
+                        Gaps: {lane.scheduledInCycle}/{lane.targetGoal}
+                      </span>
                     )}
                   </div>
 
                   <div className="grid grid-cols-3 gap-2 pt-2 border-t border-neutral-850 text-center text-[10px] text-neutral-500">
                     <div>
-                      <span className="block text-neutral-500">Pipeline Load</span>
+                      <span className="block text-[8px] text-neutral-500 uppercase">Pipeline Load</span>
                       <span className="font-semibold text-neutral-300 mt-0.5 block">{lane.invocations}</span>
                     </div>
                     <div>
-                      <span className="block text-neutral-500">Near Gaps</span>
-                      <span className={`font-semibold mt-0.5 block ${lane.errors > 0 ? 'text-rose-400 font-bold' : 'text-neutral-300'}`}>{lane.errors}</span>
+                      <span className="block text-[8px] text-neutral-500 uppercase">Cycle Target</span>
+                      <span className="font-semibold text-neutral-300 mt-0.5 block">
+                        {lane.targetGoal !== null ? lane.targetGoal : 'Free'}
+                      </span>
                     </div>
                     <div>
-                      <span className="block text-neutral-500">Avg Lead</span>
-                      <span className="font-semibold text-neutral-300 mt-0.5 block">{lane.latency}</span>
+                      <span className="block text-[8px] text-neutral-500 uppercase">Scheduled</span>
+                      <span className={`font-semibold mt-0.5 block ${
+                        lane.bufferStatus === 'gaps' ? 'text-amber-400 font-bold' : 'text-neutral-300'
+                      }`}>
+                        {lane.scheduledInCycle}
+                      </span>
                     </div>
                   </div>
                 </div>
