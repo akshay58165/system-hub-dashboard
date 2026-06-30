@@ -23,18 +23,27 @@ import {
   LogIn,
   LogOut,
   User as UserIcon,
-  AlertCircle
+  AlertCircle,
+  Brain,
+  Bookmark,
+  Clapperboard,
+  Sparkles,
+  Youtube
 } from 'lucide-react';
 import { supabase } from './services/supabase';
+import { loginWithYouTube, logoutYouTube, handleOAuthCallback, getYouTubeCredentials } from './services/youtube';
 
-import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal } from './types';
+import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, VideoRecord, Experiment, CreatorInsight } from './types';
 import { 
   initialGitHubRepos, 
   initialVercelProjects, 
   initialSupabaseProject, 
   initialSystemEvents,
   initialTopics,
-  initialActivities
+  initialActivities,
+  initialVideos,
+  initialExperiments,
+  initialCreatorInsights
 } from './data';
 
 import Overview from './components/Overview';
@@ -45,9 +54,16 @@ import LogsView from './components/LogsView';
 import ContentActivityView from './components/ContentActivityView';
 import ScoreView from './components/ScoreView';
 import CommandPalette from './components/CommandPalette';
+import CommandCenterView from './components/CommandCenterView';
+import PipelineView from './components/PipelineView';
+import VideoLabView from './components/VideoLabView';
+import TopicIntelligenceView from './components/TopicIntelligenceView';
+import ForecastingView from './components/ForecastingView';
+import ExperimentTrackerView from './components/ExperimentTrackerView';
+import InsightsView from './components/InsightsView';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score'>(() => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score' | 'pipeline' | 'videolab' | 'topicintel' | 'forecasting' | 'experiments' | 'insights'>(() => {
     return (localStorage.getItem('unicorn_active_tab') as any) || 'overview';
   });
 
@@ -91,7 +107,28 @@ export default function App() {
   const [events, setEvents] = useState<SystemEvent[]>([]);
   const [topics, setTopics] = useState<Topic[]>(initialTopics);
   const [activities, setActivities] = useState<TopicActivity[]>(initialActivities);
-  
+  const [videos, setVideos] = useState<VideoRecord[]>(initialVideos);
+  const [experiments, setExperiments] = useState<Experiment[]>(initialExperiments);
+  const [insights, setInsights] = useState<CreatorInsight[]>(initialCreatorInsights);
+  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
+  const [ytCreds, setYtCreds] = useState<any>(null);
+
+  useEffect(() => {
+    const creds = handleOAuthCallback();
+    if (creds) {
+      setYtCreds(creds);
+      addEvent({
+        id: `evt-yt-login-${Date.now()}`,
+        source: 'system',
+        type: 'success',
+        message: 'YouTube Integration: Authenticated successfully. Pulling live channel feeds.',
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      setYtCreds(getYouTubeCredentials());
+    }
+  }, []);
+
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [timeStr, setTimeStr] = useState('');
   const [lastDbUpdateTime, setLastDbUpdateTime] = useState<Date>(new Date(Date.now() - 5000));
@@ -304,6 +341,9 @@ export default function App() {
           if (remoteState.activities) setActivities(remoteState.activities);
           if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
           if (remoteState.scorecard) setScorecard(remoteState.scorecard);
+          if (remoteState.videos) setVideos(remoteState.videos);
+          if (remoteState.experiments) setExperiments(remoteState.experiments);
+          if (remoteState.insights) setInsights(remoteState.insights);
 
           addEvent({
             id: `evt-supabase-loaded-${Date.now()}`,
@@ -321,7 +361,10 @@ export default function App() {
               topics,
               activities,
               cycleGoals,
-              scorecard
+              scorecard,
+              videos,
+              experiments,
+              insights
             },
             updated_at: new Date().toISOString()
           }, { onConflict: 'user_id' });
@@ -342,6 +385,9 @@ export default function App() {
                 if (remoteState.activities) setActivities(remoteState.activities);
                 if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
                 if (remoteState.scorecard) setScorecard(remoteState.scorecard);
+                if (remoteState.videos) setVideos(remoteState.videos);
+                if (remoteState.experiments) setExperiments(remoteState.experiments);
+                if (remoteState.insights) setInsights(remoteState.insights);
 
                 addEvent({
                   id: `evt-supabase-sync-realtime-${Date.now()}`,
@@ -375,7 +421,15 @@ export default function App() {
   }, [user]);
 
   // 4. Save local state changes back to Supabase
-  const saveStateToSupabase = async (newTopics: Topic[], newActs: TopicActivity[], newGoals: CycleGoal | null, newScorecard: any) => {
+  const saveStateToSupabase = async (
+    newTopics: Topic[], 
+    newActs: TopicActivity[], 
+    newGoals: CycleGoal | null, 
+    newScorecard: any,
+    newVideos: VideoRecord[],
+    newExperiments: Experiment[],
+    newInsights: CreatorInsight[]
+  ) => {
     if (!supabase || !user || syncError) return;
     try {
       const { error } = await supabase
@@ -386,7 +440,10 @@ export default function App() {
             topics: newTopics,
             activities: newActs,
             cycleGoals: newGoals,
-            scorecard: newScorecard
+            scorecard: newScorecard,
+            videos: newVideos,
+            experiments: newExperiments,
+            insights: newInsights
           },
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id' });
@@ -408,11 +465,11 @@ export default function App() {
 
     // Debounce updates to 800ms
     const timer = setTimeout(() => {
-      saveStateToSupabase(topics, activities, cycleGoals, scorecard);
+      saveStateToSupabase(topics, activities, cycleGoals, scorecard, videos, experiments, insights);
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [topics, activities, cycleGoals, scorecard, user, authLoading, isStateLoaded]);
+  }, [topics, activities, cycleGoals, scorecard, videos, experiments, insights, user, authLoading, isStateLoaded]);
 
   // Update clock
   useEffect(() => {
@@ -660,9 +717,8 @@ export default function App() {
         </div>
       )}
 
-      {/* Top Main Header */}
       <header className="bg-neutral-950 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+        <div className="w-full px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           
           {/* Logo & title with invisible box wrapper to go home */}
           <div 
@@ -717,6 +773,32 @@ export default function App() {
               <span>{syncError ? 'Cloud Sync Error' : 'Cloud Sync Active'}</span>
             </div>
 
+            {/* YouTube OAuth Control */}
+            {ytCreds ? (
+              <div className="flex items-center gap-2 bg-red-950/20 border border-red-900/30 rounded-lg px-2.5 py-1 text-red-400 select-none font-mono text-[9px]">
+                <Youtube className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                <span className="font-bold">YT Active</span>
+                <button 
+                  onClick={() => {
+                    logoutYouTube();
+                    setYtCreds(null);
+                  }}
+                  className="hover:text-red-300 ml-1 cursor-pointer transition font-bold"
+                  title="Disconnect YouTube integration"
+                >
+                  Disconnect
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => loginWithYouTube()}
+                className="flex items-center gap-1.5 bg-red-950/30 hover:bg-red-900/30 text-red-400 border border-red-900/30 rounded-lg px-2.5 py-1 transition cursor-pointer font-mono text-[9px] font-bold"
+              >
+                <Youtube className="h-3.5 w-3.5 shrink-0 text-red-500" />
+                <span>Connect YouTube</span>
+              </button>
+            )}
+
             {/* Supabase Sync Auth Control — header only renders once `user` is set */}
             <div className="flex items-center gap-2 bg-emerald-950/20 border border-emerald-900/30 rounded-lg px-2.5 py-1 text-emerald-400 select-none font-mono">
               <UserIcon className="h-3.5 w-3.5 text-emerald-400" />
@@ -747,19 +829,91 @@ export default function App() {
 
       {/* Main Tab Controller Bar */}
       <nav className="border-b border-neutral-900 bg-neutral-950/60 backdrop-blur-md sticky top-16 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-4 py-2 overflow-x-auto no-scrollbar">
             <div className="flex items-center gap-1 shrink-0">
               <button
                 onClick={() => setActiveTab('overview')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
                   activeTab === 'overview'
-                    ? 'bg-neutral-900 border border-neutral-800 text-white'
+                    ? 'bg-neutral-900 border border-neutral-850 text-white'
                     : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
                 }`}
               >
-                <Activity className="h-3.5 w-3.5" />
-                <span>Overview</span>
+                <Activity className="h-3.5 w-3.5 text-purple-400 animate-pulse" />
+                <span>Command Center</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('pipeline')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
+                  activeTab === 'pipeline'
+                    ? 'bg-neutral-900 border border-neutral-850 text-amber-400'
+                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
+                }`}
+              >
+                <Layers className="h-3.5 w-3.5 text-amber-500" />
+                <span>Pipeline</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('videolab')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
+                  activeTab === 'videolab'
+                    ? 'bg-neutral-900 border border-neutral-850 text-blue-400'
+                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
+                }`}
+              >
+                <Clapperboard className="h-3.5 w-3.5 text-blue-400" />
+                <span>Video Lab</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('topicintel')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
+                  activeTab === 'topicintel'
+                    ? 'bg-neutral-900 border border-neutral-850 text-purple-400'
+                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
+                }`}
+              >
+                <Brain className="h-3.5 w-3.5 text-purple-400" />
+                <span>Topic Intel</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('forecasting')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
+                  activeTab === 'forecasting'
+                    ? 'bg-neutral-900 border border-neutral-850 text-emerald-400'
+                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
+                }`}
+              >
+                <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Forecasting</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('experiments')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
+                  activeTab === 'experiments'
+                    ? 'bg-neutral-900 border border-neutral-850 text-amber-500'
+                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
+                }`}
+              >
+                <Bookmark className="h-3.5 w-3.5 text-amber-500" />
+                <span>Experiments</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('insights')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
+                  activeTab === 'insights'
+                    ? 'bg-neutral-900 border border-neutral-850 text-purple-400'
+                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
+                }`}
+              >
+                <Sparkles className="h-3.5 w-3.5 text-purple-400 animate-pulse" />
+                <span>Insights</span>
               </button>
 
               <button
@@ -771,19 +925,7 @@ export default function App() {
                 }`}
               >
                 <GitBranch className="h-3.5 w-3.5" />
-                <span>Topic Repos</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('progress')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
-                  activeTab === 'progress'
-                    ? 'bg-neutral-900 border border-neutral-850 text-amber-400'
-                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
-                }`}
-              >
-                <Layers className="h-3.5 w-3.5" />
-                <span>Progress</span>
+                <span>Topic Inventory</span>
               </button>
 
               <button
@@ -819,7 +961,7 @@ export default function App() {
                 }`}
               >
                 <Trophy className="h-3.5 w-3.5" />
-                <span>Score</span>
+                <span>Well-Being</span>
               </button>
             </div>
 
@@ -854,7 +996,7 @@ export default function App() {
       </nav>
 
       {/* Primary Application Body */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="w-full px-4 sm:px-6 lg:px-8 py-6">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -864,15 +1006,60 @@ export default function App() {
             transition={{ duration: 0.15 }}
           >
             {activeTab === 'overview' && (
-              <Overview 
-                repos={repos} 
-                vercelProjects={vercelProjects} 
-                supabase={supabaseProject} 
-                events={events}
-                onTabChange={setActiveTab}
-                topics={topics}
-                activities={activities}
+              <CommandCenterView
+                videos={videos}
+                experiments={experiments}
+                insights={insights}
                 cycleGoals={cycleGoals}
+                onTabChange={setActiveTab}
+                setSelectedVideoId={setSelectedVideoId}
+              />
+            )}
+
+            {activeTab === 'pipeline' && (
+              <PipelineView
+                videos={videos}
+                setVideos={setVideos}
+                onAddEvent={addEvent}
+              />
+            )}
+
+            {activeTab === 'videolab' && (
+              <VideoLabView
+                videos={videos}
+                setVideos={setVideos}
+                selectedVideoId={selectedVideoId}
+                setSelectedVideoId={setSelectedVideoId}
+              />
+            )}
+
+            {activeTab === 'topicintel' && (
+              <TopicIntelligenceView
+                videos={videos}
+              />
+            )}
+
+            {activeTab === 'forecasting' && (
+              <ForecastingView
+                videos={videos}
+                cycleGoals={cycleGoals}
+              />
+            )}
+
+            {activeTab === 'experiments' && (
+              <ExperimentTrackerView
+                experiments={experiments}
+                setExperiments={setExperiments}
+                videos={videos}
+                onAddEvent={addEvent}
+              />
+            )}
+
+            {activeTab === 'insights' && (
+              <InsightsView
+                insights={insights}
+                videos={videos}
+                onTabChange={setActiveTab}
               />
             )}
 

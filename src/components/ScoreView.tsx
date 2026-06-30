@@ -652,7 +652,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="sticky top-28 z-20 relative overflow-hidden rounded-xl border border-neutral-900 bg-neutral-950 shadow-[0_4px_30px_rgba(0,0,0,0.3)]"
+        className="sticky top-28 z-20 relative overflow-hidden rounded-xl border border-neutral-850 bg-neutral-900 shadow-[0_4px_30px_rgba(0,0,0,0.3)]"
       >
         <motion.div
           className="absolute -top-16 -right-10 w-72 h-72 rounded-full bg-rose-500/8 blur-3xl pointer-events-none"
@@ -671,7 +671,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-4 bg-neutral-950/60 border border-neutral-900 px-5 py-3 rounded-xl font-mono">
+          <div className="flex items-center gap-4 bg-neutral-950 border border-neutral-850 px-5 py-3 rounded-xl font-mono">
             <div className="text-center">
               <span className="text-[10px] uppercase text-neutral-500 tracking-wider block font-bold">Daily Readiness</span>
               <span className={`text-sm font-bold mt-0.5 block flex items-center justify-center gap-1 ${statusInfoColor}`}>
@@ -679,7 +679,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                 {statusInfo.label}
               </span>
             </div>
-            <div className="w-px h-8 bg-neutral-900" />
+            <div className="w-px h-8 bg-neutral-850" />
             <div className="text-center">
               <span className="text-[10px] uppercase text-neutral-500 tracking-wider block font-bold">Bio-Focus Score</span>
               <span className={`text-xl font-bold mt-0.5 block ${statusInfoColor}`}>
@@ -694,8 +694,8 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
         
         {/* Left Column: Parameter Inputs */}
-        <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-5 space-y-5 xl:col-span-1 shadow-sm">
-          <div className="flex items-center gap-2 border-b border-neutral-900 pb-3">
+        <div className="bg-neutral-900 border border-neutral-850 rounded-xl p-5 space-y-5 xl:col-span-1 shadow-sm">
+          <div className="flex items-center gap-2 border-b border-neutral-850 pb-3">
             <SlidersHorizontal className="h-4 w-4 text-rose-400" />
             <h3 className="text-sm font-semibold text-neutral-200">Daily Parameters</h3>
           </div>
@@ -826,7 +826,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                     };
 
                     return (
-                      <div key={item.key} className="px-3 py-2 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-1.5">
+                      <div key={item.key} className="px-3 py-2 bg-neutral-950 border border-neutral-850 rounded-lg space-y-1.5 font-sans">
                         <div className="flex justify-between text-xs font-mono">
                           <span className="text-neutral-300">{item.label}</span>
                           <span className={`${displayColor} font-bold`}>{displayValue}</span>
@@ -867,7 +867,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             {/* Radar Visual */}
-            <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-5 space-y-4 shadow-sm flex flex-col justify-between">
+            <div className="bg-neutral-900 border border-neutral-850 rounded-xl p-5 space-y-4 shadow-sm flex flex-col justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-neutral-200">System Metric Radar</h3>
                 <p className="text-xs text-neutral-500 font-sans">Multilateral biometric & focus alignment mapping.</p>
@@ -893,7 +893,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
             </div>
 
             {/* Score Logs History Timeline */}
-            <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-5 space-y-4 shadow-sm flex flex-col justify-between">
+            <div className="bg-neutral-900 border border-neutral-850 rounded-xl p-5 space-y-4 shadow-sm flex flex-col justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-neutral-200">Log History</h3>
                 <p className="text-xs text-neutral-500 font-sans">Timeline of parameters changed during the day.</p>
@@ -907,7 +907,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0 }}
-                      className="p-2.5 bg-neutral-900/30 border border-neutral-900 rounded-lg flex flex-col gap-1 hover:bg-neutral-900/50 transition animate-fade-in"
+                      className="p-2.5 bg-neutral-950 border border-neutral-850 rounded-lg flex flex-col gap-1 hover:bg-neutral-800 transition animate-fade-in"
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-neutral-300 flex items-center gap-1">
@@ -938,8 +938,8 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
           </div>
 
           {/* Bottom Row: Dynamic Live recommendations & blinking alarms */}
-          <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-5 space-y-4 shadow-sm">
-            <div className="flex items-center gap-2 border-b border-neutral-900 pb-3">
+          <div className="bg-neutral-900 border border-neutral-850 rounded-xl p-5 space-y-4 shadow-sm">
+            <div className="flex items-center gap-2 border-b border-neutral-850 pb-3">
               <Activity className="h-4 w-4 text-rose-400" />
               <h3 className="text-sm font-semibold text-neutral-200">Bio-Performance Recommendations</h3>
             </div>

@@ -174,3 +174,129 @@ export interface CycleGoal {
   learnDrivenMembers: number | null;
   decodeWorthyShorts: number | null;
 }
+
+export interface VideoRecord {
+  id: string;
+  channelName: 'LearnDriven' | 'DecodeWorthy';
+  videoId?: string;
+  title: string;
+  url?: string;
+  format: 'Short' | 'Long' | 'Members';
+  contentType: string; // e.g. "Practical explainer", "Myth-busting"
+  topic: string;
+  series?: string;
+  category?: string;
+  pipelineStage: 'Topic' | 'Script' | 'Shoot' | 'Edit' | 'Thumbnail' | 'Schedule' | 'Published';
+  uploadDate?: string;
+  dueDate?: string;
+  publishTime?: string;
+  duration?: number; // duration in seconds
+  
+  // Pipeline status checks
+  scriptStatus: 'pending' | 'in-progress' | 'completed';
+  shootStatus: 'pending' | 'in-progress' | 'completed';
+  editStatus: 'pending' | 'in-progress' | 'completed';
+  thumbnailStatus: 'pending' | 'in-progress' | 'completed' | 'not-applicable';
+  scheduleStatus: 'pending' | 'completed';
+  publishedStatus: 'pending' | 'completed';
+  
+  productionEffortHours: number;
+  hookType?: string;
+  structureType?: string;
+  contentIntent?: string;
+  difficultyLevel?: 'easy' | 'medium' | 'hard';
+  researchDepth?: string;
+  thumbnailVersion?: string;
+  titleVersion?: string;
+  notes?: string;
+  blockedReason?: string;
+  nextAction?: string;
+  performanceStatus?: 'Great' | 'Good' | 'Normal' | 'Watch' | 'At Risk' | 'Problem' | 'Needs Action';
+  
+  // Manual Tags
+  tags: {
+    topicType: string;
+    hookType: string;
+    contentStructure: string;
+    productionStyle: string;
+    audienceIntent: string;
+    difficulty: string;
+    evergreenPotential: 'High' | 'Medium' | 'Low';
+    revenuePotential: 'High' | 'Medium' | 'Low';
+    subscriberPotential: 'High' | 'Medium' | 'Low';
+    repeatability: 'High' | 'Medium' | 'Low';
+  };
+
+  // Derived Performance Metrics
+  metrics?: {
+    views1h?: number;
+    views3h?: number;
+    views6h?: number;
+    views12h?: number;
+    views24h?: number;
+    views48h?: number;
+    views7d?: number;
+    views28d?: number;
+    lifetimeViews?: number;
+    viewVelocity?: number;
+    watchTimeHours?: number;
+    averageViewDurationSeconds?: number;
+    averagePercentageViewed?: number;
+    retentionQuality?: 'High' | 'Medium' | 'Low';
+    ctr?: number;
+    ctrByTrafficSource?: Record<string, number>;
+    subscribersGainedPer1kViews?: number;
+    likesPer1kViews?: number;
+    commentsPer1kViews?: number;
+    sharesPer1kViews?: number;
+    revenuePer1kViews?: number;
+    revenuePerProductionHour?: number;
+    viewsPerProductionHour?: number;
+    subscribersPerProductionHour?: number;
+    evergreenScore?: number;
+    topicRepeatScore?: number;
+    formatEfficiencyScore?: number;
+    videoHealthScore?: number;
+    
+    // Platform-specific scoring criteria
+    swipeResistance?: number; // % (Shorts only)
+    rewatchPotential?: 'High' | 'Medium' | 'Low'; // (Shorts only)
+    watchTimePerImpression?: number; // (Long only)
+    endScreenPerformance?: number; // % (Long only)
+    memberValueScore?: number; // 0-100 (Members only)
+    completionRate?: number; // %
+  };
+}
+
+export interface Experiment {
+  id: string;
+  name: string;
+  hypothesis: string;
+  startDate: string;
+  endDate: string;
+  videosIncluded: string[]; // Video IDs
+  metricBeingTested: string;
+  result?: string;
+  decision?: string;
+  learning?: string;
+  status: 'active' | 'completed';
+}
+
+export interface CreatorInsight {
+  id: string;
+  title: string;
+  description: string;
+  type: 'success' | 'warning' | 'info' | 'recommendation';
+  channel: 'LearnDriven' | 'DecodeWorthy' | 'All';
+  reason: string;
+  actionLabel?: string;
+}
+
+export interface MonthForecast {
+  expectedViews: number;
+  expectedSubscribers: number;
+  expectedRevenueINR: number;
+  expectedUploadsCompleted: number;
+  requiredUploads: number;
+  riskOfMissingConsistency: 'Low' | 'Medium' | 'High';
+}

@@ -5,10 +5,14 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   
-  /* Softer, low-contrast dark charcoal values for global lines/borders */
-  --color-neutral-850: #1e1e24;
-  --color-neutral-800: #2b2b35;
-  --color-neutral-900: #141418;
+  /* Translucent frosted-glass color tokens for Glassmorphism layering */
+  --color-neutral-950: #050508; /* Deep dark void backdrop */
+  --color-neutral-900: rgba(22, 22, 28, 0.45); /* Frosted translucent card base */
+  --color-neutral-850: rgba(255, 255, 255, 0.07); /* Glass card border */
+  --color-neutral-800: rgba(255, 255, 255, 0.15); /* Active buttons & border highlights */
+  --color-neutral-400: rgba(255, 255, 255, 0.55); /* Muted legible subtext */
+  --color-neutral-200: rgba(255, 255, 255, 0.9);  /* Crisp white-grey text content */
+  --color-neutral-50:  #ffffff;
 }
 
 /* Set dark color scheme globally to prevent native light-themed scrollbars */
@@ -27,24 +31,22 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #22222a;
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 9999px;
   border: 1px solid transparent;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a3a46;
+  background: rgba(255, 255, 255, 0.2);
 }
 
 /* Standard scrollbar for Firefox support */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #22222a transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 
-/* Hide scrollbar entirely — for rows where the scroll is incidental
-   (e.g. a hover scale transform briefly overflowing) and shouldn't
-   ever show a visible track/thumb. */
+/* Hide scrollbar entirely */
 .no-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -53,24 +55,90 @@ html {
   display: none;
 }
 
-/* Subtle, responsive app backdrop — sits behind all content.
-   Layered: soft emerald glow top-center, faint corner wash, and a fine
-   grid of hairlines. Percentage + fixed sizing keeps it correct at any
-   viewport without re-tiling oddly on resize. */
+/* Restore ambient glowing nebulas and structural grid lines for Glassmorphism backdrop */
 .app-bg {
-  background-color: #09090b; /* neutral-950 */
+  background-color: #050508;
   background-image:
-    radial-gradient(900px 480px at 50% -10%, rgba(16, 185, 129, 0.07), transparent 70%),
-    radial-gradient(1100px 900px at 100% 0%, rgba(59, 130, 246, 0.035), transparent 70%),
+    radial-gradient(1000px 600px at 0% 0%, rgba(168, 85, 247, 0.12), transparent 80%),
+    radial-gradient(1200px 800px at 100% 100%, rgba(59, 130, 246, 0.08), transparent 80%),
+    radial-gradient(800px 500px at 50% 30%, rgba(16, 185, 129, 0.04), transparent 70%),
     linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
-  background-position: center top, top right, center, center;
+  background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+  background-position: center, center, center, center, center;
   background-attachment: fixed;
 }
 
-@media (max-width: 640px) {
-  .app-bg {
-    background-size: 100% 100%, 100% 100%, 28px 28px, 28px 28px;
-  }
+/* Apply global frosted glass blurs on cards, lists, tables and header elements */
+.bg-neutral-900,
+.bg-neutral-950,
+.bg-\[\#161616\],
+.bg-\[\#0d2219\],
+.bg-\[\#281515\],
+.bg-\[\#21172a\] {
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+}
+
+/* Some newer views (CommandCenterView, PipelineView) were built with literal
+   opaque YouTube-Studio-style hex colors instead of the app's translucent
+   token system above. backdrop-filter has nothing to blur through an opaque
+   fill, so those cards rendered as flat solid slabs, visually disconnected
+   from the glass aesthetic everywhere else. Converting the same literal
+   classes to translucent fills + blur brings them in line without touching
+   component JSX. Relative lightness order is preserved (161616 darkest →
+   3f3f3f lightest, matching their original intent as card/hover/active tiers). */
+.bg-\[\#161616\] {
+  background-color: rgba(22, 22, 22, 0.45) !important;
+}
+.bg-\[\#1f1f1f\] {
+  background-color: rgba(31, 31, 31, 0.55) !important;
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+}
+.bg-\[\#272727\] {
+  background-color: rgba(39, 39, 39, 0.55) !important;
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+}
+.bg-\[\#282828\] {
+  background-color: rgba(40, 40, 40, 0.6) !important;
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+}
+.bg-\[\#3e3e3e\],
+.bg-\[\#3f3f3f\] {
+  background-color: rgba(62, 62, 62, 0.65) !important;
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+}
+.border-\[\#272727\] {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+.border-\[\#3e3e3e\] {
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* Form controls (inputs, selects, textareas) need to read as a distinct,
+   slightly-raised surface against the glass panels/modals they sit inside —
+   otherwise a `bg-neutral-900 border-neutral-900` panel and an identically
+   styled input inside it blend into one indistinguishable block.
+   This targets the common Tailwind utility combo used across the app
+   (bg-neutral-900 + border-neutral-900) specifically on form elements,
+   without touching that combo on divs/cards. */
+input.bg-neutral-900,
+select.bg-neutral-900,
+textarea.bg-neutral-900 {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+input.bg-neutral-900:focus,
+select.bg-neutral-900:focus,
+textarea.bg-neutral-900:focus {
+  background-color: rgba(255, 255, 255, 0.09) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+}
+input.bg-neutral-900::placeholder,
+textarea.bg-neutral-900::placeholder {
+  color: rgba(255, 255, 255, 0.32);
 }
