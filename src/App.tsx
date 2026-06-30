@@ -84,7 +84,9 @@ export default function App() {
   });
   const [repos, setRepos] = useState<GitHubRepo[]>(initialGitHubRepos);
   const [vercelProjects, setVercelProjects] = useState<VercelProject[]>(initialVercelProjects);
-  const [supabase, setSupabase] = useState<SupabaseProject>(initialSupabaseProject);
+  // Renamed from `supabase` — that name was shadowing the real Supabase client
+  // imported above, silently breaking every auth/db/realtime call in this file.
+  const [supabaseProject, setSupabaseProject] = useState<SupabaseProject>(initialSupabaseProject);
   const [events, setEvents] = useState<SystemEvent[]>([]);
   const [topics, setTopics] = useState<Topic[]>(initialTopics);
   const [activities, setActivities] = useState<TopicActivity[]>(initialActivities);
@@ -440,7 +442,7 @@ export default function App() {
   };
 
   const handleUpdateSupabase = (updated: Partial<SupabaseProject>) => {
-    setSupabase(prev => ({ ...prev, ...updated }));
+    setSupabaseProject(prev => ({ ...prev, ...updated }));
     setLastDbUpdateTime(new Date());
   };
 
@@ -485,7 +487,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-200 antialiased font-sans">
+    <div className="app-bg min-h-screen text-neutral-200 antialiased font-sans">
 
       {/* Cloud State Loading Overlay */}
       <AnimatePresence>
@@ -743,7 +745,7 @@ export default function App() {
               <Overview 
                 repos={repos} 
                 vercelProjects={vercelProjects} 
-                supabase={supabase} 
+                supabase={supabaseProject} 
                 events={events}
                 onTabChange={setActiveTab}
                 topics={topics}
@@ -783,7 +785,7 @@ export default function App() {
 
             {activeTab === 'actionhub' && (
               <SupabaseView 
-                supabase={supabase} 
+                supabase={supabaseProject} 
                 onAddEvent={addEvent} 
                 onUpdateSupabase={handleUpdateSupabase}
                 topics={topics}
@@ -806,7 +808,7 @@ export default function App() {
               <ScoreView 
                 repos={repos} 
                 vercelProjects={vercelProjects} 
-                supabase={supabase} 
+                supabase={supabaseProject} 
                 scorecard={scorecard}
                 setScorecard={setScorecard}
               />
@@ -821,7 +823,7 @@ export default function App() {
         onClose={() => setIsPaletteOpen(false)}
         repos={repos}
         vercelProjects={vercelProjects}
-        supabase={supabase}
+        supabase={supabaseProject}
         onTabChange={setActiveTab}
         onTriggerDeploy={triggerVercelDeploy}
       />

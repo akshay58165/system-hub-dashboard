@@ -41,3 +41,25 @@ html {
   scrollbar-width: thin;
   scrollbar-color: #22222a transparent;
 }
+
+/* Subtle, responsive app backdrop — sits behind all content.
+   Layered: soft emerald glow top-center, faint corner wash, and a fine
+   grid of hairlines. Percentage + fixed sizing keeps it correct at any
+   viewport without re-tiling oddly on resize. */
+.app-bg {
+  background-color: #09090b; /* neutral-950 */
+  background-image:
+    radial-gradient(900px 480px at 50% -10%, rgba(16, 185, 129, 0.07), transparent 70%),
+    radial-gradient(1100px 900px at 100% 0%, rgba(59, 130, 246, 0.035), transparent 70%),
+    linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+  background-position: center top, top right, center, center;
+  background-attachment: fixed;
+}
+
+@media (max-width: 640px) {
+  .app-bg {
+    background-size: 100% 100%, 100% 100%, 28px 28px, 28px 28px;
+  }
+}
