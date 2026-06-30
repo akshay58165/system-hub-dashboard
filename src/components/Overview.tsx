@@ -1,22 +1,20 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  GitBranch, 
-  Layers, 
-  Database, 
-  Activity, 
-  Cpu, 
-  CheckCircle2, 
+import {
+  Layers,
+  Database,
+  Activity,
+  Cpu,
+  CheckCircle2,
   CheckCircle,
-  ArrowUpRight, 
-  AlertTriangle, 
-  Clock, 
-  Zap, 
-  Users, 
-  Server, 
+  ArrowUpRight,
+  AlertTriangle,
+  Clock,
+  Zap,
+  Users,
+  Server,
   Wifi,
   Youtube,
-  FileText,
   Flame,
   Target
 } from 'lucide-react';
@@ -341,6 +339,44 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
       learnDriven: getMetricsForChannel('LearnDriven'),
       decodeWorthy: getMetricsForChannel('DecodeWorthy')
     };
+  }, [topics]);
+
+  // "What should I do next" + "what's overdue" — the two questions a creator
+  // actually opens the dashboard to answer, computed from real topic state.
+  const actionableMetrics = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const unfinished = topics.filter(t => t.status !== 'scheduled');
+
+    const overdue = unfinished.filter(t => t.dueDate && new Date(t.dueDate) < today);
+
+    // Next up: earliest due date among unfinished topics; if none have a due
+    // date, fall back to the oldest untouched topic (still needs picking up).
+    const withDueDate = unfinished
+      .filter(t => t.dueDate)
+      .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
+
+    let nextUp: Topic | null = withDueDate[0] ?? null;
+    if (!nextUp) {
+      const oldest = [...unfinished].sort(
+        (a, b) => new Date(a.createdDate).getTime() - new Date(b.createdDate).getTime()
+      );
+      nextUp = oldest[0] ?? null;
+    }
+
+    let nextUpDueLabel = 'No due date';
+    if (nextUp?.dueDate) {
+      const due = new Date(nextUp.dueDate);
+      due.setHours(0, 0, 0, 0);
+      const days = Math.round((due.getTime() - today.getTime()) / 86400000);
+      if (days < 0) nextUpDueLabel = `${Math.abs(days)}d overdue`;
+      else if (days === 0) nextUpDueLabel = 'Due today';
+      else if (days === 1) nextUpDueLabel = 'Due tomorrow';
+      else nextUpDueLabel = `Due in ${days}d`;
+    }
+
+    return { overdueCount: overdue.length, nextUp, nextUpDueLabel };
   }, [topics]);
 
   // Generate monthly timeline data for topics added vs videos scheduled
@@ -682,18 +718,32 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
-            label: 'Total Topics',
-            icon: <FileText className="h-4 w-4" />,
+            label: 'Next Up',
+            variant: 'next' as const,
+            icon: <Target className="h-4 w-4" />,
             color: 'text-blue-400',
             bg: 'bg-blue-950/20',
             border: 'border-blue-900/30',
-            value: topics.length,
-            unit: 'across channels',
-            footLabel: 'Content ideas in pipeline',
-            footValue: `${topics.filter(t => t.channel === 'LearnDriven').length} LD / ${topics.filter(t => t.channel === 'DecodeWorthy').length} DW`
+            topicTitle: actionableMetrics.nextUp?.name ?? null,
+            dueLabel: actionableMetrics.nextUpDueLabel,
+            footLabel: 'Your highest-priority unfinished topic',
+            footValue: actionableMetrics.nextUp ? actionableMetrics.nextUp.channel : '—'
+          },
+          {
+            label: 'Overdue',
+            variant: 'stat' as const,
+            icon: <AlertTriangle className="h-4 w-4" />,
+            color: actionableMetrics.overdueCount > 0 ? 'text-rose-400' : 'text-emerald-400',
+            bg: actionableMetrics.overdueCount > 0 ? 'bg-rose-950/20' : 'bg-emerald-950/20',
+            border: actionableMetrics.overdueCount > 0 ? 'border-rose-900/30' : 'border-emerald-900/30',
+            value: actionableMetrics.overdueCount,
+            unit: actionableMetrics.overdueCount > 0 ? 'need attention' : 'all clear',
+            footLabel: 'Past due, not yet scheduled',
+            footValue: actionableMetrics.overdueCount > 0 ? 'Review now' : 'Nothing slipping'
           },
           {
             label: 'Scheduled Videos',
+            variant: 'stat' as const,
             icon: <CheckCircle className="h-4 w-4" />,
             color: 'text-emerald-400',
             bg: 'bg-emerald-950/20',
@@ -705,6 +755,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
           },
           {
             label: 'In Progress',
+            variant: 'stat' as const,
             icon: <Activity className="h-4 w-4" />,
             color: 'text-amber-400',
             bg: 'bg-amber-950/20',
@@ -713,17 +764,6 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
             unit: 'being worked on',
             footLabel: 'Scripted / Shot / Edited',
             footValue: `${topics.filter(t => t.status === 'scripted').length}S / ${topics.filter(t => t.status === 'shot').length}H / ${topics.filter(t => t.status === 'edited').length}E`
-          },
-          {
-            label: 'Recent Activity',
-            icon: <GitBranch className="h-4 w-4" />,
-            color: 'text-purple-400',
-            bg: 'bg-purple-950/20',
-            border: 'border-purple-900/30',
-            value: activities.length,
-            unit: 'logged actions',
-            footLabel: 'Content workflow events',
-            footValue: `${events.length} telemetry`
           }
         ].map((tile, i) => (
           <motion.div
@@ -732,16 +772,34 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, delay: 0.05 * i }}
             whileHover={{ y: -2 }}
-            className={`p-4 rounded-lg border ${tile.bg} ${tile.border} transition-colors duration-300`}
+            onClick={() => onTabChange('topics')}
+            className={`p-4 rounded-lg border ${tile.bg} ${tile.border} transition-colors duration-300 cursor-pointer`}
           >
             <div className="flex items-center justify-between mb-3">
               <span className="text-[10px] font-bold uppercase tracking-wider font-mono text-neutral-400">{tile.label}</span>
               <span className={tile.color}>{tile.icon}</span>
             </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold font-mono tracking-tight text-white">{tile.value}</span>
-              <span className="text-xs text-neutral-400 font-mono">{tile.unit}</span>
-            </div>
+
+            {tile.variant === 'next' ? (
+              <div className="min-h-[28px]">
+                {tile.topicTitle ? (
+                  <>
+                    <p className="text-sm font-bold text-white leading-snug line-clamp-2">{tile.topicTitle}</p>
+                    <span className={`inline-block mt-1 text-[10px] font-mono font-bold ${tile.dueLabel?.includes('overdue') ? 'text-rose-400' : tile.dueLabel === 'Due today' ? 'text-amber-400' : 'text-neutral-400'}`}>
+                      {tile.dueLabel}
+                    </span>
+                  </>
+                ) : (
+                  <p className="text-sm font-bold text-neutral-500">No topics yet — add one</p>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold font-mono tracking-tight text-white">{tile.value}</span>
+                <span className="text-xs text-neutral-400 font-mono">{tile.unit}</span>
+              </div>
+            )}
+
             <div className="mt-2 text-[10px] text-neutral-500 font-mono flex items-center justify-between">
               <span>{tile.footLabel}</span>
               <span className="text-neutral-400">{tile.footValue}</span>
