@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Terminal, 
@@ -137,6 +137,7 @@ export default function App() {
 
   // Supabase Auth and Real-time Gateway States
   const [user, setUser] = useState<any>(null);
+  const channelRef = useRef<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -313,7 +314,8 @@ export default function App() {
       return;
     }
 
-    let channel: any = null;
+    let cancelled = false;
+    const userId = user.id;
 
     const fetchAndSubscribe = async () => {
       try {
@@ -372,12 +374,30 @@ export default function App() {
         
         setIsStateLoaded(true); // Completed initial load
 
-        // 3. Subscribe to Real-time database changes for this user
-        channel = supabase.channel(`realtime:dashboard_state:${user.id}`)
+        // Bail out if this effect was cleaned up while the above awaits were
+        // in flight (e.g. a token-refresh auth event fired again) — creating
+        // a channel after cancellation is what caused stale, duplicate
+        // subscriptions on the same channel name.
+        if (cancelled) return;
+
+        // 3. Subscribe to Real-time database changes for this user.
+        // Defensively remove any channel already registered under this exact
+        // name first: Supabase's client deduplicates by topic name, so
+        // calling .channel() again for a name that's still subscribed
+        // returns the SAME already-subscribed instance, and attaching a new
+        // .on() listener to an already-subscribed channel throws
+        // "cannot add postgres_changes callbacks ... after subscribe()".
+        const channelName = `realtime:dashboard_state:${userId}`;
+        const existing = supabase.getChannels?.().find((c: any) => c.topic === channelName || c.topic === `realtime:${channelName}`);
+        if (existing) {
+          try { supabase.removeChannel(existing); } catch { /* ignore */ }
+        }
+
+        const newChannel = supabase.channel(channelName)
           .on(
             'postgres_changes',
-            { event: '*', schema: 'public', table: 'dashboard_state', filter: `user_id=eq.${user.id}` },
-            (payload) => {
+            { event: '*', schema: 'public', table: 'dashboard_state', filter: `user_id=eq.${userId}` },
+            (payload: any) => {
               const newState = payload.new as any;
               if (newState && newState.state) {
                 const remoteState = newState.state as any;
@@ -400,6 +420,8 @@ export default function App() {
             }
           )
           .subscribe();
+
+        channelRef.current = newChannel;
       } catch (e: any) {
         console.error("Supabase sync initialization failed:", e);
         setSyncError(`Sync engine failure: ${e.message}`);
@@ -410,15 +432,18 @@ export default function App() {
     fetchAndSubscribe();
 
     return () => {
-      if (supabase && channel) {
+      cancelled = true;
+      if (supabase && channelRef.current) {
         try {
-          supabase.removeChannel(channel);
+          supabase.removeChannel(channelRef.current);
         } catch (e) {
           console.error("Failed to remove channel:", e);
+        } finally {
+          channelRef.current = null;
         }
       }
     };
-  }, [user]);
+  }, [user?.id]);
 
   // 4. Save local state changes back to Supabase
   const saveStateToSupabase = async (
