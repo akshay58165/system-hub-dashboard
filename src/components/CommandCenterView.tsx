@@ -336,7 +336,13 @@ export default function CommandCenterView() {
 
             {/* Subscribers Count */}
             <div>
-              <span className="text-3xl font-bold tracking-tight text-white font-sans">927,803</span>
+              <span className="text-3xl font-bold tracking-tight text-white font-sans">
+                {(() => {
+                  const learnDrivenSubs = parseInt(localStorage.getItem('yt_subscribers_LearnDriven') || '927803');
+                  const decodeWorthySubs = parseInt(localStorage.getItem('yt_subscribers_DecodeWorthy') || '0');
+                  return (learnDrivenSubs + decodeWorthySubs).toLocaleString();
+                })()}
+              </span>
               <span className="block text-[10px] text-[#aaaaaa] mt-0.5">Subscribers</span>
             </div>
 

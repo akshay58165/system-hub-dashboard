@@ -28,10 +28,12 @@ import {
   Bookmark,
   Clapperboard,
   Sparkles,
-  Youtube
+  Youtube,
+  RefreshCw
 } from 'lucide-react';
 import { supabase } from './services/supabase';
-import { loginWithYouTube, logoutYouTube, handleOAuthCallback, getYouTubeCredentials } from './services/youtube';
+import { loginWithYouTube, logoutYouTube, handleOAuthCallback, getYouTubeCredentials, orchestrateYouTubeDataFetch } from './services/youtube';
+import { generateAIActionPlan } from './services/openai';
 
 import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, VideoRecord, Experiment, CreatorInsight } from './types';
 import { 
@@ -128,6 +130,99 @@ export default function App() {
       setYtCreds(getYouTubeCredentials());
     }
   }, []);
+
+  const [isSyncingYT, setIsSyncingYT] = useState(false);
+
+  useEffect(() => {
+    if (!ytCreds) return;
+
+    let active = true;
+    const syncLiveFeeds = async () => {
+      setIsSyncingYT(true);
+      addEvent({
+        id: `evt-yt-sync-start-${Date.now()}`,
+        source: 'system',
+        type: 'info',
+        message: 'YouTube Sync: Fetching live videos metadata and channel reports...',
+        timestamp: new Date().toISOString()
+      });
+
+      try {
+        const liveVideos = await orchestrateYouTubeDataFetch(ytCreds.accessToken);
+        if (!active) return;
+
+        if (liveVideos.length > 0) {
+          setVideos(liveVideos);
+
+          const openAIApiKey = (import.meta as any).env.VITE_OPENAI_API_KEY || '';
+          if (openAIApiKey) {
+            addEvent({
+              id: `evt-openai-analysis-start-${Date.now()}`,
+              source: 'system',
+              type: 'info',
+              message: 'OpenAI Analyzer: Analyzing live video stats to write action priority...',
+              timestamp: new Date().toISOString()
+            });
+
+            const plan = await generateAIActionPlan(openAIApiKey, 'All', liveVideos, cycleGoals);
+            if (!active) return;
+
+            const newInsights: CreatorInsight[] = plan.insights.map(ins => ({
+              id: ins.id,
+              title: ins.title,
+              description: ins.description,
+              type: ins.type,
+              channel: 'LearnDriven',
+              reason: ins.reason,
+              actionLabel: ins.actionLabel
+            }));
+
+            setInsights(newInsights);
+
+            addEvent({
+              id: `evt-yt-sync-complete-${Date.now()}`,
+              source: 'system',
+              type: 'success',
+              message: `Real-time sync complete: Loaded ${liveVideos.length} videos and generated ${newInsights.length} suggestions from live feeds.`,
+              timestamp: new Date().toISOString()
+            });
+          } else {
+            addEvent({
+              id: `evt-yt-sync-no-ai-${Date.now()}`,
+              source: 'system',
+              type: 'success',
+              message: `Real-time sync complete: Loaded ${liveVideos.length} videos. OpenAI key not found, maintaining insights.`,
+              timestamp: new Date().toISOString()
+            });
+          }
+        }
+      } catch (err: any) {
+        console.error("YouTube Live Sync failed:", err);
+        addEvent({
+          id: `evt-yt-sync-failed-${Date.now()}`,
+          source: 'system',
+          type: 'warning',
+          message: `YouTube API Sync failed: ${err.message || err}. Simulated data maintained.`,
+          timestamp: new Date().toISOString()
+        });
+
+        if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
+          logoutYouTube();
+          setYtCreds(null);
+        }
+      } finally {
+        if (active) {
+          setIsSyncingYT(false);
+        }
+      }
+    };
+
+    syncLiveFeeds();
+
+    return () => {
+      active = false;
+    };
+  }, [ytCreds]);
 
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [timeStr, setTimeStr] = useState('');
@@ -801,8 +896,12 @@ export default function App() {
             {/* YouTube OAuth Control */}
             {ytCreds ? (
               <div className="flex items-center gap-2 bg-red-950/20 border border-red-900/30 rounded-lg px-2.5 py-1 text-red-400 select-none font-mono text-[9px]">
-                <Youtube className="h-3.5 w-3.5 text-red-500 shrink-0" />
-                <span className="font-bold">YT Active</span>
+                {isSyncingYT ? (
+                  <RefreshCw className="h-3.5 w-3.5 text-red-500 animate-spin shrink-0" />
+                ) : (
+                  <Youtube className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                )}
+                <span className="font-bold">{isSyncingYT ? 'Syncing...' : 'YT Active'}</span>
                 <button 
                   onClick={() => {
                     logoutYouTube();
