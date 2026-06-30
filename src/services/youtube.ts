@@ -11,6 +11,12 @@ export interface YouTubeCredentials {
   expiresAt: number;
 }
 
+export interface YouTube48HourAnalytics {
+  views: number;
+  hourlyViews: number[];
+  reportedThrough: string | null;
+}
+
 // Check if credentials exist and are not expired
 export function getYouTubeCredentials(): YouTubeCredentials | null {
   // Tokens from v1 predate the monetary analytics scope and must be re-granted.
@@ -97,6 +103,40 @@ async function fetchGoogleAPI(endpoint: string, accessToken: string) {
   }
 
   return response.json();
+}
+
+// YouTube exposes day-level analytics publicly, not Studio's private hourly
+// realtime feed. Expand the latest two reported days into 48 hourly-average
+// bars while preserving each day's exact API total.
+export async function fetchYouTube48HourAnalytics(accessToken: string): Promise<YouTube48HourAnalytics> {
+  const end = new Date();
+  const start = new Date(end.getTime() - 3 * 24 * 60 * 60 * 1000);
+  const toDate = (date: Date) => date.toISOString().split('T')[0];
+
+  const url = `https://youtubeanalytics.googleapis.com/v2/reports?` +
+    `ids=channel==MINE` +
+    `&startDate=${toDate(start)}` +
+    `&endDate=${toDate(end)}` +
+    `&metrics=views` +
+    `&dimensions=day` +
+    `&sort=day`;
+
+  const report = await fetchGoogleAPI(url, accessToken);
+  const rows = Array.isArray(report.rows) ? report.rows.slice(-2) : [];
+  const dailyViews = rows.map((row: any[]) => Math.max(0, Number(row[1]) || 0));
+  while (dailyViews.length < 2) dailyViews.unshift(0);
+
+  const hourlyViews = dailyViews.flatMap((dayViews: number) => {
+    const base = Math.floor(dayViews / 24);
+    const remainder = dayViews % 24;
+    return Array.from({ length: 24 }, (_, hour) => base + (hour < remainder ? 1 : 0));
+  });
+
+  return {
+    views: dailyViews.reduce((sum: number, value: number) => sum + value, 0),
+    hourlyViews,
+    reportedThrough: rows.length > 0 ? String(rows[rows.length - 1][0]) : null,
+  };
 }
 
 // Fetch channels linked to authenticated Google Account

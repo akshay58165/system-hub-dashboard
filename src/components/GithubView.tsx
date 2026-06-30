@@ -458,6 +458,22 @@ export default function GithubView({
               </div>
 
               <div className="flex items-center gap-2 w-full sm:w-auto">
+                {topics.some(topic => topic.isDemo) && (
+                  <button
+                    onClick={() => {
+                      if (!window.confirm('Remove all injected infotainment demo topics?')) return;
+                      const demoNames = new Set(topics.filter(topic => topic.isDemo).map(topic => topic.name));
+                      setTopics(prev => prev.filter(topic => !topic.isDemo));
+                      setActivities(prev => prev.filter(activity => !demoNames.has(activity.topicName)));
+                    }}
+                    className="px-2.5 py-1 bg-amber-950/20 border border-amber-900/40 hover:border-amber-700 text-amber-400 rounded text-[10px] font-mono flex items-center gap-1.5 shrink-0 transition"
+                    title="Permanently remove all injected demo topics"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Remove demos
+                  </button>
+                )}
+
                 {/* Search query input */}
                 <input 
                   type="text"
@@ -527,6 +543,21 @@ export default function GithubView({
                             <span className="px-1.5 py-0.2 bg-neutral-900/40 text-neutral-500 border border-neutral-900 rounded text-[9px]">
                               {topic.channel}
                             </span>
+                            {topic.format && (
+                              <span className="px-1.5 py-0.2 bg-cyan-950/20 text-cyan-400 border border-cyan-900/30 rounded text-[9px] font-bold">
+                                {topic.format}
+                              </span>
+                            )}
+                            {topic.category && (
+                              <span className="px-1.5 py-0.2 bg-violet-950/20 text-violet-400 border border-violet-900/30 rounded text-[9px]">
+                                {topic.category}
+                              </span>
+                            )}
+                            {topic.isDemo && (
+                              <span className="px-1.5 py-0.2 bg-amber-950/20 text-amber-400 border border-amber-900/30 rounded text-[9px] font-bold">
+                                Demo • Deletable
+                              </span>
+                            )}
                             {topic.revenueLevel && (
                               <span className="px-1.5 py-0.2 bg-emerald-950/20 text-emerald-400 border border-emerald-900/30 rounded text-[9px] font-bold">
                                 {topic.revenueLevel}

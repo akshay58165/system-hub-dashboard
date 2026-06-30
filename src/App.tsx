@@ -467,7 +467,20 @@ export default function App() {
 
         if (data && data.state) {
           const remoteState = data.state as any;
-          if (remoteState.topics) setTopics(remoteState.topics);
+          if (remoteState.topics) {
+            const seedStorageKey = `unicorn_infotainment_demo_seed_v1_${userId}`;
+            const seedAlreadyApplied = localStorage.getItem(seedStorageKey) === 'true';
+            const remoteTopics = remoteState.topics as Topic[];
+
+            if (!seedAlreadyApplied) {
+              const existingIds = new Set(remoteTopics.map(topic => topic.id));
+              const missingDemoTopics = initialTopics.filter(topic => !existingIds.has(topic.id));
+              setTopics([...missingDemoTopics, ...remoteTopics]);
+              localStorage.setItem(seedStorageKey, 'true');
+            } else {
+              setTopics(remoteTopics);
+            }
+          }
           if (remoteState.activities) setActivities(remoteState.activities);
           if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
           if (remoteState.scorecard) setScorecard(remoteState.scorecard);
@@ -498,6 +511,7 @@ export default function App() {
             },
             updated_at: new Date().toISOString()
           }, { onConflict: 'user_id' });
+          localStorage.setItem(`unicorn_infotainment_demo_seed_v1_${userId}`, 'true');
         }
         
         setIsStateLoaded(true); // Completed initial load
@@ -1177,6 +1191,7 @@ export default function App() {
                 setSelectedVideoId={setSelectedVideoId}
                 scorecard={scorecard}
                 activities={activities}
+                youtubeAccessToken={ytCreds?.accessToken}
               />
             )}
 
