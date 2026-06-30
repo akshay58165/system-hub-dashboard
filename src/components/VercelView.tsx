@@ -7,11 +7,9 @@ import {
   GitBranch, 
   Server, 
   AlertTriangle, 
-  CheckCircle, 
-  TrendingUp, 
-  Loader2, 
-  ArrowUpRight, 
-  Sparkles,
+  CheckCircle,
+  TrendingUp,
+  ArrowUpRight,
   Youtube,
   User,
   Activity
@@ -36,6 +34,7 @@ interface VercelViewProps {
   activities: TopicActivity[];
   setActivities: React.Dispatch<React.SetStateAction<TopicActivity[]>>;
   setActiveTab?: (tab: 'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score') => void;
+  cycleGoals: CycleGoal | null;
 }
 
 export default function VercelView({ 
@@ -51,9 +50,6 @@ export default function VercelView({
   const [schedulingTopicId, setSchedulingTopicId] = useState<string | null>(null);
   const [schedDate, setSchedDate] = useState('');
   const [schedTime, setSchedTime] = useState('');
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncLogs, setSyncLogs] = useState<string[]>([]);
-  const [syncStep, setSyncStep] = useState(0);
 
   // Filtered topics
   const filteredTopics = useMemo(() => {
@@ -288,62 +284,6 @@ export default function VercelView({
       });
   }, [filteredTopics, selectedChannel, cycleGoals]);
 
-  // Sync animation handler
-  const handleTriggerSync = () => {
-    if (isSyncing) return;
-
-    setIsSyncing(true);
-    setSyncStep(0);
-    setSyncLogs([
-      'Initializing YouTube API dashboard gateway credentials...',
-      'Opening partition clusters for LearnDriven and DecodeWorthy playlists...',
-      'Verifying OAuth token status... OK',
-      'Checking Google cloud storage backup endpoints...'
-    ]);
-
-    onAddEvent({
-      id: `evt-progress-sync-${Date.now()}`,
-      source: 'vercel',
-      type: 'info',
-      message: `Content Engine: Commenced content pipeline synchronization for channel selection [${selectedChannel}]`,
-      timestamp: new Date().toISOString(),
-    });
-  };
-
-  useEffect(() => {
-    if (!isSyncing) return;
-
-    const steps = [
-      'Validating SEO metadata tags: product tagging, pin promotions check... OK',
-      'Auditing content scheduling gaps for Short videos...',
-      'Checking calendar lock date indicators... August lock parameters nominal.',
-      'Analyzing average production latency curves across content lanes...',
-      'Consolidating stage densities: Idea pool, scripted, filming, editing...',
-      'Synchronizing localized state indicators with permanent database entries...',
-      'Successfully synced! Content dashboard status active.'
-    ];
-
-    if (syncStep < steps.length) {
-      const timer = setTimeout(() => {
-        setSyncLogs(prev => [...prev, `[SYNC] ${steps[syncStep]}`]);
-        setSyncStep(prev => prev + 1);
-      }, 500);
-      return () => clearTimeout(timer);
-    } else {
-      const timer = setTimeout(() => {
-        setIsSyncing(false);
-        onAddEvent({
-          id: `evt-progress-sync-done-${Date.now()}`,
-          source: 'vercel',
-          type: 'success',
-          message: `Content Engine: Synchronization complete. Pipeline data refreshed for ${selectedChannel}.`,
-          timestamp: new Date().toISOString(),
-        });
-      }, 600);
-      return () => clearTimeout(timer);
-    }
-  }, [isSyncing, syncStep]);
-
   return (
     <div className="space-y-6">
       {/* Selector banner (Repurposed Vercel selector banner) */}
@@ -385,9 +325,7 @@ export default function VercelView({
               <div>
                 <h3 className="text-lg font-bold font-mono text-white tracking-tight flex items-center gap-2">
                   {selectedChannel === 'All' ? 'Consolidated Channels' : selectedChannel}
-                  <span className={`h-2.5 w-2.5 rounded-full ${
-                    isSyncing ? 'bg-blue-400 animate-spin' : 'bg-emerald-500 animate-pulse'
-                  }`} />
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
                 </h3>
                 <div className="flex items-center gap-2 mt-1 text-xs text-neutral-400 font-mono">
                   <Globe className="h-3.5 w-3.5 text-neutral-500" />
@@ -396,24 +334,6 @@ export default function VercelView({
                   </span>
                 </div>
               </div>
-
-              <button 
-                onClick={handleTriggerSync}
-                disabled={isSyncing}
-                className="px-3.5 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-black font-semibold rounded-lg text-xs font-mono flex items-center gap-1.5 transition self-start sm:self-auto cursor-pointer"
-              >
-                {isSyncing ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    <span>Syncing...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-3.5 w-3.5 fill-black" />
-                    <span>Sync Pipeline Data</span>
-                  </>
-                )}
-              </button>
             </div>
 
             {/* 4 Metric Boxes */}
@@ -742,38 +662,6 @@ export default function VercelView({
               </ResponsiveContainer>
             </div>
           </div>
-
-          {/* Sync logs Terminal */}
-          <AnimatePresence>
-            {(isSyncing || syncLogs.length > 0) && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="bg-neutral-950 border border-neutral-800 rounded-xl overflow-hidden"
-              >
-                <div className="bg-neutral-900 border-b border-neutral-800 px-4 py-2 flex items-center justify-between font-mono text-xs text-neutral-400">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className={`h-4 w-4 text-blue-400 ${isSyncing ? 'animate-spin' : ''}`} />
-                    <span>Content Pipeline Sync Logs</span>
-                  </div>
-                  {isSyncing ? (
-                    <span className="text-blue-400 animate-pulse font-bold text-[10px] uppercase">SYNCING</span>
-                  ) : (
-                    <span className="text-emerald-400 font-bold text-[10px] uppercase">SYNC COMPLETE</span>
-                  )}
-                </div>
-                <div className="p-4 bg-neutral-950 font-mono text-xs text-neutral-400 h-56 overflow-y-auto space-y-1">
-                  {syncLogs.map((log, i) => (
-                    <div key={i} className={`whitespace-pre-wrap ${log.includes('Successfully') || log.includes('refresh') ? 'text-emerald-400 font-bold' : log.includes('[SYNC]') ? 'text-neutral-400' : 'text-neutral-500'}`}>
-                      {log}
-                    </div>
-                  ))}
-                  {isSyncing && <span className="inline-block h-3.5 w-2 bg-neutral-300 animate-pulse" />}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
         {/* Right Side widgets */}

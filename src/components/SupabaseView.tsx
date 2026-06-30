@@ -1,19 +1,17 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Clapperboard, 
-  Terminal, 
-  Users, 
-  Plus, 
-  Trash2, 
-  Play, 
-  CheckCircle, 
-  AlertCircle, 
-  FileSpreadsheet, 
-  Clock,
+import {
+  Clapperboard,
+  Terminal,
+  Plus,
+  Trash2,
+  Play,
+  CheckCircle,
+  AlertCircle,
+  FileSpreadsheet,
   FileText
 } from 'lucide-react';
-import { SupabaseProject, SupabaseApiLog, SystemEvent, Topic, TopicActivity, CycleGoal } from '../types';
+import { SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal } from '../types';
 import { callOpenAI, getChannelSystemPrompt } from '../services/openai';
 
 interface SupabaseViewProps {
@@ -28,9 +26,9 @@ interface SupabaseViewProps {
   setCycleGoals: React.Dispatch<React.SetStateAction<CycleGoal | null>>;
 }
 
-export default function SupabaseView({ 
-  supabase, 
-  onAddEvent, 
+export default function SupabaseView({
+  supabase,
+  onAddEvent,
   onUpdateSupabase,
   topics,
   setTopics,
@@ -39,7 +37,7 @@ export default function SupabaseView({
   cycleGoals,
   setCycleGoals
 }: SupabaseViewProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'tables' | 'sql' | 'auth' | 'logs' | 'script' | 'goals'>('tables');
+  const [activeSubTab, setActiveSubTab] = useState<'tables' | 'sql' | 'script' | 'goals'>('tables');
   
   // Mapped Table Editor states
   const [selectedTableName, setSelectedTableName] = useState<string>('topics');
@@ -49,11 +47,6 @@ export default function SupabaseView({
   // SQL Editor states
   const [sqlQuery, setSqlQuery] = useState<string>('SELECT * FROM topics;');
   const [sqlResult, setSqlResult] = useState<{ success: boolean; message: string; rows?: Record<string, any>[]; columns?: string[] } | null>(null);
-
-  // Auth/Collaborators states
-  const [isAddUserOpen, setIsAddUserOpen] = useState(false);
-  const [newUserEmail, setNewUserEmail] = useState('');
-  const [newUserProvider, setNewUserProvider] = useState('github');
 
   // Script Editor states
   const [selectedScriptTopicId, setSelectedScriptTopicId] = useState<string>(topics[0]?.id || '');
@@ -266,18 +259,16 @@ Please rewrite/enhance this draft based on the system persona rules and the user
     }
   };
 
-  // Load biometrics logs from localStorage
-  const biometricsLogs = useMemo(() => {
+  // Biometrics logs — real state backed by localStorage, updated directly by handleAddRow/handleDeleteRow
+  const [biometricsLogs, setBiometricsLogs] = useState<any[]>(() => {
     try {
       const stored = localStorage.getItem('unicorn_scorecard_db_logs');
-      if (stored) {
-        return JSON.parse(stored);
-      }
+      return stored ? JSON.parse(stored) : [];
     } catch (e) {
       console.error(e);
+      return [];
     }
-    return [];
-  }, [supabase.apiLogs]); // Refresh logs when actions occur
+  });
 
   // Active relations mock metadata definitions
   const activeTables = useMemo(() => {
@@ -429,21 +420,8 @@ Please rewrite/enhance this draft based on the system persona rules and the user
       };
       const updatedLogs = [newLog, ...biometricsLogs];
       localStorage.setItem('unicorn_scorecard_db_logs', JSON.stringify(updatedLogs));
+      setBiometricsLogs(updatedLogs);
     }
-
-    // Add API connection telemetry log
-    const newApiLog: SupabaseApiLog = {
-      id: `log-${Date.now()}`,
-      method: 'POST',
-      path: `/rest/v1/${selectedTable.name}`,
-      status: 201,
-      latencyMs: 22,
-      timestamp: new Date().toISOString()
-    };
-
-    onUpdateSupabase({
-      apiLogs: [newApiLog, ...supabase.apiLogs]
-    });
 
     onAddEvent({
       id: `evt-sb-cr-${Date.now()}`,
@@ -466,21 +444,8 @@ Please rewrite/enhance this draft based on the system persona rules and the user
     } else if (selectedTableName === 'biometrics_logs') {
       const updatedLogs = biometricsLogs.filter((l: any) => l.id !== id);
       localStorage.setItem('unicorn_scorecard_db_logs', JSON.stringify(updatedLogs));
+      setBiometricsLogs(updatedLogs);
     }
-
-    // Add API telemetry log
-    const newApiLog: SupabaseApiLog = {
-      id: `log-${Date.now()}`,
-      method: 'DELETE',
-      path: `/rest/v1/${selectedTable.name}?id=eq.${id}`,
-      status: 200,
-      latencyMs: 15,
-      timestamp: new Date().toISOString()
-    };
-
-    onUpdateSupabase({
-      apiLogs: [newApiLog, ...supabase.apiLogs]
-    });
 
     onAddEvent({
       id: `evt-sb-dl-${Date.now()}`,
@@ -489,49 +454,6 @@ Please rewrite/enhance this draft based on the system persona rules and the user
       message: `Action Hub: Deleted a record from relation table "${selectedTable.name}"`,
       timestamp: new Date().toISOString()
     });
-  };
-
-  // Create Auth User (Collaborators)
-  const handleAddUser = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newUserEmail) return;
-
-    const newUser = {
-      id: `usr-${Date.now()}`,
-      email: newUserEmail,
-      provider: newUserProvider,
-      lastSignIn: 'Never signed in',
-      createdAt: new Date().toISOString(),
-      status: 'active' as const
-    };
-
-    onUpdateSupabase({
-      authUsers: [newUser, ...supabase.authUsers]
-    });
-
-    const newApiLog: SupabaseApiLog = {
-      id: `log-${Date.now()}`,
-      method: 'POST',
-      path: '/auth/v1/invite',
-      status: 200,
-      latencyMs: 38,
-      timestamp: new Date().toISOString()
-    };
-
-    onUpdateSupabase({
-      apiLogs: [newApiLog, ...supabase.apiLogs]
-    });
-
-    onAddEvent({
-      id: `evt-sb-usr-${Date.now()}`,
-      source: 'supabase',
-      type: 'success',
-      message: `Action Hub: Invited collaborator "${newUserEmail}" with access role provider "${newUserProvider}"`,
-      timestamp: new Date().toISOString()
-    });
-
-    setNewUserEmail('');
-    setIsAddUserOpen(false);
   };
 
   return (
@@ -555,15 +477,14 @@ Please rewrite/enhance this draft based on the system persona rules and the user
         </div>
       </div>
 
-      {/* Hardware Performance Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Hardware Performance Grid — only metrics with a real backing source */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {(() => {
           const totalTopics = topics.length;
           const scheduledTopics = topics.filter(t => t.status === 'scheduled').length;
           const inProgressTopics = topics.filter(t => t.status !== 'topic' && t.status !== 'scheduled').length;
           const pendingTopics = topics.filter(t => t.status === 'topic').length;
           const throughputPct = totalTopics > 0 ? Math.round((scheduledTopics / totalTopics) * 100) : 0;
-          const collabCount = supabase.authUsers.length;
           return (
             <>
               <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
@@ -574,17 +495,6 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                 </div>
                 <div className="w-full bg-neutral-900 rounded-full h-1 mt-2.5 overflow-hidden">
                   <div className="bg-emerald-500 h-1 rounded-full" style={{ width: totalTopics > 0 ? '100%' : '0%' }} />
-                </div>
-              </div>
-
-              <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
-                <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Team Members</span>
-                <div className="flex items-baseline gap-1.5 mt-1.5">
-                  <span className="text-xl font-bold font-mono text-white">{collabCount}</span>
-                  <span className="text-[10px] text-neutral-500 font-mono">collaborators</span>
-                </div>
-                <div className="w-full bg-neutral-900 rounded-full h-1 mt-2.5 overflow-hidden">
-                  <div className="bg-emerald-500 h-1 rounded-full" style={{ width: collabCount > 0 ? `${Math.min(collabCount * 20, 100)}%` : '0%' }} />
                 </div>
               </div>
 
@@ -638,27 +548,7 @@ Please rewrite/enhance this draft based on the system persona rules and the user
             <span>SQL Console</span>
           </button>
 
-          <button 
-            onClick={() => setActiveSubTab('auth')}
-            className={`px-4 py-3 text-xs font-mono font-semibold border-r border-neutral-800 flex items-center gap-1.5 transition ${
-              activeSubTab === 'auth' ? 'bg-neutral-950 text-emerald-400 border-b-2 border-b-emerald-400' : 'text-neutral-400 hover:text-neutral-200'
-            }`}
-          >
-            <Users className="h-3.5 w-3.5" />
-            <span>Auth Users</span>
-          </button>
-
-          <button 
-            onClick={() => setActiveSubTab('logs')}
-            className={`px-4 py-3 text-xs font-mono font-semibold border-r border-neutral-800 flex items-center gap-1.5 transition ${
-              activeSubTab === 'logs' ? 'bg-neutral-950 text-emerald-400 border-b-2 border-b-emerald-400' : 'text-neutral-400 hover:text-neutral-200'
-            }`}
-          >
-            <Clock className="h-3.5 w-3.5" />
-            <span>API Telemetry Logs</span>
-          </button>
-
-          <button 
+          <button
             onClick={() => setActiveSubTab('script')}
             className={`px-4 py-3 text-xs font-mono font-semibold border-r border-neutral-800 flex items-center gap-1.5 transition ${
               activeSubTab === 'script' ? 'bg-neutral-950 text-emerald-400 border-b-2 border-b-emerald-400' : 'text-neutral-400 hover:text-neutral-200'
@@ -884,165 +774,6 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                       <p className="text-neutral-500 italic py-4">Terminal ready. Click "Run SQL" to execute queries on active relations.</p>
                     )}
                   </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Sub Tab: Auth Users */}
-          {activeSubTab === 'auth' && (
-            <div className="space-y-4 flex-1 flex flex-col">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-xs font-semibold text-neutral-300">Authentication Manager</h3>
-                  <p className="text-[11px] text-neutral-500">Invite, configure and coordinate active content team developers or script collaborators.</p>
-                </div>
-
-                <button 
-                  onClick={() => setIsAddUserOpen(!isAddUserOpen)}
-                  className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 text-black rounded text-[10px] font-mono font-bold flex items-center gap-1 transition cursor-pointer"
-                >
-                  <Plus className="h-3 w-3" />
-                  <span>Add Auth User</span>
-                </button>
-              </div>
-
-              {/* Add User form */}
-              {isAddUserOpen && (
-                <motion.form 
-                  initial={{ opacity: 0, y: -5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  onSubmit={handleAddUser}
-                  className="p-4 bg-neutral-900 border border-neutral-800 rounded-lg space-y-3"
-                >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-mono text-neutral-400 uppercase">User Email Address</label>
-                      <input 
-                        type="email"
-                        required
-                        placeholder="collaborator@gmail.com"
-                        value={newUserEmail}
-                        onChange={(e) => setNewUserEmail(e.target.value)}
-                        className="w-full bg-neutral-950 border border-neutral-800 focus:border-emerald-800 outline-none text-xs rounded px-2.5 py-1.5 mt-1 text-white font-mono"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-mono text-neutral-400 uppercase">Access Provider</label>
-                      <select
-                        value={newUserProvider}
-                        onChange={(e) => setNewUserProvider(e.target.value)}
-                        className="w-full bg-neutral-950 border border-neutral-800 outline-none text-xs rounded px-2.5 py-1.5 mt-1 text-white font-mono"
-                      >
-                        <option value="github">GitHub</option>
-                        <option value="google">Google</option>
-                        <option value="email">Email Invite</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-2 text-[10px]">
-                    <button 
-                      type="button" 
-                      onClick={() => setIsAddUserOpen(false)}
-                      className="px-3 py-1.5 text-neutral-400 hover:text-neutral-200 font-mono cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      type="submit"
-                      className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold font-mono rounded cursor-pointer"
-                    >
-                      Invite User
-                    </button>
-                  </div>
-                </motion.form>
-              )}
-
-              {/* Users list */}
-              <div className="flex-1 border border-neutral-800 rounded-lg overflow-x-auto max-h-[300px]">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-neutral-900 border-b border-neutral-800 text-[10px] text-neutral-400 font-mono sticky top-0">
-                      <th className="px-4 py-2.5 bg-neutral-900">User UUID</th>
-                      <th className="px-4 py-2.5 bg-neutral-900">Email</th>
-                      <th className="px-4 py-2.5 bg-neutral-900">Provider</th>
-                      <th className="px-4 py-2.5 bg-neutral-900">Created Date</th>
-                      <th className="px-4 py-2.5 bg-neutral-900">Last Signed In</th>
-                      <th className="px-4 py-2.5 text-right bg-neutral-900">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-850 font-mono text-xs text-neutral-300">
-                    {supabase.authUsers.map(usr => (
-                      <tr key={usr.id} className="hover:bg-neutral-900/40">
-                        <td className="px-4 py-3 text-neutral-500 text-[11px] truncate max-w-[120px]">{usr.id}</td>
-                        <td className="px-4 py-3 font-semibold text-white">{usr.email}</td>
-                        <td className="px-4 py-3">
-                          <span className="px-1.5 py-0.2 bg-neutral-800 border border-neutral-700 text-neutral-300 rounded font-semibold text-[9px] uppercase font-mono">
-                            {usr.provider}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-neutral-400 text-[11px]">{new Date(usr.createdAt).toLocaleDateString()}</td>
-                        <td className="px-4 py-3 text-neutral-400 text-[11px]">{usr.lastSignIn === 'Never signed in' ? 'Never' : new Date(usr.lastSignIn).toLocaleTimeString()}</td>
-                        <td className="px-4 py-3 text-right">
-                          <span className="px-1.5 py-0.2 bg-emerald-950 text-emerald-400 border border-emerald-900 rounded font-semibold text-[9px] uppercase font-mono">
-                            {usr.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* Sub Tab: API Telemetry logs */}
-          {activeSubTab === 'logs' && (
-            <div className="space-y-4 flex-1 flex flex-col">
-              <div>
-                <h3 className="text-xs font-semibold text-neutral-300">Action Log Stream</h3>
-                <p className="text-[11px] text-neutral-500 font-mono">Tracking all insert, update, and delete operations across content tables.</p>
-              </div>
-
-              <div className="flex-1 border border-neutral-800 rounded-lg overflow-hidden">
-                <div className="bg-neutral-900 px-4 py-2 flex items-center justify-between font-mono text-[10px] text-neutral-500 border-b border-neutral-800">
-                  <span>API CALL ENDPOINT</span>
-                  <div className="flex gap-4">
-                    <span>LATENCY</span>
-                    <span>STATUS</span>
-                  </div>
-                </div>
-
-                <div className="divide-y divide-neutral-850 max-h-[300px] overflow-y-auto bg-neutral-950 font-mono text-xs">
-                  {supabase.apiLogs.map(log => (
-                    <div key={log.id} className="px-4 py-3 hover:bg-neutral-900/40 flex items-center justify-between text-neutral-300 gap-4">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          log.method === 'GET' ? 'bg-blue-950 text-blue-400 border border-blue-900' :
-                          log.method === 'POST' ? 'bg-emerald-950 text-emerald-400 border border-emerald-900' :
-                          log.method === 'DELETE' ? 'bg-rose-950 text-rose-400 border border-rose-900' :
-                          'bg-neutral-800 text-neutral-300'
-                        }`}>
-                          {log.method}
-                        </span>
-                        <span className="truncate text-neutral-200">{log.path}</span>
-                        <span className="text-[10px] text-neutral-500 hidden sm:inline">
-                          {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-6 shrink-0 text-right">
-                        <span className="text-[11px] text-neutral-400">{log.latencyMs}ms</span>
-                        <span className={`px-1.5 py-0.2 rounded font-bold text-[10px] ${
-                          log.status >= 200 && log.status < 300 ? 'bg-emerald-950 text-emerald-400' : 'bg-rose-950 text-rose-400'
-                        }`}>
-                          {log.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </div>
             </div>

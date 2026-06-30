@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Terminal, 
@@ -709,10 +709,10 @@ export default function App() {
 
             <div className="hidden lg:flex items-center gap-1.5 text-neutral-400">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${syncError ? 'bg-red-400' : 'bg-emerald-400'}`}></span>
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${syncError ? 'bg-red-500' : 'bg-emerald-500'}`}></span>
               </span>
-              <span>All Cloud Systems Nominal</span>
+              <span>{syncError ? 'Cloud Sync Error' : 'Cloud Sync Active'}</span>
             </div>
 
             {/* Supabase Sync Auth Control — header only renders once `user` is set */}
@@ -956,7 +956,6 @@ export default function App() {
             <span>Unicorn's Desk Panel — Cloud Sync Integration Active</span>
           </div>
           <div className="flex items-center gap-4">
-            <span>DB Space: 8.2%</span>
             <span>Last Updated: {formatRelativeTime(lastDbUpdateTime)}</span>
             <button 
               onClick={() => {
