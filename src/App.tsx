@@ -237,18 +237,38 @@ export default function App() {
       return;
     }
     
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setAuthLoading(false);
-    });
+    let unsubscribeFn: (() => void) | null = null;
+    
+    try {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setUser(session?.user ?? null);
+        setAuthLoading(false);
+      }).catch((e: any) => {
+        console.error("Supabase getSession error:", e);
+        setAuthLoading(false);
+      });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        setUser(session?.user ?? null);
+        setAuthLoading(false);
+      });
+
+      if (data && data.subscription) {
+        unsubscribeFn = () => data.subscription.unsubscribe();
+      }
+    } catch (err) {
+      console.error("Supabase auth listener crash:", err);
       setAuthLoading(false);
-    });
+    }
 
     return () => {
-      subscription.unsubscribe();
+      if (unsubscribeFn) {
+        try {
+          unsubscribeFn();
+        } catch (e) {
+          console.error("Failed to unsubscribe auth listener:", e);
+        }
+      }
     };
   }, []);
 
@@ -256,7 +276,9 @@ export default function App() {
   useEffect(() => {
     if (!supabase || !user) return;
 
-    const fetchState = async () => {
+    let channel: any = null;
+
+    const fetchAndSubscribe = async () => {
       try {
         const { data, error } = await supabase
           .from('dashboard_state')
@@ -266,10 +288,7 @@ export default function App() {
 
         if (error) {
           console.error("Error fetching state from Supabase:", error.message);
-          return;
-        }
-
-        if (data && data.state) {
+        } else if (data && data.state) {
           const remoteState = data.state as any;
           if (remoteState.topics) setTopics(remoteState.topics);
           if (remoteState.activities) setActivities(remoteState.activities);
@@ -283,41 +302,45 @@ export default function App() {
             timestamp: new Date().toISOString()
           });
         }
+
+        // 3. Subscribe to Real-time database changes for this user
+        channel = supabase.channel(`realtime:dashboard_state:${user.id}`)
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'dashboard_state', filter: `user_id=eq.${user.id}` },
+            (payload) => {
+              const newState = payload.new as any;
+              if (newState && newState.state) {
+                const remoteState = newState.state as any;
+                if (remoteState.topics) setTopics(remoteState.topics);
+                if (remoteState.activities) setActivities(remoteState.activities);
+                setCycleGoals(remoteState.cycleGoals || null);
+
+                addEvent({
+                  id: `evt-supabase-sync-realtime-${Date.now()}`,
+                  source: 'supabase',
+                  type: 'success',
+                  message: 'Supabase Sync: Real-time update synced from remote device.',
+                  timestamp: new Date().toISOString()
+                });
+              }
+            }
+          )
+          .subscribe();
       } catch (e) {
-        console.error(e);
+        console.error("Supabase sync initialization failed:", e);
       }
     };
 
-    fetchState();
-
-    // 3. Subscribe to Real-time database changes for this user
-    const channel = supabase.channel(`realtime:dashboard_state:${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'dashboard_state', filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          const newState = payload.new as any;
-          if (newState && newState.state) {
-            const remoteState = newState.state as any;
-            if (remoteState.topics) setTopics(remoteState.topics);
-            if (remoteState.activities) setActivities(remoteState.activities);
-            setCycleGoals(remoteState.cycleGoals || null);
-
-            addEvent({
-              id: `evt-supabase-sync-realtime-${Date.now()}`,
-              source: 'supabase',
-              type: 'success',
-              message: 'Supabase Sync: Real-time update synced from remote device.',
-              timestamp: new Date().toISOString()
-            });
-          }
-        }
-      )
-      .subscribe();
+    fetchAndSubscribe();
 
     return () => {
-      if (supabase) {
-        supabase.removeChannel(channel);
+      if (supabase && channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch (e) {
+          console.error("Failed to remove channel:", e);
+        }
       }
     };
   }, [user]);
