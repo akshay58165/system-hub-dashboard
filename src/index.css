@@ -42,6 +42,17 @@ html {
   scrollbar-color: #22222a transparent;
 }
 
+/* Hide scrollbar entirely — for rows where the scroll is incidental
+   (e.g. a hover scale transform briefly overflowing) and shouldn't
+   ever show a visible track/thumb. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Subtle, responsive app backdrop — sits behind all content.
    Layered: soft emerald glow top-center, faint corner wash, and a fine
    grid of hairlines. Percentage + fixed sizing keeps it correct at any
