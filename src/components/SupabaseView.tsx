@@ -53,11 +53,7 @@ export default function SupabaseView({
     return '';
   });
 
-  // OpenAI Integration States
-  const [openaiKey, setOpenaiKey] = useState<string>(() => {
-    return localStorage.getItem('unicorn_openai_api_key') || '';
-  });
-  const [tempKey, setTempKey] = useState('');
+  // OpenAI requests are authenticated and handled by the server-side API route.
   const [customInstruction, setCustomInstruction] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -123,39 +119,6 @@ export default function SupabaseView({
     };
   }, []);
 
-  const handleSaveApiKey = () => {
-    if (!tempKey.trim().startsWith('sk-')) {
-      alert("Please enter a valid OpenAI API Key starting with 'sk-'");
-      return;
-    }
-    const cleanKey = tempKey.trim();
-    localStorage.setItem('unicorn_openai_api_key', cleanKey);
-    setOpenaiKey(cleanKey);
-    setTempKey('');
-    setAiError(null);
-    onAddEvent({
-      id: `evt-key-save-${Date.now()}`,
-      source: 'system',
-      type: 'success',
-      message: 'Secure Integration: OpenAI API credentials saved locally in web sandbox.',
-      timestamp: new Date().toISOString()
-    });
-  };
-
-  const handleClearApiKey = () => {
-    if (window.confirm("Remove local OpenAI API Key?")) {
-      localStorage.removeItem('unicorn_openai_api_key');
-      setOpenaiKey('');
-      onAddEvent({
-        id: `evt-key-clear-${Date.now()}`,
-        source: 'system',
-        type: 'warning',
-        message: 'Secure Integration: OpenAI API credentials purged from browser local storage.',
-        timestamp: new Date().toISOString()
-      });
-    }
-  };
-
   const handleTriggerAI = async (mode: 'outline' | 'enhance') => {
     if (!selectedScriptTopicId) return;
     const topic = topics.find(t => t.id === selectedScriptTopicId);
@@ -193,7 +156,7 @@ ${scriptText}
 Please rewrite/enhance this draft based on the system persona rules and the user instructions. Optimize the speech flow and pacing.`;
       }
 
-      const result = await callOpenAI(openaiKey, systemPrompt, userPrompt);
+      const result = await callOpenAI(systemPrompt, userPrompt);
       handleUpdateScript(result);
 
       onAddEvent({
@@ -507,33 +470,8 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                 </div>
               </div>
 
-              {/* API Key Configurations or AI Toolbar Controls */}
-              {!openaiKey ? (
-                <div className="bg-rose-950/10 border border-rose-900/30 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 font-mono text-[10px]">
-                  <div className="space-y-1">
-                    <span className="font-bold text-rose-400 uppercase tracking-wider flex items-center gap-1">
-                      <AlertCircle className="h-3.5 w-3.5" /> OpenAI API Integration Required
-                    </span>
-                    <p className="text-neutral-400">Please provide an OpenAI API key (sk-...) to unlock automated outline generation and draft enhancements. Credentials are saved locally inside your browser sandbox.</p>
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    <input 
-                      type="password"
-                      placeholder="sk-..."
-                      value={tempKey}
-                      onChange={(e) => setTempKey(e.target.value)}
-                      className="bg-neutral-950 border border-neutral-800 focus:border-rose-900 outline-none text-xs rounded px-2.5 py-1.5 text-white w-48 font-mono"
-                    />
-                    <button
-                      onClick={handleSaveApiKey}
-                      className="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-black font-bold rounded transition cursor-pointer"
-                    >
-                      Save Key
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-neutral-900/40 border border-neutral-850 rounded-xl p-3 flex flex-col md:flex-row items-center gap-3 relative z-10">
+              {/* Secure AI Toolbar Controls */}
+              <div className="bg-neutral-900/40 border border-neutral-850 rounded-xl p-3 flex flex-col md:flex-row items-center gap-3 relative z-10">
                   {/* Custom AI Instructions Input Box */}
                   <div className="flex-1 w-full flex items-center gap-2 bg-neutral-950 border border-neutral-800 rounded px-2.5 py-1.5 focus-within:border-emerald-800 transition">
                     <span className="text-[10px] text-neutral-500 font-mono uppercase shrink-0">Custom AI Rule:</span>
@@ -563,17 +501,8 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                     >
                       <span>Enhance Draft</span>
                     </button>
-                    <button
-                      onClick={handleClearApiKey}
-                      disabled={isAiLoading}
-                      className="px-2 py-1.5 text-neutral-500 hover:text-neutral-300 font-mono text-[9px] cursor-pointer"
-                      title="Remove API Key Credentials"
-                    >
-                      Disconnect
-                    </button>
                   </div>
                 </div>
-              )}
 
               {/* AI Processing and Error Display Banner */}
               {isAiLoading && (

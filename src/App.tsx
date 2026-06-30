@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Terminal, 
@@ -48,23 +48,28 @@ import {
   initialCreatorInsights
 } from './data';
 
-import Overview from './components/Overview';
-import GithubView from './components/GithubView';
-import VercelView from './components/VercelView';
-import SupabaseView from './components/SupabaseView';
-import LogsView from './components/LogsView';
-import ContentActivityView from './components/ContentActivityView';
-import ScoreView from './components/ScoreView';
 import CommandPalette from './components/CommandPalette';
-import CommandCenterView from './components/CommandCenterView';
-import PipelineView from './components/PipelineView';
-import VideoLabView from './components/VideoLabView';
-import TopicIntelligenceView from './components/TopicIntelligenceView';
-import ForecastingView from './components/ForecastingView';
-import ExperimentTrackerView from './components/ExperimentTrackerView';
-import InsightsView from './components/InsightsView';
+
+const GithubView = lazy(() => import('./components/GithubView'));
+const VercelView = lazy(() => import('./components/VercelView'));
+const SupabaseView = lazy(() => import('./components/SupabaseView'));
+const LogsView = lazy(() => import('./components/LogsView'));
+const ContentActivityView = lazy(() => import('./components/ContentActivityView'));
+const ScoreView = lazy(() => import('./components/ScoreView'));
+const CommandCenterView = lazy(() => import('./components/CommandCenterView'));
+const PipelineView = lazy(() => import('./components/PipelineView'));
+const VideoLabView = lazy(() => import('./components/VideoLabView'));
+const TopicIntelligenceView = lazy(() => import('./components/TopicIntelligenceView'));
+const ForecastingView = lazy(() => import('./components/ForecastingView'));
+const ExperimentTrackerView = lazy(() => import('./components/ExperimentTrackerView'));
+const InsightsView = lazy(() => import('./components/InsightsView'));
 
 export default function App() {
+  useEffect(() => {
+    // Remove credentials stored by versions that called OpenAI from the browser.
+    localStorage.removeItem('unicorn_openai_api_key');
+  }, []);
+
   const [activeTab, setActiveTab] = useState<'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score' | 'pipeline' | 'videolab' | 'topicintel' | 'forecasting' | 'experiments' | 'insights'>(() => {
     return (localStorage.getItem('unicorn_active_tab') as any) || 'overview';
   });
@@ -154,8 +159,7 @@ export default function App() {
         if (liveVideos.length > 0) {
           setVideos(liveVideos);
 
-          const openAIApiKey = (import.meta as any).env.VITE_OPENAI_API_KEY || '';
-          if (openAIApiKey) {
+          try {
             addEvent({
               id: `evt-openai-analysis-start-${Date.now()}`,
               source: 'system',
@@ -164,7 +168,7 @@ export default function App() {
               timestamp: new Date().toISOString()
             });
 
-            const plan = await generateAIActionPlan(openAIApiKey, 'All', liveVideos, cycleGoals, scorecard, activities);
+            const plan = await generateAIActionPlan('All', liveVideos, cycleGoals, scorecard, activities);
             if (!active) return;
 
             const newInsights: CreatorInsight[] = [];
@@ -214,12 +218,13 @@ export default function App() {
               message: `Real-time sync complete: Loaded ${liveVideos.length} videos and generated ${newInsights.length} suggestions from live feeds.`,
               timestamp: new Date().toISOString()
             });
-          } else {
+          } catch (aiError: any) {
+            console.warn('OpenAI analysis unavailable:', aiError);
             addEvent({
               id: `evt-yt-sync-no-ai-${Date.now()}`,
               source: 'system',
-              type: 'success',
-              message: `Real-time sync complete: Loaded ${liveVideos.length} videos. OpenAI key not found, maintaining insights.`,
+              type: 'warning',
+              message: `Real-time sync complete: Loaded ${liveVideos.length} videos. Secure AI analysis was unavailable.`,
               timestamp: new Date().toISOString()
             });
           }
@@ -1157,6 +1162,11 @@ export default function App() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.15 }}
           >
+            <Suspense fallback={
+              <div className="flex min-h-[50vh] items-center justify-center text-sm font-mono text-neutral-500">
+                Loading workspace…
+              </div>
+            }>
             {activeTab === 'overview' && (
               <CommandCenterView
                 videos={videos}
@@ -1286,6 +1296,7 @@ export default function App() {
                 setScorecard={setScorecard}
               />
             )}
+            </Suspense>
           </motion.div>
         </AnimatePresence>
       </main>

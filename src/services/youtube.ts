@@ -3,6 +3,8 @@ import { VideoRecord } from '../types';
 
 const CLIENT_ID = (import.meta as any).env.VITE_YOUTUBE_CLIENT_ID || '';
 const REDIRECT_URI = window.location.origin; // e.g. http://localhost:3000
+const CREDENTIALS_STORAGE_KEY = 'yt_oauth_credentials_v2';
+const LEGACY_CREDENTIALS_STORAGE_KEY = 'yt_oauth_credentials';
 
 export interface YouTubeCredentials {
   accessToken: string;
@@ -11,13 +13,15 @@ export interface YouTubeCredentials {
 
 // Check if credentials exist and are not expired
 export function getYouTubeCredentials(): YouTubeCredentials | null {
-  const stored = localStorage.getItem('yt_oauth_credentials');
+  // Tokens from v1 predate the monetary analytics scope and must be re-granted.
+  localStorage.removeItem(LEGACY_CREDENTIALS_STORAGE_KEY);
+  const stored = localStorage.getItem(CREDENTIALS_STORAGE_KEY);
   if (!stored) return null;
   
   try {
     const creds = JSON.parse(stored) as YouTubeCredentials;
     if (Date.now() > creds.expiresAt) {
-      localStorage.removeItem('yt_oauth_credentials');
+      localStorage.removeItem(CREDENTIALS_STORAGE_KEY);
       return null;
     }
     return creds;
@@ -35,7 +39,8 @@ export function loginWithYouTube() {
 
   const scopes = [
     'https://www.googleapis.com/auth/youtube.readonly',
-    'https://www.googleapis.com/auth/yt-analytics.readonly'
+    'https://www.googleapis.com/auth/yt-analytics.readonly',
+    'https://www.googleapis.com/auth/yt-analytics-monetary.readonly'
   ];
 
   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` + 
@@ -64,7 +69,7 @@ export function handleOAuthCallback(): YouTubeCredentials | null {
       accessToken,
       expiresAt: Date.now() + parseInt(expiresIn || '3600') * 1000
     };
-    localStorage.setItem('yt_oauth_credentials', JSON.stringify(credentials));
+    localStorage.setItem(CREDENTIALS_STORAGE_KEY, JSON.stringify(credentials));
     // Clean URL hash
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
     return credentials;
@@ -73,7 +78,8 @@ export function handleOAuthCallback(): YouTubeCredentials | null {
 }
 
 export function logoutYouTube() {
-  localStorage.removeItem('yt_oauth_credentials');
+  localStorage.removeItem(CREDENTIALS_STORAGE_KEY);
+  localStorage.removeItem(LEGACY_CREDENTIALS_STORAGE_KEY);
 }
 
 // Call Google API helper

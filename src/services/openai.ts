@@ -1,39 +1,39 @@
-// Client-side OpenAI API integration service
 import { VideoRecord } from '../types';
+import { supabase } from './supabase';
 
 export async function callOpenAI(
-  apiKey: string,
   systemPrompt: string,
   userPrompt: string
 ): Promise<string> {
-  if (!apiKey) {
-    throw new Error("Missing OpenAI API Key. Please configure it in the dashboard.");
+  if (!supabase) {
+    throw new Error('Supabase authentication is not configured.');
   }
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    throw new Error('Sign in before using AI features.');
+  }
+
+  const response = await fetch('/api/openai', {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${session.access_token}`,
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini", // Cost-effective, fast, and highly capable for text scripting
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.7,
+      systemPrompt,
+      userPrompt,
     }),
   });
 
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));
-    const errMessage = errData.error?.message || `HTTP ${response.status} Error`;
-    throw new Error(`OpenAI API Request Failed: ${errMessage}`);
+    const errMessage = errData.error || `HTTP ${response.status} Error`;
+    throw new Error(`AI request failed: ${errMessage}`);
   }
 
   const data = await response.json();
-  const content = data.choices?.[0]?.message?.content;
+  const content = data.content;
   if (!content) {
     throw new Error("Received empty or invalid response from OpenAI.");
   }
@@ -70,7 +70,6 @@ ${baseInstruction}`;
 
 // Generate structured actionable creator plans using OpenAI GPT models
 export async function generateAIActionPlan(
-  apiKey: string,
   channel: 'LearnDriven' | 'DecodeWorthy' | 'All',
   videos: VideoRecord[],
   goals: any,
@@ -135,7 +134,7 @@ Recent Video Telemetry Data: ${JSON.stringify(videoContext)}
 Generate the prioritized action plan and detailed directives categorized by What to Do, What is Done, What to Chase, What to Maintain, and How to Keep Up. Include correlations between well-being/activities and channel performance in 'howToKeepUp'.`;
 
   try {
-    const rawContent = await callOpenAI(apiKey, systemPrompt, userPrompt);
+    const rawContent = await callOpenAI(systemPrompt, userPrompt);
     const cleanJSON = rawContent.replace(/^```json\s*/, '').replace(/```\s*$/, '').trim();
     return JSON.parse(cleanJSON);
   } catch (e) {
