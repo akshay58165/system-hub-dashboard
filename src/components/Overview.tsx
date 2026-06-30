@@ -34,6 +34,7 @@ import {
   Brush
 } from 'recharts';
 import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity } from '../types';
+import AIInsightsBanner from './AIInsightsBanner';
 
 interface OverviewProps {
   repos: GitHubRepo[];
@@ -480,6 +481,8 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
 
   return (
     <div className="space-y-6">
+      <AIInsightsBanner />
+
       {/* Integrated Pipeline Pipeline Flow */}
       <div id="pipeline-card" className="bg-neutral-950 border border-neutral-900 rounded-xl p-4 py-3 relative overflow-hidden shadow-[0_4px_25px_rgba(0,0,0,0.2)] hover:border-neutral-850/50 transition duration-300">
         {/* Background design elements */}
