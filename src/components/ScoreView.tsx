@@ -334,7 +334,15 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
     stress: 'Stress Level'
   };
 
-  const [aiInsight, setAiInsight] = useState<string | null>(null);
+  interface LiveInsight {
+    mood: 'positive' | 'neutral' | 'concern' | 'critical';
+    headline: string;
+    whatChanged: string;
+    factors: { label: string; detail: string }[];
+    action: string;
+  }
+
+  const [aiInsight, setAiInsight] = useState<LiveInsight | null>(null);
   const [isAiInsightLoading, setIsAiInsightLoading] = useState(false);
   const [aiInsightError, setAiInsightError] = useState<string | null>(null);
   const [aiInsightTimestamp, setAiInsightTimestamp] = useState<string | null>(null);
@@ -370,9 +378,20 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
 
       const systemPrompt = `You are a perceptive personal performance analyst who has been continuously watching this creator's daily biometric and mental-focus parameters all day, like someone sitting beside them taking notes.
 
-Each time a parameter changes, analyze the change in the context of their full current state and recent history. Explain, in a natural, direct, personal voice: what just changed, why it matters, and how it interacts with their other current metrics right now (call out compounding effects, e.g. low hydration plus high stress). If something is concerning, say what to do about it. If things are going well, say so plainly and encourage maintaining it.
+Each time a parameter changes, analyze the change in the context of their full current state and recent history. Ground every claim in the specific numbers given, never give generic platitudes.
 
-Ground every claim in the specific numbers given. Never give generic platitudes. Keep your entire response to 3-5 sentences, conversational but sharp, no bullet points, no markdown, no headers, no restating the raw numbers like a report.`;
+Respond with ONLY valid JSON in exactly this shape, no markdown fences, no commentary outside the JSON:
+{
+  "mood": "positive" | "neutral" | "concern" | "critical",
+  "headline": "4 to 7 word punchy summary of the situation right now",
+  "whatChanged": "one short sentence describing what just changed and its new value",
+  "factors": [
+    { "label": "2 to 4 word tag naming a compounding relationship, e.g. 'Hydration -> Focus'", "detail": "one short sentence explaining that specific connection using the real numbers" }
+  ],
+  "action": "one single, specific, concrete next step, starting with a verb"
+}
+
+Include 2 to 4 items in factors, only the ones that are actually meaningful right now given the real numbers. Choose mood honestly: positive if things are genuinely going well, neutral if mixed/stable, concern if multiple metrics are compounding negatively, critical if something needs immediate attention.`;
 
       const userPrompt = `Most recent changes (most recent first):
 ${recentChanges}
@@ -382,11 +401,13 @@ ${currentSnapshot}
 
 Current Bio-Focus Score: ${computedMetrics.aggregate}/100
 
-Analyze what just changed and tell me the contextual story.`;
+Analyze what just changed and return the JSON.`;
 
       try {
-        const result = await callOpenAI(systemPrompt, userPrompt);
-        setAiInsight(result.trim());
+        const raw = await callOpenAI(systemPrompt, userPrompt);
+        const cleanJSON = raw.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+        const parsed = JSON.parse(cleanJSON);
+        setAiInsight(parsed);
         setAiInsightTimestamp(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
       } catch (err: any) {
         setAiInsightError(err.message || 'Live analysis failed.');
@@ -838,15 +859,53 @@ Analyze what just changed and tell me the contextual story.`;
                 <span className="truncate">{aiInsightError}</span>
               </motion.div>
             ) : aiInsight ? (
-              <motion.p
-                key="insight"
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="text-sm text-neutral-200 leading-relaxed font-sans p-3 rounded-lg bg-neutral-950/40 border border-neutral-850"
-              >
-                {aiInsight}
-              </motion.p>
+              (() => {
+                const moodMeta = {
+                  positive: { color: 'text-emerald-400', bg: 'bg-emerald-950/15', border: 'border-emerald-900/30', icon: <ShieldCheck className="h-4 w-4" /> },
+                  neutral: { color: 'text-blue-400', bg: 'bg-blue-950/15', border: 'border-blue-900/30', icon: <Activity className="h-4 w-4" /> },
+                  concern: { color: 'text-amber-400', bg: 'bg-amber-950/15', border: 'border-amber-900/30', icon: <AlertTriangle className="h-4 w-4" /> },
+                  critical: { color: 'text-rose-400', bg: 'bg-rose-950/15', border: 'border-rose-900/30', icon: <ShieldAlert className="h-4 w-4" /> }
+                }[aiInsight.mood] || { color: 'text-blue-400', bg: 'bg-blue-950/15', border: 'border-blue-900/30', icon: <Activity className="h-4 w-4" /> };
+
+                return (
+                  <motion.div
+                    key="insight"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className={`rounded-lg border ${moodMeta.border} ${moodMeta.bg} p-4 space-y-3`}
+                  >
+                    {/* Headline + mood */}
+                    <div className="flex items-start gap-2.5">
+                      <div className={`mt-0.5 shrink-0 ${moodMeta.color}`}>{moodMeta.icon}</div>
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-bold text-neutral-100 leading-snug">{aiInsight.headline}</h4>
+                        <p className="text-xs text-neutral-400 font-sans mt-0.5">{aiInsight.whatChanged}</p>
+                      </div>
+                    </div>
+
+                    {/* Compounding factor chips */}
+                    {aiInsight.factors?.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {aiInsight.factors.map((f, i) => (
+                          <div key={i} className="p-2.5 rounded-lg bg-neutral-950/50 border border-neutral-850">
+                            <span className={`text-[9px] font-bold uppercase tracking-wider font-mono ${moodMeta.color}`}>{f.label}</span>
+                            <p className="text-[11px] text-neutral-400 font-sans mt-0.5 leading-snug">{f.detail}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Action */}
+                    {aiInsight.action && (
+                      <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-blue-950/20 border border-blue-900/30">
+                        <Zap className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                        <span className="text-xs text-blue-200 font-sans font-medium">{aiInsight.action}</span>
+                      </div>
+                    )}
+                  </motion.div>
+                );
+              })()
             ) : (
               <motion.p
                 key="idle"
