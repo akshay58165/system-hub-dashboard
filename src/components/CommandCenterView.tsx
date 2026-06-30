@@ -218,7 +218,7 @@ export default function CommandCenterView({
 
     if (defaultDirectives.whatToChase.length === 0) {
       // Dynamic forecasting milestone
-      const subGoal = cycleGoals?.subscribersTarget || 100000;
+      const subGoal = (cycleGoals as any)?.subscribersTarget || 100000;
       defaultDirectives.whatToChase.push({
         id: 'def-chase-1',
         title: 'Chase Subscriber Target',
