@@ -29,7 +29,7 @@ export function getYouTubeCredentials(): YouTubeCredentials | null {
 // Redirect user to Google OAuth 2.0 Consent Screen (Implicit Flow)
 export function loginWithYouTube() {
   if (!CLIENT_ID) {
-    alert("VITE_YOUTUBE_CLIENT_ID is not configured in your .env.local file.");
+    alert("VITE_YOUTUBE_CLIENT_ID is not configured. If running locally, please add it to your .env.local file. If running on Vercel, please configure VITE_YOUTUBE_CLIENT_ID in your Vercel Project Environment Variables.");
     return;
   }
 
