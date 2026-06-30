@@ -99,6 +99,8 @@ export default function SupabaseView({
     cycleGoals?.decodeWorthyShorts !== undefined && cycleGoals?.decodeWorthyShorts !== null ? String(cycleGoals?.decodeWorthyShorts) : ''
   );
 
+  const [saveNotification, setSaveNotification] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
+
   const dateCalculation = useMemo(() => {
     const now = new Date();
     
@@ -1299,7 +1301,8 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                   name = dateCalculation.nextMonthName;
                 } else {
                   if (!goalCustomStart || !goalCustomEnd) {
-                    alert("Please select both start and end dates for custom cycle.");
+                    setSaveNotification({ message: "Please select start & end dates.", type: 'warning' });
+                    setTimeout(() => setSaveNotification(null), 3000);
                     return;
                   }
                   start = goalCustomStart;
@@ -1328,7 +1331,8 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                   timestamp: new Date().toISOString()
                 });
 
-                alert("Content Cycle Goals configured successfully!");
+                setSaveNotification({ message: "🎯 Content Cycle Goals configured successfully!", type: 'success' });
+                setTimeout(() => setSaveNotification(null), 3000);
               }}
               className="space-y-5 flex-1 flex flex-col font-mono text-[10px]"
             >
@@ -1336,6 +1340,17 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                 <h3 className="text-xs font-semibold text-neutral-300">🎯 Content Cycle Target Goals</h3>
                 <p className="text-[11px] text-neutral-500 font-sans mt-0.5">Specify video frequency targets for each channel. Unconfigured streams default to "Free Flow" mode.</p>
               </div>
+
+              {saveNotification && (
+                <div className={`p-2.5 rounded-lg border text-[10px] flex items-center gap-2 animate-bounce transition-all ${
+                  saveNotification.type === 'success' ? 'bg-emerald-950/40 border-emerald-900/50 text-emerald-400' :
+                  saveNotification.type === 'warning' ? 'bg-rose-950/40 border-rose-900/50 text-rose-400' :
+                  'bg-neutral-900 border-neutral-800 text-neutral-300'
+                }`}>
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping inline-block" />
+                  <span>{saveNotification.message}</span>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 {/* Duration Column */}
@@ -1470,20 +1485,20 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                   <button
                     type="button"
                     onClick={() => {
-                      if (window.confirm("Purge and delete all cycle goals? This returns all content lanes to 'Free Flow' tracking.")) {
-                        setCycleGoals(null);
-                        setLdShortsGoal('');
-                        setLdLongGoal('');
-                        setLdMembersGoal('');
-                        setDwShortsGoal('');
-                        onAddEvent({
-                          id: `evt-goals-purged-${Date.now()}`,
-                          source: 'system',
-                          type: 'warning',
-                          message: 'Goals Engine: Active goals purged. All content lanes reverted to Free Flow.',
-                          timestamp: new Date().toISOString()
-                        });
-                      }
+                      setCycleGoals(null);
+                      setLdShortsGoal('');
+                      setLdLongGoal('');
+                      setLdMembersGoal('');
+                      setDwShortsGoal('');
+                      onAddEvent({
+                        id: `evt-goals-purged-${Date.now()}`,
+                        source: 'system',
+                        type: 'warning',
+                        message: 'Goals Engine: Active goals purged. All content lanes reverted to Free Flow.',
+                        timestamp: new Date().toISOString()
+                      });
+                      setSaveNotification({ message: "⚠️ Cycle goals purged successfully.", type: 'warning' });
+                      setTimeout(() => setSaveNotification(null), 3000);
                     }}
                     className="px-3.5 py-2 bg-neutral-900 hover:bg-rose-950/20 text-neutral-400 hover:text-rose-400 border border-neutral-800 hover:border-rose-900/40 rounded transition cursor-pointer"
                   >
