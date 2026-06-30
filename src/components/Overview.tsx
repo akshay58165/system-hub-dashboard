@@ -16,7 +16,9 @@ import {
   Server, 
   Wifi,
   Youtube,
-  FileText
+  FileText,
+  Flame,
+  Target
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -483,273 +485,269 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
     <div className="space-y-6">
       <AIInsightsBanner />
 
-      {/* Integrated Pipeline Pipeline Flow */}
-      <div id="pipeline-card" className="bg-neutral-950 border border-neutral-900 rounded-xl p-4 py-3 relative overflow-hidden shadow-[0_4px_25px_rgba(0,0,0,0.2)] hover:border-neutral-850/50 transition duration-300">
-        {/* Background design elements */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#0e0e12_1px,transparent_1px),linear-gradient(to_bottom,#0e0e12_1px,transparent_1px)] bg-[size:20px_20px] opacity-40 pointer-events-none" />
-        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
-        
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 gap-4 relative z-10">
-          <div>
-            <h2 className="text-sm font-bold text-neutral-100 font-mono tracking-tight flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              Content Pipeline Flow
-            </h2>
-            <p className="text-[10px] text-neutral-400 font-mono">Real-time tracking of content schedules, creation streaks, and monthly channel coverage.</p>
-          </div>
-          
-          <div className="flex items-center gap-4 text-[10px] font-mono">
-            <div className="flex items-center gap-1.5 text-neutral-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-              <span>Payment Cycle</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-neutral-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-              <span>Streak Status</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-neutral-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              <span>Month Coverage</span>
-            </div>
-          </div>
-        </div>
+      {/* Pipeline Flow — same visual language as AI Insights: glow blobs, icon badges, motion entrance.
+          All values below are real, computed from your actual topics — only the presentation changed. */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="relative overflow-hidden rounded-xl border border-neutral-900 bg-neutral-950 shadow-[0_4px_30px_rgba(0,0,0,0.3)]"
+      >
+        <motion.div
+          className="absolute -top-20 -right-10 w-72 h-72 rounded-full bg-emerald-500/8 blur-3xl pointer-events-none"
+          animate={{ x: [0, -25, 10, 0], y: [0, 20, -10, 0] }}
+          transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          className="absolute -bottom-20 -left-10 w-72 h-72 rounded-full bg-blue-500/8 blur-3xl pointer-events-none"
+          animate={{ x: [0, 25, -10, 0], y: [0, -20, 10, 0] }}
+          transition={{ duration: 24, repeat: Infinity, ease: 'easeInOut' }}
+        />
 
-        {/* The Pipeline Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-stretch relative py-1 z-10">
-          {/* GitHub Source Block */}
-          <div 
-            onClick={() => onTabChange('topics')}
-            className="md:col-span-2 p-3 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-red-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(239,68,68,0.04)] transition-all duration-300 cursor-pointer flex flex-col justify-between group relative overflow-hidden"
-          >
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-red-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="flex items-center gap-2 border-b border-neutral-900 pb-2 mb-2 w-full text-left">
-              <Youtube className="h-4 w-4 text-red-500 animate-pulse" />
-              <span className="text-xs font-mono font-bold text-neutral-200">Payment Cycle</span>
+        <div className="relative z-10 p-5 sm:p-6">
+          <div className="flex items-center gap-2.5 mb-5">
+            <div className="grid place-items-center h-8 w-8 rounded-lg bg-emerald-950/30 border border-emerald-900/40 text-emerald-400">
+              <Zap className="h-4 w-4" />
             </div>
-            
-            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1.5">
-              {/* Current Month: Green Card */}
-              <div className="p-2 bg-emerald-950/10 border border-emerald-900/30 rounded-lg text-left text-[10px] font-mono select-none space-y-1">
-                <div className="flex justify-between items-center border-b border-emerald-900/20 pb-1.5 mb-1.5 font-bold text-emerald-400">
-                  <span>Current: {paymentMetrics.curMonthName}</span>
-                  <span>{paymentMetrics.curPayDays} left</span>
-                </div>
-                <div className="flex justify-between text-neutral-400 items-center">
-                  <span>Revenue Lock:</span>
-                  <span 
-                    className={`font-mono font-bold flex items-center gap-1 ${getLockGlowStyle(paymentMetrics.curLockDays).color} ${getLockGlowStyle(paymentMetrics.curLockDays).animationClass}`}
-                    style={getLockGlowStyle(paymentMetrics.curLockDays).style}
-                  >
-                    {getLockGlowStyle(paymentMetrics.curLockDays).showWarning && (
-                      <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" />
-                    )}
-                    {paymentMetrics.curLockDays}
-                  </span>
-                </div>
-                <div className="flex justify-between text-neutral-400">
-                  <span>Bank Dispatch:</span>
-                  <span className="text-neutral-200 font-bold">{paymentMetrics.curPayDays}</span>
-                </div>
+            <div>
+              <h2 className="text-sm font-bold text-neutral-100 font-mono tracking-tight">Pipeline Status</h2>
+              <p className="text-[10px] text-neutral-500 font-mono">Real-time payout cycle, creation streaks, and monthly channel coverage.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-stretch">
+            {/* Payment Cycle */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: 0.05 }}
+              onClick={() => onTabChange('topics')}
+              className="md:col-span-2 p-4 rounded-lg border bg-red-950/10 border-red-900/30 hover:border-red-800/50 transition-all duration-300 cursor-pointer flex flex-col justify-between"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <Youtube className="h-4 w-4 text-red-400" />
+                <span className="text-[9px] font-bold uppercase tracking-wider text-red-400">Payment Cycle</span>
               </div>
 
-              {/* Bottom Card: Last/Next Month (Neutral) */}
-              <div className="p-2 bg-neutral-900/10 border border-neutral-900/60 rounded-lg text-left text-[10px] font-mono select-none space-y-1">
-                <div className="flex justify-between items-center border-b border-neutral-900/40 pb-1.5 mb-1.5 font-bold text-neutral-400">
-                  <span>{paymentMetrics.bottomLabel}: {paymentMetrics.bottomName}</span>
-                  <span>{paymentMetrics.bottomPayDays} left</span>
-                </div>
-                <div className="flex justify-between text-neutral-500">
-                  <span>Revenue Lock:</span>
-                  <span className="text-neutral-300 font-bold">{paymentMetrics.bottomLockDays}</span>
-                </div>
-                <div className="flex justify-between text-neutral-500">
-                  <span>Bank Dispatch:</span>
-                  <span className="text-neutral-300 font-bold">{paymentMetrics.bottomPayDays}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Streak Status Block */}
-          <div 
-            onClick={() => onTabChange('topics')}
-            className="md:col-span-1 p-3 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-amber-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(245,158,11,0.04)] transition-all duration-300 cursor-pointer flex flex-col justify-between group relative overflow-hidden font-mono"
-          >
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-amber-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="flex items-center gap-2 border-b border-neutral-900 pb-2 mb-2 w-full text-left">
-              <Zap className="h-4 w-4 text-amber-400" />
-              <span className="text-xs font-bold text-neutral-200">Streak Status</span>
-            </div>
-
-            <div className="w-full mt-1.5 space-y-2 text-left text-[9px]">
-              {/* LearnDriven Streak */}
-              <div className={`p-2 rounded-lg border ${getStreakStyle(streakMetrics.learnDriven.status).cardClass}`}>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="font-bold text-neutral-300">LearnDriven</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="relative flex h-1.5 w-1.5">
-                      <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${getStreakStyle(streakMetrics.learnDriven.status).indicatorClass}`} />
-                      <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${getStreakStyle(streakMetrics.learnDriven.status).indicatorClass.replace(' animate-ping', '').replace(' animate-pulse', '')}`} />
-                    </span>
-                    <span className="font-mono font-bold bg-neutral-950/40 px-1.5 py-0.2 border border-neutral-900/40 rounded text-neutral-200">
-                      {streakMetrics.learnDriven.streak}d
+              <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-2.5 bg-neutral-950/50 border border-emerald-900/30 rounded-lg text-left text-[10px] font-mono select-none space-y-1.5">
+                  <div className="flex justify-between items-center border-b border-emerald-900/20 pb-1.5 mb-1 font-bold text-emerald-400">
+                    <span>Current: {paymentMetrics.curMonthName}</span>
+                    <span>{paymentMetrics.curPayDays} left</span>
+                  </div>
+                  <div className="flex justify-between text-neutral-400 items-center">
+                    <span>Revenue Lock:</span>
+                    <span
+                      className={`font-mono font-bold flex items-center gap-1 ${getLockGlowStyle(paymentMetrics.curLockDays).color} ${getLockGlowStyle(paymentMetrics.curLockDays).animationClass}`}
+                      style={getLockGlowStyle(paymentMetrics.curLockDays).style}
+                    >
+                      {getLockGlowStyle(paymentMetrics.curLockDays).showWarning && (
+                        <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                      )}
+                      {paymentMetrics.curLockDays}
                     </span>
                   </div>
-                </div>
-                <div className={`text-[8px] uppercase tracking-wide ${getStreakStyle(streakMetrics.learnDriven.status).textClass}`}>
-                  {streakMetrics.learnDriven.message}
-                </div>
-              </div>
-
-              {/* DecodeWorthy Streak */}
-              <div className={`p-2 rounded-lg border ${getStreakStyle(streakMetrics.decodeWorthy.status).cardClass}`}>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="font-bold text-neutral-300">DecodeWorthy</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="relative flex h-1.5 w-1.5">
-                      <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${getStreakStyle(streakMetrics.decodeWorthy.status).indicatorClass}`} />
-                      <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${getStreakStyle(streakMetrics.decodeWorthy.status).indicatorClass.replace(' animate-ping', '').replace(' animate-pulse', '')}`} />
-                    </span>
-                    <span className="font-mono font-bold bg-neutral-950/40 px-1.5 py-0.2 border border-neutral-900/40 rounded text-neutral-200">
-                      {streakMetrics.decodeWorthy.streak}d
-                    </span>
+                  <div className="flex justify-between text-neutral-400">
+                    <span>Bank Dispatch:</span>
+                    <span className="text-neutral-200 font-bold">{paymentMetrics.curPayDays}</span>
                   </div>
                 </div>
-                <div className={`text-[8px] uppercase tracking-wide ${getStreakStyle(streakMetrics.decodeWorthy.status).textClass}`}>
-                  {streakMetrics.decodeWorthy.message}
+
+                <div className="p-2.5 bg-neutral-950/50 border border-neutral-900/60 rounded-lg text-left text-[10px] font-mono select-none space-y-1.5">
+                  <div className="flex justify-between items-center border-b border-neutral-900/40 pb-1.5 mb-1 font-bold text-neutral-400">
+                    <span>{paymentMetrics.bottomLabel}: {paymentMetrics.bottomName}</span>
+                    <span>{paymentMetrics.bottomPayDays} left</span>
+                  </div>
+                  <div className="flex justify-between text-neutral-500">
+                    <span>Revenue Lock:</span>
+                    <span className="text-neutral-300 font-bold">{paymentMetrics.bottomLockDays}</span>
+                  </div>
+                  <div className="flex justify-between text-neutral-500">
+                    <span>Bank Dispatch:</span>
+                    <span className="text-neutral-300 font-bold">{paymentMetrics.bottomPayDays}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </motion.div>
 
-          {/* Month Coverage Block */}
-          <div 
-            onClick={() => onTabChange('topics')}
-            className="md:col-span-1 p-3 bg-neutral-950/80 border border-neutral-900 rounded-xl hover:border-emerald-500/30 hover:bg-neutral-900/10 hover:shadow-[0_0_15px_rgba(16,185,129,0.04)] transition-all duration-300 cursor-pointer flex flex-col justify-between group relative overflow-hidden font-mono"
-          >
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="flex justify-between items-center border-b border-neutral-900 pb-2 mb-2 w-full text-left">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                <span className="text-xs font-bold text-neutral-200">Month Coverage</span>
-              </div>
-              <span className="text-[9px] text-neutral-500">{coverageMetrics.passedDays}d elapsed</span>
-            </div>
-
-            <div className="w-full mt-1.5 space-y-2.5 text-left text-[9px]">
-              {/* LearnDriven Coverage */}
-              <div className="p-2 bg-neutral-900/30 border border-neutral-900/60 rounded-lg space-y-1.5">
-                <div className="flex justify-between items-center text-[8px] font-bold text-neutral-300">
-                  <span>LearnDriven</span>
-                  <span className="text-emerald-400 font-mono">
-                    {coverageMetrics.learnDriven.secured} / {coverageMetrics.passedDays}d
-                  </span>
-                </div>
-                <div className="w-full bg-neutral-950 rounded-full h-1 overflow-hidden">
-                  <div 
-                    className="bg-emerald-500 h-1 rounded-full" 
-                    style={{ width: `${(coverageMetrics.learnDriven.secured / (coverageMetrics.passedDays || 1)) * 100}%` }}
-                  />
-                </div>
+            {/* Streak Status */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: 0.1 }}
+              onClick={() => onTabChange('topics')}
+              className="md:col-span-1 p-4 rounded-lg border bg-amber-950/10 border-amber-900/30 hover:border-amber-800/50 transition-all duration-300 cursor-pointer flex flex-col justify-between font-mono"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <Flame className="h-4 w-4 text-amber-400" />
+                <span className="text-[9px] font-bold uppercase tracking-wider text-amber-400">Streak Status</span>
               </div>
 
-              {/* DecodeWorthy Coverage */}
-              <div className="p-2 bg-neutral-900/30 border border-neutral-900/60 rounded-lg space-y-1.5">
-                <div className="flex justify-between items-center text-[8px] font-bold text-neutral-300">
-                  <span>DecodeWorthy</span>
-                  <span className="text-emerald-400 font-mono">
-                    {coverageMetrics.decodeWorthy.secured} / {coverageMetrics.passedDays}d
-                  </span>
+              <div className="w-full space-y-2 text-left text-[9px]">
+                <div className={`p-2 rounded-lg border ${getStreakStyle(streakMetrics.learnDriven.status).cardClass}`}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-bold text-neutral-300">LearnDriven</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${getStreakStyle(streakMetrics.learnDriven.status).indicatorClass}`} />
+                        <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${getStreakStyle(streakMetrics.learnDriven.status).indicatorClass.replace(' animate-ping', '').replace(' animate-pulse', '')}`} />
+                      </span>
+                      <span className="font-mono font-bold bg-neutral-950/40 px-1.5 py-0.2 border border-neutral-900/40 rounded text-neutral-200">
+                        {streakMetrics.learnDriven.streak}d
+                      </span>
+                    </div>
+                  </div>
+                  <div className={`text-[8px] uppercase tracking-wide ${getStreakStyle(streakMetrics.learnDriven.status).textClass}`}>
+                    {streakMetrics.learnDriven.message}
+                  </div>
                 </div>
-                <div className="w-full bg-neutral-950 rounded-full h-1 overflow-hidden">
-                  <div 
-                    className="bg-emerald-500 h-1 rounded-full" 
-                    style={{ width: `${(coverageMetrics.decodeWorthy.secured / (coverageMetrics.passedDays || 1)) * 100}%` }}
-                  />
+
+                <div className={`p-2 rounded-lg border ${getStreakStyle(streakMetrics.decodeWorthy.status).cardClass}`}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-bold text-neutral-300">DecodeWorthy</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${getStreakStyle(streakMetrics.decodeWorthy.status).indicatorClass}`} />
+                        <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${getStreakStyle(streakMetrics.decodeWorthy.status).indicatorClass.replace(' animate-ping', '').replace(' animate-pulse', '')}`} />
+                      </span>
+                      <span className="font-mono font-bold bg-neutral-950/40 px-1.5 py-0.2 border border-neutral-900/40 rounded text-neutral-200">
+                        {streakMetrics.decodeWorthy.streak}d
+                      </span>
+                    </div>
+                  </div>
+                  <div className={`text-[8px] uppercase tracking-wide ${getStreakStyle(streakMetrics.decodeWorthy.status).textClass}`}>
+                    {streakMetrics.decodeWorthy.message}
+                  </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
+
+            {/* Month Coverage */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: 0.15 }}
+              onClick={() => onTabChange('topics')}
+              className="md:col-span-1 p-4 rounded-lg border bg-emerald-950/10 border-emerald-900/30 hover:border-emerald-800/50 transition-all duration-300 cursor-pointer flex flex-col justify-between font-mono"
+            >
+              <div className="flex justify-between items-center mb-3">
+                <div className="flex items-center gap-2">
+                  <Target className="h-4 w-4 text-emerald-400" />
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-400">Month Coverage</span>
+                </div>
+                <span className="text-[9px] text-neutral-500">{coverageMetrics.passedDays}d elapsed</span>
+              </div>
+
+              <div className="w-full space-y-2.5 text-left text-[9px]">
+                <div className="p-2 bg-neutral-950/50 border border-neutral-900/60 rounded-lg space-y-1.5">
+                  <div className="flex justify-between items-center text-[8px] font-bold text-neutral-300">
+                    <span>LearnDriven</span>
+                    <span className="text-emerald-400 font-mono">
+                      {coverageMetrics.learnDriven.secured} / {coverageMetrics.passedDays}d
+                    </span>
+                  </div>
+                  <div className="w-full bg-neutral-950 rounded-full h-1 overflow-hidden">
+                    <motion.div
+                      className="bg-emerald-500 h-1 rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(coverageMetrics.learnDriven.secured / (coverageMetrics.passedDays || 1)) * 100}%` }}
+                      transition={{ duration: 0.6, ease: 'easeOut' }}
+                    />
+                  </div>
+                </div>
+
+                <div className="p-2 bg-neutral-950/50 border border-neutral-900/60 rounded-lg space-y-1.5">
+                  <div className="flex justify-between items-center text-[8px] font-bold text-neutral-300">
+                    <span>DecodeWorthy</span>
+                    <span className="text-emerald-400 font-mono">
+                      {coverageMetrics.decodeWorthy.secured} / {coverageMetrics.passedDays}d
+                    </span>
+                  </div>
+                  <div className="w-full bg-neutral-950 rounded-full h-1 overflow-hidden">
+                    <motion.div
+                      className="bg-emerald-500 h-1 rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(coverageMetrics.decodeWorthy.secured / (coverageMetrics.passedDays || 1)) * 100}%` }}
+                      transition={{ duration: 0.6, ease: 'easeOut' }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Grid of 4 Status Cards */}
+      {/* Status tiles — restyled to match, same real counts as before */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Total Topics */}
-        <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-5 hover:border-neutral-800 transition duration-300 shadow-sm">
-          <div className="flex items-center justify-between text-neutral-400 mb-3">
-            <span className="text-[10px] font-bold uppercase tracking-wider font-mono">Total Topics</span>
-            <FileText className="h-4 w-4 text-blue-400" />
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono tracking-tight text-white">{topics.length}</span>
-            <span className="text-xs text-neutral-400 font-mono">
-              across channels
-            </span>
-          </div>
-          <div className="mt-2 text-[10px] text-neutral-500 font-mono flex items-center justify-between">
-            <span>Content ideas in pipeline</span>
-            <span className="text-neutral-400">{topics.filter(t => t.channel === 'LearnDriven').length} LD / {topics.filter(t => t.channel === 'DecodeWorthy').length} DW</span>
-          </div>
-        </div>
-
-        {/* Card 2: Scheduled Videos */}
-        <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-5 hover:border-neutral-800 transition duration-300 shadow-sm">
-          <div className="flex items-center justify-between text-neutral-400 mb-3">
-            <span className="text-[10px] font-bold uppercase tracking-wider font-mono">Scheduled Videos</span>
-            <CheckCircle className="h-4 w-4 text-emerald-400" />
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono tracking-tight text-white">{topics.filter(t => t.status === 'scheduled').length}</span>
-            <span className="text-xs text-neutral-400 font-mono">
-              ready to publish
-            </span>
-          </div>
-          <div className="mt-2 text-[10px] text-neutral-500 font-mono flex items-center justify-between">
-            <span>Completion rate</span>
-            <span className={`${topics.length > 0 ? 'text-emerald-400' : 'text-neutral-500'}`}>{topics.length > 0 ? Math.round((topics.filter(t => t.status === 'scheduled').length / topics.length) * 100) : 0}%</span>
-          </div>
-        </div>
-
-        {/* Card 3: In Progress */}
-        <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-5 hover:border-neutral-800 transition duration-300 shadow-sm">
-          <div className="flex items-center justify-between text-neutral-400 mb-3">
-            <span className="text-[10px] font-bold uppercase tracking-wider font-mono">In Progress</span>
-            <Activity className="h-4 w-4 text-amber-400" />
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono tracking-tight text-white">{topics.filter(t => t.status !== 'topic' && t.status !== 'scheduled').length}</span>
-            <span className="text-xs text-neutral-400 font-mono">
-              being worked on
-            </span>
-          </div>
-          <div className="mt-2 text-[10px] text-neutral-500 font-mono flex items-center justify-between">
-            <span>Scripted / Shot / Edited</span>
-            <span className="text-neutral-400">{topics.filter(t => t.status === 'scripted').length}S / {topics.filter(t => t.status === 'shot').length}H / {topics.filter(t => t.status === 'edited').length}E</span>
-          </div>
-        </div>
-
-        {/* Card 4: Recent Activity */}
-        <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-5 hover:border-neutral-800 transition duration-300 shadow-sm">
-          <div className="flex items-center justify-between text-neutral-400 mb-3">
-            <span className="text-[10px] font-bold uppercase tracking-wider font-mono">Recent Activity</span>
-            <GitBranch className="h-4 w-4 text-purple-400" />
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono tracking-tight text-white">{activities.length}</span>
-            <span className="text-xs text-neutral-400 font-mono">
-              logged actions
-            </span>
-          </div>
-          <div className="mt-2 text-[10px] text-neutral-500 font-mono flex items-center justify-between">
-            <span>Content workflow events</span>
-            <span className="text-neutral-400">{events.length} telemetry</span>
-          </div>
-        </div>
+        {[
+          {
+            label: 'Total Topics',
+            icon: <FileText className="h-4 w-4" />,
+            color: 'text-blue-400',
+            bg: 'bg-blue-950/20',
+            border: 'border-blue-900/30',
+            value: topics.length,
+            unit: 'across channels',
+            footLabel: 'Content ideas in pipeline',
+            footValue: `${topics.filter(t => t.channel === 'LearnDriven').length} LD / ${topics.filter(t => t.channel === 'DecodeWorthy').length} DW`
+          },
+          {
+            label: 'Scheduled Videos',
+            icon: <CheckCircle className="h-4 w-4" />,
+            color: 'text-emerald-400',
+            bg: 'bg-emerald-950/20',
+            border: 'border-emerald-900/30',
+            value: topics.filter(t => t.status === 'scheduled').length,
+            unit: 'ready to publish',
+            footLabel: 'Completion rate',
+            footValue: `${topics.length > 0 ? Math.round((topics.filter(t => t.status === 'scheduled').length / topics.length) * 100) : 0}%`
+          },
+          {
+            label: 'In Progress',
+            icon: <Activity className="h-4 w-4" />,
+            color: 'text-amber-400',
+            bg: 'bg-amber-950/20',
+            border: 'border-amber-900/30',
+            value: topics.filter(t => t.status !== 'topic' && t.status !== 'scheduled').length,
+            unit: 'being worked on',
+            footLabel: 'Scripted / Shot / Edited',
+            footValue: `${topics.filter(t => t.status === 'scripted').length}S / ${topics.filter(t => t.status === 'shot').length}H / ${topics.filter(t => t.status === 'edited').length}E`
+          },
+          {
+            label: 'Recent Activity',
+            icon: <GitBranch className="h-4 w-4" />,
+            color: 'text-purple-400',
+            bg: 'bg-purple-950/20',
+            border: 'border-purple-900/30',
+            value: activities.length,
+            unit: 'logged actions',
+            footLabel: 'Content workflow events',
+            footValue: `${events.length} telemetry`
+          }
+        ].map((tile, i) => (
+          <motion.div
+            key={tile.label}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.05 * i }}
+            whileHover={{ y: -2 }}
+            className={`p-4 rounded-lg border ${tile.bg} ${tile.border} transition-colors duration-300`}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] font-bold uppercase tracking-wider font-mono text-neutral-400">{tile.label}</span>
+              <span className={tile.color}>{tile.icon}</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold font-mono tracking-tight text-white">{tile.value}</span>
+              <span className="text-xs text-neutral-400 font-mono">{tile.unit}</span>
+            </div>
+            <div className="mt-2 text-[10px] text-neutral-500 font-mono flex items-center justify-between">
+              <span>{tile.footLabel}</span>
+              <span className="text-neutral-400">{tile.footValue}</span>
+            </div>
+          </motion.div>
+        ))}
       </div>
 
       {/* Main Charts Section */}
