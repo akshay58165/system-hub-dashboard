@@ -30,6 +30,7 @@ interface CommandCenterViewProps {
   insights: CreatorInsight[];
   cycleGoals: CycleGoal | null;
   onTabChange: (tab: string) => void;
+  setSelectedVideoId: (videoId: string | null) => void;
 }
 
 // Custom Dot to render Shorts/Video icons on the X Axis
@@ -54,7 +55,8 @@ export default function CommandCenterView({
   experiments, 
   insights, 
   cycleGoals, 
-  onTabChange 
+  onTabChange,
+  setSelectedVideoId
 }: CommandCenterViewProps) {
   const [activeSubTab, setActiveSubTab] = useState<'Overview' | 'Content' | 'Audience' | 'Revenue' | 'Trends'>('Overview');
   const [selectedMetric, setSelectedMetric] = useState<'views' | 'watchtime' | 'subs' | 'revenue'>('views');
@@ -471,7 +473,10 @@ export default function CommandCenterView({
                 topContent.map(v => (
                   <div 
                     key={v.id} 
-                    onClick={() => onTabChange('video-lab')}
+                    onClick={() => {
+                      setSelectedVideoId(v.id);
+                      onTabChange('video-lab');
+                    }}
                     className="flex items-center gap-3 justify-between py-1 group/item cursor-pointer"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -517,7 +522,10 @@ export default function CommandCenterView({
               
               {/* Visual Thumbnail Frame */}
               <div 
-                onClick={() => onTabChange('video-lab')}
+                onClick={() => {
+                  setSelectedVideoId(latestContent.id);
+                  onTabChange('video-lab');
+                }}
                 className="w-full aspect-video rounded-lg bg-neutral-900 border border-[#272727] relative overflow-hidden flex items-center justify-center group/card cursor-pointer"
               >
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10" />
