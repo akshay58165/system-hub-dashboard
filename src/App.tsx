@@ -164,18 +164,46 @@ export default function App() {
               timestamp: new Date().toISOString()
             });
 
-            const plan = await generateAIActionPlan(openAIApiKey, 'All', liveVideos, cycleGoals);
+            const plan = await generateAIActionPlan(openAIApiKey, 'All', liveVideos, cycleGoals, scorecard, activities);
             if (!active) return;
 
-            const newInsights: CreatorInsight[] = plan.insights.map(ins => ({
-              id: ins.id,
-              title: ins.title,
-              description: ins.description,
-              type: ins.type,
-              channel: 'LearnDriven',
-              reason: ins.reason,
-              actionLabel: ins.actionLabel
-            }));
+            const newInsights: CreatorInsight[] = [];
+            
+            plan.directives.whatToDo.forEach(item => {
+              newInsights.push({
+                id: item.id,
+                title: item.title,
+                description: item.description,
+                type: 'recommendation',
+                channel: 'All',
+                reason: 'AI Production Directive (What to Do)',
+                actionLabel: item.actionLabel
+              });
+            });
+
+            plan.directives.howToKeepUp.forEach(item => {
+              newInsights.push({
+                id: item.id,
+                title: item.title,
+                description: item.description,
+                type: 'info',
+                channel: 'All',
+                reason: 'Bio-Performance Sync (How to Keep Up)',
+                actionLabel: item.actionLabel
+              });
+            });
+
+            plan.directives.whatToMaintain.forEach(item => {
+              newInsights.push({
+                id: item.id,
+                title: item.title,
+                description: item.description,
+                type: 'warning',
+                channel: 'All',
+                reason: 'Upload Upkeep (What to Maintain)',
+                actionLabel: item.actionLabel
+              });
+            });
 
             setInsights(newInsights);
 
@@ -1137,6 +1165,8 @@ export default function App() {
                 cycleGoals={cycleGoals}
                 onTabChange={setActiveTab}
                 setSelectedVideoId={setSelectedVideoId}
+                scorecard={scorecard}
+                activities={activities}
               />
             )}
 

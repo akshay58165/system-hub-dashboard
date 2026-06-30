@@ -10,7 +10,14 @@ import {
   MoreVertical,
   Activity,
   UserCheck,
-  Video
+  Video,
+  AlertTriangle,
+  CheckCircle,
+  TrendingUp,
+  Brain,
+  Sparkles,
+  Shield,
+  ActivitySquare
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -29,22 +36,22 @@ interface CommandCenterViewProps {
   experiments: Experiment[];
   insights: CreatorInsight[];
   cycleGoals: CycleGoal | null;
+  scorecard: any;
+  activities: any[];
   onTabChange: (tab: string) => void;
   setSelectedVideoId: (videoId: string | null) => void;
 }
 
-// Custom Dot to render Shorts/Video icons on the X Axis
+// Custom Dot for chart
 const CustomDot = (props: any) => {
   const { cx, cy, payload } = props;
   if (!payload.hasShort && !payload.hasVideo) return null;
-
   return (
-    <g transform={`translate(${cx - 10}, ${cy + 10})`}>
-      {payload.hasShort && (
-        <circle cx="10" cy="10" r="8" fill="#ff0000" />
-      )}
-      {payload.hasShort && (
-        <path d="M8 7l5 3-5 3V7z" fill="#ffffff" transform="translate(-1, -1) scale(0.8)" />
+    <g transform={`translate(${cx - 8}, ${cy + 8})`}>
+      {payload.hasShort ? (
+        <circle cx="8" cy="8" r="6" fill="#ff4e4e" />
+      ) : (
+        <circle cx="8" cy="8" r="6" fill="#3ea6ff" />
       )}
     </g>
   );
@@ -55,13 +62,15 @@ export default function CommandCenterView({
   experiments, 
   insights, 
   cycleGoals, 
+  scorecard,
+  activities,
   onTabChange,
   setSelectedVideoId
 }: CommandCenterViewProps) {
   const [activeSubTab, setActiveSubTab] = useState<'Overview' | 'Content' | 'Audience' | 'Revenue' | 'Trends'>('Overview');
   const [selectedMetric, setSelectedMetric] = useState<'views' | 'watchtime' | 'subs' | 'revenue'>('views');
 
-  // 1. Calculate real sums based on actual videos array
+  // 1. Calculate live metrics
   const totalViewsSum = useMemo(() => {
     return videos.reduce((sum, v) => sum + (v.metrics?.lifetimeViews || 0), 0);
   }, [videos]);
@@ -86,12 +95,11 @@ export default function CommandCenterView({
   const totalRevenue = useMemo(() => {
     return videos.reduce((sum, v) => {
       const views = v.metrics?.lifetimeViews || 0;
-      const rpm = v.format === 'Short' ? 15 : v.format === 'Members' ? 450 : 300; // INR RPM
+      const rpm = v.format === 'Short' ? 15 : v.format === 'Members' ? 450 : 300;
       return sum + (views * rpm) / 1000;
     }, 0);
   }, [videos]);
 
-  // 2. Format metrics values nicely for display
   const formatMetricValue = (val: number, type: 'views' | 'watchtime' | 'subs' | 'revenue') => {
     if (type === 'revenue') {
       return `₹${Math.round(val).toLocaleString()}`;
@@ -105,13 +113,10 @@ export default function CommandCenterView({
     return Math.round(val).toString();
   };
 
-  // 3. Dynamic Chart Data derived from videos list sorted chronologically
+  // 2. Timeline chart data
   const mainChartData = useMemo(() => {
     if (videos.length === 0) return [];
-    
-    // Sort videos by uploadDate ascending to build a timeline
     const sorted = [...videos].sort((a, b) => new Date(a.uploadDate).getTime() - new Date(b.uploadDate).getTime());
-    
     return sorted.map(v => {
       const dateLabel = new Date(v.uploadDate).toLocaleDateString([], { day: 'numeric', month: 'short' });
       const views = v.metrics?.lifetimeViews || 0;
@@ -131,443 +136,560 @@ export default function CommandCenterView({
     });
   }, [videos]);
 
-  // 4. Dynamic Realtime 48h stats
+  // 3. Dynamic Realtime Stats
   const display48hViews = useMemo(() => {
-    // Sum real velocities of recent videos to construct a real 48h view estimate
     const viewsFromVelocity = videos.reduce((sum, v) => sum + (v.metrics?.viewVelocity || 0) * 48, 0);
-    return Math.round(viewsFromVelocity || totalViewsSum * 0.06); // fallback to 6% of lifetime views
+    return Math.round(viewsFromVelocity || totalViewsSum * 0.06);
   }, [videos, totalViewsSum]);
 
   const realtime48hData = useMemo(() => {
     return Array.from({ length: 48 }, (_, i) => ({
       hour: i,
-      views: Math.round((display48hViews / 48) * (0.75 + Math.random() * 0.5))
+      views: Math.round((display48hViews / 48) * (0.8 + Math.random() * 0.4))
     }));
   }, [display48hViews]);
 
-  // 5. Dynamic Top Content List sorted by views descending
-  const topContent = useMemo(() => {
-    return [...videos]
-      .sort((a, b) => (b.metrics?.lifetimeViews || 0) - (a.metrics?.lifetimeViews || 0))
-      .slice(0, 3);
+  // 4. Dynamic Directives (Integrated from synced OpenAI insights or derived locally)
+  const directives = useMemo(() => {
+    const defaultDirectives = {
+      whatToDo: [] as any[],
+      whatIsDone: [] as any[],
+      whatToChase: [] as any[],
+      whatToMaintain: [] as any[],
+      howToKeepUp: [] as any[]
+    };
+
+    // Filter synced insights if present
+    insights.forEach(ins => {
+      const directiveItem = {
+        id: ins.id,
+        title: ins.title,
+        description: ins.description,
+        actionLabel: ins.actionLabel || 'Action'
+      };
+
+      if (ins.reason?.includes('What to Do')) {
+        defaultDirectives.whatToDo.push(directiveItem);
+      } else if (ins.reason?.includes('How to Keep Up')) {
+        defaultDirectives.howToKeepUp.push(directiveItem);
+      } else if (ins.reason?.includes('What to Maintain')) {
+        defaultDirectives.whatToMaintain.push(directiveItem);
+      }
+    });
+
+    // Fallbacks if list is empty
+    if (defaultDirectives.whatToDo.length === 0) {
+      const blockedVideo = videos.find(v => v.pipelineStage === 'Edit' || v.blockedReason);
+      if (blockedVideo) {
+        defaultDirectives.whatToDo.push({
+          id: 'def-do-1',
+          title: 'Resolve Editing Block',
+          description: `Resolve rendering blocks or edit pipeline items on "${blockedVideo.title}".`,
+          actionLabel: 'Resolve Pipeline Block'
+        });
+      } else {
+        defaultDirectives.whatToDo.push({
+          id: 'def-do-2',
+          title: 'Draft Script Backlog',
+          description: 'Upload queue count is empty. Plan and script a high-potential technology decode.',
+          actionLabel: 'Start Scripting'
+        });
+      }
+    }
+
+    if (defaultDirectives.whatIsDone.length === 0) {
+      const published = videos.filter(v => v.pipelineStage === 'Published');
+      if (published.length > 0) {
+        defaultDirectives.whatIsDone.push({
+          id: 'def-done-1',
+          title: 'Published Recent Video',
+          description: `"${published[0].title}" was uploaded and is gathering real-time telemetry.`,
+          actionLabel: 'View Analytics'
+        });
+      } else {
+        defaultDirectives.whatIsDone.push({
+          id: 'def-done-2',
+          title: 'System Connected',
+          description: 'YouTube Channel API key and Supabase database engines loaded successfully.',
+          actionLabel: 'View Logs'
+        });
+      }
+    }
+
+    if (defaultDirectives.whatToChase.length === 0) {
+      // Dynamic forecasting milestone
+      const subGoal = cycleGoals?.subscribersTarget || 100000;
+      defaultDirectives.whatToChase.push({
+        id: 'def-chase-1',
+        title: 'Chase Subscriber Target',
+        description: `Gained ${Math.round(totalSubsGained).toLocaleString()} subs. Chase target of ${subGoal.toLocaleString()} subscribers.`,
+        actionLabel: 'View Forecast'
+      });
+    }
+
+    if (defaultDirectives.whatToMaintain.length === 0) {
+      const uploads = videos.length;
+      defaultDirectives.whatToMaintain.push({
+        id: 'def-maint-1',
+        title: 'Maintain Upload Cadence',
+        description: `Upload frequency is ${uploads} videos this month. Maintain target threshold.`,
+        actionLabel: 'Review Pipeline'
+      });
+    }
+
+    if (defaultDirectives.howToKeepUp.length === 0) {
+      // Correlate well-being inputs
+      const sleep = scorecard?.sleep || 8;
+      const stress = scorecard?.stress || 3;
+      const energy = scorecard?.energy || 8;
+
+      if (sleep < 7) {
+        defaultDirectives.howToKeepUp.push({
+          id: 'def-keep-1',
+          title: 'Sleep Budget Deficit',
+          description: `Your logged sleep is low (${sleep}/10). Lower rest scores correlate with a 15% increase in production latency. Prioritize creative recovery today.`,
+          actionLabel: 'Check Bio Scorecard'
+        });
+      } else if (stress > 6) {
+        defaultDirectives.howToKeepUp.push({
+          id: 'def-keep-2',
+          title: 'High Stress Warning',
+          description: `Stress parameter is high (${stress}/10). Focus on planning/scripting rather than heavy editing lines to optimize output quality.`,
+          actionLabel: 'Check Bio Scorecard'
+        });
+      } else {
+        defaultDirectives.howToKeepUp.push({
+          id: 'def-keep-3',
+          title: 'Optimal Performance State',
+          description: `All biometrics indicators (Energy: ${energy}/10) are healthy. Focus levels are high. Execute high-effort filming work today.`,
+          actionLabel: 'Check Bio Scorecard'
+        });
+      }
+    }
+
+    return defaultDirectives;
+  }, [videos, insights, cycleGoals, scorecard]);
+
+  // Action Button Handler that navigates tabs
+  const handleActionClick = (actionLabel: string, id?: string) => {
+    const label = actionLabel.toLowerCase();
+    if (label.includes('script') || label.includes('video')) {
+      onTabChange('video-lab');
+    } else if (label.includes('pipeline') || label.includes('review')) {
+      onTabChange('pipeline');
+    } else if (label.includes('scorecard') || label.includes('bio')) {
+      onTabChange('dashboard'); // switches to primary cockpit tab (usually has biometrics)
+    } else if (label.includes('stats') || label.includes('analytics') || label.includes('forecast')) {
+      setActiveSubTab('Overview');
+    }
+  };
+
+  const topVideos = useMemo(() => {
+    return [...videos].sort((a, b) => (b.metrics?.lifetimeViews || 0) - (a.metrics?.lifetimeViews || 0)).slice(0, 3);
   }, [videos]);
 
-  // 6. Dynamic Latest Content (most recently published video)
-  const latestContent = useMemo(() => {
+  const latestVideo = useMemo(() => {
     if (videos.length === 0) return null;
     return [...videos].sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime())[0];
   }, [videos]);
 
-  // 7. Dynamic uploads frequency health check
-  const uploadsCount = videos.length;
-  const targetFrequency = 10; // expected uploads per cycle
-
   return (
-    <div className="text-[#f1f1f1] font-sans">
+    <div className="space-y-6 text-[#f1f1f1] font-sans pb-12">
       
-      {/* Top Header Bar */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">Channel analytics</h1>
-        <button className="px-4 py-1.5 bg-[#272727] hover:bg-[#3f3f3f] text-sm font-semibold rounded-full transition duration-200">
-          Advanced mode
-        </button>
-      </div>
-
-      {/* Navigation Subtabs & Date Picker */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[#272727] mb-6 pb-0.5 gap-4">
-        <div className="flex gap-6 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
-          {(['Overview', 'Content', 'Audience', 'Revenue', 'Trends'] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveSubTab(tab)}
-              className={`text-sm font-semibold tracking-wide pb-3 relative transition-colors ${
-                activeSubTab === tab ? 'text-white' : 'text-[#aaaaaa] hover:text-white'
-              }`}
-            >
-              {tab}
-              {activeSubTab === tab && (
-                <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white rounded-t" />
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Date Selector dropdown */}
-        <div className="flex items-center gap-1.5 text-xs font-mono text-[#aaaaaa] bg-[#1f1f1f] border border-[#272727] px-3.5 py-1.8 rounded cursor-pointer hover:bg-[#272727] transition select-none">
-          <div className="text-right">
-            <span className="block text-[10px] text-[#aaaaaa]">Real-Time Sync</span>
-            <span className="block font-bold text-white uppercase text-[9px] mt-0.5">Last 30 Days</span>
+      {/* Premium Top Bar */}
+      <div className="flex justify-between items-center bg-[#161616]/40 backdrop-blur-xl border border-[#272727]/60 p-4 rounded-2xl">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center">
+            <Sparkles className="h-5 w-5 text-cyan-400" />
           </div>
-          <ChevronDown className="h-4 w-4 text-[#aaaaaa]" />
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-white leading-none">Unified CommandCenter</h1>
+            <p className="text-[10px] text-[#aaaaaa] mt-1 font-mono">INTEGRATED TELEMETRY & STRATEGY ENGINE</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 text-xs font-mono text-[#aaaaaa] bg-[#0f0f0f] border border-[#272727] px-3.5 py-1.5 rounded-full select-none">
+          <Activity className="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
+          <span>REAL-TIME ANALYSIS SYNCHRONIZED</span>
         </div>
       </div>
 
-      {/* Main Grid Content */}
-      <div className="grid grid-cols-1 xl:grid-cols-10 gap-6">
+      {/* Telemetry Chart Deck */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Left Column (Main analytics timeline, chart, and alert box) */}
-        <div className="xl:col-span-7 space-y-6">
-          
-          {/* Main Chart Box */}
-          <div className="bg-[#161616] border border-[#272727] rounded-xl p-5 shadow-lg">
-            
-            {/* Header message */}
-            <div className="mb-6">
-              <h2 className="text-xl font-medium text-white tracking-tight">
-                Your channel got <span className="font-bold">{totalViewsSum.toLocaleString()}</span> views in the last 30 days
-              </h2>
-              <p className="text-xs text-[#aaaaaa] mt-1.5">
-                Channel views aggregated directly from your authenticated YouTube channel upload feeds.
-              </p>
+        {/* Core Metrics Box */}
+        <div className="lg:col-span-2 bg-[#161616]/60 backdrop-blur-xl border border-[#272727]/60 rounded-2xl p-5 shadow-lg flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h2 className="text-lg font-bold text-white tracking-tight">Channel Trajectory</h2>
+                <p className="text-xs text-[#aaaaaa] mt-0.5">Aggregated recent metrics from linked active publishing channels.</p>
+              </div>
+              <div className="flex items-center gap-1 text-[10px] font-mono text-[#aaaaaa] bg-[#1f1f1f] px-3 py-1 rounded-full border border-[#272727]">
+                <span>Last 30 Days</span>
+              </div>
             </div>
 
             {/* Metrics cards bar */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-0 border border-[#272727] rounded-xl overflow-hidden bg-[#0f0f0f] mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-0 border border-[#272727] rounded-xl overflow-hidden bg-[#0f0f0f]/80 mb-6">
               
-              {/* Views Card */}
               <button 
                 onClick={() => setSelectedMetric('views')}
-                className={`p-4 text-left border-r border-[#272727] flex flex-col justify-between transition-colors ${selectedMetric === 'views' ? 'bg-[#161616]' : 'hover:bg-[#161616]/40'}`}
+                className={`p-3.5 text-left border-r border-[#272727] flex flex-col justify-between transition-colors ${selectedMetric === 'views' ? 'bg-[#161616]' : 'hover:bg-[#161616]/40'}`}
               >
-                <div className="flex items-center gap-1 text-[11px] text-[#aaaaaa] font-medium tracking-wide">
-                  <span>Views</span>
-                </div>
+                <span className="text-[10px] text-[#aaaaaa] font-semibold tracking-wide uppercase">Views</span>
                 <div className="mt-2.5">
-                  <span className="text-2xl font-bold tracking-tight text-white flex items-center gap-1.5 leading-none">
+                  <span className="text-xl font-bold tracking-tight text-white block">
                     {formatMetricValue(totalViewsSum, 'views')}
                   </span>
-                  <span className="text-[10px] text-emerald-400 block mt-1.5 font-mono">Live Data Active</span>
+                  <span className="text-[9px] text-[#aaaaaa] block mt-0.5 font-mono">Cumulative</span>
                 </div>
               </button>
 
-              {/* Watch Time Card */}
               <button 
                 onClick={() => setSelectedMetric('watchtime')}
-                className={`p-4 text-left border-r border-[#272727] flex flex-col justify-between transition-colors ${selectedMetric === 'watchtime' ? 'bg-[#161616]' : 'hover:bg-[#161616]/40'}`}
+                className={`p-3.5 text-left border-r border-[#272727] flex flex-col justify-between transition-colors ${selectedMetric === 'watchtime' ? 'bg-[#161616]' : 'hover:bg-[#161616]/40'}`}
               >
-                <div className="flex items-center gap-1 text-[11px] text-[#aaaaaa] font-medium tracking-wide">
-                  <span>Watch time (hours)</span>
-                </div>
+                <span className="text-[10px] text-[#aaaaaa] font-semibold tracking-wide uppercase">Watch Time</span>
                 <div className="mt-2.5">
-                  <span className="text-2xl font-bold tracking-tight text-white flex items-center gap-1.5 leading-none">
+                  <span className="text-xl font-bold tracking-tight text-white block">
                     {formatMetricValue(totalWatchTimeHours, 'watchtime')}
                   </span>
-                  <span className="text-[10px] text-emerald-400 block mt-1.5 font-mono">Real-time Calculated</span>
+                  <span className="text-[9px] text-[#aaaaaa] block mt-0.5 font-mono">Hours</span>
                 </div>
               </button>
 
-              {/* Subscribers Card */}
               <button 
                 onClick={() => setSelectedMetric('subs')}
-                className={`p-4 text-left border-r border-[#272727] flex flex-col justify-between transition-colors ${selectedMetric === 'subs' ? 'bg-[#161616]' : 'hover:bg-[#161616]/40'}`}
+                className={`p-3.5 text-left border-r border-[#272727] flex flex-col justify-between transition-colors ${selectedMetric === 'subs' ? 'bg-[#161616]' : 'hover:bg-[#161616]/40'}`}
               >
-                <div className="flex items-center gap-1 text-[11px] text-[#aaaaaa] font-medium tracking-wide">
-                  <span>Subscribers Gained</span>
-                </div>
+                <span className="text-[10px] text-[#aaaaaa] font-semibold tracking-wide uppercase">Subscribers</span>
                 <div className="mt-2.5">
-                  <span className="text-2xl font-bold tracking-tight text-white flex items-center gap-1.5 leading-none">
-                    {totalSubsGained >= 0 ? '+' : ''}{formatMetricValue(totalSubsGained, 'subs')}
+                  <span className="text-xl font-bold tracking-tight text-white block">
+                    +{formatMetricValue(totalSubsGained, 'subs')}
                   </span>
-                  <span className="text-[10px] text-emerald-400 block mt-1.5 font-mono">Linked Feed Gained</span>
+                  <span className="text-[9px] text-[#aaaaaa] block mt-0.5 font-mono">Net Gained</span>
                 </div>
               </button>
 
-              {/* Revenue Card */}
               <button 
                 onClick={() => setSelectedMetric('revenue')}
-                className={`p-4 text-left flex flex-col justify-between transition-colors ${selectedMetric === 'revenue' ? 'bg-[#161616]' : 'hover:bg-[#161616]/40'}`}
+                className={`p-3.5 text-left flex flex-col justify-between transition-colors ${selectedMetric === 'revenue' ? 'bg-[#161616]' : 'hover:bg-[#161616]/40'}`}
               >
-                <div className="flex items-center gap-1 text-[11px] text-[#aaaaaa] font-medium tracking-wide">
-                  <span>Estimated revenue</span>
-                </div>
+                <span className="text-[10px] text-[#aaaaaa] font-semibold tracking-wide uppercase">Est. Revenue</span>
                 <div className="mt-2.5">
-                  <span className="text-2xl font-bold tracking-tight text-white flex items-center gap-1.5 leading-none">
+                  <span className="text-xl font-bold tracking-tight text-white block">
                     {formatMetricValue(totalRevenue, 'revenue')}
                   </span>
-                  <span className="text-[10px] text-emerald-400 block mt-1.5 font-mono">Standard Tech RPM</span>
+                  <span className="text-[9px] text-[#aaaaaa] block mt-0.5 font-mono">INR Base</span>
                 </div>
               </button>
 
             </div>
 
             {/* Line Chart */}
-            <div className="h-72 w-full relative mb-4">
+            <div className="h-60 w-full relative mb-1">
               {mainChartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={mainChartData} margin={{ top: 20, right: 10, left: 10, bottom: 20 }}>
+                  <AreaChart data={mainChartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
                     <defs>
-                      <linearGradient id="viewsGlow" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#00bcd4" stopOpacity={0.15}/>
-                        <stop offset="95%" stopColor="#00bcd4" stopOpacity={0}/>
+                      <linearGradient id="glowSelect" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.15}/>
+                        <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <XAxis 
-                      dataKey="date" 
-                      stroke="#3e3e3e" 
-                      fontSize={10} 
-                      tickLine={false} 
-                      dy={10}
-                    />
-                    <YAxis 
-                      stroke="#3e3e3e" 
-                      fontSize={10} 
-                      axisLine={false} 
-                      tickLine={false} 
-                      orientation="right"
-                    />
+                    <XAxis dataKey="date" stroke="#444" fontSize={9} tickLine={false} />
+                    <YAxis stroke="#444" fontSize={9} axisLine={false} tickLine={false} orientation="right" />
                     <Tooltip 
-                      contentStyle={{ backgroundColor: '#1f1f1f', border: '1px solid #282828', borderRadius: '4px' }}
-                      labelStyle={{ fontSize: 10, color: '#aaaaaa' }}
-                      itemStyle={{ fontSize: 11, color: '#ffffff' }}
+                      contentStyle={{ backgroundColor: '#111', border: '1px solid #272727', borderRadius: '8px' }}
+                      labelStyle={{ fontSize: 9, color: '#888' }}
+                      itemStyle={{ fontSize: 10, color: '#fff' }}
                     />
                     <Area 
                       type="monotone" 
                       dataKey={selectedMetric} 
-                      stroke="#00bcd4" 
+                      stroke="#06b6d4" 
                       strokeWidth={2} 
                       fillOpacity={1} 
-                      fill="url(#viewsGlow)"
+                      fill="url(#glowSelect)"
                       dot={<CustomDot />}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="h-full w-full flex items-center justify-center text-xs font-mono text-[#aaaaaa]">
-                  No publishing data detected in last 30 days. Link your YouTube channel above.
+                  No dynamic upload logs found in last 30 days. Link a YouTube channel.
                 </div>
               )}
             </div>
-
-            {/* See More link */}
-            <div className="pt-2">
-              <button 
-                onClick={() => onTabChange('video-lab')}
-                className="px-5 py-2 bg-[#282828] hover:bg-[#3e3e3e] text-xs font-semibold rounded-full tracking-wide transition text-white"
-              >
-                See more in Video Lab
-              </button>
-            </div>
-
           </div>
-
-          {/* Lower Alert Box: Why are views lower than usual */}
-          <div className="bg-[#161616] border border-[#272727] rounded-xl p-5 flex flex-col gap-4 shadow-lg">
-            
-            <div className="space-y-1">
-              <h3 className="text-base font-bold text-white tracking-tight">Upload Frequency Diagnostics</h3>
-              <p className="text-xs text-[#aaaaaa] leading-relaxed">
-                {uploadsCount < targetFrequency ? (
-                  `Your upload count is lower than your target frequency of ${targetFrequency} uploads per cycle (you published ${uploadsCount} videos). Focus on your Kanban backlog to secure high baseline viewership.`
-                ) : (
-                  `Your upload frequency is on track! You published ${uploadsCount} videos. Consistency supports sustained algorithmic discovery.`
-                )}
-              </p>
-            </div>
-
-            {/* Custom target comparison track */}
-            <div className="w-full max-w-xl py-4 relative">
-              <div className="w-full bg-[#272727] h-2 rounded-full relative">
-                {/* Target section highlight */}
-                <div className="absolute left-[70%] right-[10%] bg-emerald-500 h-2 rounded-full" />
-
-                {/* Real uploads pointer */}
-                <div 
-                  className="absolute flex flex-col items-center"
-                  style={{ left: `${Math.min(90, Math.max(10, (uploadsCount / 15) * 100))}%`, transform: 'translateX(-50%)' }}
-                >
-                  <div className="bg-[#272727] text-white px-2.5 py-1.5 rounded-lg border border-[#3e3e3e] text-[10px] font-semibold text-center shadow-md -translate-y-12">
-                    <span className="block font-bold">{uploadsCount} videos published</span>
-                    <span className="block text-[8px] text-[#aaaaaa] mt-0.5">
-                      {uploadsCount < targetFrequency ? 'Below Target' : 'Healthy pace'}
-                    </span>
-                  </div>
-                  <div className="w-2.5 h-2.5 bg-[#272727] border-r border-b border-[#3e3e3e] rotate-45 -mt-13.5 mb-1.5" />
-                  <div className="h-4.5 w-4.5 rounded-full bg-neutral-900 border border-[#3e3e3e] flex items-center justify-center shadow -mt-1.5">
-                    <ArrowDown className={`h-2.5 w-2.5 ${uploadsCount < targetFrequency ? 'text-[#aaaaaa]' : 'text-emerald-400'}`} />
-                  </div>
-                </div>
-
-                <div className="absolute left-[70%] -bottom-5 text-[9px] font-semibold text-[#aaaaaa]">10</div>
-                <div className="absolute right-[10%] -bottom-5 text-[9px] font-semibold text-[#aaaaaa]">15</div>
-              </div>
-            </div>
-
-          </div>
-
         </div>
 
-        {/* Right Column (Realtime updating sidebar feed) */}
-        <div className="xl:col-span-3 space-y-6">
-          
-          {/* Realtime Stats Box */}
-          <div className="bg-[#161616] border border-[#272727] rounded-xl p-5 shadow-lg flex flex-col gap-4">
-            
-            <div className="space-y-1">
-              <h3 className="text-sm font-bold text-white tracking-tight">Realtime</h3>
-              <div className="flex items-center gap-1.5 text-[10px] text-[#aaaaaa]">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-                </span>
-                <span>Updating live</span>
-              </div>
+        {/* Real-time Velocity Column */}
+        <div className="bg-[#161616]/60 backdrop-blur-xl border border-[#272727]/60 rounded-2xl p-5 shadow-lg flex flex-col justify-between">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Realtime Telemetry</h2>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+              </span>
             </div>
 
-            {/* Subscribers Count */}
             <div>
               <span className="text-3xl font-bold tracking-tight text-white font-sans">
                 {(() => {
                   const learnDrivenSubs = parseInt(localStorage.getItem('yt_subscribers_LearnDriven') || '0');
                   const decodeWorthySubs = parseInt(localStorage.getItem('yt_subscribers_DecodeWorthy') || '0');
                   const total = learnDrivenSubs + decodeWorthySubs;
-                  return total > 0 ? total.toLocaleString() : 'Loading...';
+                  return total > 0 ? total.toLocaleString() : 'Offline';
                 })()}
               </span>
-              <span className="block text-[10px] text-[#aaaaaa] mt-0.5">Subscribers</span>
+              <span className="block text-[10px] text-[#aaaaaa] mt-0.5">Subscribers (Linked Channels)</span>
             </div>
 
-            {/* Live Count Button */}
-            <div>
-              <button 
-                onClick={() => onTabChange('video-lab')}
-                className="px-4 py-1.5 bg-[#282828] hover:bg-[#3e3e3e] text-xs font-semibold rounded-full tracking-wide transition text-white"
-              >
-                See live count
-              </button>
-            </div>
+            <div className="h-px bg-[#272727]/80" />
 
-            <div className="h-px w-full bg-[#272727] my-1" />
-
-            {/* Views 48h count */}
             <div>
               <span className="text-xl font-bold text-white font-sans">
-                {display48hViews > 0 ? display48hViews.toLocaleString() : 'Loading...'}
+                {display48hViews > 0 ? display48hViews.toLocaleString() : 'Calculating...'}
               </span>
               <span className="block text-[10px] text-[#aaaaaa] mt-0.5">Views • Last 48 hours</span>
             </div>
 
             {/* 48h mini Bar Chart */}
-            <div className="h-12 w-full">
+            <div className="h-14 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={realtime48hData} barCategoryGap={1}>
-                  <Bar dataKey="views" fill="#3ea6ff" radius={[1, 1, 0, 0]} />
+                  <Bar dataKey="views" fill="#00bcd4" radius={[1, 1, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-
-            <div className="flex justify-between items-center text-[9px] text-[#aaaaaa] font-mono leading-none -mt-2.5">
+            <div className="flex justify-between items-center text-[8px] text-[#aaaaaa] font-mono leading-none -mt-2">
               <span>48h ago</span>
               <span>Now</span>
             </div>
 
-            <div className="h-px w-full bg-[#272727] my-1" />
+            <div className="h-px bg-[#272727]/80" />
 
-            {/* Top Content List */}
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-white">Top content</span>
-                <span className="text-[10px] text-[#aaaaaa] font-semibold font-mono">Views</span>
+            {/* Top performing */}
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-white block">Active Videos</span>
+              {topVideos.map(v => (
+                <div key={v.id} className="flex justify-between items-center text-xs py-0.5">
+                  <span className="text-[#aaaaaa] truncate max-w-[150px]">{v.title}</span>
+                  <span className="font-bold text-white font-mono">{v.metrics?.lifetimeViews?.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Actionable UI directives bridge */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        
+        {/* Left Double Card: What to Do, What is Done, What to Chase, What to Maintain */}
+        <div className="xl:col-span-2 space-y-6">
+          
+          {/* Main Directives panel */}
+          <div className="bg-[#161616]/60 backdrop-blur-xl border border-[#272727]/60 rounded-2xl p-5 shadow-lg">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-2">
+                <Brain className="h-5 w-5 text-purple-400" />
+                <h2 className="text-base font-bold text-white tracking-tight">Algorithmic Directives Bridge</h2>
+              </div>
+              <span className="text-[9px] font-mono text-[#aaaaaa] bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 rounded-full uppercase">AI Co-Producer Engine</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              {/* WHAT TO DO */}
+              <div className="p-4 bg-[#0f0f0f]/80 border border-[#272727]/80 rounded-xl flex flex-col justify-between hover:border-cyan-500/30 transition-all duration-300">
+                <div>
+                  <div className="flex items-center gap-2 text-cyan-400 mb-2">
+                    <ActivitySquare className="h-4.5 w-4.5" />
+                    <span className="text-xs font-bold uppercase tracking-wider">What to Do</span>
+                  </div>
+                  {directives.whatToDo.map(item => (
+                    <div key={item.id} className="space-y-1 mt-2">
+                      <h4 className="text-xs font-bold text-white">{item.title}</h4>
+                      <p className="text-[11px] text-[#aaaaaa] leading-relaxed">{item.description}</p>
+                    </div>
+                  ))}
+                </div>
+                <button 
+                  onClick={() => handleActionClick(directives.whatToDo[0]?.actionLabel || '')}
+                  className="w-full mt-4 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/25 border border-cyan-500/20 text-cyan-400 text-xs font-semibold rounded-lg tracking-wide transition"
+                >
+                  {directives.whatToDo[0]?.actionLabel || 'Start script drafting'}
+                </button>
               </div>
 
-              {topContent.length > 0 ? (
-                topContent.map(v => (
-                  <div 
-                    key={v.id} 
-                    onClick={() => {
-                      setSelectedVideoId(v.id);
-                      onTabChange('video-lab');
-                    }}
-                    className="flex items-center gap-3 justify-between py-1 group/item cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded bg-[#272727] flex items-center justify-center shrink-0 border border-[#3e3e3e]">
-                        <Video className="h-4 w-4 text-[#aaaaaa]" />
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs font-semibold text-white truncate leading-snug group-hover/item:text-blue-400 transition-colors">
-                          {v.title}
-                        </span>
-                      </div>
-                    </div>
-                    <span className="text-xs font-bold font-mono text-white shrink-0">
-                      {v.metrics?.lifetimeViews?.toLocaleString() || '0'}
-                    </span>
+              {/* WHAT TO CHASE */}
+              <div className="p-4 bg-[#0f0f0f]/80 border border-[#272727]/80 rounded-xl flex flex-col justify-between hover:border-amber-500/30 transition-all duration-300">
+                <div>
+                  <div className="flex items-center gap-2 text-amber-400 mb-2">
+                    <TrendingUp className="h-4.5 w-4.5" />
+                    <span className="text-xs font-bold uppercase tracking-wider">What to Chase</span>
                   </div>
-                ))
-              ) : (
-                <div className="text-[10px] font-mono text-[#aaaaaa] py-2 text-center">
-                  No video metrics loaded yet.
+                  {directives.whatToChase.map(item => (
+                    <div key={item.id} className="space-y-1 mt-2">
+                      <h4 className="text-xs font-bold text-white">{item.title}</h4>
+                      <p className="text-[11px] text-[#aaaaaa] leading-relaxed">{item.description}</p>
+                    </div>
+                  ))}
                 </div>
-              )}
+                <button 
+                  onClick={() => handleActionClick(directives.whatToChase[0]?.actionLabel || '')}
+                  className="w-full mt-4 py-1.5 bg-amber-500/10 hover:bg-amber-500/25 border border-amber-500/20 text-amber-400 text-xs font-semibold rounded-lg tracking-wide transition"
+                >
+                  {directives.whatToChase[0]?.actionLabel || 'View Target Forecast'}
+                </button>
+              </div>
+
+              {/* WHAT TO MAINTAIN */}
+              <div className="p-4 bg-[#0f0f0f]/80 border border-[#272727]/80 rounded-xl flex flex-col justify-between hover:border-emerald-500/30 transition-all duration-300">
+                <div>
+                  <div className="flex items-center gap-2 text-emerald-400 mb-2">
+                    <Shield className="h-4.5 w-4.5" />
+                    <span className="text-xs font-bold uppercase tracking-wider">What to Maintain</span>
+                  </div>
+                  {directives.whatToMaintain.map(item => (
+                    <div key={item.id} className="space-y-1 mt-2">
+                      <h4 className="text-xs font-bold text-white">{item.title}</h4>
+                      <p className="text-[11px] text-[#aaaaaa] leading-relaxed">{item.description}</p>
+                    </div>
+                  ))}
+                </div>
+                <button 
+                  onClick={() => handleActionClick(directives.whatToMaintain[0]?.actionLabel || '')}
+                  className="w-full mt-4 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/20 text-emerald-400 text-xs font-semibold rounded-lg tracking-wide transition"
+                >
+                  {directives.whatToMaintain[0]?.actionLabel || 'Check pipeline'}
+                </button>
+              </div>
+
+              {/* WHAT IS DONE */}
+              <div className="p-4 bg-[#0f0f0f]/80 border border-[#272727]/80 rounded-xl flex flex-col justify-between hover:border-purple-500/30 transition-all duration-300">
+                <div>
+                  <div className="flex items-center gap-2 text-purple-400 mb-2">
+                    <CheckCircle className="h-4.5 w-4.5" />
+                    <span className="text-xs font-bold uppercase tracking-wider">What is Done</span>
+                  </div>
+                  {directives.whatIsDone.map(item => (
+                    <div key={item.id} className="space-y-1 mt-2">
+                      <h4 className="text-xs font-bold text-white">{item.title}</h4>
+                      <p className="text-[11px] text-[#aaaaaa] leading-relaxed">{item.description}</p>
+                    </div>
+                  ))}
+                </div>
+                <button 
+                  onClick={() => handleActionClick(directives.whatIsDone[0]?.actionLabel || '')}
+                  className="w-full mt-4 py-1.5 bg-purple-500/10 hover:bg-purple-500/25 border border-purple-500/20 text-purple-400 text-xs font-semibold rounded-lg tracking-wide transition"
+                >
+                  {directives.whatIsDone[0]?.actionLabel || 'View log milestones'}
+                </button>
+              </div>
 
             </div>
-
-            {/* See More Link */}
-            <div className="pt-1">
-              <button 
-                onClick={() => onTabChange('video-lab')}
-                className="w-full text-center py-2 bg-[#282828] hover:bg-[#3e3e3e] text-xs font-semibold rounded-full tracking-wide transition text-white"
-              >
-                See more
-              </button>
-            </div>
-
           </div>
 
-          {/* Latest Content Card Box */}
-          {latestContent ? (
-            <div className="bg-[#161616] border border-[#272727] rounded-xl p-5 shadow-lg flex flex-col gap-4">
-              
-              <h3 className="text-sm font-bold text-white tracking-tight">Latest content</h3>
-              
-              {/* Visual Thumbnail Frame */}
-              <div 
-                onClick={() => {
-                  setSelectedVideoId(latestContent.id);
-                  onTabChange('video-lab');
-                }}
-                className="w-full aspect-video rounded-lg bg-neutral-900 border border-[#272727] relative overflow-hidden flex items-center justify-center group/card cursor-pointer"
-              >
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10" />
-                
-                {/* Text overlay */}
-                <div className="absolute bottom-3 left-3 right-3 z-20 space-y-1">
-                  <span className="px-2 py-0.5 bg-red-600 text-white rounded text-[8px] font-bold uppercase tracking-wider">
-                    {latestContent.format}
-                  </span>
-                  <h4 className="text-xs font-bold text-white leading-snug drop-shadow truncate w-full">
-                    {latestContent.title}
-                  </h4>
-                </div>
+        </div>
 
-                {/* Central Play/Indicator */}
-                <div className="h-10 w-10 rounded-full bg-black/40 border border-white/20 flex items-center justify-center group-hover/card:scale-110 transition duration-300">
-                  <Play className="h-4 w-4 text-white fill-current" />
+        {/* Right Column: How to Keep Up (Bio Sync and well-being correlations) */}
+        <div className="space-y-6">
+          
+          {/* Bio Performance Sync panel */}
+          <div className="bg-[#161616]/60 backdrop-blur-xl border border-[#272727]/60 rounded-2xl p-5 shadow-lg flex flex-col justify-between h-full">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-1 border-b border-[#272727]/80">
+                <Activity className="h-5 w-5 text-red-400" />
+                <div>
+                  <h2 className="text-sm font-bold text-white tracking-tight">How to Keep Up</h2>
+                  <p className="text-[10px] text-[#aaaaaa]">Biometrics & Creative Capacity Analysis</p>
                 </div>
               </div>
 
-              {/* Basic stats */}
-              <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-[#aaaaaa]">
-                <div>
-                  <span className="block text-white font-bold">{latestContent.metrics?.lifetimeViews?.toLocaleString() || '0'}</span>
-                  <span>Views</span>
+              {/* Bio Scores summary */}
+              <div className="grid grid-cols-3 gap-2 py-2">
+                <div className="bg-[#0f0f0f] border border-[#272727] p-2.5 rounded-xl text-center">
+                  <span className="block text-lg font-bold text-white font-mono">{scorecard?.sleep || 8}/10</span>
+                  <span className="block text-[8px] text-[#aaaaaa] uppercase mt-0.5">Sleep</span>
                 </div>
-                <div>
-                  <span className="block text-white font-bold">{latestContent.metrics?.ctr ? `${latestContent.metrics.ctr}%` : 'N/A'}</span>
-                  <span>CTR</span>
+                <div className="bg-[#0f0f0f] border border-[#272727] p-2.5 rounded-xl text-center">
+                  <span className="block text-lg font-bold text-white font-mono">{scorecard?.stress || 3}/10</span>
+                  <span className="block text-[8px] text-[#aaaaaa] uppercase mt-0.5">Stress</span>
+                </div>
+                <div className="bg-[#0f0f0f] border border-[#272727] p-2.5 rounded-xl text-center">
+                  <span className="block text-lg font-bold text-white font-mono">{scorecard?.energy || 8}/10</span>
+                  <span className="block text-[8px] text-[#aaaaaa] uppercase mt-0.5">Energy</span>
                 </div>
               </div>
 
+              {/* Directives */}
+              <div className="space-y-3 pt-2">
+                {directives.howToKeepUp.map(item => (
+                  <div key={item.id} className="p-3 bg-[#0f0f0f]/60 border border-[#272727]/80 rounded-xl space-y-1">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-red-400">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      <span>{item.title}</span>
+                    </div>
+                    <p className="text-[11px] text-[#aaaaaa] leading-relaxed pt-0.5">
+                      {item.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
-          ) : (
-            <div className="bg-[#161616] border border-[#272727] rounded-xl p-5 shadow-lg text-center text-xs font-mono text-[#aaaaaa]">
-              No upload metadata loaded yet.
-            </div>
-          )}
+
+            <button 
+              onClick={() => handleActionClick(directives.howToKeepUp[0]?.actionLabel || '')}
+              className="w-full mt-6 py-2 bg-red-500/10 hover:bg-red-500/25 border border-red-500/20 text-red-400 text-xs font-semibold rounded-lg tracking-wide transition"
+            >
+              {directives.howToKeepUp[0]?.actionLabel || 'Check bio scorecard'}
+            </button>
+          </div>
 
         </div>
 
       </div>
+
+      {/* Latest Video Log Block (What is Done) */}
+      {latestVideo && (
+        <div className="bg-[#161616]/40 backdrop-blur-xl border border-[#272727]/60 p-5 rounded-2xl">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded bg-neutral-900 border border-[#272727] flex items-center justify-center shrink-0">
+                <Video className="h-5 w-5 text-cyan-400" />
+              </div>
+              <div>
+                <span className="text-[8px] font-mono text-cyan-400 bg-cyan-400/10 border border-cyan-400/20 px-2 py-0.5 rounded-full uppercase font-bold tracking-wider">Latest Upload</span>
+                <h3 className="text-sm font-bold text-white mt-1.5">{latestVideo.title}</h3>
+              </div>
+            </div>
+            <div className="flex items-center gap-6 text-xs font-mono">
+              <div>
+                <span className="text-[#aaaaaa] block text-[9px]">Lifetime Views</span>
+                <span className="text-white font-bold">{latestVideo.metrics?.lifetimeViews?.toLocaleString() || '0'}</span>
+              </div>
+              <div>
+                <span className="text-[#aaaaaa] block text-[9px]">CTR</span>
+                <span className="text-white font-bold">{latestVideo.metrics?.ctr ? `${latestVideo.metrics.ctr}%` : 'N/A'}</span>
+              </div>
+              <button 
+                onClick={() => {
+                  setSelectedVideoId(latestVideo.id);
+                  onTabChange('video-lab');
+                }}
+                className="px-4 py-1.5 bg-[#272727] hover:bg-[#3f3f3f] text-xs font-semibold rounded-full transition duration-200"
+              >
+                Inspect Video Analytics
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

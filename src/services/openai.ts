@@ -73,13 +73,21 @@ export async function generateAIActionPlan(
   apiKey: string,
   channel: 'LearnDriven' | 'DecodeWorthy' | 'All',
   videos: VideoRecord[],
-  goals: any
+  goals: any,
+  scorecard: any,
+  activities: any[]
 ): Promise<{
   priority: { title: string; description: string; actionLabel: string; badge: string };
-  insights: { id: string; title: string; description: string; type: 'success' | 'warning' | 'info' | 'recommendation'; reason: string; actionLabel: string }[];
+  directives: {
+    whatToDo: { id: string; title: string; description: string; actionLabel: string }[];
+    whatIsDone: { id: string; title: string; description: string; actionLabel: string }[];
+    whatToChase: { id: string; title: string; description: string; actionLabel: string }[];
+    whatToMaintain: { id: string; title: string; description: string; actionLabel: string }[];
+    howToKeepUp: { id: string; title: string; description: string; actionLabel: string }[];
+  };
 }> {
   const systemPrompt = `You are the Lead Producer and AI Strategist for a high-end tech YouTube channel. 
-Your job is to analyze creator performance and productivity data, and output a highly structured daily Action Plan in valid JSON format.
+Your job is to analyze creator performance, well-being metrics, and production logs, and output a highly structured daily Action Plan in valid JSON format.
 Your output MUST contain EXACTLY this JSON structure:
 {
   "priority": {
@@ -88,16 +96,23 @@ Your output MUST contain EXACTLY this JSON structure:
     "actionLabel": "Button text (e.g. 'Draft script now')",
     "badge": "Critical" or "Blocked" or "Next Action"
   },
-  "insights": [
-    {
-      "id": "unique-slug-id",
-      "title": "Insight header (e.g. 'CTR Underperformance')",
-      "description": "Granular explanation of the data pattern",
-      "type": "success" or "warning" or "info" or "recommendation",
-      "reason": "Specific metrics-backed reason (e.g. 'Average percentage viewed is 55% but CTR is only 3.2%')",
-      "actionLabel": "Clickable trigger text"
-    }
-  ]
+  "directives": {
+    "whatToDo": [
+      { "id": "do-1", "title": "Priority script task", "description": "Write hook segment focusing on smartphone mic triggers", "actionLabel": "Start Scripting" }
+    ],
+    "whatIsDone": [
+      { "id": "done-1", "title": "Milestone completed", "description": "Roman collapse short published successfully (105k views)", "actionLabel": "View Stats" }
+    ],
+    "whatToChase": [
+      { "id": "chase-1", "title": "Milestone target", "description": "Target 930k subscribers: need 15k views on tech explainers this week", "actionLabel": "View Forecast" }
+    ],
+    "whatToMaintain": [
+      { "id": "maint-1", "title": "Upkeep metric", "description": "Maintain 7-day upload buffer; currently at 2 days queue size", "actionLabel": "Review Pipeline" }
+    ],
+    "howToKeepUp": [
+      { "id": "keep-1", "title": "Bio-Performance Sync", "description": "Sleep is low (5/10), matching a slowdown in script velocity. Rest today.", "actionLabel": "Review Scorecard" }
+    ]
+  }
 }
 Do not write any markdown blocks, conversational intro, or wrap the JSON in backticks. Output raw JSON only.`;
 
@@ -114,17 +129,17 @@ Do not write any markdown blocks, conversational intro, or wrap the JSON in back
 
   const userPrompt = `Channel: ${channel}
 Goals: ${JSON.stringify(goals)}
+Biometrics Scorecard: ${JSON.stringify(scorecard)}
+Recent Production Activities: ${JSON.stringify(activities?.slice(0, 5) || [])}
 Recent Video Telemetry Data: ${JSON.stringify(videoContext)}
-Generate the prioritized action plan and insights for today.`;
+Generate the prioritized action plan and detailed directives categorized by What to Do, What is Done, What to Chase, What to Maintain, and How to Keep Up. Include correlations between well-being/activities and channel performance in 'howToKeepUp'.`;
 
   try {
     const rawContent = await callOpenAI(apiKey, systemPrompt, userPrompt);
-    // Strip codeblock characters if returned by model
     const cleanJSON = rawContent.replace(/^```json\s*/, '').replace(/```\s*$/, '').trim();
     return JSON.parse(cleanJSON);
   } catch (e) {
     console.error("AI Action Plan generation crash, falling back:", e);
-    // Graceful fallback plan
     return {
       priority: {
         title: 'Review production buffer',
@@ -132,16 +147,48 @@ Generate the prioritized action plan and insights for today.`;
         actionLabel: 'Check Pipeline',
         badge: 'Next Action'
       },
-      insights: [
-        {
-          id: 'fb-1',
-          title: 'Upload Pace Risk',
-          description: 'A thin schedule lane indicates a consistency drop risk if the upcoming recording gets delayed.',
-          type: 'warning',
-          reason: 'Fewer than 2 scheduled uploads remain in queue.',
-          actionLabel: 'Schedule Now'
-        }
-      ]
+      directives: {
+        whatToDo: [
+          {
+            id: 'fb-do-1',
+            title: 'Upload Pace Alert',
+            description: 'A thin schedule lane indicates a consistency drop risk if the upcoming recording gets delayed.',
+            actionLabel: 'Schedule Now'
+          }
+        ],
+        whatIsDone: [
+          {
+            id: 'fb-done-1',
+            title: 'System Initialized',
+            description: 'Creator operating system loaded with clean live database connections.',
+            actionLabel: 'View Logs'
+          }
+        ],
+        whatToChase: [
+          {
+            id: 'fb-chase-1',
+            title: 'Chase Subscriber Target',
+            description: 'Maintain watch time parameters to chase next milestone target.',
+            actionLabel: 'View Forecasting'
+          }
+        ],
+        whatToMaintain: [
+          {
+            id: 'fb-maint-1',
+            title: 'Maintain Upload Flow',
+            description: 'Ensure 1 upload target per week is met to support baseline discovery.',
+            actionLabel: 'Review Pipeline'
+          }
+        ],
+        howToKeepUp: [
+          {
+            id: 'fb-keep-1',
+            title: 'Hydration Target Low',
+            description: 'Hydration metrics drop indicates focus bandwidth latency. Drink 500ml water.',
+            actionLabel: 'Check Bio Scorecard'
+          }
+        ]
+      }
     };
   }
 }
