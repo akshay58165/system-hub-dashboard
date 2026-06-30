@@ -232,36 +232,7 @@ export default function App() {
           setUser(session.user);
           setAuthLoading(false);
         } else {
-          // 2. Perform auto-login for creators
-          const email = "creator-sync@dashboard.com";
-          const password = "creatorpassword123!";
-          
-          console.log("Supabase Auto-Auth: Logging in to creator sync gateway...");
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password
-          });
-          
-          if (signInError) {
-            console.log("Supabase Auto-Auth: Account not found or login failed. Registering sync node...");
-            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-              email,
-              password
-            });
-            
-            if (signUpError) {
-              console.error("Supabase Auto-Auth: Registration failed:", signUpError.message);
-              setSyncError(`Supabase connection failed. Login error: "${signInError.message}". Signup error: "${signUpError.message}". Check email confirmation settings in Supabase Auth.`);
-              setAuthLoading(false);
-              setIsStateLoaded(true); // Let app render in local-mode
-            } else if (signUpData?.user) {
-              setUser(signUpData.user);
-              setAuthLoading(false);
-            }
-          } else if (signInData?.user) {
-            setUser(signInData.user);
-            setAuthLoading(false);
-          }
+          setAuthLoading(false);
         }
 
         // 3. Listen for auth changes
