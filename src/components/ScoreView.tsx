@@ -33,6 +33,8 @@ interface ScoreViewProps {
   repos: GitHubRepo[];
   vercelProjects: VercelProject[];
   supabase: SupabaseProject;
+  scorecard: any;
+  setScorecard: React.Dispatch<React.SetStateAction<any>>;
 }
 
 interface HistoryEntry {
@@ -45,20 +47,49 @@ interface HistoryEntry {
   description: string;
 }
 
-export default function ScoreView({ repos, vercelProjects, supabase }: ScoreViewProps) {
-  // 12 Daily parameters state variables (Default to null / N/A, stored in local storage and reset when date changes)
-  const [restfulness, setRestfulness] = useState<number | null>(null);
-  const [nutrition, setNutrition] = useState<number | null>(null);
-  const [hydration, setHydration] = useState<number | null>(null);
-  const [physicalActivity, setPhysicalActivity] = useState<number | null>(null);
-  const [endorphins, setEndorphins] = useState<number | null>(null);
-  const [schedule, setSchedule] = useState<number | null>(null);
-  const [pleasantness, setPleasantness] = useState<number | null>(null);
-  const [socialization, setSocialization] = useState<number | null>(null);
-  const [stomach, setStomach] = useState<number | null>(null);
-  const [technicalities, setTechnicalities] = useState<number | null>(null);
-  const [relations, setRelations] = useState<number | null>(null);
-  const [stress, setStress] = useState<number | null>(null);
+export default function ScoreView({ repos, vercelProjects, supabase, scorecard, setScorecard }: ScoreViewProps) {
+  // 12 Daily parameters mapped to props
+  const restfulness = scorecard.restfulness;
+  const setRestfulness = (val: number | null) => setScorecard(prev => ({ ...prev, restfulness: val }));
+
+  const nutrition = scorecard.nutrition;
+  const setNutrition = (val: number | null) => setScorecard(prev => ({ ...prev, nutrition: val }));
+
+  const hydration = scorecard.hydration;
+  const setHydration = (val: number | null) => setScorecard(prev => ({ ...prev, hydration: val }));
+
+  const physicalActivity = scorecard.physicalActivity;
+  const setPhysicalActivity = (val: number | null) => setScorecard(prev => ({ ...prev, physicalActivity: val }));
+
+  const endorphins = scorecard.endorphins;
+  const setEndorphins = (val: number | null) => setScorecard(prev => ({ ...prev, endorphins: val }));
+
+  const schedule = scorecard.schedule;
+  const setSchedule = (val: number | null) => setScorecard(prev => ({ ...prev, schedule: val }));
+
+  const pleasantness = scorecard.pleasantness;
+  const setPleasantness = (val: number | null) => setScorecard(prev => ({ ...prev, pleasantness: val }));
+
+  const socialization = scorecard.socialization;
+  const setSocialization = (val: number | null) => setScorecard(prev => ({ ...prev, socialization: val }));
+
+  const stomach = scorecard.stomach;
+  const setStomach = (val: number | null) => setScorecard(prev => ({ ...prev, stomach: val }));
+
+  const technicalities = scorecard.technicalities;
+  const setTechnicalities = (val: number | null) => setScorecard(prev => ({ ...prev, technicalities: val }));
+
+  const relations = scorecard.relations;
+  const setRelations = (val: number | null) => setScorecard(prev => ({ ...prev, relations: val }));
+
+  const stress = scorecard.stress;
+  const setStress = (val: number | null) => setScorecard(prev => ({ ...prev, stress: val }));
+
+  const history = scorecard.history || [];
+  const setHistory = (val: any) => setScorecard((prev: any) => ({
+    ...prev,
+    history: typeof val === 'function' ? val(prev.history || []) : val
+  }));
 
   // Load data from LocalStorage on mount
   useEffect(() => {
@@ -72,42 +103,42 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
         return val ? parseInt(val, 10) : null;
       };
       
-      setRestfulness(loadParam('restfulness'));
-      setNutrition(loadParam('nutrition'));
-      setHydration(loadParam('hydration'));
-      setPhysicalActivity(loadParam('physicalActivity'));
-      setEndorphins(loadParam('endorphins'));
-      setSchedule(loadParam('schedule'));
-      setPleasantness(loadParam('pleasantness'));
-      setSocialization(loadParam('socialization'));
-      setStomach(loadParam('stomach'));
-      setTechnicalities(loadParam('technicalities'));
-      setRelations(loadParam('relations'));
-      setStress(loadParam('stress'));
-
-      const storedHistory = localStorage.getItem('unicorn_scorecard_history');
-      if (storedHistory) {
-        try {
-          setHistory(JSON.parse(storedHistory));
-        } catch (e) {
-          // ignore
-        }
+      let storedHistory = [];
+      try {
+        const hist = localStorage.getItem('unicorn_scorecard_history');
+        if (hist) storedHistory = JSON.parse(hist);
+      } catch (e) {
+        // ignore
       }
+
+      setScorecard({
+        restfulness: loadParam('restfulness'),
+        nutrition: loadParam('nutrition'),
+        hydration: loadParam('hydration'),
+        physicalActivity: loadParam('physicalActivity'),
+        endorphins: loadParam('endorphins'),
+        schedule: loadParam('schedule'),
+        pleasantness: loadParam('pleasantness'),
+        socialization: loadParam('socialization'),
+        stomach: loadParam('stomach'),
+        technicalities: loadParam('technicalities'),
+        relations: loadParam('relations'),
+        stress: loadParam('stress'),
+        history: storedHistory.length > 0 ? storedHistory : [
+          {
+            id: 'init',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            parameter: 'System',
+            oldVal: 'None',
+            newVal: 'Initialized',
+            scoreEffect: 0,
+            description: 'Daily Readiness Scorecard initialized with baseline levels.'
+          }
+        ],
+        date: currentDateStr
+      });
     } else {
       localStorage.setItem('unicorn_scorecard_date', currentDateStr);
-      setRestfulness(null);
-      setNutrition(null);
-      setHydration(null);
-      setPhysicalActivity(null);
-      setEndorphins(null);
-      setSchedule(null);
-      setPleasantness(null);
-      setSocialization(null);
-      setStomach(null);
-      setTechnicalities(null);
-      setRelations(null);
-      setStress(null);
-
       const initialHistory = [
         {
           id: 'init',
@@ -119,26 +150,28 @@ export default function ScoreView({ repos, vercelProjects, supabase }: ScoreView
           description: 'Daily Readiness Scorecard initialized with baseline levels.'
         }
       ];
-      setHistory(initialHistory);
-      localStorage.setItem('unicorn_scorecard_history', JSON.stringify(initialHistory));
+      setScorecard({
+        restfulness: null,
+        nutrition: null,
+        hydration: null,
+        physicalActivity: null,
+        endorphins: null,
+        schedule: null,
+        pleasantness: null,
+        socialization: null,
+        stomach: null,
+        technicalities: null,
+        relations: null,
+        stress: null,
+        history: initialHistory,
+        date: currentDateStr
+      });
       
       const keys = ['restfulness', 'nutrition', 'hydration', 'physicalActivity', 'endorphins', 'schedule', 'pleasantness', 'socialization', 'stomach', 'technicalities', 'relations', 'stress'];
       keys.forEach(k => localStorage.removeItem(`unicorn_scorecard_${k}`));
+      localStorage.setItem('unicorn_scorecard_history', JSON.stringify(initialHistory));
     }
   }, []);
-
-  // Change Log History
-  const [history, setHistory] = useState<HistoryEntry[]>([
-    {
-      id: 'init',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-      parameter: 'System',
-      oldVal: 'None',
-      newVal: 'Initialized',
-      scoreEffect: 0,
-      description: 'Daily Readiness Scorecard initialized with baseline levels.'
-    }
-  ]);
 
   // Debouncing refs to prevent micro-increment logging spam
   const logTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({});

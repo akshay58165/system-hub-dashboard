@@ -58,6 +58,37 @@ export default function App() {
       return null;
     }
   });
+
+  const [scorecard, setScorecard] = useState<any>(() => {
+    const today = new Date();
+    const currentDateStr = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+    return {
+      restfulness: null,
+      nutrition: null,
+      hydration: null,
+      physicalActivity: null,
+      endorphins: null,
+      schedule: null,
+      pleasantness: null,
+      socialization: null,
+      stomach: null,
+      technicalities: null,
+      relations: null,
+      stress: null,
+      history: [
+        {
+          id: 'init',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          parameter: 'System',
+          oldVal: 'None',
+          newVal: 'Initialized',
+          scoreEffect: 0,
+          description: 'Daily Readiness Scorecard initialized with baseline levels.'
+        }
+      ],
+      date: currentDateStr
+    };
+  });
   const [repos, setRepos] = useState<GitHubRepo[]>(initialGitHubRepos);
   const [vercelProjects, setVercelProjects] = useState<VercelProject[]>(initialVercelProjects);
   const [supabase, setSupabase] = useState<SupabaseProject>(initialSupabaseProject);
@@ -293,6 +324,7 @@ export default function App() {
           if (remoteState.topics) setTopics(remoteState.topics);
           if (remoteState.activities) setActivities(remoteState.activities);
           if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
+          if (remoteState.scorecard) setScorecard(remoteState.scorecard);
 
           addEvent({
             id: `evt-supabase-loaded-${Date.now()}`,
@@ -314,7 +346,8 @@ export default function App() {
                 const remoteState = newState.state as any;
                 if (remoteState.topics) setTopics(remoteState.topics);
                 if (remoteState.activities) setActivities(remoteState.activities);
-                setCycleGoals(remoteState.cycleGoals || null);
+                if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
+                if (remoteState.scorecard) setScorecard(remoteState.scorecard);
 
                 addEvent({
                   id: `evt-supabase-sync-realtime-${Date.now()}`,
@@ -346,7 +379,7 @@ export default function App() {
   }, [user]);
 
   // 4. Save local state changes back to Supabase
-  const saveStateToSupabase = async (newTopics: Topic[], newActs: TopicActivity[], newGoals: CycleGoal | null) => {
+  const saveStateToSupabase = async (newTopics: Topic[], newActs: TopicActivity[], newGoals: CycleGoal | null, newScorecard: any) => {
     if (!supabase || !user) return;
     try {
       const { error } = await supabase
@@ -356,7 +389,8 @@ export default function App() {
           state: {
             topics: newTopics,
             activities: newActs,
-            cycleGoals: newGoals
+            cycleGoals: newGoals,
+            scorecard: newScorecard
           },
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id' });
@@ -374,11 +408,11 @@ export default function App() {
 
     // Debounce updates to 800ms
     const timer = setTimeout(() => {
-      saveStateToSupabase(topics, activities, cycleGoals);
+      saveStateToSupabase(topics, activities, cycleGoals, scorecard);
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [topics, activities, cycleGoals, user, authLoading]);
+  }, [topics, activities, cycleGoals, scorecard, user, authLoading]);
 
   // Update clock
   useEffect(() => {
@@ -742,6 +776,8 @@ export default function App() {
                 repos={repos} 
                 vercelProjects={vercelProjects} 
                 supabase={supabase} 
+                scorecard={scorecard}
+                setScorecard={setScorecard}
               />
             )}
           </motion.div>
