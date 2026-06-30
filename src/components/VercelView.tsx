@@ -286,34 +286,46 @@ export default function VercelView({
 
   return (
     <div className="space-y-6">
-      {/* Selector banner (Repurposed Vercel selector banner) */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-neutral-950 border border-neutral-800 rounded-xl p-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-neutral-900 border border-neutral-800 rounded-lg text-neutral-300">
-            <Layers className="h-5 w-5 text-blue-400" />
+      {/* Top header — matches the AI Insights design language */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="relative overflow-hidden rounded-xl border border-neutral-900 bg-neutral-950 shadow-[0_4px_30px_rgba(0,0,0,0.3)]"
+      >
+        <motion.div
+          className="absolute -top-16 -left-10 w-64 h-64 rounded-full bg-amber-500/8 blur-3xl pointer-events-none"
+          animate={{ x: [0, 20, -10, 0], y: [0, -15, 10, 0] }}
+          transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-5">
+          <div className="flex items-center gap-3">
+            <div className="grid place-items-center h-8 w-8 rounded-lg bg-amber-950/30 border border-amber-900/40 text-amber-400">
+              <Layers className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-neutral-100 font-mono tracking-tight">Progress Tracker</h2>
+              <p className="text-[10px] text-neutral-500 mt-0.5 font-mono">Track channel upload velocities, content lane outputs, and scheduling buffers.</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-sm font-semibold text-neutral-100 font-mono">production-pipeline-sync</h2>
-            <p className="text-xs text-neutral-400">Track channel upload velocities, content lane outputs, and scheduling buffers.</p>
-          </div>
-        </div>
 
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          {(['All', 'LearnDriven', 'DecodeWorthy'] as const).map(channel => (
-            <button
-              key={channel}
-              onClick={() => setSelectedChannel(channel)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-mono border transition ${
-                selectedChannel === channel
-                  ? 'bg-neutral-800 border-neutral-600 text-white'
-                  : 'bg-neutral-900 border-neutral-850 text-neutral-400 hover:text-neutral-200 hover:border-neutral-700'
-              }`}
-            >
-              {channel}
-            </button>
-          ))}
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+            {(['All', 'LearnDriven', 'DecodeWorthy'] as const).map(channel => (
+              <button
+                key={channel}
+                onClick={() => setSelectedChannel(channel)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono border transition ${
+                  selectedChannel === channel
+                    ? 'bg-neutral-800 border-neutral-600 text-white'
+                    : 'bg-neutral-900 border-neutral-850 text-neutral-400 hover:text-neutral-200 hover:border-neutral-700'
+                }`}
+              >
+                {channel}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

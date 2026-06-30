@@ -338,42 +338,54 @@ export default function GithubView({
 
   return (
     <div className="space-y-6">
-      {/* Top repository picker (repurposed for topic and channel dashboard) */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-neutral-950/80 border border-neutral-900 rounded-xl p-5 shadow-[0_4px_20px_rgba(0,0,0,0.15)] hover:border-neutral-800/40 transition duration-300">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-neutral-900/50 border border-neutral-900 rounded-lg text-neutral-300">
-            <SlidersHorizontal className="h-5 w-5 text-blue-400" />
+      {/* Top header — same visual language as AI Insights: icon badge, glow blob, motion entrance */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="relative overflow-hidden rounded-xl border border-neutral-900 bg-neutral-950 shadow-[0_4px_30px_rgba(0,0,0,0.3)]"
+      >
+        <motion.div
+          className="absolute -top-16 -right-10 w-64 h-64 rounded-full bg-blue-500/8 blur-3xl pointer-events-none"
+          animate={{ x: [0, -20, 10, 0], y: [0, 15, -10, 0] }}
+          transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-5">
+          <div className="flex items-center gap-3">
+            <div className="grid place-items-center h-8 w-8 rounded-lg bg-blue-950/30 border border-blue-900/40 text-blue-400">
+              <SlidersHorizontal className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-neutral-100 font-mono tracking-tight flex items-center gap-2">
+                Topic Dashboard
+                <span className="px-1.5 py-0.2 bg-blue-950/30 text-blue-400 border border-blue-900/40 font-mono text-[10px] rounded">
+                  Total: {stats.total}
+                </span>
+              </h2>
+              <p className="text-[10px] text-neutral-500 mt-0.5 font-mono">
+                Last created: {stats.lastCreatedText}
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-sm font-semibold text-neutral-100 font-mono flex items-center gap-2">
-              Topic Dashboard
-              <span className="px-1.5 py-0.2 bg-neutral-900/50 text-neutral-400 border border-neutral-900 font-mono text-[10px] rounded">
-                Total: {stats.total}
-              </span>
-            </h2>
-            <p className="text-[10px] text-neutral-400 mt-0.5 font-mono">
-              Last created: {stats.lastCreatedText}
-            </p>
-          </div>
-        </div>
 
-        {/* Channel Filter Buttons */}
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          {(['All', 'LearnDriven', 'DecodeWorthy'] as const).map(channel => (
-            <button
-              key={channel}
-              onClick={() => setSelectedChannel(channel)}
-              className={`px-4.5 py-1.5 rounded-lg text-xs font-mono border transition-all duration-300 ${
-                selectedChannel === channel
-                  ? 'bg-neutral-900 border-neutral-800 text-white font-semibold shadow-[0_0_12px_rgba(59,130,246,0.06)]'
-                  : 'bg-neutral-950/40 border-neutral-900/60 text-neutral-400 hover:text-neutral-200 hover:border-neutral-800'
-              }`}
-            >
-              {channel}
-            </button>
-          ))}
+          {/* Channel Filter Buttons */}
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+            {(['All', 'LearnDriven', 'DecodeWorthy'] as const).map(channel => (
+              <button
+                key={channel}
+                onClick={() => setSelectedChannel(channel)}
+                className={`px-4.5 py-1.5 rounded-lg text-xs font-mono border transition-all duration-300 ${
+                  selectedChannel === channel
+                    ? 'bg-neutral-900 border-neutral-800 text-white font-semibold shadow-[0_0_12px_rgba(59,130,246,0.06)]'
+                    : 'bg-neutral-950/40 border-neutral-900/60 text-neutral-400 hover:text-neutral-200 hover:border-neutral-800'
+                }`}
+              >
+                {channel}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Main Grid: Details */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -646,18 +646,30 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
 
   return (
     <div className="space-y-6">
-      {/* Top Banner Header — sticky so live readiness/score stay visible while you fill in parameters */}
-      <div className="sticky top-28 z-20 bg-neutral-900 border border-neutral-900 rounded-xl p-6 relative overflow-hidden shadow-lg shadow-black/40">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-rose-500/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-          <div>
-            <h2 className="text-lg font-semibold text-neutral-100 tracking-tight flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-rose-400 animate-pulse" />
-              Creator Bio-Performance Scorecard
-            </h2>
-            <p className="text-xs text-neutral-400 mt-1 font-sans">
-              Consolidated evaluation of personal biometrics, mental focus, and environment readiness.
-            </p>
+      {/* Top Banner Header — sticky so live readiness/score stay visible while you fill in parameters.
+          Same visual language as AI Insights: icon badge, glow blob, motion entrance. */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="sticky top-28 z-20 relative overflow-hidden rounded-xl border border-neutral-900 bg-neutral-950 shadow-[0_4px_30px_rgba(0,0,0,0.3)]"
+      >
+        <motion.div
+          className="absolute -top-16 -right-10 w-72 h-72 rounded-full bg-rose-500/8 blur-3xl pointer-events-none"
+          animate={{ x: [0, -20, 10, 0], y: [0, 15, -10, 0] }}
+          transition={{ duration: 19, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 p-6">
+          <div className="flex items-center gap-2.5">
+            <div className="grid place-items-center h-8 w-8 rounded-lg bg-rose-950/30 border border-rose-900/40 text-rose-400">
+              <Trophy className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-neutral-100 font-mono tracking-tight">Creator Bio-Performance Scorecard</h2>
+              <p className="text-[10px] text-neutral-500 mt-0.5 font-mono">
+                Consolidated evaluation of personal biometrics, mental focus, and environment readiness.
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-4 bg-neutral-950/60 border border-neutral-900 px-5 py-3 rounded-xl font-mono">
             <div className="text-center">
@@ -676,7 +688,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Main Content Layout Grid — items-start lets the right side stick without stretching to match the (independently scrolling) parameters column */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">

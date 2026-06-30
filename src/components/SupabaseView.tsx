@@ -308,24 +308,36 @@ Please rewrite/enhance this draft based on the system persona rules and the user
 
   return (
     <div className="space-y-6">
-      {/* Selector banner (Supabase cluster header) */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-neutral-950 border border-neutral-800 rounded-xl p-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-neutral-900 border border-neutral-800 rounded-lg text-neutral-300">
-            <Clapperboard className="h-5 w-5 text-emerald-400" />
+      {/* Top header — matches the AI Insights design language */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="relative overflow-hidden rounded-xl border border-neutral-900 bg-neutral-950 shadow-[0_4px_30px_rgba(0,0,0,0.3)]"
+      >
+        <motion.div
+          className="absolute -top-16 -right-10 w-64 h-64 rounded-full bg-emerald-500/8 blur-3xl pointer-events-none"
+          animate={{ x: [0, -20, 10, 0], y: [0, 15, -10, 0] }}
+          transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-5">
+          <div className="flex items-center gap-3">
+            <div className="grid place-items-center h-8 w-8 rounded-lg bg-emerald-950/30 border border-emerald-900/40 text-emerald-400">
+              <Clapperboard className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-neutral-100 font-mono tracking-tight">Action Hub</h2>
+              <p className="text-[10px] text-neutral-500 mt-0.5 font-mono">Manage content tables, run queries on topics &amp; activities, and edit scripts.</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-sm font-semibold text-neutral-100 font-mono">content-engine/pipeline-control</h2>
-            <p className="text-xs text-neutral-400">Manage content tables, run queries on topics & activities, and coordinate team collaborators.</p>
-          </div>
-        </div>
 
-        <div className="flex gap-1.5 font-mono text-xs bg-neutral-900 p-1 border border-neutral-800 rounded-lg">
-          <span className="px-2 py-0.5 text-neutral-400">Channels: 2 Active</span>
-          <span className="text-neutral-600">|</span>
-          <span className="px-2 py-0.5 text-emerald-400 font-bold">● PIPELINE OK</span>
+          <div className="flex gap-1.5 font-mono text-xs bg-neutral-950/50 p-1 border border-neutral-900 rounded-lg">
+            <span className="px-2 py-0.5 text-neutral-400">Topics: {topics.length}</span>
+            <span className="text-neutral-700">|</span>
+            <span className="px-2 py-0.5 text-emerald-400 font-bold">Activities: {activities.length}</span>
+          </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Hardware Performance Grid — only metrics with a real backing source */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
