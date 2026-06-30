@@ -108,7 +108,7 @@ export default function GithubView({
 
   const getScheduledTopicChannelsForDate = (dateStr: string) => {
     const matchingTopics = topics.filter(t => {
-      if (t.status !== 'scheduled' || !t.dueDate) return false;
+      if (!t.dueDate) return false;
       const formattedDue = t.dueDate.split('T')[0];
       return formattedDue === dateStr;
     });
