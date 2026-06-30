@@ -243,7 +243,7 @@ export default function App() {
           });
           
           if (signInError) {
-            console.log("Supabase Auto-Auth: Account not found. Registering sync node...");
+            console.log("Supabase Auto-Auth: Account not found or login failed. Registering sync node...");
             const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
               email,
               password
@@ -251,6 +251,7 @@ export default function App() {
             
             if (signUpError) {
               console.error("Supabase Auto-Auth: Registration failed:", signUpError.message);
+              setSyncError(`Supabase connection failed. Login error: "${signInError.message}". Signup error: "${signUpError.message}". Check email confirmation settings in Supabase Auth.`);
               setAuthLoading(false);
               setIsStateLoaded(true); // Let app render in local-mode
             } else if (signUpData?.user) {
@@ -437,7 +438,7 @@ export default function App() {
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [topics, activities, cycleGoals, scorecard, user, authLoading]);
+  }, [topics, activities, cycleGoals, scorecard, user, authLoading, isStateLoaded]);
 
   // Update clock
   useEffect(() => {
