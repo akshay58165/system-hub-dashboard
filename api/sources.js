@@ -82,7 +82,12 @@ export default async function handler(request, response) {
     if (!openAIResponse.ok) {
       const errBody = await openAIResponse.text().catch(() => '');
       console.error(`OpenAI sources request failed with status ${openAIResponse.status}: ${errBody}`);
-      return sendJson(response, 502, { error: 'Source search request failed.' });
+      let detail = errBody;
+      try {
+        const parsed = JSON.parse(errBody);
+        detail = parsed.error?.message || errBody;
+      } catch { /* not JSON, use raw body */ }
+      return sendJson(response, 502, { error: `Source search request failed (${openAIResponse.status}): ${detail}`.slice(0, 500) });
     }
 
     const data = await openAIResponse.json();
@@ -93,12 +98,14 @@ export default async function handler(request, response) {
     const content = textPart?.text;
 
     if (!content) {
+      console.error('Unexpected OpenAI Responses API payload shape:', JSON.stringify(data).slice(0, 1000));
       return sendJson(response, 502, { error: 'Source search returned an empty response.' });
     }
 
     return sendJson(response, 200, { content });
   } catch (error) {
-    console.error('Secure sources endpoint failed:', error instanceof Error ? error.message : error);
-    return sendJson(response, 502, { error: 'Source search service is temporarily unavailable.' });
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Secure sources endpoint failed:', message);
+    return sendJson(response, 502, { error: `Source search service is temporarily unavailable: ${message}`.slice(0, 500) });
   }
 }
