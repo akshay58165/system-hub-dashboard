@@ -25,7 +25,7 @@ import {
   Tooltip, 
   CartesianGrid 
 } from 'recharts';
-import { Topic, TopicActivity, SystemEvent } from '../types';
+import { Topic, TopicActivity, SystemEvent, CycleGoal } from '../types';
 
 interface VercelViewProps {
   projects: any[]; // Kept for interface compatibility in App.tsx
@@ -44,7 +44,8 @@ export default function VercelView({
   setTopics,
   activities,
   setActivities,
-  setActiveTab
+  setActiveTab,
+  cycleGoals
 }: VercelViewProps) {
   const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy'>('All');
   const [schedulingTopicId, setSchedulingTopicId] = useState<string | null>(null);
