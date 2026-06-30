@@ -28,6 +28,7 @@ import {
   Radar
 } from 'recharts';
 import { GitHubRepo, VercelProject, SupabaseProject } from '../types';
+import { callOpenAI } from '../services/openai';
 
 interface ScoreViewProps {
   repos: GitHubRepo[];
@@ -319,6 +320,86 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
       biologicalComfort
     };
   }, [restfulness, nutrition, hydration, physicalActivity, endorphins, schedule, pleasantness, socialization, stomach, technicalities, relations, stress]);
+
+  // ---- Live AI Analyst ----
+  // Watches the daily parameters and, after they settle (debounced so a burst
+  // of clicks across several sliders becomes one consolidated analysis, not
+  // one API call per click), asks the model for a short contextual narrative
+  // about what just changed and how it interacts with everything else.
+  const PARAM_LABELS: Record<string, string> = {
+    restfulness: 'Restfulness', nutrition: 'Nutrition', hydration: 'Hydration',
+    physicalActivity: 'Physical Activity', endorphins: 'Endorphins (Distraction)',
+    schedule: 'Schedule Adherence', pleasantness: 'Pleasantness', socialization: 'Socialization',
+    stomach: 'Stomach Status', technicalities: 'Technical Blockers', relations: 'Relationship Dynamic',
+    stress: 'Stress Level'
+  };
+
+  const [aiInsight, setAiInsight] = useState<string | null>(null);
+  const [isAiInsightLoading, setIsAiInsightLoading] = useState(false);
+  const [aiInsightError, setAiInsightError] = useState<string | null>(null);
+  const [aiInsightTimestamp, setAiInsightTimestamp] = useState<string | null>(null);
+  const lastAnalyzedHistoryLengthRef = useRef(0);
+  const aiAnalysisTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // Only fire once history has genuinely grown (a parameter actually
+    // settled on a new value) and skip the very first mount.
+    if (history.length === 0 || history.length === lastAnalyzedHistoryLengthRef.current) return;
+    if (lastAnalyzedHistoryLengthRef.current === 0) {
+      // Don't analyze on initial load — only on changes made during this session.
+      lastAnalyzedHistoryLengthRef.current = history.length;
+      return;
+    }
+
+    if (aiAnalysisTimeoutRef.current) clearTimeout(aiAnalysisTimeoutRef.current);
+
+    aiAnalysisTimeoutRef.current = setTimeout(async () => {
+      const analyzedLength = history.length;
+      lastAnalyzedHistoryLengthRef.current = analyzedLength;
+
+      setIsAiInsightLoading(true);
+      setAiInsightError(null);
+
+      const recentChanges = history.slice(0, 5).map((h: HistoryEntry) =>
+        `${h.parameter}: ${h.oldVal} -> ${h.newVal} (${h.description})`
+      ).join('\n');
+
+      const currentSnapshot = Object.entries(PARAM_LABELS)
+        .map(([key, label]) => `${label}: ${latestParamsRef.current[key] ?? 'not set'}/10`)
+        .join('\n');
+
+      const systemPrompt = `You are a perceptive personal performance analyst who has been continuously watching this creator's daily biometric and mental-focus parameters all day, like someone sitting beside them taking notes.
+
+Each time a parameter changes, analyze the change in the context of their full current state and recent history. Explain, in a natural, direct, personal voice: what just changed, why it matters, and how it interacts with their other current metrics right now (call out compounding effects, e.g. low hydration plus high stress). If something is concerning, say what to do about it. If things are going well, say so plainly and encourage maintaining it.
+
+Ground every claim in the specific numbers given. Never give generic platitudes. Keep your entire response to 3-5 sentences, conversational but sharp, no bullet points, no markdown, no headers, no restating the raw numbers like a report.`;
+
+      const userPrompt = `Most recent changes (most recent first):
+${recentChanges}
+
+Full current parameter snapshot:
+${currentSnapshot}
+
+Current Bio-Focus Score: ${computedMetrics.aggregate}/100
+
+Analyze what just changed and tell me the contextual story.`;
+
+      try {
+        const result = await callOpenAI(systemPrompt, userPrompt);
+        setAiInsight(result.trim());
+        setAiInsightTimestamp(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      } catch (err: any) {
+        setAiInsightError(err.message || 'Live analysis failed.');
+      } finally {
+        setIsAiInsightLoading(false);
+      }
+    }, 2500);
+
+    return () => {
+      if (aiAnalysisTimeoutRef.current) clearTimeout(aiAnalysisTimeoutRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history.length]);
 
   // Write final transition logs when timer fires after input inactivity
   const writeFinalLog = (paramName: string, oldVal: number | null, newVal: number) => {
@@ -687,6 +768,97 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
               </span>
             </div>
           </div>
+        </div>
+      </motion.div>
+
+      {/* Live AI Analyst — watches Daily Parameters changes and narrates the contextual story
+          after edits settle (debounced), instead of firing per individual click. */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="relative overflow-hidden rounded-xl border border-blue-900/30 bg-neutral-900 shadow-[0_4px_30px_rgba(0,0,0,0.3)]"
+      >
+        <motion.div
+          className="absolute -top-16 -left-10 w-64 h-64 rounded-full bg-blue-500/8 blur-3xl pointer-events-none"
+          animate={{ x: [0, 20, -10, 0], y: [0, -15, 10, 0] }}
+          transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <div className="relative z-10 p-5">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="grid place-items-center h-8 w-8 rounded-lg bg-blue-950/30 border border-blue-900/40 text-blue-400">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-neutral-100 font-mono tracking-tight">Live AI Analyst</h3>
+                  <span className="flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-emerald-950/30 border border-emerald-900/40 text-emerald-400 text-[9px] font-bold uppercase tracking-wider">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                    </span>
+                    Watching
+                  </span>
+                </div>
+                <p className="text-[10px] text-neutral-500 font-mono mt-0.5">
+                  Narrates what changed and how it connects to everything else, every time your parameters settle.
+                </p>
+              </div>
+            </div>
+            {aiInsightTimestamp && !isAiInsightLoading && (
+              <span className="text-[9px] text-neutral-600 font-mono shrink-0">Updated {aiInsightTimestamp}</span>
+            )}
+          </div>
+
+          <AnimatePresence mode="wait">
+            {isAiInsightLoading ? (
+              <motion.div
+                key="loading"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center gap-2.5 p-3 rounded-lg bg-blue-950/10 border border-blue-900/20 text-blue-400 text-xs font-mono"
+              >
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+                </span>
+                <span>Analyzing what just changed...</span>
+              </motion.div>
+            ) : aiInsightError ? (
+              <motion.div
+                key="error"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center gap-2.5 p-3 rounded-lg bg-rose-950/10 border border-rose-900/30 text-rose-400 text-xs font-mono"
+              >
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{aiInsightError}</span>
+              </motion.div>
+            ) : aiInsight ? (
+              <motion.p
+                key="insight"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="text-sm text-neutral-200 leading-relaxed font-sans p-3 rounded-lg bg-neutral-950/40 border border-neutral-850"
+              >
+                {aiInsight}
+              </motion.p>
+            ) : (
+              <motion.p
+                key="idle"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="text-xs text-neutral-500 font-mono p-3"
+              >
+                Change a parameter on the left and I'll tell you what it means once it settles.
+              </motion.p>
+            )}
+          </AnimatePresence>
         </div>
       </motion.div>
 
