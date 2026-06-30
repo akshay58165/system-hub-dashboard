@@ -33,7 +33,7 @@ import {
   Legend,
   Brush
 } from 'recharts';
-import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity } from '../types';
+import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal } from '../types';
 import AIInsightsBanner from './AIInsightsBanner';
 
 interface OverviewProps {
@@ -44,9 +44,10 @@ interface OverviewProps {
   onTabChange: (tab: 'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score') => void;
   topics: Topic[];
   activities: TopicActivity[];
+  cycleGoals: CycleGoal | null;
 }
 
-export default function Overview({ repos, vercelProjects, supabase, events, onTabChange, topics, activities }: OverviewProps) {
+export default function Overview({ repos, vercelProjects, supabase, events, onTabChange, topics, activities, cycleGoals }: OverviewProps) {
   // Compute some high-level metrics
   const totalStars = useMemo(() => repos.reduce((sum, r) => sum + r.stars, 0), [repos]);
   const totalIssues = useMemo(() => repos.reduce((sum, r) => sum + r.openIssues, 0), [repos]);
@@ -379,6 +380,66 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
     return { overdueCount: overdue.length, nextUp, nextUpDueLabel };
   }, [topics]);
 
+  // 14-day "don't break the chain" heatmap — real activity presence per day.
+  const activityHeatmap = useMemo(() => {
+    const days: { iso: string; label: string; count: number }[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(today.getTime() - i * 86400000);
+      const iso = d.toISOString().slice(0, 10);
+      const count = activities.filter(a => a.timestamp.slice(0, 10) === iso).length;
+      days.push({ iso, label: d.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 1), count });
+    }
+    return days;
+  }, [activities]);
+
+  // Real goal pace — compares actual scheduling velocity against the active
+  // cycle target set in Action Hub. Honest empty state if no cycle is set.
+  const goalPace = useMemo(() => {
+    if (!cycleGoals) return null;
+
+    const target =
+      (cycleGoals.learnDrivenShorts || 0) +
+      (cycleGoals.learnDrivenLong || 0) +
+      (cycleGoals.learnDrivenMembers || 0) +
+      (cycleGoals.decodeWorthyShorts || 0);
+    if (target === 0) return null;
+
+    const start = new Date(cycleGoals.startDate + 'T00:00:00');
+    const end = new Date(cycleGoals.endDate + 'T23:59:59');
+    const today = new Date();
+
+    const scheduledInCycle = topics.filter(t => {
+      if (!t.dueDate) return false;
+      const d = new Date(t.dueDate);
+      return d >= start && d <= end && (t.status === 'scheduled' || t.status === 'edited');
+    }).length;
+
+    const totalDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
+    const daysElapsed = Math.min(totalDays, Math.max(1, Math.round((today.getTime() - start.getTime()) / 86400000)));
+    const daysRemaining = Math.max(0, totalDays - daysElapsed);
+
+    const currentPace = scheduledInCycle / (daysElapsed / 7); // videos/week so far
+    const remaining = Math.max(0, target - scheduledInCycle);
+    const requiredPace = daysRemaining > 0 ? remaining / (daysRemaining / 7) : remaining > 0 ? Infinity : 0;
+    const aheadOfSchedule = remaining === 0 || currentPace >= requiredPace;
+
+    return {
+      target,
+      scheduledInCycle,
+      remaining,
+      currentPace,
+      requiredPace,
+      daysRemaining,
+      aheadOfSchedule,
+      monthName: cycleGoals.monthName
+    };
+  }, [cycleGoals, topics]);
+
+  const STREAK_MILESTONES = [3, 7, 14, 30, 60, 100];
+  const nextMilestone = (streak: number) => STREAK_MILESTONES.find(m => m > streak) ?? null;
+
   // Generate monthly timeline data for topics added vs videos scheduled
   const monthlyTimelineData = useMemo(() => {
     const today = new Date();
@@ -546,171 +607,225 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
               <Zap className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-neutral-100 font-mono tracking-tight">Pipeline Status</h2>
-              <p className="text-[10px] text-neutral-500 font-mono">Real-time payout cycle, creation streaks, and monthly channel coverage.</p>
+              <h2 className="text-sm font-bold text-neutral-100 font-mono tracking-tight">Streak Engine</h2>
+              <p className="text-[10px] text-neutral-500 font-mono">Real creation streaks, daily momentum, and goal pace — built to keep the chain alive.</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-stretch">
-            {/* Payment Cycle */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, delay: 0.05 }}
-              onClick={() => onTabChange('topics')}
-              className="md:col-span-2 p-4 rounded-lg border bg-red-950/10 border-red-900/30 hover:border-red-800/50 transition-all duration-300 cursor-pointer flex flex-col justify-between"
-            >
-              <div className="flex items-center gap-2 mb-3">
-                <Youtube className="h-4 w-4 text-red-400" />
-                <span className="text-[9px] font-bold uppercase tracking-wider text-red-400">Payment Cycle</span>
-              </div>
+          {/* Streak flame cards + Today's Move — the three things that should hit you the moment you open this app */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+            {[
+              { channel: 'LearnDriven' as const, data: streakMetrics.learnDriven },
+              { channel: 'DecodeWorthy' as const, data: streakMetrics.decodeWorthy }
+            ].map(({ channel, data }, idx) => {
+              const lit = data.streak > 0;
+              const milestone = nextMilestone(data.streak);
+              const flameColor =
+                data.status === 'red' ? 'text-neutral-700' :
+                data.status === 'orange' ? 'text-amber-400' :
+                data.status === 'green-pulse' ? 'text-orange-400' : 'text-emerald-400';
+              const glow =
+                data.status === 'red' ? '' :
+                data.status === 'orange' ? 'drop-shadow-[0_0_12px_rgba(245,158,11,0.5)]' :
+                data.status === 'green-pulse' ? 'drop-shadow-[0_0_16px_rgba(251,146,60,0.6)]' :
+                'drop-shadow-[0_0_12px_rgba(16,185,129,0.5)]';
+              const bg =
+                data.status === 'red' ? 'bg-neutral-950 border-neutral-900' :
+                data.status === 'orange' ? 'bg-amber-950/10 border-amber-900/30' :
+                'bg-emerald-950/10 border-emerald-900/30';
 
-              <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="p-2.5 bg-neutral-950/50 border border-emerald-900/30 rounded-lg text-left text-[10px] font-mono select-none space-y-1.5">
-                  <div className="flex justify-between items-center border-b border-emerald-900/20 pb-1.5 mb-1 font-bold text-emerald-400">
-                    <span>Current: {paymentMetrics.curMonthName}</span>
-                    <span>{paymentMetrics.curPayDays} left</span>
-                  </div>
-                  <div className="flex justify-between text-neutral-400 items-center">
-                    <span>Revenue Lock:</span>
-                    <span
-                      className={`font-mono font-bold flex items-center gap-1 ${getLockGlowStyle(paymentMetrics.curLockDays).color} ${getLockGlowStyle(paymentMetrics.curLockDays).animationClass}`}
-                      style={getLockGlowStyle(paymentMetrics.curLockDays).style}
+              return (
+                <motion.div
+                  key={channel}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, delay: 0.05 * idx }}
+                  onClick={() => onTabChange('topics')}
+                  className={`p-5 rounded-xl border cursor-pointer transition-all duration-300 hover:border-opacity-60 ${bg}`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-mono">{channel}</span>
+                    <motion.div
+                      animate={lit ? { scale: [1, 1.12, 1] } : {}}
+                      transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
                     >
-                      {getLockGlowStyle(paymentMetrics.curLockDays).showWarning && (
-                        <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0" />
-                      )}
-                      {paymentMetrics.curLockDays}
-                    </span>
+                      <Flame className={`h-5 w-5 ${flameColor} ${glow}`} />
+                    </motion.div>
                   </div>
-                  <div className="flex justify-between text-neutral-400">
-                    <span>Bank Dispatch:</span>
-                    <span className="text-neutral-200 font-bold">{paymentMetrics.curPayDays}</span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-4xl font-bold text-white font-mono tracking-tighter">{data.streak}</span>
+                    <span className="text-xs text-neutral-500 font-mono uppercase">day streak</span>
                   </div>
-                </div>
+                  <p className={`text-[11px] font-mono mt-1.5 font-bold ${
+                    data.status === 'red' ? 'text-rose-400' : data.status === 'orange' ? 'text-amber-400' : 'text-emerald-400'
+                  }`}>
+                    {data.message}
+                  </p>
+                  {milestone && (
+                    <p className="text-[10px] text-neutral-500 font-mono mt-2">
+                      {milestone - data.streak} more day{milestone - data.streak === 1 ? '' : 's'} to the <span className="text-neutral-300 font-bold">{milestone}-day club</span>
+                    </p>
+                  )}
+                </motion.div>
+              );
+            })}
 
-                <div className="p-2.5 bg-neutral-950/50 border border-neutral-900/60 rounded-lg text-left text-[10px] font-mono select-none space-y-1.5">
-                  <div className="flex justify-between items-center border-b border-neutral-900/40 pb-1.5 mb-1 font-bold text-neutral-400">
-                    <span>{paymentMetrics.bottomLabel}: {paymentMetrics.bottomName}</span>
-                    <span>{paymentMetrics.bottomPayDays} left</span>
-                  </div>
-                  <div className="flex justify-between text-neutral-500">
-                    <span>Revenue Lock:</span>
-                    <span className="text-neutral-300 font-bold">{paymentMetrics.bottomLockDays}</span>
-                  </div>
-                  <div className="flex justify-between text-neutral-500">
-                    <span>Bank Dispatch:</span>
-                    <span className="text-neutral-300 font-bold">{paymentMetrics.bottomPayDays}</span>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Streak Status */}
+            {/* Today's Move — one clear, real, actionable next step */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35, delay: 0.1 }}
-              onClick={() => onTabChange('topics')}
-              className="md:col-span-1 p-4 rounded-lg border bg-amber-950/10 border-amber-900/30 hover:border-amber-800/50 transition-all duration-300 cursor-pointer flex flex-col justify-between font-mono"
+              className="p-5 rounded-xl border border-blue-900/30 bg-blue-950/10 flex flex-col justify-between"
             >
               <div className="flex items-center gap-2 mb-3">
-                <Flame className="h-4 w-4 text-amber-400" />
-                <span className="text-[9px] font-bold uppercase tracking-wider text-amber-400">Streak Status</span>
+                <Target className="h-4 w-4 text-blue-400" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400 font-mono">Today's Move</span>
               </div>
+              {(() => {
+                const urgentStreak =
+                  streakMetrics.learnDriven.status === 'red' ? { channel: 'LearnDriven', msg: 'has no videos scheduled' } :
+                  streakMetrics.decodeWorthy.status === 'red' ? { channel: 'DecodeWorthy', msg: 'has no videos scheduled' } :
+                  null;
 
-              <div className="w-full space-y-2 text-left text-[9px]">
-                <div className={`p-2 rounded-lg border ${getStreakStyle(streakMetrics.learnDriven.status).cardClass}`}>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="font-bold text-neutral-300">LearnDriven</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="relative flex h-1.5 w-1.5">
-                        <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${getStreakStyle(streakMetrics.learnDriven.status).indicatorClass}`} />
-                        <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${getStreakStyle(streakMetrics.learnDriven.status).indicatorClass.replace(' animate-ping', '').replace(' animate-pulse', '')}`} />
-                      </span>
-                      <span className="font-mono font-bold bg-neutral-950/40 px-1.5 py-0.2 border border-neutral-900/40 rounded text-neutral-200">
-                        {streakMetrics.learnDriven.streak}d
-                      </span>
-                    </div>
-                  </div>
-                  <div className={`text-[8px] uppercase tracking-wide ${getStreakStyle(streakMetrics.learnDriven.status).textClass}`}>
-                    {streakMetrics.learnDriven.message}
-                  </div>
-                </div>
-
-                <div className={`p-2 rounded-lg border ${getStreakStyle(streakMetrics.decodeWorthy.status).cardClass}`}>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="font-bold text-neutral-300">DecodeWorthy</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="relative flex h-1.5 w-1.5">
-                        <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${getStreakStyle(streakMetrics.decodeWorthy.status).indicatorClass}`} />
-                        <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${getStreakStyle(streakMetrics.decodeWorthy.status).indicatorClass.replace(' animate-ping', '').replace(' animate-pulse', '')}`} />
-                      </span>
-                      <span className="font-mono font-bold bg-neutral-950/40 px-1.5 py-0.2 border border-neutral-900/40 rounded text-neutral-200">
-                        {streakMetrics.decodeWorthy.streak}d
-                      </span>
-                    </div>
-                  </div>
-                  <div className={`text-[8px] uppercase tracking-wide ${getStreakStyle(streakMetrics.decodeWorthy.status).textClass}`}>
-                    {streakMetrics.decodeWorthy.message}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Month Coverage */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, delay: 0.15 }}
-              onClick={() => onTabChange('topics')}
-              className="md:col-span-1 p-4 rounded-lg border bg-emerald-950/10 border-emerald-900/30 hover:border-emerald-800/50 transition-all duration-300 cursor-pointer flex flex-col justify-between font-mono"
-            >
-              <div className="flex justify-between items-center mb-3">
-                <div className="flex items-center gap-2">
-                  <Target className="h-4 w-4 text-emerald-400" />
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-400">Month Coverage</span>
-                </div>
-                <span className="text-[9px] text-neutral-500">{coverageMetrics.passedDays}d elapsed</span>
-              </div>
-
-              <div className="w-full space-y-2.5 text-left text-[9px]">
-                <div className="p-2 bg-neutral-950/50 border border-neutral-900/60 rounded-lg space-y-1.5">
-                  <div className="flex justify-between items-center text-[8px] font-bold text-neutral-300">
-                    <span>LearnDriven</span>
-                    <span className="text-emerald-400 font-mono">
-                      {coverageMetrics.learnDriven.secured} / {coverageMetrics.passedDays}d
-                    </span>
-                  </div>
-                  <div className="w-full bg-neutral-950 rounded-full h-1 overflow-hidden">
-                    <motion.div
-                      className="bg-emerald-500 h-1 rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${(coverageMetrics.learnDriven.secured / (coverageMetrics.passedDays || 1)) * 100}%` }}
-                      transition={{ duration: 0.6, ease: 'easeOut' }}
-                    />
-                  </div>
-                </div>
-
-                <div className="p-2 bg-neutral-950/50 border border-neutral-900/60 rounded-lg space-y-1.5">
-                  <div className="flex justify-between items-center text-[8px] font-bold text-neutral-300">
-                    <span>DecodeWorthy</span>
-                    <span className="text-emerald-400 font-mono">
-                      {coverageMetrics.decodeWorthy.secured} / {coverageMetrics.passedDays}d
-                    </span>
-                  </div>
-                  <div className="w-full bg-neutral-950 rounded-full h-1 overflow-hidden">
-                    <motion.div
-                      className="bg-emerald-500 h-1 rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${(coverageMetrics.decodeWorthy.secured / (coverageMetrics.passedDays || 1)) * 100}%` }}
-                      transition={{ duration: 0.6, ease: 'easeOut' }}
-                    />
-                  </div>
-                </div>
-              </div>
+                if (actionableMetrics.overdueCount > 0 && actionableMetrics.nextUp) {
+                  return (
+                    <>
+                      <p className="text-xs text-neutral-300 leading-relaxed">
+                        <span className="text-rose-400 font-bold">{actionableMetrics.overdueCount} topic{actionableMetrics.overdueCount === 1 ? '' : 's'} overdue.</span> Start with <span className="text-white font-bold">"{actionableMetrics.nextUp.name}"</span>.
+                      </p>
+                    </>
+                  );
+                }
+                if (urgentStreak) {
+                  return (
+                    <p className="text-xs text-neutral-300 leading-relaxed">
+                      <span className="text-amber-400 font-bold">{urgentStreak.channel}</span> {urgentStreak.msg} — keep the chain alive today.
+                    </p>
+                  );
+                }
+                if (actionableMetrics.nextUp) {
+                  return (
+                    <p className="text-xs text-neutral-300 leading-relaxed">
+                      Next up: <span className="text-white font-bold">"{actionableMetrics.nextUp.name}"</span> — {actionableMetrics.nextUpDueLabel}.
+                    </p>
+                  );
+                }
+                return (
+                  <p className="text-xs text-emerald-400 leading-relaxed font-bold">
+                    All caught up — nothing urgent. Great work staying ahead.
+                  </p>
+                );
+              })()}
+              <button
+                onClick={() => onTabChange('topics')}
+                className="flex items-center justify-center gap-1.5 w-full py-2 mt-3 rounded-lg border border-blue-800/50 bg-blue-900/30 text-blue-400 text-xs font-bold hover:bg-blue-800/50 transition cursor-pointer"
+              >
+                Take action <ArrowUpRight className="h-3.5 w-3.5" />
+              </button>
             </motion.div>
           </div>
+
+          {/* 14-day chain — real activity presence, not a fabricated streak number */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.15 }}
+            className="p-4 rounded-xl border border-neutral-900 bg-neutral-950/60 mb-4"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-mono">Last 14 Days</span>
+              <span className="text-[10px] text-neutral-600 font-mono">{activities.length > 0 ? 'Don\'t break the chain' : 'No activity logged yet'}</span>
+            </div>
+            <div className="flex gap-1.5">
+              {activityHeatmap.map((day, i) => (
+                <motion.div
+                  key={day.iso}
+                  initial={{ opacity: 0, scale: 0.6 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.25, delay: 0.02 * i }}
+                  title={`${day.iso}: ${day.count} action${day.count === 1 ? '' : 's'}`}
+                  className={`flex-1 h-8 rounded-md ${
+                    day.count === 0 ? 'bg-neutral-900' :
+                    day.count === 1 ? 'bg-emerald-900/50' :
+                    day.count <= 3 ? 'bg-emerald-700/70' : 'bg-emerald-500'
+                  }`}
+                />
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Goal Pace — real cycle target vs real scheduling velocity */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.2 }}
+            className="p-5 rounded-xl border border-purple-900/30 bg-purple-950/10"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Target className="h-4 w-4 text-purple-400" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400 font-mono">Goal Pace</span>
+              </div>
+              {goalPace && (
+                <span className="text-[10px] font-mono text-neutral-500">{goalPace.monthName} · {goalPace.daysRemaining}d remaining</span>
+              )}
+            </div>
+
+            {!goalPace ? (
+              <div className="flex flex-col items-center text-center gap-2 py-6">
+                <p className="text-xs text-neutral-400">No active cycle goal set.</p>
+                <button
+                  onClick={() => onTabChange('actionhub')}
+                  className="text-[11px] text-purple-400 font-bold hover:text-purple-300 transition cursor-pointer"
+                >
+                  Set targets in Action Hub →
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex justify-between items-end border-b border-neutral-900 pb-3">
+                  <div>
+                    <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider">Current Pace</span>
+                    <div className="text-2xl font-bold text-white font-mono tracking-tight">
+                      {goalPace.currentPace.toFixed(1)} <span className="text-[10px] text-neutral-500 uppercase">vids/wk</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] font-mono text-purple-400/70 uppercase tracking-wider">Required Pace</span>
+                    <div className="text-2xl font-bold text-purple-400 font-mono tracking-tight">
+                      {Number.isFinite(goalPace.requiredPace) ? goalPace.requiredPace.toFixed(1) : '—'} <span className="text-[10px] text-purple-400/50 uppercase">vids/wk</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={`px-3 py-2 rounded-lg border flex items-center gap-2 ${
+                  goalPace.aheadOfSchedule ? 'bg-emerald-950/30 border-emerald-900/50' : 'bg-amber-950/30 border-amber-900/50'
+                }`}>
+                  {goalPace.aheadOfSchedule ? <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" /> : <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />}
+                  <span className={`text-[11px] font-mono ${goalPace.aheadOfSchedule ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {goalPace.aheadOfSchedule
+                      ? 'On pace to hit your goal. Keep it up.'
+                      : `${goalPace.remaining} more needed — pick up the pace to stay on track.`}
+                  </span>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-[10px] font-mono mb-1">
+                    <span className="text-neutral-400">{goalPace.scheduledInCycle} / {goalPace.target} videos</span>
+                    <span className="text-neutral-500">{Math.round((goalPace.scheduledInCycle / goalPace.target) * 100)}%</span>
+                  </div>
+                  <div className="w-full bg-neutral-900 rounded-full h-1.5 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, (goalPace.scheduledInCycle / goalPace.target) * 100)}%` }}
+                      transition={{ duration: 0.8, ease: 'easeOut' }}
+                      className="h-full rounded-full bg-gradient-to-r from-purple-600 to-purple-400"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </motion.div>
         </div>
       </motion.div>
 

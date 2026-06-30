@@ -872,6 +872,7 @@ export default function App() {
                 onTabChange={setActiveTab}
                 topics={topics}
                 activities={activities}
+                cycleGoals={cycleGoals}
               />
             )}
 
