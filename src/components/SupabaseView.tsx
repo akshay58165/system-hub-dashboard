@@ -5,10 +5,33 @@ import {
   Plus,
   AlertCircle,
   FileSpreadsheet,
-  FileText
+  FileText,
+  Link2,
+  Loader2
 } from 'lucide-react';
 import { SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal } from '../types';
-import { callOpenAI, getChannelSystemPrompt } from '../services/openai';
+import { callOpenAI, getChannelSystemPrompt, findScriptSources } from '../services/openai';
+
+// Splits AI source-search output on raw URLs and renders them as real
+// clickable links that open in a new tab, while preserving line breaks.
+function renderTextWithLinks(text: string) {
+  const parts = text.split(/(https?:\/\/[^\s)\]]+)/g);
+  return parts.map((part, i) =>
+    /^https?:\/\//.test(part) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-400 hover:text-blue-300 underline break-all"
+      >
+        {part}
+      </a>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  );
+}
 
 interface SupabaseViewProps {
   supabase: SupabaseProject;
@@ -90,6 +113,9 @@ export default function SupabaseView({
   const [customInstruction, setCustomInstruction] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [isSourcesLoading, setIsSourcesLoading] = useState(false);
+  const [sourcesError, setSourcesError] = useState<string | null>(null);
+  const [sourcesResult, setSourcesResult] = useState<string | null>(null);
 
   // Content Cycle Goals form states
   const [goalCycleType, setGoalCycleType] = useState<'this-month' | 'next-month' | 'custom'>(
@@ -306,6 +332,49 @@ Please rewrite/enhance this draft based on the system persona rules and the user
       });
     } finally {
       setIsAiLoading(false);
+    }
+  };
+
+  // Finds real, verified sources for every claim in the current script draft.
+  const handleFindSources = async () => {
+    if (!scriptText.trim()) return;
+
+    setIsSourcesLoading(true);
+    setSourcesError(null);
+    setSourcesResult(null);
+
+    onAddEvent({
+      id: `evt-sources-request-${Date.now()}`,
+      source: 'system',
+      type: 'info',
+      message: 'AI Core: Searching the web for verified sources matching the current script draft.',
+      timestamp: new Date().toISOString()
+    });
+
+    try {
+      const result = await findScriptSources(scriptText);
+      setSourcesResult(result);
+
+      onAddEvent({
+        id: `evt-sources-success-${Date.now()}`,
+        source: 'system',
+        type: 'success',
+        message: 'AI Core: Source search complete.',
+        timestamp: new Date().toISOString()
+      });
+    } catch (err: any) {
+      console.error(err);
+      const errMsg = err.message || "An unexpected error occurred.";
+      setSourcesError(errMsg);
+      onAddEvent({
+        id: `evt-sources-error-${Date.now()}`,
+        source: 'system',
+        type: 'error',
+        message: `AI Core Error: ${errMsg}`,
+        timestamp: new Date().toISOString()
+      });
+    } finally {
+      setIsSourcesLoading(false);
     }
   };
 
@@ -758,6 +827,15 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                     >
                       <span>Enhance Draft</span>
                     </button>
+                    <button
+                      onClick={handleFindSources}
+                      disabled={isSourcesLoading || isAiLoading || !scriptText.trim()}
+                      title={!scriptText.trim() ? 'Write or paste a script first' : 'Find real, verified sources for every claim in the script'}
+                      className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-black font-mono font-bold text-[10px] rounded transition cursor-pointer flex items-center gap-1"
+                    >
+                      {isSourcesLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Link2 className="h-3 w-3" />}
+                      <span>Give Sources</span>
+                    </button>
                   </div>
                 </div>
 
@@ -773,6 +851,20 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                 <div className="bg-rose-950/20 border border-rose-900/30 rounded-xl p-3 flex items-center gap-3 font-mono text-[10px] text-rose-400">
                   <AlertCircle className="h-4 w-4 text-rose-500 shrink-0" />
                   <span className="truncate">AI Request Error: {aiError}</span>
+                </div>
+              )}
+
+              {isSourcesLoading && (
+                <div className="bg-blue-950/20 border border-blue-900/30 rounded-xl p-3 flex items-center gap-3 font-mono text-[10px] text-blue-400 animate-pulse">
+                  <div className="h-2 w-2 rounded-full bg-blue-400 animate-ping shrink-0" />
+                  <span>Searching the live web for verified sources and checking every claim. This can take up to a minute...</span>
+                </div>
+              )}
+
+              {sourcesError && (
+                <div className="bg-rose-950/20 border border-rose-900/30 rounded-xl p-3 flex items-center gap-3 font-mono text-[10px] text-rose-400">
+                  <AlertCircle className="h-4 w-4 text-rose-500 shrink-0" />
+                  <span className="truncate">Source Search Error: {sourcesError}</span>
                 </div>
               )}
 
@@ -903,6 +995,50 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                   </div>
                 </div>
               </div>
+
+              {/* Source Search Results */}
+              {sourcesResult && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-neutral-950 border border-blue-900/40 rounded-lg p-4 space-y-3"
+                >
+                  <div className="flex items-center justify-between border-b border-neutral-900 pb-2">
+                    <div className="flex items-center gap-2">
+                      <Link2 className="h-4 w-4 text-blue-400" />
+                      <span className="text-[10px] uppercase font-bold text-blue-400 tracking-wider font-mono">Verified Sources</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(sourcesResult);
+                          onAddEvent({
+                            id: `evt-sources-copy-${Date.now()}`,
+                            source: 'system',
+                            type: 'success',
+                            message: 'Sources Panel: Copied source search results to clipboard.',
+                            timestamp: new Date().toISOString()
+                          });
+                        }}
+                        className="px-2 py-1 bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-300 rounded transition cursor-pointer text-[10px] font-mono"
+                      >
+                        Copy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSourcesResult(null)}
+                        className="px-2 py-1 bg-neutral-900 border border-neutral-800 hover:border-rose-900/60 hover:text-rose-400 text-neutral-400 rounded transition cursor-pointer text-[10px] font-mono"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                  <div className="whitespace-pre-wrap text-xs text-neutral-300 leading-relaxed font-sans max-h-[500px] overflow-y-auto pr-1">
+                    {renderTextWithLinks(sourcesResult)}
+                  </div>
+                </motion.div>
+              )}
             </div>
           )}
 

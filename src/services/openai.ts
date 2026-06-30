@@ -41,6 +41,44 @@ export async function callOpenAI(
   return content;
 }
 
+// Find real, verified web sources for every claim in a video script, using
+// OpenAI's web-search-grounded Responses API (server-side, via /api/sources)
+// rather than a plain chat completion, since a plain completion has no way
+// to verify a URL actually exists and would hallucinate links.
+export async function findScriptSources(script: string): Promise<string> {
+  if (!supabase) {
+    throw new Error('Supabase authentication is not configured.');
+  }
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    throw new Error('Sign in before using AI features.');
+  }
+
+  const response = await fetch('/api/sources', {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ script }),
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    const errMessage = errData.error || `HTTP ${response.status} Error`;
+    throw new Error(`Source search failed: ${errMessage}`);
+  }
+
+  const data = await response.json();
+  const content = data.content;
+  if (!content) {
+    throw new Error("Received empty or invalid response while searching for sources.");
+  }
+
+  return content;
+}
+
 // Generate system prompts based on content channel strategy
 export function getChannelSystemPrompt(channel: "LearnDriven" | "DecodeWorthy", customInstruction?: string): string {
   const baseInstruction = customInstruction ? `Additional Custom Instruction: ${customInstruction}` : "";
