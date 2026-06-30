@@ -688,7 +688,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
             <h3 className="text-sm font-semibold text-neutral-200">Daily Parameters</h3>
           </div>
 
-          <div className="space-y-4 max-h-[580px] overflow-y-auto pr-1 scrollbar-thin">
+          <div className="space-y-3 max-h-[640px] overflow-y-auto pr-1 scrollbar-thin">
             
             {/* Dynamic Parameter Cards */}
             {(() => {
@@ -793,47 +793,51 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
               ];
 
               return parameterDefs.map((group, gIdx) => (
-                <div key={group.group} className={`space-y-3 ${gIdx > 0 ? 'pt-2' : ''}`}>
+                <div key={group.group} className={`space-y-2 ${gIdx > 0 ? 'pt-2' : ''}`}>
                   <h4 className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider font-mono">{group.group}</h4>
                   {group.items.map(item => {
-                    const displayValue = item.val !== null 
+                    const displayValue = item.val !== null
                       ? (item.customLabel ? item.customLabel(item.val).text : `${item.val}/10`)
                       : 'N/A';
                     const displayColor = item.val !== null
                       ? (item.customLabel ? item.customLabel(item.val).color : (item.colorClass || 'text-emerald-400'))
                       : 'text-neutral-500';
-                    
-                    const inputAccent = item.val !== null
-                      ? (item.getAccent ? item.getAccent(item.val) : (item.accent || 'accent-emerald-400'))
-                      : 'accent-neutral-700 opacity-40';
+
+                    const dotColorClass = (n: number) => {
+                      if (item.val === n) {
+                        const c = item.customLabel
+                          ? item.customLabel(n).color
+                          : (item.getAccent ? item.getAccent(n).replace('accent-', 'text-') : (item.colorClass || 'text-emerald-400'));
+                        return c;
+                      }
+                      return 'text-neutral-600';
+                    };
 
                     return (
-                      <div key={item.key} className="p-3 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-2">
+                      <div key={item.key} className="px-3 py-2 bg-neutral-900/30 border border-neutral-900 rounded-lg space-y-1.5">
                         <div className="flex justify-between text-xs font-mono">
                           <span className="text-neutral-300">{item.label}</span>
                           <span className={`${displayColor} font-bold`}>{displayValue}</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => handleParamChange(item.key, Math.max(1, (item.val ?? 5) - 1), item.setter, item.val)}
-                            className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                          >
-                            -
-                          </button>
-                          <input 
-                            type="range"
-                            min="1"
-                            max="10"
-                            value={item.val ?? 5}
-                            onChange={(e) => handleParamChange(item.key, Number(e.target.value), item.setter, item.val)}
-                            className={`flex-1 h-1 bg-neutral-900 rounded-lg appearance-none cursor-pointer outline-none border-none animate-none ${inputAccent}`}
-                          />
-                          <button 
-                            onClick={() => handleParamChange(item.key, Math.min(10, (item.val ?? 5) + 1), item.setter, item.val)}
-                            className="px-2 py-0.5 bg-neutral-900 border border-neutral-855 text-xs rounded hover:bg-neutral-800 text-neutral-400 cursor-pointer select-none"
-                          >
-                            +
-                          </button>
+                        {/* One-tap value selector — tap a number to set it instantly, no dragging/repeated clicks */}
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: 10 }, (_, i) => i + 1).map(n => {
+                            const active = item.val === n;
+                            return (
+                              <button
+                                key={n}
+                                type="button"
+                                onClick={() => handleParamChange(item.key, n, item.setter, item.val)}
+                                className={`flex-1 h-6 rounded text-[10px] font-mono font-bold transition cursor-pointer ${
+                                  active
+                                    ? `${dotColorClass(n).replace('text-', 'bg-').replace('-400', '-500')} text-black`
+                                    : 'bg-neutral-900 hover:bg-neutral-800 text-neutral-500 border border-neutral-850'
+                                }`}
+                              >
+                                {n}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     );
