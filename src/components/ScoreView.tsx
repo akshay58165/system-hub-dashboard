@@ -646,8 +646,8 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
 
   return (
     <div className="space-y-6">
-      {/* Top Banner Header */}
-      <div className="bg-neutral-900 border border-neutral-900 rounded-xl p-6 relative overflow-hidden shadow-sm">
+      {/* Top Banner Header — sticky so live readiness/score stay visible while you fill in parameters */}
+      <div className="sticky top-28 z-20 bg-neutral-900 border border-neutral-900 rounded-xl p-6 relative overflow-hidden shadow-lg shadow-black/40">
         <div className="absolute top-0 right-0 w-80 h-80 bg-rose-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div>
@@ -678,8 +678,8 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
         </div>
       </div>
 
-      {/* Main Content Layout Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      {/* Main Content Layout Grid — items-start lets the right side stick without stretching to match the (independently scrolling) parameters column */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
         
         {/* Left Column: Parameter Inputs */}
         <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-5 space-y-5 xl:col-span-1 shadow-sm">
@@ -848,8 +848,9 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
           </div>
         </div>
 
-        {/* Middle Column: Radar Chart & Live Alerts */}
-        <div className="space-y-6 xl:col-span-2">
+        {/* Right side: Radar, Log History & Recommendations — sticky so the live view stays put while you fill in parameters on the left.
+            Offset clears the app header+nav (top-28) plus the sticky banner's own height above it. */}
+        <div className="space-y-6 xl:col-span-2 xl:sticky xl:top-[15rem] z-10">
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
