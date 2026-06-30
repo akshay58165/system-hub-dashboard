@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Terminal, 
@@ -515,6 +515,142 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Auth Gate — no guest access. The whole app stays hidden until signed in. */}
+      {isStateLoaded && !authLoading && !user && (
+        <div className="fixed inset-0 z-50 bg-neutral-950 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-neutral-950 border border-neutral-900 rounded-xl max-w-sm w-full p-6 shadow-[0_0_50px_rgba(59,130,246,0.07)] relative overflow-hidden font-mono"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl pointer-events-none" />
+
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="p-1.5 bg-neutral-900 border border-neutral-800 rounded-lg text-emerald-400 font-bold tracking-tight text-xs font-mono">
+                UNI
+              </span>
+              <span className="text-sm font-bold text-white tracking-tight">Unicorn's Desk</span>
+            </div>
+
+            <div className="flex items-center gap-2 mb-4 border-b border-neutral-900 pb-3 mt-3">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+              </span>
+              <span className="text-[10px] uppercase font-bold text-blue-400 tracking-widest">
+                Cloud Sync Gateway
+              </span>
+            </div>
+
+            <p className="text-[10px] text-neutral-400 leading-normal mb-4 font-sans">
+              Sign in to access your dashboard. Topics, goals, and progress are stored in the cloud and sync across every device on this account — no guest mode.
+            </p>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setAuthError(null);
+                if (!supabase) {
+                  setAuthError("Supabase is not configured or failed to initialize.");
+                  return;
+                }
+                try {
+                  if (isSignUpMode) {
+                    const { error } = await supabase.auth.signUp({
+                      email: authEmail,
+                      password: authPassword
+                    });
+                    if (error) {
+                      setAuthError(error.message);
+                    } else {
+                      addEvent({
+                        id: `evt-supabase-register-${Date.now()}`,
+                        source: 'supabase',
+                        type: 'success',
+                        message: `Supabase Auth: Account registered successfully for ${authEmail}.`,
+                        timestamp: new Date().toISOString()
+                      });
+                    }
+                  } else {
+                    const { error } = await supabase.auth.signInWithPassword({
+                      email: authEmail,
+                      password: authPassword
+                    });
+                    if (error) {
+                      setAuthError(error.message);
+                    } else {
+                      addEvent({
+                        id: `evt-supabase-login-${Date.now()}`,
+                        source: 'supabase',
+                        type: 'success',
+                        message: `Supabase Auth: Authenticated successfully as ${authEmail}.`,
+                        timestamp: new Date().toISOString()
+                      });
+                    }
+                  }
+                } catch (err: any) {
+                  setAuthError(err.message);
+                }
+              }}
+              className="space-y-3.5"
+            >
+              <div>
+                <label className="block text-[9px] text-neutral-500 uppercase mb-1">Email Address</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="you@example.com"
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                  className="w-full bg-neutral-900/40 border border-neutral-900 focus:border-blue-900/50 outline-none text-xs rounded px-3 py-2 text-white font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[9px] text-neutral-500 uppercase mb-1">Password</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  className="w-full bg-neutral-900/40 border border-neutral-900 focus:border-blue-900/50 outline-none text-xs rounded px-3 py-2 text-white font-mono"
+                />
+              </div>
+
+              {authError && (
+                <p className="text-[9px] text-red-500 uppercase font-bold tracking-wider leading-relaxed bg-red-950/20 p-2 border border-red-950 rounded text-center">
+                  {authError}
+                </p>
+              )}
+
+              <div className="flex items-center justify-between text-[9px] pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthError(null);
+                    setIsSignUpMode(!isSignUpMode);
+                  }}
+                  className="text-neutral-500 hover:text-neutral-300 underline cursor-pointer"
+                >
+                  {isSignUpMode ? "Have an account? Sign In" : "Need an account? Sign Up"}
+                </button>
+
+                <button
+                  type="submit"
+                  className="px-4 py-1 bg-blue-950/40 hover:bg-blue-900/30 text-blue-400 border border-blue-900/30 rounded font-semibold transition cursor-pointer"
+                >
+                  {isSignUpMode ? "Register" : "Sign In"}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Everything below is gated behind a signed-in user — no guest data. */}
+      {user && (
+      <>
       {/* Database Warning Banner */}
       {syncError && (
         <div className="bg-red-950/40 border-b border-red-900/60 px-4 py-2.5 text-center text-xs font-mono text-red-400 flex items-center justify-center gap-2 select-none">
@@ -522,7 +658,7 @@ export default function App() {
           <span>{syncError}</span>
         </div>
       )}
-      
+
       {/* Top Main Header */}
       <header className="bg-neutral-950 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
@@ -992,146 +1128,8 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
-
-      {/* Supabase Cloud Sync Gateway Modal */}
-      <AnimatePresence>
-        {isAuthModalOpen && (
-          <div className="fixed inset-0 z-50 bg-neutral-950/80 backdrop-blur-md flex items-center justify-center p-4">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-neutral-950 border border-neutral-900 rounded-xl max-w-sm w-full p-6 shadow-[0_0_50px_rgba(59,130,246,0.07)] relative overflow-hidden font-mono"
-            >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl pointer-events-none" />
-              
-              <div className="flex items-center gap-2 mb-4 border-b border-neutral-900 pb-3">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-                </span>
-                <span className="text-[10px] uppercase font-bold text-blue-400 tracking-widest">
-                  Cloud Sync Gateway
-                </span>
-              </div>
-
-              <p className="text-[10px] text-neutral-400 leading-normal mb-4 font-sans">
-                Sign in or register an account to sync your topics, scheduling details, and targets across phone and computer in real-time.
-              </p>
-
-              <form 
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  setAuthError(null);
-                  if (!supabase) {
-                    setAuthError("Supabase is not configured or failed to initialize.");
-                    return;
-                  }
-                  try {
-                    if (isSignUpMode) {
-                      const { data, error } = await supabase.auth.signUp({
-                        email: authEmail,
-                        password: authPassword
-                      });
-                      if (error) {
-                        setAuthError(error.message);
-                      } else {
-                        addEvent({
-                          id: `evt-supabase-register-${Date.now()}`,
-                          source: 'supabase',
-                          type: 'success',
-                          message: `Supabase Auth: Account registered successfully for ${authEmail}.`,
-                          timestamp: new Date().toISOString()
-                        });
-                        setIsAuthModalOpen(false);
-                      }
-                    } else {
-                      const { data, error } = await supabase.auth.signInWithPassword({
-                        email: authEmail,
-                        password: authPassword
-                      });
-                      if (error) {
-                        setAuthError(error.message);
-                      } else {
-                        addEvent({
-                          id: `evt-supabase-login-${Date.now()}`,
-                          source: 'supabase',
-                          type: 'success',
-                          message: `Supabase Auth: Authenticated successfully as ${authEmail}.`,
-                          timestamp: new Date().toISOString()
-                        });
-                        setIsAuthModalOpen(false);
-                      }
-                    }
-                  } catch (err: any) {
-                    setAuthError(err.message);
-                  }
-                }}
-                className="space-y-3.5"
-              >
-                <div>
-                  <label className="block text-[9px] text-neutral-500 uppercase mb-1">Email Address</label>
-                  <input 
-                    type="email"
-                    required
-                    placeholder="you@example.com"
-                    value={authEmail}
-                    onChange={(e) => setAuthEmail(e.target.value)}
-                    className="w-full bg-neutral-900/40 border border-neutral-900 focus:border-blue-900/50 outline-none text-xs rounded px-3 py-2 text-white font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[9px] text-neutral-500 uppercase mb-1">Password</label>
-                  <input 
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    value={authPassword}
-                    onChange={(e) => setAuthPassword(e.target.value)}
-                    className="w-full bg-neutral-900/40 border border-neutral-900 focus:border-blue-900/50 outline-none text-xs rounded px-3 py-2 text-white font-mono"
-                  />
-                </div>
-
-                {authError && (
-                  <p className="text-[9px] text-red-500 uppercase font-bold tracking-wider leading-relaxed bg-red-950/20 p-2 border border-red-950 rounded text-center">
-                    {authError}
-                  </p>
-                )}
-
-                <div className="flex items-center justify-between text-[9px] pt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthError(null);
-                      setIsSignUpMode(!isSignUpMode);
-                    }}
-                    className="text-neutral-500 hover:text-neutral-300 underline cursor-pointer"
-                  >
-                    {isSignUpMode ? "Have an account? Sign In" : "Need an account? Sign Up"}
-                  </button>
-
-                  <div className="flex gap-2">
-                    <button 
-                      type="button" 
-                      onClick={() => setIsAuthModalOpen(false)}
-                      className="px-2.5 py-1 text-neutral-500 hover:text-neutral-300 cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      type="submit"
-                      className="px-4 py-1 bg-blue-950/40 hover:bg-blue-900/30 text-blue-400 border border-blue-900/30 rounded font-semibold transition cursor-pointer"
-                    >
-                      {isSignUpMode ? "Register" : "Sign In"}
-                    </button>
-                  </div>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      </>
+      )}
 
     </div>
   );
