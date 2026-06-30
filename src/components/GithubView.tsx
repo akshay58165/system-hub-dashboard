@@ -37,6 +37,7 @@ interface GithubViewProps {
   setActivities: React.Dispatch<React.SetStateAction<TopicActivity[]>>;
   isAddFormOpen?: boolean;
   setIsAddFormOpen?: (open: boolean) => void;
+  setActiveTab?: (tab: 'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score') => void;
 }
 
 // Time formatting helper
@@ -76,7 +77,8 @@ export default function GithubView({
   activities,
   setActivities,
   isAddFormOpen: isAddFormOpenProp,
-  setIsAddFormOpen: setIsAddFormOpenProp
+  setIsAddFormOpen: setIsAddFormOpenProp,
+  setActiveTab
 }: GithubViewProps) {
   // 1. Selected channel filter: 'All' | 'LearnDriven' | 'DecodeWorthy'
   const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy'>('All');
@@ -516,6 +518,39 @@ export default function GithubView({
                               <span className="px-1.5 py-0.2 bg-emerald-950/20 text-emerald-400 border border-emerald-900/30 rounded text-[9px] font-bold">
                                 {topic.revenueLevel}
                               </span>
+                            )}
+                            {!topic.inProgress && topic.status !== 'scheduled' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setTopics(prev => prev.map(t => t.id === topic.id ? { ...t, inProgress: true } : t));
+                                  
+                                  // Add activity log
+                                  const newActivity: TopicActivity = {
+                                    id: `act-progress-${Date.now()}`,
+                                    topicName: topic.name,
+                                    channel: topic.channel,
+                                    action: `Moved topic to progress section`,
+                                    author: 'typeakshay',
+                                    timestamp: new Date().toISOString()
+                                  };
+                                  setActivities(prev => [newActivity, ...prev]);
+
+                                  onAddEvent({
+                                    id: `evt-to-progress-${Date.now()}`,
+                                    source: 'github',
+                                    type: 'info',
+                                    message: `Workflow Engine: "${topic.name}" moved to active production pipeline.`,
+                                    timestamp: new Date().toISOString()
+                                  });
+
+                                  if (setActiveTab) setActiveTab('progress');
+                                }}
+                                className="px-1.5 py-0.2 bg-blue-950/45 hover:bg-blue-900/20 text-blue-400 border border-blue-900/40 hover:border-blue-500 hover:text-white rounded text-[8px] font-mono transition cursor-pointer select-none"
+                                title="Send to Progress section"
+                              >
+                                Start Pipeline →
+                              </button>
                             )}
                           </div>
                           <p className="text-[10px] text-neutral-400 font-sans leading-relaxed">{topic.description}</p>

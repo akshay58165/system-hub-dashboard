@@ -32,15 +32,24 @@ interface VercelViewProps {
   onAddEvent: (evt: SystemEvent) => void;
   onUpdateProject: (projectId: string, updatedProject: any) => void;
   topics: Topic[];
+  setTopics: React.Dispatch<React.SetStateAction<Topic[]>>;
   activities: TopicActivity[];
+  setActivities: React.Dispatch<React.SetStateAction<TopicActivity[]>>;
+  setActiveTab?: (tab: 'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score') => void;
 }
 
 export default function VercelView({ 
   onAddEvent, 
   topics, 
-  activities 
+  setTopics,
+  activities,
+  setActivities,
+  setActiveTab
 }: VercelViewProps) {
   const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy'>('All');
+  const [schedulingTopicId, setSchedulingTopicId] = useState<string | null>(null);
+  const [schedDate, setSchedDate] = useState('');
+  const [schedTime, setSchedTime] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncLogs, setSyncLogs] = useState<string[]>([]);
   const [syncStep, setSyncStep] = useState(0);
@@ -395,6 +404,275 @@ export default function VercelView({
                   {bufferDays} Days ({bufferDays >= 5 ? 'Optimal' : bufferDays >= 2 ? 'Warning' : 'Critical'})
                 </span>
               </div>
+            </div>
+          </div>
+
+          {/* Active Production Pipeline Card */}
+          <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-neutral-900 pb-2">
+              <h3 className="text-sm font-bold font-mono text-white tracking-tight flex items-center gap-2">
+                <Youtube className="h-4 w-4 text-red-500 animate-pulse" />
+                <span>Active Production Pipeline</span>
+              </h3>
+              <span className="text-[10px] font-mono text-neutral-500">In Progress Topics</span>
+            </div>
+
+            <div className="space-y-3">
+              {(() => {
+                const activeProgress = topics.filter(t => t.inProgress && t.status !== 'scheduled');
+                if (activeProgress.length === 0) {
+                  return (
+                    <div className="text-center py-6 text-neutral-500 font-mono text-[10px] border border-dashed border-neutral-900 rounded-lg">
+                      No topics currently in active production. Go to "Topics" and select "Start Pipeline" to move them here.
+                    </div>
+                  );
+                }
+                
+                return activeProgress.map(topic => {
+                  const isSchedulingThis = schedulingTopicId === topic.id;
+                  return (
+                    <div 
+                      key={topic.id} 
+                      className="p-3 bg-neutral-900/40 border border-neutral-850 rounded-lg space-y-3 font-mono text-[10px]"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="text-xs font-bold text-neutral-200 block">{topic.name}</span>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="px-1.5 py-0.2 bg-neutral-950 text-neutral-500 border border-neutral-900 rounded text-[8px]">
+                              {topic.channel}
+                            </span>
+                            {topic.revenueLevel && (
+                              <span className="px-1.5 py-0.2 bg-emerald-950/20 text-emerald-400 border border-emerald-900/30 rounded text-[8px] font-bold">
+                                {topic.revenueLevel}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <span className="px-1.5 py-0.5 rounded border text-[8px] uppercase font-bold border-blue-900/40 text-blue-400 bg-blue-950/20">
+                          {topic.status}
+                        </span>
+                      </div>
+
+                      {/* Created and Due Date Meta Elements */}
+                      <div className="grid grid-cols-2 gap-2 text-neutral-500 text-[8px] pt-1">
+                        <div>Created: {new Date(topic.createdDate).toLocaleDateString()}</div>
+                        <div>Due Date: {topic.dueDate ? new Date(topic.dueDate).toLocaleDateString() : 'None'}</div>
+                      </div>
+
+                      {/* Interactive Stage Recording Buttons */}
+                      <div className="flex flex-wrap gap-2.5 pt-2 border-t border-neutral-900">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTopics(prev => prev.map(t => t.id === topic.id ? { ...t, status: 'scripted' } : t));
+                          }}
+                          className={`px-2.5 py-1 rounded text-[8px] font-semibold border transition cursor-pointer ${
+                            topic.status === 'scripted'
+                              ? 'bg-blue-600 border-blue-500 text-white'
+                              : 'bg-neutral-950 border-neutral-850 text-neutral-400 hover:text-neutral-200'
+                          }`}
+                        >
+                          Script
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTopics(prev => prev.map(t => t.id === topic.id ? { ...t, status: 'shot' } : t));
+                          }}
+                          className={`px-2.5 py-1 rounded text-[8px] font-semibold border transition cursor-pointer ${
+                            topic.status === 'shot'
+                              ? 'bg-amber-600 border-amber-500 text-white'
+                              : 'bg-neutral-950 border-neutral-850 text-neutral-400 hover:text-neutral-200'
+                          }`}
+                        >
+                          Shoot
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTopics(prev => prev.map(t => t.id === topic.id ? { ...t, status: 'edited' } : t));
+                          }}
+                          className={`px-2.5 py-1 rounded text-[8px] font-semibold border transition cursor-pointer ${
+                            topic.status === 'edited'
+                              ? 'bg-emerald-600 border-emerald-500 text-white'
+                              : 'bg-neutral-950 border-neutral-850 text-neutral-400 hover:text-neutral-200'
+                          }`}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const defaultTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
+                            setSchedDate(topic.dueDate ? topic.dueDate.split('T')[0] : new Date().toISOString().split('T')[0]);
+                            setSchedTime(defaultTime);
+                            setSchedulingTopicId(topic.id);
+                          }}
+                          className="px-2.5 py-1 rounded text-[8px] font-bold border bg-purple-950/40 border-purple-900/60 text-purple-400 hover:bg-purple-900 hover:text-white transition cursor-pointer"
+                        >
+                          Schedule
+                        </button>
+                      </div>
+
+                      {/* Scheduling Date/Time Picker Form Block */}
+                      {isSchedulingThis && (
+                        <div className="mt-2.5 p-3 bg-neutral-950 border border-neutral-850 rounded-lg space-y-2">
+                          <span className="text-[9px] uppercase font-bold text-purple-400 tracking-wider">Set Video Schedule Parameters</span>
+                          
+                          <div className="grid grid-cols-2 gap-2 mt-1">
+                            <div>
+                              <label className="text-[8px] text-neutral-500 block mb-0.5">Date</label>
+                              <input 
+                                type="date"
+                                value={schedDate}
+                                onChange={(e) => setSchedDate(e.target.value)}
+                                className="w-full bg-neutral-900 border border-neutral-800 text-[9px] text-white rounded px-2 py-1 outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[8px] text-neutral-500 block mb-0.5">Time (24h format)</label>
+                              <input 
+                                type="time"
+                                value={schedTime}
+                                onChange={(e) => setSchedTime(e.target.value)}
+                                className="w-full bg-neutral-900 border border-neutral-800 text-[9px] text-white rounded px-2 py-1 outline-none font-mono"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end gap-2 pt-2">
+                            <button
+                              type="button"
+                              onClick={() => setSchedulingTopicId(null)}
+                              className="text-neutral-500 hover:text-neutral-300 transition"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!schedDate || !schedTime) {
+                                  alert("Please fill in both Date and Time.");
+                                  return;
+                                }
+                                const combinedDateStr = `${schedDate}T${schedTime}:00`;
+                                const finalIso = new Date(combinedDateStr).toISOString();
+
+                                setTopics(prev => prev.map(t => t.id === topic.id ? { 
+                                  ...t, 
+                                  status: 'scheduled', 
+                                  dueDate: finalIso, 
+                                  scheduledTime: schedTime 
+                                } : t));
+
+                                // Add activity log
+                                const newActivity: TopicActivity = {
+                                  id: `act-schedule-${Date.now()}`,
+                                  topicName: topic.name,
+                                  channel: topic.channel,
+                                  action: `Scheduled video release for ${schedDate} at ${schedTime}`,
+                                  author: 'typeakshay',
+                                  timestamp: new Date().toISOString()
+                                };
+                                setActivities(prev => [newActivity, ...prev]);
+
+                                onAddEvent({
+                                  id: `evt-scheduled-${Date.now()}`,
+                                  source: 'github',
+                                  type: 'success',
+                                  message: `Topic Engine: Scheduled "${topic.name}" to publish on ${schedDate} at ${schedTime} (${topic.channel}).`,
+                                  timestamp: new Date().toISOString()
+                                });
+
+                                setSchedulingTopicId(null);
+                              }}
+                              className="px-3 py-1 bg-purple-500 hover:bg-purple-600 text-black font-bold rounded text-[9px] transition cursor-pointer"
+                            >
+                              Save Schedule
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+
+          {/* Bottom Panel: Scheduled & Completed Video Ledger */}
+          <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-neutral-900 pb-2">
+              <h3 className="text-sm font-bold font-mono text-white tracking-tight flex items-center gap-2">
+                <Layers className="h-4 w-4 text-emerald-500" />
+                <span>Scheduled & Completed Video Ledger</span>
+              </h3>
+              <span className="text-[10px] font-mono text-neutral-500">Archive</span>
+            </div>
+
+            <div className="space-y-3">
+              {(() => {
+                const scheduledArchive = topics.filter(t => t.inProgress && t.status === 'scheduled');
+                if (scheduledArchive.length === 0) {
+                  return (
+                    <div className="text-center py-6 text-neutral-500 font-mono text-[10px] border border-dashed border-neutral-900 rounded-lg">
+                      No videos currently scheduled or done. Complete the progress stages and save scheduling parameters to archive them here.
+                    </div>
+                  );
+                }
+
+                return scheduledArchive.map(topic => {
+                  const now = new Date();
+                  const targetTimeStr = topic.dueDate || '';
+                  const isLive = targetTimeStr ? now >= new Date(targetTimeStr) : false;
+
+                  return (
+                    <div 
+                      key={topic.id}
+                      className={`p-3 bg-neutral-900/20 border border-neutral-850 rounded-lg space-y-2 font-mono text-[10px] transition-all duration-500 ${
+                        isLive ? 'opacity-35 grayscale border-emerald-950/20 bg-neutral-950/50' : 'opacity-100'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className={`text-xs font-bold block ${isLive ? 'text-neutral-400 line-through' : 'text-neutral-200'}`}>
+                            {topic.name}
+                          </span>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="px-1.5 py-0.2 bg-neutral-950 text-neutral-500 border border-neutral-900 rounded text-[8px]">
+                              {topic.channel}
+                            </span>
+                            {topic.revenueLevel && (
+                              <span className="px-1.5 py-0.2 bg-emerald-950/20 text-emerald-400 border border-emerald-900/30 rounded text-[8px] font-bold">
+                                {topic.revenueLevel}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {isLive ? (
+                          <span className="px-1.5 py-0.5 rounded border text-[8px] uppercase font-bold border-emerald-900/30 text-emerald-400 bg-emerald-950/20 animate-pulse">
+                            Live
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded border text-[8px] uppercase font-bold border-purple-900/40 text-purple-400 bg-purple-950/20">
+                            Scheduled
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-neutral-500 text-[8px] pt-1">
+                        <div>Created: {new Date(topic.createdDate).toLocaleDateString()}</div>
+                        <div>
+                          Scheduled: {topic.dueDate ? new Date(topic.dueDate).toLocaleDateString() : 'N/A'}{' '}
+                          {topic.scheduledTime ? `@ ${topic.scheduledTime}` : ''}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
 

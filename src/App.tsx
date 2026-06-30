@@ -478,6 +478,7 @@ export default function App() {
                 setActivities={setActivities}
                 isAddFormOpen={isAddFormOpen}
                 setIsAddFormOpen={setIsAddFormOpen}
+                setActiveTab={setActiveTab}
               />
             )}
 
@@ -487,7 +488,10 @@ export default function App() {
                 onAddEvent={addEvent} 
                 onUpdateProject={handleUpdateProject}
                 topics={topics}
+                setTopics={setTopics}
                 activities={activities}
+                setActivities={setActivities}
+                setActiveTab={setActiveTab}
               />
             )}
 

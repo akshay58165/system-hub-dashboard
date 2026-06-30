@@ -151,6 +151,8 @@ export interface Topic {
   createdDate: string;
   lastUpdated: string;
   revenueLevel?: string;
+  inProgress?: boolean;
+  scheduledTime?: string;
 }
 
 export interface TopicActivity {
