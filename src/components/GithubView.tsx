@@ -538,7 +538,7 @@ export default function GithubView({
                         </span>
 
                         <span className={`px-2 py-0.5 rounded border text-[9px] font-bold ${prio.style}`}>
-                          P-{topic.priority}: {prio.text}
+                          {prio.text}
                         </span>
                       </div>
                     </div>
