@@ -19,8 +19,12 @@ import {
   Trophy,
   CheckCircle2,
   Lock,
-  Plus
+  Plus,
+  LogIn,
+  LogOut,
+  User as UserIcon
 } from 'lucide-react';
+import { supabase } from './services/supabase';
 
 import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal } from './types';
 import { 
@@ -88,6 +92,15 @@ export default function App() {
   const [timeStr, setTimeStr] = useState('');
   const [lastDbUpdateTime, setLastDbUpdateTime] = useState<Date>(new Date(Date.now() - 5000));
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
+
+  // Supabase Auth and Real-time Gateway States
+  const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [isSignUpMode, setIsSignUpMode] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Database Reset States
   const [isResetOpen, setIsResetOpen] = useState(false);
@@ -216,6 +229,126 @@ export default function App() {
       localStorage.removeItem('unicorn_cycle_goals');
     }
   }, [cycleGoals]);
+
+  // 1. Listen for Supabase auth state change on mount
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // 2. Fetch dashboard state from Supabase when user logs in
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchState = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('dashboard_state')
+          .select('state')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error("Error fetching state from Supabase:", error.message);
+          return;
+        }
+
+        if (data && data.state) {
+          const remoteState = data.state as any;
+          if (remoteState.topics) setTopics(remoteState.topics);
+          if (remoteState.activities) setActivities(remoteState.activities);
+          if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
+
+          addEvent({
+            id: `evt-supabase-loaded-${Date.now()}`,
+            source: 'supabase',
+            type: 'info',
+            message: 'Supabase Cloud: Device state synchronized with database cluster.',
+            timestamp: new Date().toISOString()
+          });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    fetchState();
+
+    // 3. Subscribe to Real-time database changes for this user
+    const channel = supabase.channel(`realtime:dashboard_state:${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'dashboard_state', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          const newState = payload.new as any;
+          if (newState && newState.state) {
+            const remoteState = newState.state as any;
+            if (remoteState.topics) setTopics(remoteState.topics);
+            if (remoteState.activities) setActivities(remoteState.activities);
+            setCycleGoals(remoteState.cycleGoals || null);
+
+            addEvent({
+              id: `evt-supabase-sync-realtime-${Date.now()}`,
+              source: 'supabase',
+              type: 'success',
+              message: 'Supabase Sync: Real-time update synced from remote device.',
+              timestamp: new Date().toISOString()
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  // 4. Save local state changes back to Supabase
+  const saveStateToSupabase = async (newTopics: Topic[], newActs: TopicActivity[], newGoals: CycleGoal | null) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('dashboard_state')
+        .upsert({
+          user_id: user.id,
+          state: {
+            topics: newTopics,
+            activities: newActs,
+            cycleGoals: newGoals
+          },
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' });
+
+      if (error) {
+        console.error("Error saving state to Supabase:", error.message);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    if (!user || authLoading) return;
+
+    // Debounce updates to 800ms
+    const timer = setTimeout(() => {
+      saveStateToSupabase(topics, activities, cycleGoals);
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [topics, activities, cycleGoals, user, authLoading]);
 
   // Update clock
   useEffect(() => {
@@ -349,6 +482,43 @@ export default function App() {
               </span>
               <span>All Cloud Systems Nominal</span>
             </div>
+
+            {/* Supabase Sync Auth Control */}
+            {authLoading ? (
+              <div className="h-6 w-16 bg-neutral-900 border border-neutral-850 rounded-lg animate-pulse" />
+            ) : user ? (
+              <div className="flex items-center gap-2 bg-emerald-950/20 border border-emerald-900/30 rounded-lg px-2.5 py-1 text-emerald-400 select-none font-mono">
+                <UserIcon className="h-3.5 w-3.5 text-emerald-400" />
+                <span className="max-w-[90px] truncate text-[9px] font-bold">{user.email}</span>
+                <button 
+                  onClick={async () => {
+                    await supabase.auth.signOut();
+                    addEvent({
+                      id: `evt-supabase-logout-${Date.now()}`,
+                      source: 'supabase',
+                      type: 'warning',
+                      message: 'Supabase Auth: Logged out from database sync session.',
+                      timestamp: new Date().toISOString()
+                    });
+                  }}
+                  className="hover:text-red-400 ml-1 cursor-pointer transition"
+                  title="Logout / Disconnect Sync"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setAuthError(null);
+                  setIsAuthModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-950/45 hover:bg-blue-900/20 text-blue-400 border border-blue-900/40 hover:border-blue-500 rounded-lg transition text-[9px] font-bold cursor-pointer select-none font-mono"
+              >
+                <LogIn className="h-3.5 w-3.5" />
+                <span>Cloud Sync</span>
+              </button>
+            )}
           </div>
 
         </div>
@@ -717,6 +887,142 @@ export default function App() {
                 </div>
               )}
 
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Supabase Cloud Sync Gateway Modal */}
+      <AnimatePresence>
+        {isAuthModalOpen && (
+          <div className="fixed inset-0 z-50 bg-neutral-950/80 backdrop-blur-md flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-neutral-950 border border-neutral-900 rounded-xl max-w-sm w-full p-6 shadow-[0_0_50px_rgba(59,130,246,0.07)] relative overflow-hidden font-mono"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl pointer-events-none" />
+              
+              <div className="flex items-center gap-2 mb-4 border-b border-neutral-900 pb-3">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                </span>
+                <span className="text-[10px] uppercase font-bold text-blue-400 tracking-widest">
+                  Cloud Sync Gateway
+                </span>
+              </div>
+
+              <p className="text-[10px] text-neutral-400 leading-normal mb-4 font-sans">
+                Sign in or register an account to sync your topics, scheduling details, and targets across phone and computer in real-time.
+              </p>
+
+              <form 
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setAuthError(null);
+                  try {
+                    if (isSignUpMode) {
+                      const { data, error } = await supabase.auth.signUp({
+                        email: authEmail,
+                        password: authPassword
+                      });
+                      if (error) {
+                        setAuthError(error.message);
+                      } else {
+                        addEvent({
+                          id: `evt-supabase-register-${Date.now()}`,
+                          source: 'supabase',
+                          type: 'success',
+                          message: `Supabase Auth: Account registered successfully for ${authEmail}.`,
+                          timestamp: new Date().toISOString()
+                        });
+                        setIsAuthModalOpen(false);
+                      }
+                    } else {
+                      const { data, error } = await supabase.auth.signInWithPassword({
+                        email: authEmail,
+                        password: authPassword
+                      });
+                      if (error) {
+                        setAuthError(error.message);
+                      } else {
+                        addEvent({
+                          id: `evt-supabase-login-${Date.now()}`,
+                          source: 'supabase',
+                          type: 'success',
+                          message: `Supabase Auth: Authenticated successfully as ${authEmail}.`,
+                          timestamp: new Date().toISOString()
+                        });
+                        setIsAuthModalOpen(false);
+                      }
+                    }
+                  } catch (err: any) {
+                    setAuthError(err.message);
+                  }
+                }}
+                className="space-y-3.5"
+              >
+                <div>
+                  <label className="block text-[9px] text-neutral-500 uppercase mb-1">Email Address</label>
+                  <input 
+                    type="email"
+                    required
+                    placeholder="you@example.com"
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
+                    className="w-full bg-neutral-900/40 border border-neutral-900 focus:border-blue-900/50 outline-none text-xs rounded px-3 py-2 text-white font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[9px] text-neutral-500 uppercase mb-1">Password</label>
+                  <input 
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    className="w-full bg-neutral-900/40 border border-neutral-900 focus:border-blue-900/50 outline-none text-xs rounded px-3 py-2 text-white font-mono"
+                  />
+                </div>
+
+                {authError && (
+                  <p className="text-[9px] text-red-500 uppercase font-bold tracking-wider leading-relaxed bg-red-950/20 p-2 border border-red-950 rounded text-center">
+                    {authError}
+                  </p>
+                )}
+
+                <div className="flex items-center justify-between text-[9px] pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthError(null);
+                      setIsSignUpMode(!isSignUpMode);
+                    }}
+                    className="text-neutral-500 hover:text-neutral-300 underline cursor-pointer"
+                  >
+                    {isSignUpMode ? "Have an account? Sign In" : "Need an account? Sign Up"}
+                  </button>
+
+                  <div className="flex gap-2">
+                    <button 
+                      type="button" 
+                      onClick={() => setIsAuthModalOpen(false)}
+                      className="px-2.5 py-1 text-neutral-500 hover:text-neutral-300 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      type="submit"
+                      className="px-4 py-1 bg-blue-950/40 hover:bg-blue-900/30 text-blue-400 border border-blue-900/30 rounded font-semibold transition cursor-pointer"
+                    >
+                      {isSignUpMode ? "Register" : "Sign In"}
+                    </button>
+                  </div>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}
