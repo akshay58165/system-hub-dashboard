@@ -11,7 +11,9 @@ import {
   BookmarkPlus,
   Trash2,
   Save,
-  X
+  X,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import { SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, AiRulePreset } from '../types';
 import { callOpenAI, getChannelSystemPrompt, findScriptSources } from '../services/openai';
@@ -123,6 +125,7 @@ export default function SupabaseView({
   const [selectedPresetId, setSelectedPresetId] = useState<string>('');
   const [isSavingPreset, setIsSavingPreset] = useState(false);
   const [presetNameDraft, setPresetNameDraft] = useState('');
+  const [isPresetDropdownOpen, setIsPresetDropdownOpen] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [isSourcesLoading, setIsSourcesLoading] = useState(false);
@@ -349,6 +352,7 @@ Please rewrite/enhance this draft based on the system persona rules and the user
 
   const handleSelectPreset = (presetId: string) => {
     setSelectedPresetId(presetId);
+    setIsPresetDropdownOpen(false);
     if (!presetId) return;
     const preset = aiPresets.find(p => p.id === presetId);
     if (preset) setCustomInstruction(preset.instruction);
@@ -848,19 +852,50 @@ Please rewrite/enhance this draft based on the system persona rules and the user
               <div className="bg-neutral-900/40 border border-neutral-850 rounded-xl p-3 flex flex-col gap-2.5 relative z-10">
                   {/* Preset Selector Row */}
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <div className="flex-1 flex items-center gap-2 bg-neutral-950 border border-neutral-800 rounded px-2.5 py-1.5">
-                      <span className="text-[10px] text-neutral-500 font-mono uppercase shrink-0">Preset:</span>
-                      <select
-                        value={selectedPresetId}
+                    <div className="flex-1 relative">
+                      <button
+                        type="button"
                         disabled={isAiLoading}
-                        onChange={(e) => handleSelectPreset(e.target.value)}
-                        className="w-full bg-transparent text-xs text-neutral-200 outline-none border-none font-mono cursor-pointer"
+                        onClick={() => setIsPresetDropdownOpen(open => !open)}
+                        className="w-full flex items-center gap-2 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 rounded px-2.5 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
                       >
-                        <option value="">— No preset (typed instruction) —</option>
-                        {aiPresets.map(preset => (
-                          <option key={preset.id} value={preset.id}>{preset.name}</option>
-                        ))}
-                      </select>
+                        <span className="text-[10px] text-neutral-500 font-mono uppercase shrink-0">Preset:</span>
+                        <span className="flex-1 text-left text-xs text-neutral-200 font-mono truncate">
+                          {selectedPresetId ? aiPresets.find(p => p.id === selectedPresetId)?.name : '— No preset (typed instruction) —'}
+                        </span>
+                        <ChevronDown className={`h-3.5 w-3.5 text-neutral-500 shrink-0 transition-transform ${isPresetDropdownOpen ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      {isPresetDropdownOpen && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setIsPresetDropdownOpen(false)} />
+                          <div className="absolute left-0 right-0 mt-1.5 bg-neutral-950 border border-neutral-800 rounded-lg shadow-2xl z-50 py-1 max-h-64 overflow-y-auto">
+                            <button
+                              type="button"
+                              onClick={() => handleSelectPreset('')}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs font-mono text-neutral-300 hover:bg-neutral-900 transition cursor-pointer"
+                            >
+                              <Check className={`h-3 w-3 shrink-0 ${!selectedPresetId ? 'opacity-100 text-emerald-400' : 'opacity-0'}`} />
+                              <span>— No preset (typed instruction) —</span>
+                            </button>
+                            {aiPresets.length === 0 ? (
+                              <div className="px-3 py-2 text-[10px] font-mono text-neutral-600 italic">No saved presets yet.</div>
+                            ) : (
+                              aiPresets.map(preset => (
+                                <button
+                                  key={preset.id}
+                                  type="button"
+                                  onClick={() => handleSelectPreset(preset.id)}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs font-mono text-neutral-300 hover:bg-neutral-900 transition cursor-pointer"
+                                >
+                                  <Check className={`h-3 w-3 shrink-0 ${selectedPresetId === preset.id ? 'opacity-100 text-emerald-400' : 'opacity-0'}`} />
+                                  <span className="truncate">{preset.name}</span>
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        </>
+                      )}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button
