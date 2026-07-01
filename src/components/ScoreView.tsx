@@ -747,7 +747,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
 
                     {/* Compact at-a-glance summary */}
                     <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="rounded-xl border border-blue-900/30 bg-gradient-to-br from-blue-950/25 to-neutral-950/80 p-4 min-h-[112px] flex flex-col justify-between">
+                      <div className="rounded-xl border border-blue-900/30 bg-gradient-to-br from-blue-950/25 to-neutral-950/80 p-3.5 space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-[9px] uppercase tracking-[0.18em] text-blue-400 font-bold font-mono">Readiness</span>
                           <ShieldCheck className="h-4 w-4 text-blue-400" />
@@ -758,7 +758,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                         </div>
                       </div>
 
-                      <div className="rounded-xl border border-amber-900/30 bg-gradient-to-br from-amber-950/25 to-neutral-950/80 p-4 min-h-[112px] flex flex-col justify-between">
+                      <div className="rounded-xl border border-amber-900/30 bg-gradient-to-br from-amber-950/25 to-neutral-950/80 p-3.5 space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-[9px] uppercase tracking-[0.18em] text-amber-400 font-bold font-mono">Best Mode</span>
                           <Flame className="h-4 w-4 text-amber-400" />
@@ -769,7 +769,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                         </div>
                       </div>
 
-                      <div className="rounded-xl border border-emerald-900/30 bg-gradient-to-br from-emerald-950/25 to-neutral-950/80 p-4 min-h-[112px] flex flex-col justify-between">
+                      <div className="rounded-xl border border-emerald-900/30 bg-gradient-to-br from-emerald-950/25 to-neutral-950/80 p-3.5 space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-[9px] uppercase tracking-[0.18em] text-emerald-400 font-bold font-mono">Next Best Action</span>
                           <Zap className="h-4 w-4 text-emerald-400" />
@@ -791,20 +791,20 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                     )}
 
                     {/* Compact category cards */}
-                    <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                    <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-12 gap-3 items-start">
                       {CATEGORY_ROWS.map((row, i) => (
                         <motion.div
                           key={i}
                           initial={{ opacity: 0, y: 6 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.25, delay: i * 0.04 }}
-                          className={`relative overflow-hidden min-h-[148px] p-4 rounded-xl border ${row.border} ${row.bg} flex flex-col justify-between shadow-[0_8px_24px_rgba(0,0,0,0.16)] hover:-translate-y-0.5 hover:border-opacity-80 transition-all duration-200`}
+                          className={`relative overflow-hidden p-3.5 rounded-xl border ${row.border} ${row.bg} shadow-[0_8px_24px_rgba(0,0,0,0.16)] hover:-translate-y-0.5 hover:border-opacity-80 transition-all duration-200 ${i < 4 ? 'xl:col-span-3' : 'xl:col-span-4'}`}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className={`grid place-items-center h-8 w-8 rounded-lg bg-black/30 border ${row.border} ${row.color}`}>{row.icon}</div>
                             <span className={`max-w-[65%] truncate px-2 py-1 rounded-full bg-black/30 border ${row.border} ${row.color} text-[9px] font-bold font-mono`}>{row.value}</span>
                           </div>
-                          <div className="mt-4">
+                          <div className="mt-3">
                             <span className={`text-[9px] font-bold uppercase tracking-[0.16em] font-mono ${row.color}`}>{row.label}</span>
                             <p className="text-[11px] text-neutral-300 font-sans mt-1.5 leading-relaxed">{row.text}</p>
                           </div>
