@@ -38,7 +38,8 @@ interface GithubViewProps {
   setActivities: React.Dispatch<React.SetStateAction<TopicActivity[]>>;
   isAddFormOpen?: boolean;
   setIsAddFormOpen?: (open: boolean) => void;
-  setActiveTab?: (tab: 'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score') => void;
+  setActiveTab?: (tab: string) => void;
+  setPipelineSubView?: (subView: 'videos' | 'topics') => void;
 }
 
 // Time formatting helper
@@ -512,7 +513,8 @@ export default function GithubView({
                     scripted: 'text-blue-400 bg-blue-950/20 border-blue-900/20',
                     shot: 'text-amber-400 bg-amber-950/20 border-amber-900/20',
                     edited: 'text-emerald-400 bg-emerald-950/20 border-emerald-900/20',
-                    scheduled: 'text-pink-400 bg-pink-950/20 border-pink-900/20'
+                    scheduled: 'text-pink-400 bg-pink-950/20 border-pink-900/20',
+                    posted: 'text-rose-400 bg-rose-950/20 border-rose-900/20'
                   }[topic.status];
 
                   return (
@@ -588,12 +590,26 @@ export default function GithubView({
                                     timestamp: new Date().toISOString()
                                   });
 
-                                  if (setActiveTab) setActiveTab('progress');
+                                  if (setPipelineSubView) setPipelineSubView('topics');
+                                  if (setActiveTab) setActiveTab('pipeline');
                                 }}
                                 className="px-1.5 py-0.2 bg-blue-950/45 hover:bg-blue-900/20 text-blue-400 border border-blue-900/40 hover:border-blue-500 hover:text-white rounded text-[8px] font-mono transition cursor-pointer select-none"
                                 title="Send to Progress section"
                               >
                                 Start Pipeline →
+                              </button>
+                            )}
+                            {(topic.inProgress || topic.status === 'scheduled' || topic.status === 'posted') && (
+                              <button
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  if (setPipelineSubView) setPipelineSubView('topics');
+                                  if (setActiveTab) setActiveTab('pipeline');
+                                }}
+                                className="px-1.5 py-0.2 bg-amber-950/35 hover:bg-amber-900/25 text-amber-400 border border-amber-900/40 hover:border-amber-500 rounded text-[8px] font-mono transition cursor-pointer"
+                                title="Open edit, delete, reset, and status controls"
+                              >
+                                Manage →
                               </button>
                             )}
                           </div>

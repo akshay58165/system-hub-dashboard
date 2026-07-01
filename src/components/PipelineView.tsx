@@ -143,6 +143,21 @@ export default function PipelineView({ videos, setVideos, onAddEvent }: Pipeline
     });
   };
 
+  const handleDeleteVideo = () => {
+    if (!editingVideoId) return;
+    const video = videos.find(item => item.id === editingVideoId);
+    if (!video || !window.confirm(`Delete "${video.title}"? This permanently removes it from the pipeline.`)) return;
+    setVideos(prev => prev.filter(item => item.id !== editingVideoId));
+    setEditingVideoId(null);
+    onAddEvent({
+      id: `evt-pipeline-delete-${Date.now()}`,
+      source: 'system',
+      type: 'warning',
+      message: `Pipeline: Deleted "${video.title}".`,
+      timestamp: new Date().toISOString()
+    });
+  };
+
   const handleCreateVideo = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
@@ -478,7 +493,15 @@ export default function PipelineView({ videos, setVideos, onAddEvent }: Pipeline
                   </div>
 
                   {/* Save/Cancel Controls */}
-                  <div className="flex justify-end gap-2 text-[10px] pt-3 border-t border-neutral-900">
+                  <div className="flex justify-between gap-2 text-[10px] pt-3 border-t border-neutral-900">
+                    <button
+                      type="button"
+                      onClick={handleDeleteVideo}
+                      className="px-3 py-1.5 text-rose-400 hover:text-rose-300 font-mono border border-rose-900/40 rounded"
+                    >
+                      Delete Item
+                    </button>
+                    <div className="flex gap-2">
                     <button
                       onClick={() => setEditingVideoId(null)}
                       className="px-3 py-1.5 text-neutral-500 hover:text-neutral-300 font-mono"
@@ -491,6 +514,7 @@ export default function PipelineView({ videos, setVideos, onAddEvent }: Pipeline
                     >
                       Save Changes
                     </button>
+                    </div>
                   </div>
                 </div>
 

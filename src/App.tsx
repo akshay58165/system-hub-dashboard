@@ -29,7 +29,8 @@ import {
   Clapperboard,
   Sparkles,
   Youtube,
-  RefreshCw
+  RefreshCw,
+  ListChecks
 } from 'lucide-react';
 import { supabase } from './services/supabase';
 import { loginWithYouTube, logoutYouTube, handleOAuthCallback, getYouTubeCredentials, orchestrateYouTubeDataFetch } from './services/youtube';
@@ -1022,6 +1023,18 @@ export default function App() {
               >
                 <Layers className="h-3.5 w-3.5 text-amber-500" />
                 <span>Pipeline</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('progress')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
+                  activeTab === 'progress'
+                    ? 'bg-neutral-900 border border-neutral-850 text-amber-400'
+                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
+                }`}
+              >
+                <ListChecks className="h-3.5 w-3.5 text-amber-400" />
+                <span>Topic Workflow</span>
               </button>
 
               <button

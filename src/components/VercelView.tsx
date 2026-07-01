@@ -12,7 +12,10 @@ import {
   ArrowUpRight,
   Youtube,
   User,
-  Activity
+  Activity,
+  Pencil,
+  Trash2,
+  RotateCcw
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -150,6 +153,7 @@ export default function VercelView({
   const [schedulingTopicId, setSchedulingTopicId] = useState<string | null>(null);
   const [schedDate, setSchedDate] = useState('');
   const [schedTime, setSchedTime] = useState('');
+  const [editingTopic, setEditingTopic] = useState<Topic | null>(null);
 
   const getWorkflowState = (topic: Topic, stage: WorkflowStage): WorkflowState => {
     const savedState = topic.workflowStatuses?.[stage];
@@ -186,6 +190,33 @@ export default function VercelView({
       author: 'typeakshay',
       timestamp: new Date().toISOString(),
     }, ...prev]);
+  };
+
+  const saveEditedTopic = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editingTopic?.name.trim()) return;
+    setTopics(prev => prev.map(topic => topic.id === editingTopic.id
+      ? { ...editingTopic, name: editingTopic.name.trim(), lastUpdated: new Date().toISOString() }
+      : topic));
+    setEditingTopic(null);
+  };
+
+  const deleteTopic = (topic: Topic) => {
+    if (!window.confirm(`Delete "${topic.name}"? This permanently removes it from every topic view.`)) return;
+    setTopics(prev => prev.filter(item => item.id !== topic.id));
+    setActivities(prev => prev.filter(activity => activity.topicName !== topic.name));
+  };
+
+  const resetTopicWorkflow = (topic: Topic) => {
+    setTopics(prev => prev.map(item => item.id === topic.id ? {
+      ...item,
+      status: 'topic',
+      inProgress: false,
+      workflowStatuses: {},
+      scheduledTime: undefined,
+      lastUpdated: new Date().toISOString(),
+    } : item));
+    setSchedulingTopicId(current => current === topic.id ? null : current);
   };
 
   // Filtered topics
@@ -441,8 +472,8 @@ export default function VercelView({
               <Layers className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-neutral-100 font-mono tracking-tight">Progress Tracker</h2>
-              <p className="text-[10px] text-neutral-500 mt-0.5 font-mono">Track channel upload velocities, content lane outputs, and scheduling buffers.</p>
+              <h2 className="text-sm font-bold text-neutral-100 font-mono tracking-tight">Topic Workflow</h2>
+              <p className="text-[10px] text-neutral-500 mt-0.5 font-mono">Edit, delete, or correct the production status of every topic from one permanent workspace.</p>
             </div>
           </div>
 
@@ -527,18 +558,18 @@ export default function VercelView({
             <div className="flex items-center justify-between border-b border-neutral-900 pb-2">
               <h3 className="text-sm font-bold font-mono text-white tracking-tight flex items-center gap-2">
                 <Youtube className="h-4 w-4 text-red-500 animate-pulse" />
-                <span>Active Production Pipeline</span>
+                <span>All Topic Controls</span>
               </h3>
-              <span className="text-[10px] font-mono text-neutral-500">In Progress Topics</span>
+              <span className="text-[10px] font-mono text-neutral-500">{filteredTopics.length} topics · quick click / hold 1s</span>
             </div>
 
             <div className="space-y-3">
               {(() => {
-                const activeProgress = topics.filter(t => t.inProgress && t.status !== 'scheduled' && t.status !== 'posted');
+                const activeProgress = filteredTopics;
                 if (activeProgress.length === 0) {
                   return (
                     <div className="text-center py-6 text-neutral-500 font-mono text-[10px] border border-dashed border-neutral-900 rounded-lg">
-                      No topics currently in active production. Go to "Topics" and select "Start Pipeline" to move them here.
+                      No topics match this channel. Add one from Topic Inventory to begin.
                     </div>
                   );
                 }
@@ -564,9 +595,35 @@ export default function VercelView({
                             )}
                           </div>
                         </div>
-                        <span className="px-1.5 py-0.5 rounded border text-[8px] uppercase font-bold border-blue-900/40 text-blue-400 bg-blue-950/20">
-                          {topic.status}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className="px-1.5 py-0.5 rounded border text-[8px] uppercase font-bold border-blue-900/40 text-blue-400 bg-blue-950/20">
+                            {topic.status}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setEditingTopic({ ...topic })}
+                            className="p-1 rounded border border-neutral-800 text-neutral-400 hover:text-blue-300 hover:border-blue-800 transition"
+                            title="Edit topic"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => resetTopicWorkflow(topic)}
+                            className="p-1 rounded border border-neutral-800 text-neutral-400 hover:text-amber-300 hover:border-amber-800 transition"
+                            title="Reset all workflow statuses"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteTopic(topic)}
+                            className="p-1 rounded border border-neutral-800 text-neutral-400 hover:text-rose-400 hover:border-rose-900 transition"
+                            title="Delete topic"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
                       </div>
 
                       {/* Created and Due Date Meta Elements */}
@@ -874,6 +931,86 @@ export default function VercelView({
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {editingTopic && (
+          <div className="fixed inset-0 z-50 bg-neutral-950/85 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.form
+              initial={{ opacity: 0, scale: 0.97, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.97, y: 8 }}
+              onSubmit={saveEditedTopic}
+              className="w-full max-w-lg rounded-xl border border-neutral-800 bg-neutral-950 p-5 shadow-2xl space-y-4"
+            >
+              <div className="flex items-start justify-between border-b border-neutral-900 pb-3">
+                <div>
+                  <h3 className="text-sm font-bold text-white">Edit Topic</h3>
+                  <p className="text-[10px] text-neutral-500 mt-1">Changes sync everywhere this topic appears.</p>
+                </div>
+                <span className="text-[9px] uppercase text-blue-400 border border-blue-900/40 bg-blue-950/20 rounded px-2 py-1">{editingTopic.status}</span>
+              </div>
+
+              <label className="block text-[9px] uppercase text-neutral-500 font-mono">
+                Title
+                <input
+                  required
+                  value={editingTopic.name}
+                  onChange={event => setEditingTopic({ ...editingTopic, name: event.target.value })}
+                  className="mt-1 w-full rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs normal-case text-white outline-none"
+                />
+              </label>
+
+              <label className="block text-[9px] uppercase text-neutral-500 font-mono">
+                Description
+                <textarea
+                  rows={3}
+                  value={editingTopic.description}
+                  onChange={event => setEditingTopic({ ...editingTopic, description: event.target.value })}
+                  className="mt-1 w-full resize-none rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs normal-case text-white outline-none"
+                />
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label className="block text-[9px] uppercase text-neutral-500 font-mono">
+                  Channel
+                  <select
+                    value={editingTopic.channel}
+                    onChange={event => setEditingTopic({ ...editingTopic, channel: event.target.value as Topic['channel'] })}
+                    className="mt-1 w-full rounded border border-neutral-800 bg-neutral-900 px-2 py-2 text-xs normal-case text-white outline-none"
+                  >
+                    <option value="LearnDriven">LearnDriven</option>
+                    <option value="DecodeWorthy">DecodeWorthy</option>
+                  </select>
+                </label>
+                <label className="block text-[9px] uppercase text-neutral-500 font-mono">
+                  Priority
+                  <select
+                    value={editingTopic.priority}
+                    onChange={event => setEditingTopic({ ...editingTopic, priority: Number(event.target.value) as Topic['priority'] })}
+                    className="mt-1 w-full rounded border border-neutral-800 bg-neutral-900 px-2 py-2 text-xs normal-case text-white outline-none"
+                  >
+                    {[1, 2, 3, 4, 5].map(priority => <option key={priority} value={priority}>{priority}</option>)}
+                  </select>
+                </label>
+                <label className="block text-[9px] uppercase text-neutral-500 font-mono">
+                  Due date
+                  <input
+                    type="date"
+                    value={editingTopic.dueDate?.split('T')[0] || ''}
+                    onChange={event => setEditingTopic({ ...editingTopic, dueDate: event.target.value ? new Date(`${event.target.value}T12:00:00`).toISOString() : null })}
+                    className="mt-1 w-full rounded border border-neutral-800 bg-neutral-900 px-2 py-2 text-xs normal-case text-white outline-none"
+                  />
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-2 border-t border-neutral-900 pt-3 text-[10px] font-mono">
+                <button type="button" onClick={() => setEditingTopic(null)} className="px-3 py-1.5 text-neutral-400 hover:text-white">Cancel</button>
+                <button type="submit" className="rounded bg-blue-500 px-4 py-1.5 font-bold text-black hover:bg-blue-400">Save Changes</button>
+              </div>
+            </motion.form>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
