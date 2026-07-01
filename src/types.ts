@@ -153,6 +153,7 @@ export interface Topic {
   revenueLevel?: string;
   inProgress?: boolean;
   scheduledTime?: string;
+  postedAt?: string;
   format?: 'Short' | 'Long' | 'Members';
   category?: string;
   isDemo?: boolean;

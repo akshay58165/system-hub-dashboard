@@ -116,9 +116,9 @@ function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, labelOv
         disabled ? 'cursor-default opacity-85' : 'cursor-pointer'
       } ${
         state === 'pending'
-          ? (blinkClass || 'bg-neutral-950 border-neutral-850 text-neutral-400 hover:text-neutral-200')
+          ? 'bg-neutral-950 border-neutral-850 text-neutral-400 hover:text-neutral-200'
           : palette
-      } ${state === 'in-progress' ? 'ring-1 ring-white/15' : ''}`}
+      } ${state === 'in-progress' ? 'ring-1 ring-white/15' : ''} ${blinkClass || ''}`}
     >
       {isHolding && !disabled && (
         <svg
@@ -189,6 +189,7 @@ export default function VercelView({
               schedule: 'completed',
               post: 'completed'
             },
+            postedAt: new Date().toISOString(),
             lastUpdated: new Date().toISOString()
           };
         }
@@ -281,6 +282,35 @@ export default function VercelView({
     }, ...prev]);
   };
 
+  const completeSchedule = (topic: Topic) => {
+    const defaultTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
+    const finalDate = schedulingTopicId === topic.id && schedDate
+      ? schedDate
+      : (topic.dueDate?.split('T')[0] || new Date().toISOString().split('T')[0]);
+    const finalTime = schedulingTopicId === topic.id && schedTime
+      ? schedTime
+      : (topic.scheduledTime || defaultTime);
+    const finalIso = new Date(`${finalDate}T${finalTime}:00`).toISOString();
+
+    setTopics(prev => prev.map(item => item.id === topic.id ? {
+      ...item,
+      status: 'scheduled',
+      inProgress: true,
+      dueDate: finalIso,
+      scheduledTime: finalTime,
+      workflowStatuses: {
+        ...item.workflowStatuses,
+        script: 'completed',
+        shoot: 'completed',
+        edit: 'completed',
+        schedule: 'completed',
+        post: 'pending',
+      },
+      lastUpdated: new Date().toISOString(),
+    } : item));
+    setSchedulingTopicId(null);
+  };
+
   const saveEditedTopic = (event: React.FormEvent) => {
     event.preventDefault();
     if (!editingTopic?.name.trim()) return;
@@ -303,6 +333,7 @@ export default function VercelView({
       inProgress: false,
       workflowStatuses: {},
       scheduledTime: undefined,
+      postedAt: undefined,
       dueDate: null,
       lastUpdated: new Date().toISOString(),
     } : item));
@@ -721,6 +752,7 @@ export default function VercelView({
                                     schedule: 'completed',
                                     post: 'completed'
                                   },
+                                  postedAt: new Date().toISOString(),
                                   lastUpdated: new Date().toISOString()
                                 } : t));
 
@@ -781,7 +813,8 @@ export default function VercelView({
                           let isDisabled = false;
                           let blinkClass = undefined;
 
-                          if (state !== 'completed' && topic.status !== 'scheduled' && topic.status !== 'posted' && topic.dueDate) {
+                          const scheduleComplete = getWorkflowState(topic, 'schedule') === 'completed' || topic.status === 'scheduled' || topic.status === 'posted';
+                          if (!scheduleComplete && topic.dueDate) {
                             const due = new Date(topic.dueDate);
                             due.setHours(0, 0, 0, 0);
                             const today = new Date();
@@ -796,6 +829,13 @@ export default function VercelView({
                             } else if (daysLeft <= 0) {
                               blinkClass = 'blink-red';
                             }
+                          }
+
+                          const stagesOrder: WorkflowStage[] = ['script', 'shoot', 'edit', 'schedule', 'post'];
+                          const stageIndex = stagesOrder.indexOf(stage);
+                          const previousStage = stageIndex > 0 ? stagesOrder[stageIndex - 1] : null;
+                          if (stage !== 'post' && state === 'pending' && previousStage && getWorkflowState(topic, previousStage) !== 'completed') {
+                            isDisabled = true;
                           }
 
                           if (stage === 'post') {
@@ -822,8 +862,8 @@ export default function VercelView({
                                 labelOverride = `Posted (${formattedDate})`;
                               }
                             } else if (topic.status === 'posted') {
-                              const formattedDate = topic.dueDate 
-                                ? new Date(topic.dueDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+                              const formattedDate = topic.postedAt || topic.dueDate
+                                ? new Date(topic.postedAt || topic.dueDate!).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
                                 : '';
                               labelOverride = formattedDate ? `Posted (${formattedDate})` : 'Posted';
                             } else {
@@ -843,18 +883,16 @@ export default function VercelView({
                                   if (stage === 'schedule') {
                                     const defaultTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
                                     setSchedDate(topic.dueDate ? topic.dueDate.split('T')[0] : new Date().toISOString().split('T')[0]);
-                                    setSchedTime(topic.scheduledTime || '');
+                                    setSchedTime(topic.scheduledTime || defaultTime);
                                     setSchedulingTopicId(topic.id);
+                                    handleTransitionToStage(topic, 'schedule', 'in-progress');
                                   } else {
                                     handleTransitionToStage(topic, stage, 'in-progress');
                                   }
                                 }}
                                 onLongPress={() => {
                                   if (stage === 'schedule') {
-                                    const defaultTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
-                                    setSchedDate(topic.dueDate ? topic.dueDate.split('T')[0] : new Date().toISOString().split('T')[0]);
-                                    setSchedTime(topic.scheduledTime || '');
-                                    setSchedulingTopicId(topic.id);
+                                    if (state === 'in-progress') completeSchedule(topic);
                                   } else {
                                     handleTransitionToStage(topic, stage, 'completed');
                                   }
