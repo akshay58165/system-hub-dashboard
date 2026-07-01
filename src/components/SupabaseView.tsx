@@ -954,7 +954,7 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                   ) : realUsage ? (
                     <>
                       <div className="text-xl font-bold text-white font-mono mt-0.5">
-                        ${realUsage.totalCostUSD.toFixed(4)} <span className="text-[10px] text-neutral-500 uppercase">{realUsage.currency}</span>
+                        ${Number(realUsage.totalCostUSD || 0).toFixed(4)} <span className="text-[10px] text-neutral-500 uppercase">{realUsage.currency}</span>
                       </div>
                       <div className="text-[9px] text-neutral-500 font-mono mt-0.5">
                         {new Date(realUsage.periodStart).toLocaleDateString([], { month: 'short', day: 'numeric' })} – {new Date(realUsage.periodEnd).toLocaleDateString([], { month: 'short', day: 'numeric' })} · fetched {new Date(realUsage.fetchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -968,7 +968,7 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                   <div className="border border-neutral-900 rounded-lg p-2.5 bg-neutral-950/60">
                     <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-500">In-App Est. Spend</span>
-                    <div className="text-sm font-bold text-white font-mono mt-0.5">${aiUsage.totalCostUSD.toFixed(4)}</div>
+                    <div className="text-sm font-bold text-white font-mono mt-0.5">${Number(aiUsage.totalCostUSD || 0).toFixed(4)}</div>
                   </div>
 
                   <div className="border border-neutral-900 rounded-lg p-2.5 bg-neutral-950/60">
@@ -1004,7 +1004,7 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                       </div>
                     ) : (
                       <div className="text-sm font-bold text-white font-mono mt-0.5">
-                        {aiUsage.budgetUSD !== null ? `$${aiUsage.budgetUSD.toFixed(2)}` : '— Not set —'}
+                        {aiUsage.budgetUSD !== null ? `$${Number(aiUsage.budgetUSD).toFixed(2)}` : '— Not set —'}
                       </div>
                     )}
                   </div>
@@ -1012,15 +1012,15 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                   <div className="border border-neutral-900 rounded-lg p-2.5 bg-neutral-950/60">
                     <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-500">Remaining</span>
                     <div className={`text-sm font-bold font-mono mt-0.5 ${
-                      aiUsage.budgetUSD === null ? 'text-neutral-500' : (aiUsage.budgetUSD - aiUsage.totalCostUSD) < 0 ? 'text-rose-400' : 'text-emerald-400'
+                      aiUsage.budgetUSD === null ? 'text-neutral-500' : (Number(aiUsage.budgetUSD) - Number(aiUsage.totalCostUSD || 0)) < 0 ? 'text-rose-400' : 'text-emerald-400'
                     }`}>
-                      {aiUsage.budgetUSD !== null ? `$${(aiUsage.budgetUSD - aiUsage.totalCostUSD).toFixed(4)}` : '— Set a budget —'}
+                      {aiUsage.budgetUSD !== null ? `$${(Number(aiUsage.budgetUSD) - Number(aiUsage.totalCostUSD || 0)).toFixed(4)}` : '— Set a budget —'}
                     </div>
                   </div>
 
                   <div className="border border-neutral-900 rounded-lg p-2.5 bg-neutral-950/60">
                     <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-500">Tokens Used</span>
-                    <div className="text-sm font-bold text-white font-mono mt-0.5">{aiUsage.totalTokens.toLocaleString()}</div>
+                    <div className="text-sm font-bold text-white font-mono mt-0.5">{Number(aiUsage.totalTokens || 0).toLocaleString()}</div>
                   </div>
                 </div>
 
@@ -1028,8 +1028,8 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                   <div className="text-[10px] text-neutral-500 font-mono border-t border-neutral-900 pt-2">
                     Last call ({new Date(aiUsage.lastCall.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}):{' '}
                     <span className="text-neutral-300">{aiUsage.lastCall.model}</span>{' — '}
-                    {aiUsage.lastCall.promptTokens.toLocaleString()} in / {aiUsage.lastCall.completionTokens.toLocaleString()} out{' '}
-                    ({aiUsage.lastCall.totalTokens.toLocaleString()} tokens) · ${aiUsage.lastCall.costUSD.toFixed(5)} · {aiUsage.callCount} call{aiUsage.callCount === 1 ? '' : 's'} this cycle
+                    {Number(aiUsage.lastCall.promptTokens || 0).toLocaleString()} in / {Number(aiUsage.lastCall.completionTokens || 0).toLocaleString()} out{' '}
+                    ({Number(aiUsage.lastCall.totalTokens || 0).toLocaleString()} tokens) · ${Number(aiUsage.lastCall.costUSD || 0).toFixed(5)} · {aiUsage.callCount} call{aiUsage.callCount === 1 ? '' : 's'} this cycle
                   </div>
                 ) : (
                   <div className="text-[10px] text-neutral-600 font-mono border-t border-neutral-900 pt-2 italic">

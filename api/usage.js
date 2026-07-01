@@ -85,7 +85,10 @@ export default async function handler(request, response) {
       (data.data || []).forEach((bucket) => {
         (bucket.results || []).forEach((result) => {
           if (result.amount) {
-            totalCostUSD += result.amount.value || 0;
+            // OpenAI returns amount.value as a string in some responses; Number()
+            // it explicitly so += always adds numerically instead of silently
+            // string-concatenating and corrupting totalCostUSD into a string.
+            totalCostUSD += Number(result.amount.value) || 0;
             currency = result.amount.currency || currency;
           }
         });
