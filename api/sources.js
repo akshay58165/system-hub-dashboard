@@ -102,7 +102,15 @@ export default async function handler(request, response) {
       return sendJson(response, 502, { error: 'Source search returned an empty response.' });
     }
 
-    return sendJson(response, 200, { content });
+    const usage = data.usage
+      ? {
+          promptTokens: data.usage.input_tokens ?? 0,
+          completionTokens: data.usage.output_tokens ?? 0,
+          totalTokens: data.usage.total_tokens ?? 0,
+        }
+      : null;
+
+    return sendJson(response, 200, { content, usage, model: data.model || null });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error('Secure sources endpoint failed:', message);

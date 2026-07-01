@@ -340,6 +340,26 @@ export interface AiRulePreset {
   createdAt: string;
 }
 
+export interface AiUsageCall {
+  model: string;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  costUSD: number;
+  timestamp: string;
+}
+
+export interface AiUsageStats {
+  budgetUSD: number | null;
+  totalPromptTokens: number;
+  totalCompletionTokens: number;
+  totalTokens: number;
+  totalCostUSD: number;
+  callCount: number;
+  lastCall: AiUsageCall | null;
+  cycleStartedAt: string;
+}
+
 export interface MonthForecast {
   expectedViews: number;
   expectedSubscribers: number;

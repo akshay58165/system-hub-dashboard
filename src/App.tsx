@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 import { supabase } from './services/supabase';
 
-import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, VideoRecord, Experiment, CreatorInsight, ScorecardState, AiRulePreset } from './types';
+import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, VideoRecord, Experiment, CreatorInsight, ScorecardState, AiRulePreset, AiUsageStats } from './types';
 import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, normalizeCommittedTombstones, prepareLocalTopicMutation, topicCollectionsEqual, visibleCreatorTopics } from './lib/topicSync';
 import { normalizeScorecard, rolloverScorecard } from './services/scorecardStorage';
 import { 
@@ -72,6 +72,19 @@ try {
     sessionStorage.setItem('unicorn_session_id', currentSessionId);
   }
 } catch { /* ignore in non-browser context */ }
+
+function createEmptyAiUsageStats(): AiUsageStats {
+  return {
+    budgetUSD: null,
+    totalPromptTokens: 0,
+    totalCompletionTokens: 0,
+    totalTokens: 0,
+    totalCostUSD: 0,
+    callCount: 0,
+    lastCall: null,
+    cycleStartedAt: new Date().toISOString()
+  };
+}
 
 export default function App() {
   useEffect(() => {
@@ -147,6 +160,7 @@ export default function App() {
   };
   const [activities, setActivities] = useState<TopicActivity[]>(initialActivities);
   const [aiPresets, setAiPresets] = useState<AiRulePreset[]>([]);
+  const [aiUsage, setAiUsage] = useState<AiUsageStats>(() => createEmptyAiUsageStats());
   const [videos, setVideos] = useState<VideoRecord[]>(initialVideos);
   const [experiments, setExperiments] = useState<Experiment[]>(initialExperiments);
   const [insights, setInsights] = useState<CreatorInsight[]>(initialCreatorInsights);
@@ -259,7 +273,8 @@ export default function App() {
                 videos: [],
                 experiments: [],
                 insights: [],
-                aiPresets: []
+                aiPresets: [],
+                aiUsage: createEmptyAiUsageStats()
               },
               updated_at: new Date().toISOString()
             }, { onConflict: 'user_id' }).then(({ error }: any) => {
@@ -286,6 +301,7 @@ export default function App() {
         } else if (percent >= 60 && percent < 85) {
           setActivities([]);
           setAiPresets([]);
+          setAiUsage(createEmptyAiUsageStats());
           setEvents([]);
           localStorage.removeItem('unicorn_events');
         }
@@ -453,6 +469,7 @@ export default function App() {
           if (remoteState.experiments) setExperiments(remoteState.experiments);
           if (remoteState.insights) setInsights(remoteState.insights);
           if (remoteState.aiPresets) setAiPresets(remoteState.aiPresets);
+          if (remoteState.aiUsage) setAiUsage(remoteState.aiUsage);
 
           addEvent({
             id: `evt-supabase-loaded-${Date.now()}`,
@@ -474,7 +491,8 @@ export default function App() {
               videos,
               experiments,
               insights,
-              aiPresets
+              aiPresets,
+              aiUsage
             },
             updated_at: new Date().toISOString()
           }, { onConflict: 'user_id' });
@@ -539,6 +557,7 @@ export default function App() {
                 if (remoteState.experiments) setExperiments(remoteState.experiments);
                 if (remoteState.insights) setInsights(remoteState.insights);
                 if (remoteState.aiPresets) setAiPresets(remoteState.aiPresets);
+                if (remoteState.aiUsage) setAiUsage(remoteState.aiUsage);
 
                 addEvent({
                   id: `evt-supabase-sync-realtime-${Date.now()}`,
@@ -579,7 +598,7 @@ export default function App() {
   const saveConflictSafeState = async (
     newTopics: Topic[], newActs: TopicActivity[], newGoals: CycleGoal | null,
     newScorecard: any, newVideos: VideoRecord[], newExperiments: Experiment[], newInsights: CreatorInsight[],
-    newPresets: AiRulePreset[]
+    newPresets: AiRulePreset[], newUsage: AiUsageStats
   ) => {
     const savingTopicEpoch = topicMutationEpochRef.current;
     for (let attempt = 0; attempt < 4; attempt++) {
@@ -602,7 +621,7 @@ export default function App() {
         ...remoteState, topics: mergedTopics, deletedTopicIds,
         activities: Array.from(mergedActivities.values()).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
         cycleGoals: newGoals, scorecard: newScorecard, videos: newVideos,
-        experiments: newExperiments, insights: newInsights, aiPresets: newPresets
+        experiments: newExperiments, insights: newInsights, aiPresets: newPresets, aiUsage: newUsage
       };
       const nextVersion = (current?.version || 0) + 1;
       const updatedAt = new Date().toISOString();
@@ -645,7 +664,8 @@ export default function App() {
     newVideos: VideoRecord[],
     newExperiments: Experiment[],
     newInsights: CreatorInsight[],
-    newPresets: AiRulePreset[]
+    newPresets: AiRulePreset[],
+    newUsage: AiUsageStats
   ) => {
     // Only a genuinely unrecoverable state (missing schema) blocks saving.
     // A transient syncError banner must never permanently stop future saves —
@@ -654,7 +674,7 @@ export default function App() {
     // of the session with no automatic recovery.
     if (!supabase || !user || syncFatal) return;
     try {
-      await saveConflictSafeState(newTopics, newActs, newGoals, newScorecard, newVideos, newExperiments, newInsights, newPresets);
+      await saveConflictSafeState(newTopics, newActs, newGoals, newScorecard, newVideos, newExperiments, newInsights, newPresets, newUsage);
       setSyncError(null);
       return;
       const { error } = await supabase
@@ -712,7 +732,7 @@ export default function App() {
     const nextBackup = {
       updatedAt: new Date().toISOString(),
       sessionId: currentSessionId,
-      state: { topics: durableTopics, deletedTopicIds: durableTombstones, activities, cycleGoals, scorecard, videos, experiments, insights, aiPresets }
+      state: { topics: durableTopics, deletedTopicIds: durableTombstones, activities, cycleGoals, scorecard, videos, experiments, insights, aiPresets, aiUsage }
     };
 
     try {
@@ -728,7 +748,7 @@ export default function App() {
     } catch { /* A malformed old backup must not block the current snapshot. */ }
 
     localStorage.setItem(backupKey, JSON.stringify(nextBackup));
-  }, [topics, activities, cycleGoals, scorecard, videos, experiments, insights, aiPresets, user, authLoading, isStateLoaded, hydratedUserId]);
+  }, [topics, activities, cycleGoals, scorecard, videos, experiments, insights, aiPresets, aiUsage, user, authLoading, isStateLoaded, hydratedUserId]);
 
   // Realtime is the fast path; versioned reconciliation is the reliability path.
   // It keeps devices converged even when postgres_changes delivery is delayed,
@@ -777,6 +797,7 @@ export default function App() {
         if (remoteState.experiments) setExperiments(remoteState.experiments);
         if (remoteState.insights) setInsights(remoteState.insights);
         if (remoteState.aiPresets) setAiPresets(remoteState.aiPresets);
+        if (remoteState.aiUsage) setAiUsage(remoteState.aiUsage);
       } finally {
         reconciliationInFlightRef.current = false;
       }
@@ -807,11 +828,11 @@ export default function App() {
     const timer = setTimeout(() => {
       saveQueueRef.current = saveQueueRef.current
         .catch(() => undefined)
-        .then(() => saveStateToSupabase(topics, activities, cycleGoals, scorecard, videos, experiments, insights, aiPresets));
+        .then(() => saveStateToSupabase(topics, activities, cycleGoals, scorecard, videos, experiments, insights, aiPresets, aiUsage));
     }, 75);
 
     return () => clearTimeout(timer);
-  }, [topics, activities, cycleGoals, scorecard, videos, experiments, insights, aiPresets, user, authLoading, isStateLoaded, hydratedUserId]);
+  }, [topics, activities, cycleGoals, scorecard, videos, experiments, insights, aiPresets, aiUsage, user, authLoading, isStateLoaded, hydratedUserId]);
 
   // Update clock
   useEffect(() => {
@@ -1437,6 +1458,8 @@ export default function App() {
                 setCycleGoals={setCycleGoals}
                 aiPresets={aiPresets}
                 setAiPresets={setAiPresets}
+                aiUsage={aiUsage}
+                setAiUsage={setAiUsage}
               />
             )}
 

@@ -13,9 +13,12 @@ import {
   Save,
   X,
   ChevronDown,
-  Check
+  Check,
+  Gauge,
+  RotateCcw,
+  Pencil
 } from 'lucide-react';
-import { SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, AiRulePreset } from '../types';
+import { SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, AiRulePreset, AiUsageStats, AiUsageCall } from '../types';
 import { callOpenAI, getChannelSystemPrompt, findScriptSources } from '../services/openai';
 import { getTopicCurrentWorkflow, getTopicWorkflowState } from '../services/topicWorkflow';
 
@@ -52,6 +55,8 @@ interface SupabaseViewProps {
   setCycleGoals: React.Dispatch<React.SetStateAction<CycleGoal | null>>;
   aiPresets: AiRulePreset[];
   setAiPresets: React.Dispatch<React.SetStateAction<AiRulePreset[]>>;
+  aiUsage: AiUsageStats;
+  setAiUsage: React.Dispatch<React.SetStateAction<AiUsageStats>>;
 }
 
 const TOPIC_REVENUE_OPTIONS = [
@@ -78,7 +83,9 @@ export default function SupabaseView({
   cycleGoals,
   setCycleGoals,
   aiPresets,
-  setAiPresets
+  setAiPresets,
+  aiUsage,
+  setAiUsage
 }: SupabaseViewProps) {
   const [activeSubTab, setActiveSubTab] = useState<'tables' | 'script' | 'goals'>('tables');
 
@@ -126,6 +133,8 @@ export default function SupabaseView({
   const [isSavingPreset, setIsSavingPreset] = useState(false);
   const [presetNameDraft, setPresetNameDraft] = useState('');
   const [isPresetDropdownOpen, setIsPresetDropdownOpen] = useState(false);
+  const [budgetDraft, setBudgetDraft] = useState<string>(aiUsage.budgetUSD !== null ? String(aiUsage.budgetUSD) : '');
+  const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [isSourcesLoading, setIsSourcesLoading] = useState(false);
@@ -324,7 +333,7 @@ ${scriptText}
 Please rewrite/enhance this draft based on the system persona rules and the user instructions. Optimize the speech flow and pacing.`;
       }
 
-      const result = await callOpenAI(systemPrompt, userPrompt);
+      const result = await callOpenAI(systemPrompt, userPrompt, recordAiUsage);
       handleUpdateScript(result);
 
       onAddEvent({
@@ -387,6 +396,41 @@ Please rewrite/enhance this draft based on the system persona rules and the user
     setSelectedPresetId('');
   };
 
+  // Every real OpenAI response includes actual token counts; this rolls that
+  // real usage into a running total so spend tracking never depends on a
+  // simulated or estimated number.
+  const recordAiUsage = (call: AiUsageCall) => {
+    setAiUsage(prev => ({
+      ...prev,
+      totalPromptTokens: prev.totalPromptTokens + call.promptTokens,
+      totalCompletionTokens: prev.totalCompletionTokens + call.completionTokens,
+      totalTokens: prev.totalTokens + call.totalTokens,
+      totalCostUSD: prev.totalCostUSD + call.costUSD,
+      callCount: prev.callCount + 1,
+      lastCall: call
+    }));
+  };
+
+  const handleSaveBudget = () => {
+    const parsed = parseFloat(budgetDraft);
+    setAiUsage(prev => ({ ...prev, budgetUSD: Number.isFinite(parsed) && parsed > 0 ? parsed : null }));
+    setIsEditingBudget(false);
+  };
+
+  const handleResetUsageCycle = () => {
+    if (!window.confirm('Reset accumulated usage stats for a new budget cycle? This does not affect your OpenAI account, only this dashboard\'s tracking.')) return;
+    setAiUsage(prev => ({
+      budgetUSD: prev.budgetUSD,
+      totalPromptTokens: 0,
+      totalCompletionTokens: 0,
+      totalTokens: 0,
+      totalCostUSD: 0,
+      callCount: 0,
+      lastCall: null,
+      cycleStartedAt: new Date().toISOString()
+    }));
+  };
+
   // Finds real, verified sources for every claim in the current script draft.
   const handleFindSources = async () => {
     if (!scriptText.trim()) return;
@@ -404,7 +448,7 @@ Please rewrite/enhance this draft based on the system persona rules and the user
     });
 
     try {
-      const result = await findScriptSources(scriptText);
+      const result = await findScriptSources(scriptText, recordAiUsage);
       setSourcesResult(result);
 
       onAddEvent({
@@ -847,6 +891,101 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                   </motion.form>
                 )}
               </AnimatePresence>
+
+              {/* API Usage & Cost Tracker — every number here is derived from real token
+                  counts OpenAI returned with each response; there is no live "remaining
+                  quota" endpoint for a standard API key, so remaining is computed against
+                  the budget you set here, not fetched from OpenAI. */}
+              <div className="bg-neutral-900/40 border border-neutral-850 rounded-xl p-3.5 space-y-2.5 relative z-10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Gauge className="h-4 w-4 text-amber-400" />
+                    <span className="text-xs font-semibold text-neutral-200">API Usage &amp; Cost</span>
+                    <span className="text-[9px] text-neutral-600 font-mono">since {new Date(aiUsage.cycleStartedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleResetUsageCycle}
+                    title="Start a new budget cycle (clears tracked spend, keeps your budget)"
+                    className="px-2 py-1 bg-neutral-950 border border-neutral-800 hover:border-amber-800 text-neutral-500 hover:text-amber-400 rounded text-[9px] font-mono flex items-center gap-1 transition cursor-pointer"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    <span>Reset Cycle</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div className="border border-neutral-900 rounded-lg p-2.5 bg-neutral-950/60">
+                    <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-500">Spent</span>
+                    <div className="text-sm font-bold text-white font-mono mt-0.5">${aiUsage.totalCostUSD.toFixed(4)}</div>
+                  </div>
+
+                  <div className="border border-neutral-900 rounded-lg p-2.5 bg-neutral-950/60">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-500">Budget</span>
+                      {!isEditingBudget && (
+                        <button
+                          type="button"
+                          onClick={() => { setBudgetDraft(aiUsage.budgetUSD !== null ? String(aiUsage.budgetUSD) : ''); setIsEditingBudget(true); }}
+                          className="text-neutral-600 hover:text-blue-400 transition cursor-pointer"
+                          title="Set your own monthly budget"
+                        >
+                          <Pencil className="h-2.5 w-2.5" />
+                        </button>
+                      )}
+                    </div>
+                    {isEditingBudget ? (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          autoFocus
+                          value={budgetDraft}
+                          onChange={(e) => setBudgetDraft(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleSaveBudget(); if (e.key === 'Escape') setIsEditingBudget(false); }}
+                          placeholder="USD"
+                          className="w-14 bg-neutral-900 border border-neutral-800 rounded px-1 py-0.5 text-xs text-white font-mono outline-none"
+                        />
+                        <button type="button" onClick={handleSaveBudget} className="text-emerald-400 hover:text-emerald-300 transition cursor-pointer">
+                          <Check className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-sm font-bold text-white font-mono mt-0.5">
+                        {aiUsage.budgetUSD !== null ? `$${aiUsage.budgetUSD.toFixed(2)}` : '— Not set —'}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border border-neutral-900 rounded-lg p-2.5 bg-neutral-950/60">
+                    <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-500">Remaining</span>
+                    <div className={`text-sm font-bold font-mono mt-0.5 ${
+                      aiUsage.budgetUSD === null ? 'text-neutral-500' : (aiUsage.budgetUSD - aiUsage.totalCostUSD) < 0 ? 'text-rose-400' : 'text-emerald-400'
+                    }`}>
+                      {aiUsage.budgetUSD !== null ? `$${(aiUsage.budgetUSD - aiUsage.totalCostUSD).toFixed(4)}` : '— Set a budget —'}
+                    </div>
+                  </div>
+
+                  <div className="border border-neutral-900 rounded-lg p-2.5 bg-neutral-950/60">
+                    <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-500">Tokens Used</span>
+                    <div className="text-sm font-bold text-white font-mono mt-0.5">{aiUsage.totalTokens.toLocaleString()}</div>
+                  </div>
+                </div>
+
+                {aiUsage.lastCall ? (
+                  <div className="text-[10px] text-neutral-500 font-mono border-t border-neutral-900 pt-2">
+                    Last call ({new Date(aiUsage.lastCall.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}):{' '}
+                    <span className="text-neutral-300">{aiUsage.lastCall.model}</span>{' — '}
+                    {aiUsage.lastCall.promptTokens.toLocaleString()} in / {aiUsage.lastCall.completionTokens.toLocaleString()} out{' '}
+                    ({aiUsage.lastCall.totalTokens.toLocaleString()} tokens) · ${aiUsage.lastCall.costUSD.toFixed(5)} · {aiUsage.callCount} call{aiUsage.callCount === 1 ? '' : 's'} this cycle
+                  </div>
+                ) : (
+                  <div className="text-[10px] text-neutral-600 font-mono border-t border-neutral-900 pt-2 italic">
+                    No AI calls made yet this cycle — cost estimates use published per-token pricing since OpenAI doesn't return a dollar amount directly.
+                  </div>
+                )}
+              </div>
 
               {/* Secure AI Toolbar Controls */}
               <div className="bg-neutral-900/40 border border-neutral-850 rounded-xl p-3 flex flex-col gap-2.5 relative z-10">

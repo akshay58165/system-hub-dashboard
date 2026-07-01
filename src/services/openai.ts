@@ -1,9 +1,38 @@
-import { VideoRecord } from '../types';
+import { VideoRecord, AiUsageCall } from '../types';
 import { supabase } from './supabase';
+
+// Published per-1M-token USD rates for models this app calls. OpenAI's API
+// responses only ever return token counts, never a billed dollar amount, so
+// cost is always an estimate derived from real token counts against these
+// published rates — not a number OpenAI itself hands back.
+const MODEL_PRICING_USD_PER_1M: Record<string, { input: number; output: number }> = {
+  'gpt-4o-mini': { input: 0.15, output: 0.60 },
+  'gpt-4o': { input: 2.5, output: 10 },
+  'gpt-4.1': { input: 2, output: 8 },
+  'gpt-4.1-mini': { input: 0.4, output: 1.6 },
+  'gpt-4.1-nano': { input: 0.1, output: 0.4 },
+};
+const DEFAULT_PRICING = MODEL_PRICING_USD_PER_1M['gpt-4o-mini'];
+
+function buildUsageCall(model: string | null, usage: { promptTokens: number; completionTokens: number; totalTokens: number } | null): AiUsageCall | null {
+  if (!usage) return null;
+  const resolvedModel = model || 'gpt-4o-mini';
+  const pricing = MODEL_PRICING_USD_PER_1M[resolvedModel] || DEFAULT_PRICING;
+  const costUSD = (usage.promptTokens / 1_000_000) * pricing.input + (usage.completionTokens / 1_000_000) * pricing.output;
+  return {
+    model: resolvedModel,
+    promptTokens: usage.promptTokens,
+    completionTokens: usage.completionTokens,
+    totalTokens: usage.totalTokens,
+    costUSD,
+    timestamp: new Date().toISOString()
+  };
+}
 
 export async function callOpenAI(
   systemPrompt: string,
-  userPrompt: string
+  userPrompt: string,
+  onUsage?: (usage: AiUsageCall) => void
 ): Promise<string> {
   if (!supabase) {
     throw new Error('Supabase authentication is not configured.');
@@ -38,6 +67,9 @@ export async function callOpenAI(
     throw new Error("Received empty or invalid response from OpenAI.");
   }
 
+  const usageCall = buildUsageCall(data.model, data.usage);
+  if (usageCall && onUsage) onUsage(usageCall);
+
   return content;
 }
 
@@ -45,7 +77,7 @@ export async function callOpenAI(
 // OpenAI's web-search-grounded Responses API (server-side, via /api/sources)
 // rather than a plain chat completion, since a plain completion has no way
 // to verify a URL actually exists and would hallucinate links.
-export async function findScriptSources(script: string): Promise<string> {
+export async function findScriptSources(script: string, onUsage?: (usage: AiUsageCall) => void): Promise<string> {
   if (!supabase) {
     throw new Error('Supabase authentication is not configured.');
   }
@@ -75,6 +107,9 @@ export async function findScriptSources(script: string): Promise<string> {
   if (!content) {
     throw new Error("Received empty or invalid response while searching for sources.");
   }
+
+  const usageCall = buildUsageCall(data.model, data.usage);
+  if (usageCall && onUsage) onUsage(usageCall);
 
   return content;
 }

@@ -77,7 +77,15 @@ export default async function handler(request, response) {
       return sendJson(response, 502, { error: 'AI provider returned an empty response.' });
     }
 
-    return sendJson(response, 200, { content });
+    const usage = data.usage
+      ? {
+          promptTokens: data.usage.prompt_tokens ?? 0,
+          completionTokens: data.usage.completion_tokens ?? 0,
+          totalTokens: data.usage.total_tokens ?? 0,
+        }
+      : null;
+
+    return sendJson(response, 200, { content, usage, model: data.model || null });
   } catch (error) {
     console.error('Secure AI endpoint failed:', error instanceof Error ? error.message : error);
     return sendJson(response, 502, { error: 'AI service is temporarily unavailable.' });
