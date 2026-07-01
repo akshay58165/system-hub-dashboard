@@ -32,8 +32,9 @@ import {
 } from 'lucide-react';
 import { supabase } from './services/supabase';
 
-import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, VideoRecord, Experiment, CreatorInsight } from './types';
+import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, VideoRecord, Experiment, CreatorInsight, ScorecardState } from './types';
 import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, normalizeCommittedTombstones, prepareLocalTopicMutation, topicCollectionsEqual, visibleCreatorTopics } from './lib/topicSync';
+import { normalizeScorecard, rolloverScorecard } from './services/scorecardStorage';
 import { 
   initialGitHubRepos, 
   initialVercelProjects, 
@@ -86,36 +87,26 @@ export default function App() {
 
   const [cycleGoals, setCycleGoals] = useState<CycleGoal | null>(null);
 
-  const [scorecard, setScorecard] = useState<any>(() => {
-    const today = new Date();
-    const currentDateStr = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
-    return {
-      restfulness: null,
-      nutrition: null,
-      hydration: null,
-      physicalActivity: null,
-      endorphins: null,
-      schedule: null,
-      pleasantness: null,
-      socialization: null,
-      stomach: null,
-      technicalities: null,
-      relations: null,
-      stress: null,
-      history: [
-        {
-          id: 'init',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          parameter: 'System',
-          oldVal: 'None',
-          newVal: 'Initialized',
-          scoreEffect: 0,
-          description: 'Daily Readiness Scorecard initialized with baseline levels.'
-        }
-      ],
-      date: currentDateStr
+  const [scorecard, setScorecard] = useState<ScorecardState>(() => normalizeScorecard(null));
+
+  // Day-rollover safety net for a tab left open across midnight: a 60s poll
+  // plus an immediate check on tab focus/visibility regain. Rollover also
+  // runs on every remote scorecard payload (see setScorecard(normalizeScorecard(...))
+  // call sites below), so this mainly covers the "staring at an open tab
+  // through midnight" case that no remote sync would otherwise trigger.
+  useEffect(() => {
+    const checkRollover = () => setScorecard(prev => rolloverScorecard(prev));
+    const interval = setInterval(checkRollover, 60_000);
+    const onFocus = () => checkRollover();
+    const onVisibility = () => { if (document.visibilityState === 'visible') checkRollover(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
-  });
+  }, []);
   const [repos, setRepos] = useState<GitHubRepo[]>(initialGitHubRepos);
   const [vercelProjects, setVercelProjects] = useState<VercelProject[]>(initialVercelProjects);
   // Renamed from `supabase` — that name was shadowing the real Supabase client
@@ -263,7 +254,7 @@ export default function App() {
                 topics: [],
                 activities: [],
                 cycleGoals: null,
-                scorecard: {},
+                scorecard: normalizeScorecard(null),
                 videos: [],
                 experiments: [],
                 insights: []
@@ -454,7 +445,7 @@ export default function App() {
           }
           if (remoteState.activities) setActivities(remoteState.activities);
           if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
-          if (remoteState.scorecard) setScorecard(remoteState.scorecard);
+          if (remoteState.scorecard) setScorecard(normalizeScorecard(remoteState.scorecard));
           if (remoteState.videos) setVideos(remoteState.videos);
           if (remoteState.experiments) setExperiments(remoteState.experiments);
           if (remoteState.insights) setInsights(remoteState.insights);
@@ -538,7 +529,7 @@ export default function App() {
                 }
                 if (remoteState.activities) setActivities(remoteState.activities);
                 if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
-                if (remoteState.scorecard) setScorecard(remoteState.scorecard);
+                if (remoteState.scorecard) setScorecard(normalizeScorecard(remoteState.scorecard));
                 if (remoteState.videos) setVideos(remoteState.videos);
                 if (remoteState.experiments) setExperiments(remoteState.experiments);
                 if (remoteState.insights) setInsights(remoteState.insights);
@@ -773,7 +764,7 @@ export default function App() {
         });
         if (remoteState.activities) setActivities(remoteState.activities);
         if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
-        if (remoteState.scorecard) setScorecard(remoteState.scorecard);
+        if (remoteState.scorecard) setScorecard(normalizeScorecard(remoteState.scorecard));
         if (remoteState.videos) setVideos(remoteState.videos);
         if (remoteState.experiments) setExperiments(remoteState.experiments);
         if (remoteState.insights) setInsights(remoteState.insights);

@@ -12,7 +12,8 @@ import {
   ShieldAlert,
   Zap,
   WifiOff,
-  UserCheck
+  UserCheck,
+  Calendar
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -22,21 +23,21 @@ import {
   PolarRadiusAxis, 
   Radar
 } from 'recharts';
-import { GitHubRepo, VercelProject, SupabaseProject } from '../types';
+import { GitHubRepo, VercelProject, SupabaseProject, ScorecardState, ScorecardDayEntry } from '../types';
 import {
   generateWellbeingInsight,
   generateDailyStatus,
-  recordTodayInArchive,
   WellbeingParams,
   WellbeingInsight as WellbeingInsightResult
 } from '../services/wellbeingInsights';
+import { countFilled, getMissingParamLabels, toDailyHistoryEntry } from '../services/scorecardStorage';
 
 interface ScoreViewProps {
   repos: GitHubRepo[];
   vercelProjects: VercelProject[];
   supabase: SupabaseProject;
-  scorecard: any;
-  setScorecard: React.Dispatch<React.SetStateAction<any>>;
+  scorecard: ScorecardState;
+  setScorecard: React.Dispatch<React.SetStateAction<ScorecardState>>;
 }
 
 interface HistoryEntry {
@@ -76,130 +77,59 @@ function cacheWellbeingInsight(insight: WellbeingInsightResult, timestamp: strin
 }
 
 export default function ScoreView({ repos, vercelProjects, supabase, scorecard, setScorecard }: ScoreViewProps) {
+  // Day-rollover (today -> archive) is owned centrally by App.tsx before
+  // `scorecard` ever reaches this component. Everything here reads/writes
+  // through `scorecard.today` — the current calendar day's working entry.
+  const today = scorecard.today;
+
+  const setTodayField = <K extends keyof ScorecardDayEntry>(key: K, val: ScorecardDayEntry[K]) =>
+    setScorecard(prev => ({ ...prev, today: { ...prev.today, [key]: val } }));
+
   // 12 Daily parameters mapped to props
-  const restfulness = scorecard.restfulness;
-  const setRestfulness = (val: number | null) => setScorecard(prev => ({ ...prev, restfulness: val }));
+  const restfulness = today.restfulness;
+  const setRestfulness = (val: number | null) => setTodayField('restfulness', val);
 
-  const nutrition = scorecard.nutrition;
-  const setNutrition = (val: number | null) => setScorecard(prev => ({ ...prev, nutrition: val }));
+  const nutrition = today.nutrition;
+  const setNutrition = (val: number | null) => setTodayField('nutrition', val);
 
-  const hydration = scorecard.hydration;
-  const setHydration = (val: number | null) => setScorecard(prev => ({ ...prev, hydration: val }));
+  const hydration = today.hydration;
+  const setHydration = (val: number | null) => setTodayField('hydration', val);
 
-  const physicalActivity = scorecard.physicalActivity;
-  const setPhysicalActivity = (val: number | null) => setScorecard(prev => ({ ...prev, physicalActivity: val }));
+  const physicalActivity = today.physicalActivity;
+  const setPhysicalActivity = (val: number | null) => setTodayField('physicalActivity', val);
 
-  const endorphins = scorecard.endorphins;
-  const setEndorphins = (val: number | null) => setScorecard(prev => ({ ...prev, endorphins: val }));
+  const endorphins = today.endorphins;
+  const setEndorphins = (val: number | null) => setTodayField('endorphins', val);
 
-  const schedule = scorecard.schedule;
-  const setSchedule = (val: number | null) => setScorecard(prev => ({ ...prev, schedule: val }));
+  const schedule = today.schedule;
+  const setSchedule = (val: number | null) => setTodayField('schedule', val);
 
-  const pleasantness = scorecard.pleasantness;
-  const setPleasantness = (val: number | null) => setScorecard(prev => ({ ...prev, pleasantness: val }));
+  const pleasantness = today.pleasantness;
+  const setPleasantness = (val: number | null) => setTodayField('pleasantness', val);
 
-  const socialization = scorecard.socialization;
-  const setSocialization = (val: number | null) => setScorecard(prev => ({ ...prev, socialization: val }));
+  const socialization = today.socialization;
+  const setSocialization = (val: number | null) => setTodayField('socialization', val);
 
-  const stomach = scorecard.stomach;
-  const setStomach = (val: number | null) => setScorecard(prev => ({ ...prev, stomach: val }));
+  const stomach = today.stomach;
+  const setStomach = (val: number | null) => setTodayField('stomach', val);
 
-  const technicalities = scorecard.technicalities;
-  const setTechnicalities = (val: number | null) => setScorecard(prev => ({ ...prev, technicalities: val }));
+  const technicalities = today.technicalities;
+  const setTechnicalities = (val: number | null) => setTodayField('technicalities', val);
 
-  const relations = scorecard.relations;
-  const setRelations = (val: number | null) => setScorecard(prev => ({ ...prev, relations: val }));
+  const relations = today.relations;
+  const setRelations = (val: number | null) => setTodayField('relations', val);
 
-  const stress = scorecard.stress;
-  const setStress = (val: number | null) => setScorecard(prev => ({ ...prev, stress: val }));
+  const stress = today.stress;
+  const setStress = (val: number | null) => setTodayField('stress', val);
 
-  const history = scorecard.history || [];
-  const setHistory = (val: any) => setScorecard((prev: any) => ({
+  const history = today.history || [];
+  const setHistory = (val: any) => setScorecard(prev => ({
     ...prev,
-    history: typeof val === 'function' ? val(prev.history || []) : val
-  }));
-
-  // Load data from LocalStorage on mount
-  useEffect(() => {
-    const today = new Date();
-    const currentDateStr = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
-    const storedDate = localStorage.getItem('unicorn_scorecard_date');
-
-    if (storedDate === currentDateStr) {
-      const loadParam = (key: string) => {
-        const val = localStorage.getItem(`unicorn_scorecard_${key}`);
-        return val ? parseInt(val, 10) : null;
-      };
-      
-      let storedHistory = [];
-      try {
-        const hist = localStorage.getItem('unicorn_scorecard_history');
-        if (hist) storedHistory = JSON.parse(hist);
-      } catch (e) {
-        // ignore
-      }
-
-      setScorecard({
-        restfulness: loadParam('restfulness'),
-        nutrition: loadParam('nutrition'),
-        hydration: loadParam('hydration'),
-        physicalActivity: loadParam('physicalActivity'),
-        endorphins: loadParam('endorphins'),
-        schedule: loadParam('schedule'),
-        pleasantness: loadParam('pleasantness'),
-        socialization: loadParam('socialization'),
-        stomach: loadParam('stomach'),
-        technicalities: loadParam('technicalities'),
-        relations: loadParam('relations'),
-        stress: loadParam('stress'),
-        history: storedHistory.length > 0 ? storedHistory : [
-          {
-            id: 'init',
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-            parameter: 'System',
-            oldVal: 'None',
-            newVal: 'Initialized',
-            scoreEffect: 0,
-            description: 'Daily Readiness Scorecard initialized with baseline levels.'
-          }
-        ],
-        date: currentDateStr
-      });
-    } else {
-      localStorage.setItem('unicorn_scorecard_date', currentDateStr);
-      const initialHistory = [
-        {
-          id: 'init',
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          parameter: 'System',
-          oldVal: 'None',
-          newVal: 'Initialized',
-          scoreEffect: 0,
-          description: 'Daily Readiness Scorecard initialized with baseline levels.'
-        }
-      ];
-      setScorecard({
-        restfulness: null,
-        nutrition: null,
-        hydration: null,
-        physicalActivity: null,
-        endorphins: null,
-        schedule: null,
-        pleasantness: null,
-        socialization: null,
-        stomach: null,
-        technicalities: null,
-        relations: null,
-        stress: null,
-        history: initialHistory,
-        date: currentDateStr
-      });
-      
-      const keys = ['restfulness', 'nutrition', 'hydration', 'physicalActivity', 'endorphins', 'schedule', 'pleasantness', 'socialization', 'stomach', 'technicalities', 'relations', 'stress'];
-      keys.forEach(k => localStorage.removeItem(`unicorn_scorecard_${k}`));
-      localStorage.setItem('unicorn_scorecard_history', JSON.stringify(initialHistory));
+    today: {
+      ...prev.today,
+      history: typeof val === 'function' ? val(prev.today.history || []) : val
     }
-  }, []);
+  }));
 
   // Debouncing refs to prevent micro-increment logging spam
   const logTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({});
@@ -244,6 +174,10 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
     };
   }, [wellbeingParams]);
 
+  const filledCount = countFilled(today);
+  const missingParamLabels = useMemo(() => getMissingParamLabels(today), [today]);
+  const [selectedArchiveDate, setSelectedArchiveDate] = useState<string | null>(null);
+
   // ---- Live Insight Engine (rule-based, no AI) ----
   // Watches every Daily Parameter. The instant ANY value changes, the old
   // insight is cleared and an "analyzing" state shows. A single global timer
@@ -266,12 +200,14 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
   useEffect(() => {
     const currentSnapshot = [restfulness, nutrition, hydration, stomach, physicalActivity, stress, endorphins, pleasantness, schedule, socialization, relations, technicalities];
 
+    const priorDays = scorecard.archive.map(toDailyHistoryEntry);
+
     if (prevSnapshotRef.current === null) {
       // Restore the last completed result immediately. If there is no cached
       // result but hydrated values already exist, derive the first result now.
       prevSnapshotRef.current = currentSnapshot;
-      if (!initialCachedInsightRef.current && currentSnapshot.filter(value => value !== null).length >= 6) {
-        const result = generateWellbeingInsight(wellbeingParams, []);
+      if (!initialCachedInsightRef.current && currentSnapshot.filter(value => value !== null).length === 12) {
+        const result = generateWellbeingInsight(wellbeingParams, priorDays);
         const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         setWellbeingInsight(result);
         setInsightTimestamp(timestamp);
@@ -289,12 +225,14 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
       // hydration, not a user edit. Recompute immediately without waiting.
       if (insightTimerRef.current) clearTimeout(insightTimerRef.current);
       setIsAnalyzing(false);
-      if (currentSnapshot.filter(value => value !== null).length >= 6) {
-        const result = generateWellbeingInsight(wellbeingParams, []);
+      if (currentSnapshot.filter(value => value !== null).length === 12) {
+        const result = generateWellbeingInsight(wellbeingParams, priorDays);
         const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         setWellbeingInsight(result);
         setInsightTimestamp(timestamp);
         cacheWellbeingInsight(result, timestamp);
+      } else {
+        setWellbeingInsight(null);
       }
       return;
     }
@@ -306,17 +244,13 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
     if (insightTimerRef.current) clearTimeout(insightTimerRef.current);
 
     insightTimerRef.current = setTimeout(() => {
-      const today = new Date();
-      const todayDateStr = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
-      const archive = recordTodayInArchive(todayDateStr, wellbeingParams);
-      // Exclude today's just-written entry from the trend comparison itself.
-      const priorDays = archive.filter(e => e.date !== todayDateStr);
-
-      const result = generateWellbeingInsight(wellbeingParams, priorDays);
-      const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      setWellbeingInsight(result);
-      setInsightTimestamp(timestamp);
-      cacheWellbeingInsight(result, timestamp);
+      if (currentSnapshot.filter(value => value !== null).length === 12) {
+        const result = generateWellbeingInsight(wellbeingParams, priorDays);
+        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setWellbeingInsight(result);
+        setInsightTimestamp(timestamp);
+        cacheWellbeingInsight(result, timestamp);
+      }
       setIsAnalyzing(false);
     }, 10000);
 
@@ -430,32 +364,13 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
       description: explanation
     };
 
-    setHistory(prev => {
-      const updated = [newLogEntry, ...prev.slice(0, 14)];
-      localStorage.setItem('unicorn_scorecard_history', JSON.stringify(updated));
-      return updated;
-    });
-
-    // Save to persistent all-time database logs
-    const dbLogsStr = localStorage.getItem('unicorn_scorecard_db_logs');
-    let dbLogs = [];
-    if (dbLogsStr) {
-      try {
-        dbLogs = JSON.parse(dbLogsStr);
-      } catch (e) {}
-    }
-    dbLogs.push({
-      ...newLogEntry,
-      date: new Date().toISOString().split('T')[0]
-    });
-    localStorage.setItem('unicorn_scorecard_db_logs', JSON.stringify(dbLogs));
+    setHistory((prev: HistoryEntry[]) => [newLogEntry, ...prev.slice(0, 14)]);
   };
 
   // Central trigger to update parameters, debouncing log outcomes
   const handleParamChange = (paramName: string, newVal: number, setter: (val: number | null) => void, oldVal: number | null) => {
     setter(newVal);
     latestParamsRef.current[paramName] = newVal;
-    localStorage.setItem(`unicorn_scorecard_${paramName}`, String(newVal));
 
     if (originalValuesRef.current[paramName] === undefined) {
       originalValuesRef.current[paramName] = oldVal;
@@ -560,8 +475,9 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
           : status === 'Insufficient Data'
             ? 'text-neutral-400'
             : 'text-blue-400';
-    return { label: status, color };
-  }, [computedMetrics.readiness.status]);
+    const label = status === 'Insufficient Data' ? `Incomplete — ${filledCount}/12 set` : status;
+    return { label, color };
+  }, [computedMetrics.readiness.status, filledCount]);
 
   const statusInfoColor = statusInfo.color;
 
@@ -873,7 +789,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                 exit={{ opacity: 0 }}
                 className="text-xs text-neutral-500 font-mono p-3"
               >
-                No completed result is saved yet. Set at least six parameters; after the first result, it will be restored here on every visit.
+                {filledCount}/12 parameters set. Fill in {missingParamLabels.join(', ')} to unlock today's Bio-Focus Score and insights.
               </motion.p>
             )}
           </AnimatePresence>
@@ -1125,6 +1041,78 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
               </div>
             </div>
 
+          </div>
+
+          {/* Daily History — browse previously archived days ("what was 10 days back") */}
+          <div className="bg-neutral-900 border border-neutral-850 rounded-xl p-5 space-y-4 shadow-sm">
+            <div className="flex items-center gap-2 border-b border-neutral-850 pb-3">
+              <Calendar className="h-4 w-4 text-rose-400" />
+              <h3 className="text-sm font-semibold text-neutral-200">Daily History</h3>
+            </div>
+
+            {scorecard.archive.length === 0 ? (
+              <p className="text-xs text-neutral-500 font-mono">No completed days yet. Once today ends, it will be archived here.</p>
+            ) : (
+              <>
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                  {[...scorecard.archive].reverse().map(day => {
+                    const dayParams: WellbeingParams = {
+                      R: day.restfulness, N: day.nutrition, H: day.hydration, SS: day.stomach, PA: day.physicalActivity,
+                      STR: day.stress, D: day.endorphins, P: day.pleasantness, SA: day.schedule, SO: day.socialization,
+                      REL: day.relations, TB: day.technicalities
+                    };
+                    const dayStatus = generateDailyStatus(dayParams);
+                    const active = selectedArchiveDate === day.date;
+                    return (
+                      <button
+                        key={day.date}
+                        type="button"
+                        onClick={() => setSelectedArchiveDate(active ? null : day.date)}
+                        className={`shrink-0 px-3 py-2 rounded-lg border text-left font-mono transition ${active ? 'border-rose-500 bg-rose-950/20' : 'border-neutral-850 bg-neutral-950 hover:bg-neutral-800'}`}
+                      >
+                        <div className="text-[10px] text-neutral-400">{day.date}</div>
+                        <div className={`text-xs font-bold ${dayStatus.score === null ? 'text-neutral-500' : 'text-neutral-200'}`}>
+                          {dayStatus.score === null ? `${countFilled(day)}/12` : `${dayStatus.score}/100`}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {selectedArchiveDate && (() => {
+                  const day = scorecard.archive.find(d => d.date === selectedArchiveDate);
+                  if (!day) return null;
+                  const dayParams: WellbeingParams = {
+                    R: day.restfulness, N: day.nutrition, H: day.hydration, SS: day.stomach, PA: day.physicalActivity,
+                    STR: day.stress, D: day.endorphins, P: day.pleasantness, SA: day.schedule, SO: day.socialization,
+                    REL: day.relations, TB: day.technicalities
+                  };
+                  const insight = generateWellbeingInsight(dayParams, []);
+                  return (
+                    <div className="p-3 rounded-lg bg-neutral-950 border border-neutral-850 space-y-2 text-xs font-mono">
+                      <div className="flex items-center justify-between">
+                        <span className="text-neutral-300 font-bold">{day.date}</span>
+                        <span className="text-neutral-400">
+                          {insight.readiness.score === null
+                            ? `${countFilled(day)}/12 set`
+                            : `${insight.readiness.score}/100 · ${insight.readiness.status}`}
+                        </span>
+                      </div>
+                      {insight.readiness.score !== null ? (
+                        <>
+                          <p className="text-neutral-400 font-sans leading-relaxed">{insight.dayType}</p>
+                          <p className="text-neutral-400 font-sans leading-relaxed">{insight.bottleneck}</p>
+                        </>
+                      ) : (
+                        <p className="text-neutral-500 font-sans leading-relaxed">
+                          This day was incomplete — {getMissingParamLabels(day).join(', ')} were never set.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+              </>
+            )}
           </div>
 
           {/* Bottom Row: Dynamic Live recommendations & blinking alarms */}

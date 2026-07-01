@@ -72,6 +72,27 @@ export interface DailyStatusResult {
   environmentScore: number;
 }
 
+// Human-readable labels for the short codes, in the same order as the
+// `allRaw` array below — used to build "fill in X, Y, Z" messaging.
+const PARAM_LABELS_ORDER: { key: keyof WellbeingParams; label: string }[] = [
+  { key: 'R', label: 'Restfulness' },
+  { key: 'N', label: 'Nutrition' },
+  { key: 'H', label: 'Hydration' },
+  { key: 'SS', label: 'Stomach Status' },
+  { key: 'PA', label: 'Physical Activity' },
+  { key: 'STR', label: 'Stress Level' },
+  { key: 'D', label: 'Endorphins' },
+  { key: 'P', label: 'Pleasantness' },
+  { key: 'SA', label: 'Schedule Adherence' },
+  { key: 'SO', label: 'Socialization' },
+  { key: 'REL', label: 'Relationship Dynamic' },
+  { key: 'TB', label: 'Technical Blockers' }
+];
+const PARAM_INDEX: Record<keyof WellbeingParams, number> = PARAM_LABELS_ORDER.reduce((acc, { key }, i) => {
+  acc[key] = i;
+  return acc;
+}, {} as Record<keyof WellbeingParams, number>);
+
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
 function average(...vals: number[]): number {
@@ -209,7 +230,7 @@ export function generateDailyStatus(raw: WellbeingParams): DailyStatusResult {
   score = Math.round(clamp(score - penalty, 0, 100));
 
   let status: string;
-  if (missingCount >= 6) status = 'Insufficient Data';
+  if (missingCount > 0) status = 'Insufficient Data';
   else if (score < 15) status = 'Collapsed';
   else if (R <= 3 && STR >= 7) status = 'Recovery Required';
   else if (STR >= 9 && P <= 3) status = 'Overloaded';
@@ -230,7 +251,7 @@ export function generateDailyStatus(raw: WellbeingParams): DailyStatusResult {
   else status = 'Critical';
 
   let dayType: string;
-  if (missingCount >= 6) dayType = 'Unknown';
+  if (missingCount > 0) dayType = 'Unknown';
   else if (R >= 8 && STR <= 3 && TB <= 3 && SA >= 8 && D >= 4 && D <= 6) dayType = 'Deep Work Day';
   else if (P >= 7 && STR <= 5 && R >= 6 && TB <= 4 && D >= 4 && D <= 7) dayType = 'Creative Day';
   else if (SA >= 7 && TB <= 4 && R >= 6) dayType = 'Execution Day';
@@ -243,9 +264,9 @@ export function generateDailyStatus(raw: WellbeingParams): DailyStatusResult {
 
   return {
     status,
-    score: missingCount >= 6 ? null : score,
+    score: missingCount > 0 ? null : score,
     dayType,
-    confidence: missingCount >= 6 ? 'Low' : missingCount >= 3 ? 'Medium' : 'High',
+    confidence: missingCount > 0 ? 'Low' : 'High',
     missingCount,
     penalty,
     physicalScore: Math.round(physicalScore),
@@ -284,12 +305,12 @@ export function generateWellbeingInsight(raw: WellbeingParams, dailyHistory: Dai
 
   let dataConfidence: WellbeingInsight['dataConfidence'];
   let dataNote: string;
-  if (missingCount >= 6) {
+  if (missingCount > 0) {
     dataConfidence = 'insufficient';
-    dataNote = 'Not enough data to generate a reliable daily read.';
-  } else if (missingCount >= 3) {
-    dataConfidence = 'partial';
-    dataNote = 'Daily read is partial. Insight confidence is medium because several inputs are missing.';
+    const missingLabels = PARAM_LABELS_ORDER
+      .filter(({ key }) => allRaw[PARAM_INDEX[key]] === null)
+      .map(({ label }) => label);
+    dataNote = `${12 - missingCount} of 12 parameters set. Fill in ${missingLabels.join(', ')} to see today's score.`;
   } else {
     dataConfidence = 'reliable';
     dataNote = 'Daily read is reliable.';
@@ -515,37 +536,4 @@ export function generateWellbeingInsight(raw: WellbeingParams, dailyHistory: Dai
     dayTypeTag,
     scores: { physicalScore, mentalScore, executionScore, socialScore, frictionScore, recoveryNeedScore, distractionRiskScore, flatnessRiskScore }
   };
-}
-
-// ---- Daily archive for trend detection ----
-// Stores one snapshot per calendar day in localStorage (capped) so the trend
-// rules above have something to compare against once enough days exist.
-const ARCHIVE_KEY = 'unicorn_wellbeing_daily_archive';
-const ARCHIVE_MAX_DAYS = 30;
-
-export function loadDailyArchive(): DailyHistoryEntry[] {
-  try {
-    const raw = localStorage.getItem(ARCHIVE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function recordTodayInArchive(todayDateStr: string, params: WellbeingParams): DailyHistoryEntry[] {
-  const archive = loadDailyArchive();
-  const entry: DailyHistoryEntry = { date: todayDateStr, ...params };
-  const existingIdx = archive.findIndex(e => e.date === todayDateStr);
-  if (existingIdx >= 0) {
-    archive[existingIdx] = entry;
-  } else {
-    archive.push(entry);
-  }
-  const trimmed = archive.slice(-ARCHIVE_MAX_DAYS);
-  try {
-    localStorage.setItem(ARCHIVE_KEY, JSON.stringify(trimmed));
-  } catch {
-    /* ignore quota errors */
-  }
-  return trimmed;
 }

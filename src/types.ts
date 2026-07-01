@@ -298,6 +298,41 @@ export interface CreatorInsight {
   actionLabel?: string;
 }
 
+export interface ScorecardParams {
+  restfulness: number | null;
+  nutrition: number | null;
+  hydration: number | null;
+  physicalActivity: number | null;
+  endorphins: number | null;
+  schedule: number | null;
+  pleasantness: number | null;
+  socialization: number | null;
+  stomach: number | null;
+  technicalities: number | null;
+  relations: number | null;
+  stress: number | null;
+}
+
+export interface ScorecardHistoryEntry {
+  id: string;
+  timestamp: string;
+  parameter: string;
+  oldVal: string;
+  newVal: string;
+  scoreEffect: number;
+  description: string;
+}
+
+export interface ScorecardDayEntry extends ScorecardParams {
+  date: string; // YYYY-MM-DD, local calendar day, zero-padded
+  history: ScorecardHistoryEntry[];
+}
+
+export interface ScorecardState {
+  today: ScorecardDayEntry;
+  archive: ScorecardDayEntry[]; // past days only, ascending by date, capped at 90
+}
+
 export interface MonthForecast {
   expectedViews: number;
   expectedSubscribers: number;
