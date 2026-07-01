@@ -37,6 +37,7 @@ import { loginWithYouTube, logoutYouTube, handleOAuthCallback, getYouTubeCredent
 import { generateAIActionPlan } from './services/openai';
 
 import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, VideoRecord, Experiment, CreatorInsight } from './types';
+import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, visibleCreatorTopics } from './lib/topicSync';
 import { 
   initialGitHubRepos, 
   initialVercelProjects, 
@@ -125,16 +126,34 @@ export default function App() {
   // imported above, silently breaking every auth/db/realtime call in this file.
   const [supabaseProject, setSupabaseProject] = useState<SupabaseProject>(initialSupabaseProject);
   const [events, setEvents] = useState<SystemEvent[]>([]);
+  const isRemoteSyncRef = useRef(false);
   const [topics, setTopicsState] = useState<Topic[]>(initialTopics);
   const topicTombstonesRef = useRef<Record<string, string>>({});
+  const dirtyTopicIdsRef = useRef<Set<string>>(new Set());
+  const topicMutationEpochRef = useRef(0);
   const setTopics: React.Dispatch<React.SetStateAction<Topic[]>> = (update) => {
     setTopicsState(previous => {
       const next = typeof update === 'function' ? update(previous) : update;
+      const previousById = new Map(previous.map(topic => [topic.id, topic]));
       const nextIds = new Set(next.map(topic => topic.id));
       const deletedAt = new Date().toISOString();
       previous.forEach(topic => {
-        if (!nextIds.has(topic.id)) topicTombstonesRef.current[topic.id] = deletedAt;
+        if (!nextIds.has(topic.id)) {
+          topicTombstonesRef.current[topic.id] = deletedAt;
+          dirtyTopicIdsRef.current.add(topic.id);
+        }
       });
+      next.forEach(topic => {
+        const oldTopic = previousById.get(topic.id);
+        if (!oldTopic || oldTopic !== topic) {
+          dirtyTopicIdsRef.current.add(topic.id);
+          delete topicTombstonesRef.current[topic.id];
+        }
+      });
+      // A user mutation must always cancel a leftover remote-snapshot skip.
+      // Otherwise the next real edit can be mistaken for an echo and never saved.
+      isRemoteSyncRef.current = false;
+      topicMutationEpochRef.current += 1;
       return next;
     });
   };
@@ -292,8 +311,8 @@ export default function App() {
   const [user, setUser] = useState<any>(null);
   const channelRef = useRef<any>(null);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
-  const isRemoteSyncRef = useRef(false);
   const lastRemoteUpdatedAtRef = useRef(0);
+  const lastRemoteVersionRef = useRef(0);
   const reconciliationInFlightRef = useRef(false);
   const [hydratedUserId, setHydratedUserId] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -516,7 +535,7 @@ export default function App() {
         setSyncError(null);
         const { data, error } = await supabase
           .from('dashboard_state')
-          .select('state, updated_at')
+          .select('state, version, updated_at')
           .eq('user_id', user.id)
           .maybeSingle();
 
@@ -544,6 +563,7 @@ export default function App() {
           
           const remoteUpdatedAt = data.updated_at ? new Date(data.updated_at).getTime() : 0;
           lastRemoteUpdatedAtRef.current = remoteUpdatedAt;
+          lastRemoteVersionRef.current = data.version || 0;
           const backupUpdatedAt = recoveryBackup?.updatedAt ? new Date(recoveryBackup.updatedAt).getTime() : 0;
           
           // Only restore local backup if it belongs to the CURRENT active tab session AND is newer than the database
@@ -554,11 +574,8 @@ export default function App() {
           topicTombstonesRef.current = remoteState.deletedTopicIds || {};
 
           if (remoteState.topics) {
-            const remoteTopics = remoteState.topics as Topic[];
-            const creatorTopics = remoteTopics.filter(topic =>
-              !topic.isDemo && !topic.id.startsWith('t-manual-demo-infotainment-')
-            );
-            setTopicsState(creatorTopics);
+            setTopicsState(visibleCreatorTopics(remoteState.topics as Topic[]));
+            dirtyTopicIdsRef.current.clear();
             localStorage.removeItem(`unicorn_infotainment_demo_seed_v1_${userId}`);
           }
           if (remoteState.activities) setActivities(remoteState.activities);
@@ -623,15 +640,16 @@ export default function App() {
               const newState = payload.new as any;
               if (newState && newState.state) {
                 const remoteState = newState.state as any;
+                const remoteVersion = newState.version || 0;
+                if (remoteVersion && remoteVersion <= lastRemoteVersionRef.current) return;
+                lastRemoteVersionRef.current = Math.max(lastRemoteVersionRef.current, remoteVersion);
                 lastRemoteUpdatedAtRef.current = newState.updated_at ? new Date(newState.updated_at).getTime() : Date.now();
-                topicTombstonesRef.current = remoteState.deletedTopicIds || {};
-                
-                // Mark this update as a remote sync, so we don't save it back to Supabase
-                isRemoteSyncRef.current = true;
+                topicTombstonesRef.current = { ...topicTombstonesRef.current, ...(remoteState.deletedTopicIds || {}) };
+                isRemoteSyncRef.current = dirtyTopicIdsRef.current.size === 0;
                 
                 if (remoteState.topics) {
-                  setTopicsState((remoteState.topics as Topic[]).filter(topic =>
-                    !topic.isDemo && !topic.id.startsWith('t-manual-demo-infotainment-')
+                  setTopicsState(localTopics => mergeRemoteWithPendingTopics(
+                    remoteState.topics as Topic[], localTopics, dirtyTopicIdsRef.current, topicTombstonesRef.current
                   ));
                 }
                 if (remoteState.activities) setActivities(remoteState.activities);
@@ -681,6 +699,7 @@ export default function App() {
     newTopics: Topic[], newActs: TopicActivity[], newGoals: CycleGoal | null,
     newScorecard: any, newVideos: VideoRecord[], newExperiments: Experiment[], newInsights: CreatorInsight[]
   ) => {
+    const savingTopicEpoch = topicMutationEpochRef.current;
     for (let attempt = 0; attempt < 4; attempt++) {
       const { data: current, error: readError } = await supabase.from('dashboard_state')
         .select('state, version, updated_at').eq('user_id', user.id).maybeSingle();
@@ -689,21 +708,14 @@ export default function App() {
       const deletedTopicIds: Record<string, string> = { ...(remoteState.deletedTopicIds || {}), ...topicTombstonesRef.current };
       topicTombstonesRef.current = deletedTopicIds;
 
-      const mergedTopics = new Map<string, Topic>();
-      [...((remoteState.topics || []) as Topic[]), ...newTopics].forEach(topic => {
-        if (deletedTopicIds[topic.id]) return;
-        const existing = mergedTopics.get(topic.id);
-        const topicTime = new Date(topic.lastUpdated || topic.createdDate).getTime();
-        const existingTime = existing ? new Date(existing.lastUpdated || existing.createdDate).getTime() : -1;
-        if (!existing || topicTime >= existingTime) mergedTopics.set(topic.id, topic);
-      });
+      const mergedTopics = mergeTopicsByNewest((remoteState.topics || []) as Topic[], newTopics, deletedTopicIds);
       const mergedActivities = new Map<string, TopicActivity>();
       [...((remoteState.activities || []) as TopicActivity[]), ...newActs].forEach(activity => {
         const existing = mergedActivities.get(activity.id);
         if (!existing || new Date(activity.timestamp).getTime() >= new Date(existing.timestamp).getTime()) mergedActivities.set(activity.id, activity);
       });
       const nextState = {
-        ...remoteState, topics: Array.from(mergedTopics.values()), deletedTopicIds,
+        ...remoteState, topics: mergedTopics, deletedTopicIds,
         activities: Array.from(mergedActivities.values()).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
         cycleGoals: newGoals, scorecard: newScorecard, videos: newVideos,
         experiments: newExperiments, insights: newInsights
@@ -715,6 +727,12 @@ export default function App() {
         if (error?.code === '23505') continue;
         if (error) throw error;
         lastRemoteUpdatedAtRef.current = new Date(updatedAt).getTime();
+        lastRemoteVersionRef.current = nextVersion;
+        if (topicMutationEpochRef.current === savingTopicEpoch) {
+          dirtyTopicIdsRef.current.clear();
+          isRemoteSyncRef.current = true;
+          setTopicsState(mergedTopics);
+        }
         return;
       }
       const { data: saved, error } = await supabase.from('dashboard_state')
@@ -723,6 +741,12 @@ export default function App() {
       if (error) throw error;
       if (!saved) continue;
       lastRemoteUpdatedAtRef.current = new Date(saved.updated_at || updatedAt).getTime();
+      lastRemoteVersionRef.current = nextVersion;
+      if (topicMutationEpochRef.current === savingTopicEpoch) {
+        dirtyTopicIdsRef.current.clear();
+        isRemoteSyncRef.current = true;
+        setTopicsState(mergedTopics);
+      }
       return;
     }
     throw new Error('Concurrent sync conflict could not be resolved after four attempts.');
@@ -823,20 +847,23 @@ export default function App() {
       try {
         const { data, error } = await supabase
           .from('dashboard_state')
-          .select('state, updated_at')
+          .select('state, version, updated_at')
           .eq('user_id', user.id)
           .maybeSingle();
         if (error || !data?.state) return;
 
         const remoteUpdatedAt = data.updated_at ? new Date(data.updated_at).getTime() : 0;
-        if (remoteUpdatedAt <= lastRemoteUpdatedAtRef.current) return;
+        const remoteVersion = data.version || 0;
+        if (remoteVersion && remoteVersion <= lastRemoteVersionRef.current) return;
+        if (!remoteVersion && remoteUpdatedAt <= lastRemoteUpdatedAtRef.current) return;
+        lastRemoteVersionRef.current = Math.max(lastRemoteVersionRef.current, remoteVersion);
         lastRemoteUpdatedAtRef.current = remoteUpdatedAt;
         const remoteState = data.state as any;
-        isRemoteSyncRef.current = true;
-        topicTombstonesRef.current = remoteState.deletedTopicIds || {};
+        topicTombstonesRef.current = { ...topicTombstonesRef.current, ...(remoteState.deletedTopicIds || {}) };
+        isRemoteSyncRef.current = dirtyTopicIdsRef.current.size === 0;
 
-        if (remoteState.topics) setTopicsState((remoteState.topics as Topic[]).filter(topic =>
-          !topic.isDemo && !topic.id.startsWith('t-manual-demo-infotainment-')
+        if (remoteState.topics) setTopicsState(localTopics => mergeRemoteWithPendingTopics(
+          remoteState.topics as Topic[], localTopics, dirtyTopicIdsRef.current, topicTombstonesRef.current
         ));
         if (remoteState.activities) setActivities(remoteState.activities);
         if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
