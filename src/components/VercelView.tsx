@@ -696,7 +696,14 @@ export default function VercelView({
                           </span>
                           <button
                             type="button"
-                            onClick={() => setEditingTopic({ ...topic })}
+                            onClick={() => {
+                              const defaultTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
+                              const initialTopic = { ...topic };
+                              if (!initialTopic.scheduledTime) {
+                                initialTopic.scheduledTime = defaultTime;
+                              }
+                              setEditingTopic(initialTopic);
+                            }}
                             className="p-1 rounded border border-neutral-800 text-neutral-400 hover:text-blue-300 hover:border-blue-800 transition"
                             title="Edit topic"
                           >
@@ -1217,7 +1224,23 @@ export default function VercelView({
                   Channel
                   <select
                     value={editingTopic.channel}
-                    onChange={event => setEditingTopic({ ...editingTopic, channel: event.target.value as Topic['channel'] })}
+                    onChange={event => {
+                      const newChannel = event.target.value as Topic['channel'];
+                      const oldDefault = editingTopic.channel === 'LearnDriven' ? '21:09' : '19:07';
+                      const newDefault = newChannel === 'LearnDriven' ? '21:09' : '19:07';
+                      
+                      let finalTime = editingTopic.scheduledTime;
+                      if (!finalTime || finalTime === oldDefault) {
+                        finalTime = newDefault;
+                      }
+
+                      setEditingTopic({ 
+                        ...editingTopic, 
+                        channel: newChannel,
+                        scheduledTime: finalTime,
+                        dueDate: editingTopic.dueDate ? new Date(`${editingTopic.dueDate.split('T')[0]}T${finalTime}:00`).toISOString() : null
+                      });
+                    }}
                     className="mt-1 w-full rounded border border-neutral-800 bg-neutral-900 px-2 py-2 text-xs normal-case text-white outline-none"
                   >
                     <option value="LearnDriven">LearnDriven</option>
