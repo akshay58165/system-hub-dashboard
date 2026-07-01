@@ -564,9 +564,19 @@ export default function GithubView({
                   <button
                     onClick={() => {
                       if (!window.confirm('Remove all injected infotainment demo topics?')) return;
-                      const demoNames = new Set(topics.filter(topic => topic.isDemo).map(topic => topic.name));
+                      const demoTopics = topics.filter(topic => topic.isDemo);
                       setTopics(prev => prev.filter(topic => !topic.isDemo));
-                      setActivities(prev => prev.filter(activity => !demoNames.has(activity.topicName)));
+                      setActivities(prev => [
+                        ...demoTopics.map((topic, idx) => ({
+                          id: `act-delete-demo-${Date.now()}-${idx}`,
+                          topicName: topic.name,
+                          channel: topic.channel,
+                          action: `Deleted topic`,
+                          author: 'typeakshay',
+                          timestamp: new Date().toISOString()
+                        })),
+                        ...prev
+                      ]);
                     }}
                     className="px-2.5 py-1 bg-amber-950/20 border border-amber-900/40 hover:border-amber-700 text-amber-400 rounded text-[10px] font-mono flex items-center gap-1.5 shrink-0 transition"
                     title="Permanently remove all injected demo topics"
@@ -750,7 +760,14 @@ export default function GithubView({
                             e.stopPropagation();
                             if (!window.confirm(`Delete "${topic.name}"? This removes the topic permanently.`)) return;
                             setTopics(prev => prev.filter(t => t.id !== topic.id));
-                            setActivities(prev => prev.filter(a => a.topicName !== topic.name));
+                            setActivities(prev => [{
+                              id: `act-delete-${Date.now()}`,
+                              topicName: topic.name,
+                              channel: topic.channel,
+                              action: `Deleted topic`,
+                              author: 'typeakshay',
+                              timestamp: new Date().toISOString()
+                            }, ...prev]);
                             onAddEvent({
                               id: `evt-topic-delete-${Date.now()}`,
                               source: 'github',

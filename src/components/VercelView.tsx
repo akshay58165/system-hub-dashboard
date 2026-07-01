@@ -325,6 +325,14 @@ export default function VercelView({
       autoPostPaused: false,
       lastUpdated: new Date().toISOString(),
     } : item));
+    setActivities(prev => [{
+      id: `act-schedule-complete-${Date.now()}`,
+      topicName: topic.name,
+      channel: topic.channel,
+      action: `Scheduled video release for ${finalDate} at ${finalTime}`,
+      author: 'typeakshay',
+      timestamp: new Date().toISOString()
+    }, ...prev]);
     setSchedulingTopicId(null);
   };
 
@@ -350,22 +358,59 @@ export default function VercelView({
         lastUpdated: new Date().toISOString(),
       };
     }));
+    setActivities(prev => [{
+      id: `act-stage-reset-${targetStage}-${Date.now()}`,
+      topicName: topic.name,
+      channel: topic.channel,
+      action: `Reset stage from ${WORKFLOW_LABELS[targetStage][getTopicWorkflowState(topic, targetStage)]}: ${topic.name}`,
+      author: 'typeakshay',
+      timestamp: new Date().toISOString()
+    }, ...prev]);
     if (targetStage === 'schedule' || targetStage === 'post') setSchedulingTopicId(null);
   };
 
   const saveEditedTopic = (event: React.FormEvent) => {
     event.preventDefault();
     if (!editingTopic?.name.trim()) return;
+    const trimmedName = editingTopic.name.trim();
+    const original = topics.find(t => t.id === editingTopic.id);
     setTopics(prev => prev.map(topic => topic.id === editingTopic.id
-      ? { ...editingTopic, name: editingTopic.name.trim(), lastUpdated: new Date().toISOString() }
+      ? { ...editingTopic, name: trimmedName, lastUpdated: new Date().toISOString() }
       : topic));
+
+    const changedFields: string[] = [];
+    if (original) {
+      if (original.name !== trimmedName) changedFields.push('name');
+      if (original.description !== editingTopic.description) changedFields.push('description');
+      if (original.channel !== editingTopic.channel) changedFields.push('channel');
+      if (original.priority !== editingTopic.priority) changedFields.push('priority');
+      if (original.dueDate !== editingTopic.dueDate) changedFields.push('due date');
+      if (original.scheduledTime !== editingTopic.scheduledTime) changedFields.push('scheduled time');
+    }
+    if (changedFields.length > 0) {
+      setActivities(prev => [{
+        id: `act-edit-${Date.now()}`,
+        topicName: trimmedName,
+        channel: editingTopic.channel,
+        action: `Edited topic (${changedFields.join(', ')})`,
+        author: 'typeakshay',
+        timestamp: new Date().toISOString()
+      }, ...prev]);
+    }
     setEditingTopic(null);
   };
 
   const deleteTopic = (topic: Topic) => {
     if (!window.confirm(`Delete "${topic.name}"? This permanently removes it from every topic view.`)) return;
     setTopics(prev => prev.filter(item => item.id !== topic.id));
-    setActivities(prev => prev.filter(activity => activity.topicName !== topic.name));
+    setActivities(prev => [{
+      id: `act-delete-${Date.now()}`,
+      topicName: topic.name,
+      channel: topic.channel,
+      action: `Deleted topic`,
+      author: 'typeakshay',
+      timestamp: new Date().toISOString()
+    }, ...prev]);
   };
 
   const resetTopicWorkflow = (topic: Topic) => {
@@ -379,6 +424,14 @@ export default function VercelView({
       dueDate: null,
       lastUpdated: new Date().toISOString(),
     } : item));
+    setActivities(prev => [{
+      id: `act-workflow-reset-${Date.now()}`,
+      topicName: topic.name,
+      channel: topic.channel,
+      action: `Reset entire workflow back to Topic stage`,
+      author: 'typeakshay',
+      timestamp: new Date().toISOString()
+    }, ...prev]);
     setSchedulingTopicId(current => current === topic.id ? null : current);
   };
 
