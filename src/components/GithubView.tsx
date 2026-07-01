@@ -767,6 +767,9 @@ export default function GithubView({
                         } else {
                           setNewTopicChannel('LearnDriven');
                           setNewTopicLane(null);
+                          if (!newTopicSchedTime || newTopicSchedTime === '19:07') {
+                            setNewTopicSchedTime('21:09');
+                          }
                         }
                       }}
                       className={`flex-1 py-1.5 rounded border font-mono font-bold text-center transition text-xs select-none cursor-pointer ${
@@ -786,6 +789,9 @@ export default function GithubView({
                         } else {
                           setNewTopicChannel('DecodeWorthy');
                           setNewTopicLane('Shorts');
+                          if (!newTopicSchedTime || newTopicSchedTime === '21:09') {
+                            setNewTopicSchedTime('19:07');
+                          }
                         }
                       }}
                       className={`flex-1 py-1.5 rounded border font-mono font-bold text-center transition text-xs select-none cursor-pointer ${
