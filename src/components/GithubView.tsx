@@ -670,7 +670,11 @@ export default function GithubView({
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setTopics(prev => prev.map(t => t.id === topic.id ? { ...t, inProgress: true } : t));
+                                  setTopics(prev => prev.map(t => t.id === topic.id ? {
+                                    ...t,
+                                    inProgress: true,
+                                    lastUpdated: new Date().toISOString()
+                                  } : t));
                                   
                                   // Add activity log
                                   const newActivity: TopicActivity = {

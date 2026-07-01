@@ -1,8 +1,37 @@
 import type { Topic } from '../types';
 
-export const visibleCreatorTopics = (topics: Topic[] = []) => topics.filter(topic =>
-  !topic.isDemo && !topic.id.startsWith('t-manual-demo-infotainment-')
-);
+export const normalizeTopicWorkflowState = (topic: Topic): Topic => {
+  const hasWorkflowProgress = Object.values(topic.workflowStatuses || {}).some(
+    state => state === 'in-progress' || state === 'completed'
+  );
+  const shouldBeInPipeline = Boolean(topic.inProgress || topic.status !== 'topic' || hasWorkflowProgress);
+  return topic.inProgress === shouldBeInPipeline ? topic : { ...topic, inProgress: shouldBeInPipeline };
+};
+
+export const visibleCreatorTopics = (topics: Topic[] = []) => topics
+  .filter(topic => !topic.isDemo && !topic.id.startsWith('t-manual-demo-infotainment-'))
+  .map(normalizeTopicWorkflowState);
+
+const comparableTopic = (topic: Topic) => {
+  const { lastUpdated: _lastUpdated, ...rest } = topic;
+  return JSON.stringify(rest);
+};
+
+// Every local edit passes through this function. Components only describe the
+// desired fields; synchronization metadata is stamped centrally and cannot be
+// forgotten by an individual button or form.
+export const prepareLocalTopicMutation = (
+  previousTopics: Topic[], nextTopics: Topic[], changedAt = new Date().toISOString()
+) => {
+  const previousById = new Map(previousTopics.map(topic => [topic.id, topic]));
+  return nextTopics.map(rawTopic => {
+    const topic = normalizeTopicWorkflowState(rawTopic);
+    const previous = previousById.get(topic.id);
+    if (!previous) return topic.lastUpdated ? topic : { ...topic, lastUpdated: changedAt };
+    if (comparableTopic(previous) === comparableTopic(topic)) return previous;
+    return { ...topic, lastUpdated: changedAt };
+  });
+};
 
 // A valid committed snapshot never contains both a topic and its deletion
 // tombstone. Older clients produced that impossible state; the topic is the

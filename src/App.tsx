@@ -37,7 +37,7 @@ import { loginWithYouTube, logoutYouTube, handleOAuthCallback, getYouTubeCredent
 import { generateAIActionPlan } from './services/openai';
 
 import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, VideoRecord, Experiment, CreatorInsight } from './types';
-import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, normalizeCommittedTombstones, topicCollectionsEqual, visibleCreatorTopics } from './lib/topicSync';
+import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, normalizeCommittedTombstones, prepareLocalTopicMutation, topicCollectionsEqual, visibleCreatorTopics } from './lib/topicSync';
 import { 
   initialGitHubRepos, 
   initialVercelProjects, 
@@ -133,7 +133,8 @@ export default function App() {
   const topicMutationEpochRef = useRef(0);
   const setTopics: React.Dispatch<React.SetStateAction<Topic[]>> = (update) => {
     setTopicsState(previous => {
-      const next = typeof update === 'function' ? update(previous) : update;
+      const requested = typeof update === 'function' ? update(previous) : update;
+      const next = prepareLocalTopicMutation(previous, requested);
       const previousById = new Map(previous.map(topic => [topic.id, topic]));
       const nextIds = new Set(next.map(topic => topic.id));
       const deletedAt = new Date().toISOString();

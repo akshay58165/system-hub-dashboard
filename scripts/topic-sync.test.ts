@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Topic } from '../src/types';
-import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, normalizeCommittedTombstones } from '../src/lib/topicSync';
+import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, normalizeCommittedTombstones, normalizeTopicWorkflowState, prepareLocalTopicMutation } from '../src/lib/topicSync';
 
 const topic = (id: string, lastUpdated: string, name = id): Topic => ({
   id, name, description: '', channel: 'LearnDriven', status: 'topic', priority: 3,
@@ -52,5 +52,18 @@ assert.deepEqual(
 // document instead of allowing the visible inventory to flash to zero.
 const durableFive = ['a', 'b', 'c', 'd', 'e'].map(id => topic(id, newTime));
 assert.equal(mergeTopicsByNewest([], durableFive).length, 5);
+
+// The Start Pipeline action can no longer retain its old timestamp and lose a
+// tie against another device's pre-pipeline representation.
+const beforePipeline = { ...topic('pipeline', oldTime), inProgress: false };
+const afterPipeline = prepareLocalTopicMutation(
+  [beforePipeline], [{ ...beforePipeline, inProgress: true }], newTime
+)[0];
+assert.equal(afterPipeline.inProgress, true);
+assert.equal(afterPipeline.lastUpdated, newTime);
+
+// Progressed status/workflow fields normalize pipeline membership even when
+// legacy data omitted the redundant inProgress flag.
+assert.equal(normalizeTopicWorkflowState({ ...beforePipeline, status: 'scripted' }).inProgress, true);
 
 console.log('topic sync race, convergence, newest-write and deletion tests passed');
