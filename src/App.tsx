@@ -269,6 +269,7 @@ export default function App() {
   // Supabase Auth and Real-time Gateway States
   const [user, setUser] = useState<any>(null);
   const channelRef = useRef<any>(null);
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const [authLoading, setAuthLoading] = useState(true);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -453,7 +454,7 @@ export default function App() {
         setSyncError(null);
         const { data, error } = await supabase
           .from('dashboard_state')
-          .select('state')
+          .select('state, updated_at')
           .eq('user_id', user.id)
           .maybeSingle();
 
@@ -469,7 +470,16 @@ export default function App() {
         }
 
         if (data && data.state) {
-          const remoteState = data.state as any;
+          const backupKey = `unicorn_dashboard_recovery_${userId}`;
+          let recoveryBackup: { updatedAt: string; state: any } | null = null;
+          try {
+            recoveryBackup = JSON.parse(localStorage.getItem(backupKey) || 'null');
+          } catch { /* Ignore malformed legacy backup data. */ }
+          const remoteUpdatedAt = data.updated_at ? new Date(data.updated_at).getTime() : 0;
+          const backupUpdatedAt = recoveryBackup?.updatedAt ? new Date(recoveryBackup.updatedAt).getTime() : 0;
+          const remoteState = backupUpdatedAt > remoteUpdatedAt && recoveryBackup?.state
+            ? recoveryBackup.state
+            : data.state as any;
           if (remoteState.topics) {
             const remoteTopics = remoteState.topics as Topic[];
             const creatorTopics = remoteTopics.filter(topic =>
@@ -538,6 +548,13 @@ export default function App() {
             (payload: any) => {
               const newState = payload.new as any;
               if (newState && newState.state) {
+                const backupKey = `unicorn_dashboard_recovery_${userId}`;
+                try {
+                  const recoveryBackup = JSON.parse(localStorage.getItem(backupKey) || 'null');
+                  const localUpdatedAt = recoveryBackup?.updatedAt ? new Date(recoveryBackup.updatedAt).getTime() : 0;
+                  const remoteUpdatedAt = newState.updated_at ? new Date(newState.updated_at).getTime() : 0;
+                  if (localUpdatedAt > remoteUpdatedAt) return;
+                } catch { /* Continue with remote state if recovery metadata is invalid. */ }
                 const remoteState = newState.state as any;
                 if (remoteState.topics) {
                   setTopics((remoteState.topics as Topic[]).filter(topic =>
@@ -627,13 +644,25 @@ export default function App() {
     }
   };
 
+  // Write a synchronous browser recovery journal before the debounced cloud save.
+  // A refresh can therefore never erase a topic created milliseconds earlier.
+  useEffect(() => {
+    if (!user || authLoading || !isStateLoaded) return;
+    localStorage.setItem(`unicorn_dashboard_recovery_${user.id}`, JSON.stringify({
+      updatedAt: new Date().toISOString(),
+      state: { topics, activities, cycleGoals, scorecard, videos, experiments, insights }
+    }));
+  }, [topics, activities, cycleGoals, scorecard, videos, experiments, insights, user, authLoading, isStateLoaded]);
+
   useEffect(() => {
     if (!user || authLoading || !isStateLoaded) return;
 
-    // Debounce updates to 800ms
+    // Short debounce batches a single interaction; the queue preserves write order.
     const timer = setTimeout(() => {
-      saveStateToSupabase(topics, activities, cycleGoals, scorecard, videos, experiments, insights);
-    }, 800);
+      saveQueueRef.current = saveQueueRef.current
+        .catch(() => undefined)
+        .then(() => saveStateToSupabase(topics, activities, cycleGoals, scorecard, videos, experiments, insights));
+    }, 75);
 
     return () => clearTimeout(timer);
   }, [topics, activities, cycleGoals, scorecard, videos, experiments, insights, user, authLoading, isStateLoaded]);
