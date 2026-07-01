@@ -722,14 +722,14 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
               </motion.div>
             ) : wellbeingInsight ? (
               (() => {
-                const CATEGORY_ROWS: { label: string; text: string; icon: React.ReactNode; color: string; bg: string; border: string }[] = [
-                  { label: 'Bottleneck', text: wellbeingInsight.bottleneck, icon: <AlertTriangle className="h-3.5 w-3.5" />, color: 'text-rose-400', bg: 'bg-rose-950/30', border: 'border-rose-900/40' },
-                  { label: 'Day Type', text: wellbeingInsight.dayType, icon: <Flame className="h-3.5 w-3.5" />, color: 'text-amber-400', bg: 'bg-amber-950/30', border: 'border-amber-900/40' },
-                  { label: 'Physical', text: wellbeingInsight.physical, icon: <Heart className="h-3.5 w-3.5" />, color: 'text-emerald-400', bg: 'bg-emerald-950/30', border: 'border-emerald-900/40' },
-                  { label: 'Stress & Mood', text: wellbeingInsight.stressMood, icon: <Activity className="h-3.5 w-3.5" />, color: 'text-blue-400', bg: 'bg-blue-950/30', border: 'border-blue-900/40' },
-                  { label: 'Stimulation', text: wellbeingInsight.stimulation, icon: <Zap className="h-3.5 w-3.5" />, color: 'text-purple-400', bg: 'bg-purple-950/30', border: 'border-purple-900/40' },
-                  { label: 'Execution', text: wellbeingInsight.execution, icon: <ShieldCheck className="h-3.5 w-3.5" />, color: 'text-cyan-400', bg: 'bg-cyan-950/30', border: 'border-cyan-900/40' },
-                  { label: 'Social', text: wellbeingInsight.social, icon: <UserCheck className="h-3.5 w-3.5" />, color: 'text-pink-400', bg: 'bg-pink-950/30', border: 'border-pink-900/40' }
+                const CATEGORY_ROWS: { label: string; value: string; text: string; icon: React.ReactNode; color: string; bg: string; border: string }[] = [
+                  { label: 'Bottleneck', value: wellbeingInsight.bottleneckTag, text: wellbeingInsight.bottleneck, icon: <AlertTriangle className="h-4 w-4" />, color: 'text-rose-400', bg: 'bg-gradient-to-br from-rose-950/35 to-neutral-950/70', border: 'border-rose-900/40' },
+                  { label: 'Day Type', value: wellbeingInsight.readiness.dayType.replace(/ Day$/, ''), text: wellbeingInsight.dayType, icon: <Flame className="h-4 w-4" />, color: 'text-amber-400', bg: 'bg-gradient-to-br from-amber-950/30 to-neutral-950/70', border: 'border-amber-900/40' },
+                  { label: 'Physical', value: `${wellbeingInsight.readiness.physicalScore}/100`, text: wellbeingInsight.physical, icon: <Heart className="h-4 w-4" />, color: 'text-emerald-400', bg: 'bg-gradient-to-br from-emerald-950/30 to-neutral-950/70', border: 'border-emerald-900/40' },
+                  { label: 'Stress & Mood', value: `${wellbeingInsight.readiness.mentalScore}/100`, text: wellbeingInsight.stressMood, icon: <Activity className="h-4 w-4" />, color: 'text-blue-400', bg: 'bg-gradient-to-br from-blue-950/30 to-neutral-950/70', border: 'border-blue-900/40' },
+                  { label: 'Stimulation', value: 'Attention', text: wellbeingInsight.stimulation, icon: <Zap className="h-4 w-4" />, color: 'text-purple-400', bg: 'bg-gradient-to-br from-purple-950/30 to-neutral-950/70', border: 'border-purple-900/40' },
+                  { label: 'Execution', value: `${wellbeingInsight.readiness.executionScore}/100`, text: wellbeingInsight.execution, icon: <ShieldCheck className="h-4 w-4" />, color: 'text-cyan-400', bg: 'bg-gradient-to-br from-cyan-950/30 to-neutral-950/70', border: 'border-cyan-900/40' },
+                  { label: 'Social', value: `${wellbeingInsight.readiness.socialScore}/100`, text: wellbeingInsight.social, icon: <UserCheck className="h-4 w-4" />, color: 'text-pink-400', bg: 'bg-gradient-to-br from-pink-950/30 to-neutral-950/70', border: 'border-pink-900/40' }
                 ];
                 const confidenceColor = wellbeingInsight.dataConfidence === 'reliable' ? 'text-emerald-400' : wellbeingInsight.dataConfidence === 'partial' ? 'text-amber-400' : 'text-rose-400';
 
@@ -745,21 +745,42 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                       {wellbeingInsight.dataNote}
                     </span>
 
-                    {/* Headline block — the single overall read for the day */}
-                    {wellbeingInsight.headline && (
-                      <div className="rounded-lg border border-blue-900/30 bg-blue-950/10 p-4">
-                        <h4 className="text-sm font-bold text-neutral-100 leading-snug mb-1.5">{wellbeingInsight.headline.title}</h4>
-                        <div className="space-y-1">
-                          {wellbeingInsight.headline.lines.map((line, i) => (
-                            <p key={i} className="text-xs text-neutral-400 font-sans leading-relaxed">{line}</p>
-                          ))}
+                    {/* Compact at-a-glance summary */}
+                    <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="rounded-xl border border-blue-900/30 bg-gradient-to-br from-blue-950/25 to-neutral-950/80 p-4 min-h-[112px] flex flex-col justify-between">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] uppercase tracking-[0.18em] text-blue-400 font-bold font-mono">Readiness</span>
+                          <ShieldCheck className="h-4 w-4 text-blue-400" />
+                        </div>
+                        <div>
+                          <span className="text-xl font-bold text-white">{wellbeingInsight.readiness.status}</span>
+                          <p className="text-[10px] text-neutral-500 mt-1 font-mono">Bio-Focus {wellbeingInsight.readiness.score ?? '—'}/100</p>
                         </div>
                       </div>
-                    )}
+
+                      <div className="rounded-xl border border-amber-900/30 bg-gradient-to-br from-amber-950/25 to-neutral-950/80 p-4 min-h-[112px] flex flex-col justify-between">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] uppercase tracking-[0.18em] text-amber-400 font-bold font-mono">Best Mode</span>
+                          <Flame className="h-4 w-4 text-amber-400" />
+                        </div>
+                        <div>
+                          <span className="text-base font-bold text-white">{wellbeingInsight.readiness.dayType}</span>
+                          <p className="text-[10px] text-neutral-500 mt-1 font-mono">{wellbeingInsight.bottleneckTag} is the main constraint</p>
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-emerald-900/30 bg-gradient-to-br from-emerald-950/25 to-neutral-950/80 p-4 min-h-[112px] flex flex-col justify-between">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] uppercase tracking-[0.18em] text-emerald-400 font-bold font-mono">Next Best Action</span>
+                          <Zap className="h-4 w-4 text-emerald-400" />
+                        </div>
+                        <p className="text-xs text-neutral-200 leading-relaxed font-medium">{wellbeingInsight.action}</p>
+                      </div>
+                    </div>
 
                     {/* Risk flags */}
                     {wellbeingInsight.risks.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
+                      <div className="max-w-7xl mx-auto flex flex-wrap gap-2">
                         {wellbeingInsight.risks.map((r, i) => (
                           <span key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-950/20 border border-rose-900/30 text-rose-400 text-[10px] font-bold font-mono uppercase tracking-wide">
                             <AlertTriangle className="h-3 w-3" />
@@ -769,26 +790,23 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                       </div>
                     )}
 
-                    {/* Action */}
-                    <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-blue-950/20 border border-blue-900/30">
-                      <Zap className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                      <span className="text-xs text-blue-200 font-sans font-medium">{wellbeingInsight.action}</span>
-                    </div>
-
-                    {/* Full category breakdown */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {/* Compact category cards */}
+                    <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                       {CATEGORY_ROWS.map((row, i) => (
                         <motion.div
                           key={i}
                           initial={{ opacity: 0, y: 6 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.25, delay: i * 0.04 }}
-                          className={`p-3 rounded-lg border ${row.border} ${row.bg} flex items-start gap-2.5`}
+                          className={`relative overflow-hidden min-h-[148px] p-4 rounded-xl border ${row.border} ${row.bg} flex flex-col justify-between shadow-[0_8px_24px_rgba(0,0,0,0.16)] hover:-translate-y-0.5 hover:border-opacity-80 transition-all duration-200`}
                         >
-                          <div className={`mt-0.5 shrink-0 ${row.color}`}>{row.icon}</div>
-                          <div className="min-w-0">
-                            <span className={`text-[9px] font-bold uppercase tracking-wider font-mono ${row.color}`}>{row.label}</span>
-                            <p className="text-[11px] text-neutral-300 font-sans mt-0.5 leading-snug">{row.text}</p>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className={`grid place-items-center h-8 w-8 rounded-lg bg-black/30 border ${row.border} ${row.color}`}>{row.icon}</div>
+                            <span className={`max-w-[65%] truncate px-2 py-1 rounded-full bg-black/30 border ${row.border} ${row.color} text-[9px] font-bold font-mono`}>{row.value}</span>
+                          </div>
+                          <div className="mt-4">
+                            <span className={`text-[9px] font-bold uppercase tracking-[0.16em] font-mono ${row.color}`}>{row.label}</span>
+                            <p className="text-[11px] text-neutral-300 font-sans mt-1.5 leading-relaxed">{row.text}</p>
                           </div>
                         </motion.div>
                       ))}
@@ -796,7 +814,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
 
                     {/* Trend — only shown once enough day-over-day history exists */}
                     {wellbeingInsight.trend && (
-                      <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-purple-950/15 border border-purple-900/30">
+                      <div className="max-w-7xl mx-auto flex items-center gap-2.5 p-3 rounded-xl bg-purple-950/15 border border-purple-900/30">
                         <TrendingUp className="h-3.5 w-3.5 text-purple-400 shrink-0" />
                         <span className="text-xs text-purple-200 font-sans">{wellbeingInsight.trend}</span>
                       </div>
