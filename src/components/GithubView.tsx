@@ -59,7 +59,7 @@ function formatTimeAgo(dateStr: string) {
 }
 
 // Blinking logic helper (Due date within 2 days gap)
-function shouldBlink(dueDateStr: string | null, now: Date) {
+function shouldBlink(dueDateStr: string | null, now: Date = new Date()) {
   if (!dueDateStr) return false;
   const due = new Date(dueDateStr);
   const diffTime = due.getTime() - now.getTime();
@@ -1272,7 +1272,7 @@ export default function GithubView({
                 </div>
 
                 {/* Blinking Critical Alert Block */}
-                {topics.filter(t => (selectedChannel === 'All' || t.channel === selectedChannel) && shouldBlink(t.dueDate)).length > 0 ? (
+                {topics.filter(t => (selectedChannel === 'All' || t.channel === selectedChannel) && shouldBlink(t.dueDate, now)).length > 0 ? (
                   <div className="p-3 bg-red-950/10 border border-red-900/40 text-red-400 rounded-lg flex items-start gap-2 shadow-[0_0_12px_rgba(239,68,68,0.02)]">
                     <span className="relative flex h-2 w-2 mt-1">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -1281,7 +1281,7 @@ export default function GithubView({
                     <div className="space-y-0.5">
                       <span className="font-bold">CRITICAL FOCUS REQUIRED</span>
                       <p className="text-[9px] text-neutral-400 font-sans leading-normal">
-                        You have {topics.filter(t => (selectedChannel === 'All' || t.channel === selectedChannel) && shouldBlink(t.dueDate)).length} topics due within 24 hours. Consider moving them to edited/scheduled.
+                        You have {topics.filter(t => (selectedChannel === 'All' || t.channel === selectedChannel) && shouldBlink(t.dueDate, now)).length} topics due within 24 hours. Consider moving them to edited/scheduled.
                       </p>
                     </div>
                   </div>
