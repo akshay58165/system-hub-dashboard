@@ -861,12 +861,13 @@ export default function VercelView({
 
                       {urgency && (
                         <div className="emergency-countdown relative overflow-hidden rounded-lg border border-red-500/60 bg-red-950/25 px-3 py-2.5 shadow-[0_0_22px_rgba(239,68,68,0.18)]">
-                          <div className="emergency-scanline pointer-events-none absolute inset-x-0 top-0 h-px bg-red-300/70" />
+                          <div className="emergency-shimmer pointer-events-none absolute inset-y-0 -left-1/2 w-1/3" />
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex min-w-0 items-center gap-2">
-                              <span className="relative flex h-3 w-3 shrink-0">
-                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-                                <span className="emergency-led relative inline-flex h-3 w-3 rounded-full bg-red-500" />
+                              <span className="emergency-led-housing relative flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full" aria-hidden="true">
+                                <span className="emergency-led-lens relative block h-[11px] w-[11px] rounded-full">
+                                  <span className="emergency-led-specular absolute left-[2px] top-[1px] h-[3px] w-[4px] rounded-full" />
+                                </span>
                               </span>
                               <div className="min-w-0">
                                 <div className="text-[8px] font-black uppercase tracking-[0.18em] text-red-400">{urgency.message}</div>
