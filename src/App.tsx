@@ -270,6 +270,7 @@ export default function App() {
   const [user, setUser] = useState<any>(null);
   const channelRef = useRef<any>(null);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const isRemoteSyncRef = useRef(false);
   const [hydratedUserId, setHydratedUserId] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authEmail, setAuthEmail] = useState('');
@@ -337,6 +338,32 @@ export default function App() {
         if (percent >= 30 && percent < 60) {
           setTopics([]);
           localStorage.setItem('unicorn_database_reset', 'true');
+          
+          // Purge recovery backups
+          if (user) {
+            localStorage.removeItem(`unicorn_dashboard_recovery_${user.id}`);
+            localStorage.removeItem(`unicorn_dashboard_recovery_history_${user.id}`);
+          }
+          
+          // Clear Supabase DB partition immediately
+          if (supabase && user) {
+            supabase.from('dashboard_state').upsert({
+              user_id: user.id,
+              state: {
+                topics: [],
+                activities: [],
+                cycleGoals: null,
+                scorecard: {},
+                videos: [],
+                experiments: [],
+                insights: []
+              },
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id' }).then(({ error }: any) => {
+              if (error) console.error("Supabase reset error:", error.message);
+            });
+          }
+
           // Purge all biometrics and scorecard keys from local storage
           localStorage.removeItem('unicorn_scorecard_date');
           localStorage.removeItem('unicorn_scorecard_restfulness');
@@ -485,18 +512,7 @@ export default function App() {
         }
 
         if (data && data.state) {
-          const backupKey = `unicorn_dashboard_recovery_${userId}`;
-          let recoveryBackup: { updatedAt: string; state: any } | null = null;
-          try {
-            recoveryBackup = JSON.parse(localStorage.getItem(backupKey) || 'null');
-          } catch { /* Ignore malformed legacy backup data. */ }
-          const remoteUpdatedAt = data.updated_at ? new Date(data.updated_at).getTime() : 0;
-          const backupUpdatedAt = recoveryBackup?.updatedAt ? new Date(recoveryBackup.updatedAt).getTime() : 0;
-          const remoteHasTopics = Array.isArray((data.state as any)?.topics) && (data.state as any).topics.length > 0;
-          const backupHasTopics = Array.isArray(recoveryBackup?.state?.topics) && recoveryBackup.state.topics.length > 0;
-          const remoteState = backupUpdatedAt > remoteUpdatedAt && recoveryBackup?.state && (backupHasTopics || !remoteHasTopics)
-            ? recoveryBackup.state
-            : data.state as any;
+          const remoteState = data.state as any;
           if (remoteState.topics) {
             const remoteTopics = remoteState.topics as Topic[];
             const creatorTopics = remoteTopics.filter(topic =>
@@ -566,21 +582,12 @@ export default function App() {
             (payload: any) => {
               const newState = payload.new as any;
               if (newState && newState.state) {
-                const backupKey = `unicorn_dashboard_recovery_${userId}`;
-                try {
-                  const recoveryBackup = JSON.parse(localStorage.getItem(backupKey) || 'null');
-                  const localUpdatedAt = recoveryBackup?.updatedAt ? new Date(recoveryBackup.updatedAt).getTime() : 0;
-                  const remoteUpdatedAt = newState.updated_at ? new Date(newState.updated_at).getTime() : 0;
-                  if (localUpdatedAt > remoteUpdatedAt) return;
-                } catch { /* Continue with remote state if recovery metadata is invalid. */ }
                 const remoteState = newState.state as any;
+                
+                // Mark this update as a remote sync, so we don't save it back to Supabase
+                isRemoteSyncRef.current = true;
+                
                 if (remoteState.topics) {
-                  // Deliberately a plain overwrite, not a content-based merge:
-                  // diffing "topics missing from the incoming payload" and
-                  // re-adding them would resurrect topics a user genuinely
-                  // deleted from another device. The localUpdatedAt check
-                  // above is the correct guard against stale/out-of-order
-                  // updates — trust it and apply the payload as-is.
                   setTopics((remoteState.topics as Topic[]).filter(topic =>
                     !topic.isDemo && !topic.id.startsWith('t-manual-demo-infotainment-')
                   ));
@@ -709,6 +716,11 @@ export default function App() {
 
   useEffect(() => {
     if (!user || authLoading || !isStateLoaded || hydratedUserId !== user.id) return;
+
+    if (isRemoteSyncRef.current) {
+      isRemoteSyncRef.current = false;
+      return;
+    }
 
     // Short debounce batches a single interaction; the queue preserves write order.
     const timer = setTimeout(() => {
