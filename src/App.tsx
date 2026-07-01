@@ -468,7 +468,22 @@ export default function App() {
           if (remoteState.videos) setVideos(remoteState.videos);
           if (remoteState.experiments) setExperiments(remoteState.experiments);
           if (remoteState.insights) setInsights(remoteState.insights);
-          if (remoteState.aiPresets) setAiPresets(remoteState.aiPresets);
+
+          // A preset saved right before a reload can lose its race with the
+          // debounced Supabase write (the network call gets aborted mid-flight
+          // by the reload). Union it back in from the same-device recovery
+          // backup so it isn't silently lost, the same safety net topics
+          // already have.
+          const remotePresets = (remoteState.aiPresets || []) as AiRulePreset[];
+          const backupPresets = (recoveryBackup?.state?.aiPresets || []) as AiRulePreset[];
+          if (remoteState.aiPresets || backupPresets.length > 0) {
+            const mergedPresets = new Map<string, AiRulePreset>();
+            [...backupPresets, ...remotePresets].forEach(preset => {
+              const existing = mergedPresets.get(preset.id);
+              if (!existing || new Date(preset.createdAt).getTime() >= new Date(existing.createdAt).getTime()) mergedPresets.set(preset.id, preset);
+            });
+            setAiPresets(Array.from(mergedPresets.values()).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
+          }
           if (remoteState.aiUsage) setAiUsage(remoteState.aiUsage);
 
           addEvent({
