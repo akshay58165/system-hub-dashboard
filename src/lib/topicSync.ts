@@ -36,6 +36,19 @@ export const mergeTopicsByNewest = (
 export const mergeRemoteWithPendingTopics = (
   remoteTopics: Topic[], localTopics: Topic[], dirtyTopicIds: ReadonlySet<string>,
   deletedTopicIds: Record<string, string> = {}
-) => mergeTopicsByNewest(
-  remoteTopics, localTopics.filter(topic => dirtyTopicIds.has(topic.id)), deletedTopicIds
-);
+) => {
+  // Never infer deletion from absence in a snapshot. Only an explicit
+  // tombstone may remove a topic. This lets a healthy client repair an empty
+  // or partial snapshot written by a stale tab instead of echoing the loss.
+  void dirtyTopicIds;
+  return mergeTopicsByNewest(remoteTopics, localTopics, deletedTopicIds);
+};
+
+export const topicCollectionsEqual = (left: Topic[], right: Topic[]) => {
+  if (left.length !== right.length) return false;
+  const rightById = new Map(right.map(topic => [topic.id, topic]));
+  return left.every(topic => {
+    const other = rightById.get(topic.id);
+    return other !== undefined && JSON.stringify(topic) === JSON.stringify(other);
+  });
+};

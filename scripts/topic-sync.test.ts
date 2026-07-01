@@ -28,10 +28,11 @@ assert.equal(
   'new'
 );
 
-// A clean local copy is replaced by the current server snapshot.
+// Snapshot absence is never treated as deletion; stale tabs can write partial
+// snapshots, and only an explicit tombstone is allowed to remove user data.
 assert.deepEqual(
   mergeRemoteWithPendingTopics([topic('server', newTime)], [topic('stale-local', oldTime)], new Set()).map(t => t.id),
-  ['server']
+  ['server', 'stale-local']
 );
 
 // A deletion tombstone defeats a snapshot older than the deletion.

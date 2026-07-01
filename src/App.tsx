@@ -37,7 +37,7 @@ import { loginWithYouTube, logoutYouTube, handleOAuthCallback, getYouTubeCredent
 import { generateAIActionPlan } from './services/openai';
 
 import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, VideoRecord, Experiment, CreatorInsight } from './types';
-import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, normalizeCommittedTombstones, visibleCreatorTopics } from './lib/topicSync';
+import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, normalizeCommittedTombstones, topicCollectionsEqual, visibleCreatorTopics } from './lib/topicSync';
 import { 
   initialGitHubRepos, 
   initialVercelProjects, 
@@ -658,9 +658,13 @@ export default function App() {
                 isRemoteSyncRef.current = dirtyTopicIdsRef.current.size === 0;
                 
                 if (remoteState.topics) {
-                  setTopicsState(localTopics => mergeRemoteWithPendingTopics(
-                    remoteTopics, localTopics, dirtyTopicIdsRef.current, topicTombstonesRef.current
-                  ));
+                  setTopicsState(localTopics => {
+                    const mergedTopics = mergeRemoteWithPendingTopics(
+                      remoteTopics, localTopics, dirtyTopicIdsRef.current, topicTombstonesRef.current
+                    );
+                    if (!topicCollectionsEqual(mergedTopics, remoteTopics)) isRemoteSyncRef.current = false;
+                    return mergedTopics;
+                  });
                 }
                 if (remoteState.activities) setActivities(remoteState.activities);
                 if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
@@ -880,9 +884,13 @@ export default function App() {
         topicTombstonesRef.current = combinedTombstones;
         isRemoteSyncRef.current = dirtyTopicIdsRef.current.size === 0;
 
-        if (remoteState.topics) setTopicsState(localTopics => mergeRemoteWithPendingTopics(
-          remoteTopics, localTopics, dirtyTopicIdsRef.current, topicTombstonesRef.current
-        ));
+        if (remoteState.topics) setTopicsState(localTopics => {
+          const mergedTopics = mergeRemoteWithPendingTopics(
+            remoteTopics, localTopics, dirtyTopicIdsRef.current, topicTombstonesRef.current
+          );
+          if (!topicCollectionsEqual(mergedTopics, remoteTopics)) isRemoteSyncRef.current = false;
+          return mergedTopics;
+        });
         if (remoteState.activities) setActivities(remoteState.activities);
         if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
         if (remoteState.scorecard) setScorecard(remoteState.scorecard);
