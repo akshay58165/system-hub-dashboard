@@ -267,11 +267,6 @@ export default function VercelView({
         lastUpdated: new Date().toISOString()
       };
 
-      if (targetIdx < stagesOrder.indexOf('schedule')) {
-        updatedTopic.dueDate = null;
-        updatedTopic.scheduledTime = undefined;
-      }
-
       return updatedTopic;
     }));
 
@@ -784,9 +779,9 @@ export default function VercelView({
                           const state = getWorkflowState(topic, stage);
                           let labelOverride = undefined;
                           let isDisabled = false;
-
                           let blinkClass = undefined;
-                          if (state === 'pending' && topic.dueDate) {
+
+                          if (state !== 'completed' && topic.status !== 'scheduled' && topic.status !== 'posted' && topic.dueDate) {
                             const due = new Date(topic.dueDate);
                             due.setHours(0, 0, 0, 0);
                             const today = new Date();
@@ -823,10 +818,14 @@ export default function VercelView({
                                   labelOverride = `Posting in ${secs}s`;
                                 }
                               } else {
-                                labelOverride = 'Posted';
+                                const formattedDate = new Date(topic.dueDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+                                labelOverride = `Posted (${formattedDate})`;
                               }
                             } else if (topic.status === 'posted') {
-                              labelOverride = 'Posted';
+                              const formattedDate = topic.dueDate 
+                                ? new Date(topic.dueDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+                                : '';
+                              labelOverride = formattedDate ? `Posted (${formattedDate})` : 'Posted';
                             } else {
                               labelOverride = 'Post';
                             }
