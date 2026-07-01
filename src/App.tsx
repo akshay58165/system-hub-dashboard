@@ -28,8 +28,6 @@ import {
   Bookmark,
   Clapperboard,
   Sparkles,
-  Youtube,
-  RefreshCw,
   ListChecks
 } from 'lucide-react';
 import { supabase } from './services/supabase';
@@ -161,10 +159,6 @@ export default function App() {
   const [experiments, setExperiments] = useState<Experiment[]>(initialExperiments);
   const [insights, setInsights] = useState<CreatorInsight[]>(initialCreatorInsights);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
-  // YouTube UI is intentionally retained, but all OAuth/API access is disabled.
-  const ytCreds: { accessToken: string } | null = null;
-  const isSyncingYT = false;
-
   useEffect(() => {
     localStorage.removeItem('yt_oauth_credentials');
     localStorage.removeItem('yt_oauth_credentials_v2');
@@ -1120,35 +1114,6 @@ export default function App() {
               </span>
               <span>{syncError ? 'Cloud Sync Error' : 'Cloud Sync Active'}</span>
             </div>
-
-            {/* YouTube OAuth Control */}
-            {ytCreds ? (
-              <div className="flex items-center gap-2 bg-red-950/20 border border-red-900/30 rounded-lg px-2.5 py-1 text-red-400 select-none font-mono text-[9px]">
-                {isSyncingYT ? (
-                  <RefreshCw className="h-3.5 w-3.5 text-red-500 animate-spin shrink-0" />
-                ) : (
-                  <Youtube className="h-3.5 w-3.5 text-red-500 shrink-0" />
-                )}
-                <span className="font-bold">{isSyncingYT ? 'Syncing...' : 'YT Active'}</span>
-                <button 
-                  onClick={() => {
-                    // YouTube API access is intentionally disabled.
-                  }}
-                  className="hover:text-red-300 ml-1 cursor-pointer transition font-bold"
-                  title="Disconnect YouTube integration"
-                >
-                  Disconnect
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => {}}
-                className="flex items-center gap-1.5 bg-red-950/30 hover:bg-red-900/30 text-red-400 border border-red-900/30 rounded-lg px-2.5 py-1 transition cursor-pointer font-mono text-[9px] font-bold"
-              >
-                <Youtube className="h-3.5 w-3.5 shrink-0 text-red-500" />
-                <span>Connect YouTube</span>
-              </button>
-            )}
 
             {/* Supabase Sync Auth Control — header only renders once `user` is set */}
             <div className="flex items-center gap-2 bg-emerald-950/20 border border-emerald-900/30 rounded-lg px-2.5 py-1 text-emerald-400 select-none font-mono">
