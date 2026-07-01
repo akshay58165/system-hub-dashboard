@@ -270,6 +270,7 @@ export default function App() {
   const [user, setUser] = useState<any>(null);
   const channelRef = useRef<any>(null);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const [hydratedUserId, setHydratedUserId] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -440,6 +441,7 @@ export default function App() {
   // 2. Fetch dashboard state from Supabase when user logs in
   useEffect(() => {
     if (!supabase || !user) {
+      setHydratedUserId(null);
       if (!user) {
         setIsStateLoaded(true);
       }
@@ -448,6 +450,7 @@ export default function App() {
 
     let cancelled = false;
     const userId = user.id;
+    setHydratedUserId(null);
 
     const fetchAndSubscribe = async () => {
       try {
@@ -477,7 +480,9 @@ export default function App() {
           } catch { /* Ignore malformed legacy backup data. */ }
           const remoteUpdatedAt = data.updated_at ? new Date(data.updated_at).getTime() : 0;
           const backupUpdatedAt = recoveryBackup?.updatedAt ? new Date(recoveryBackup.updatedAt).getTime() : 0;
-          const remoteState = backupUpdatedAt > remoteUpdatedAt && recoveryBackup?.state
+          const remoteHasTopics = Array.isArray((data.state as any)?.topics) && (data.state as any).topics.length > 0;
+          const backupHasTopics = Array.isArray(recoveryBackup?.state?.topics) && recoveryBackup.state.topics.length > 0;
+          const remoteState = backupUpdatedAt > remoteUpdatedAt && recoveryBackup?.state && (backupHasTopics || !remoteHasTopics)
             ? recoveryBackup.state
             : data.state as any;
           if (remoteState.topics) {
@@ -520,6 +525,7 @@ export default function App() {
           }, { onConflict: 'user_id' });
         }
         
+        setHydratedUserId(userId);
         setIsStateLoaded(true); // Completed initial load
 
         // Bail out if this effect was cleaned up while the above awaits were
@@ -647,15 +653,31 @@ export default function App() {
   // Write a synchronous browser recovery journal before the debounced cloud save.
   // A refresh can therefore never erase a topic created milliseconds earlier.
   useEffect(() => {
-    if (!user || authLoading || !isStateLoaded) return;
-    localStorage.setItem(`unicorn_dashboard_recovery_${user.id}`, JSON.stringify({
+    if (!user || authLoading || !isStateLoaded || hydratedUserId !== user.id) return;
+    const backupKey = `unicorn_dashboard_recovery_${user.id}`;
+    const historyKey = `unicorn_dashboard_recovery_history_${user.id}`;
+    const nextBackup = {
       updatedAt: new Date().toISOString(),
       state: { topics, activities, cycleGoals, scorecard, videos, experiments, insights }
-    }));
-  }, [topics, activities, cycleGoals, scorecard, videos, experiments, insights, user, authLoading, isStateLoaded]);
+    };
+
+    try {
+      const previousBackup = JSON.parse(localStorage.getItem(backupKey) || 'null');
+      if (previousBackup?.state?.topics?.length > 0) {
+        const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
+        const previousIds = previousBackup.state.topics.map((topic: Topic) => topic.id).sort().join('|');
+        const nextIds = topics.map(topic => topic.id).sort().join('|');
+        if (previousIds !== nextIds) {
+          localStorage.setItem(historyKey, JSON.stringify([previousBackup, ...history].slice(0, 10)));
+        }
+      }
+    } catch { /* A malformed old backup must not block the current snapshot. */ }
+
+    localStorage.setItem(backupKey, JSON.stringify(nextBackup));
+  }, [topics, activities, cycleGoals, scorecard, videos, experiments, insights, user, authLoading, isStateLoaded, hydratedUserId]);
 
   useEffect(() => {
-    if (!user || authLoading || !isStateLoaded) return;
+    if (!user || authLoading || !isStateLoaded || hydratedUserId !== user.id) return;
 
     // Short debounce batches a single interaction; the queue preserves write order.
     const timer = setTimeout(() => {
@@ -665,7 +687,7 @@ export default function App() {
     }, 75);
 
     return () => clearTimeout(timer);
-  }, [topics, activities, cycleGoals, scorecard, videos, experiments, insights, user, authLoading, isStateLoaded]);
+  }, [topics, activities, cycleGoals, scorecard, videos, experiments, insights, user, authLoading, isStateLoaded, hydratedUserId]);
 
   // Update clock
   useEffect(() => {
