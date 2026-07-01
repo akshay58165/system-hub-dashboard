@@ -281,6 +281,8 @@ export default function App() {
   const channelRef = useRef<any>(null);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const isRemoteSyncRef = useRef(false);
+  const lastRemoteUpdatedAtRef = useRef(0);
+  const reconciliationInFlightRef = useRef(false);
   const [hydratedUserId, setHydratedUserId] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authEmail, setAuthEmail] = useState('');
@@ -529,6 +531,7 @@ export default function App() {
           } catch { /* Ignore */ }
           
           const remoteUpdatedAt = data.updated_at ? new Date(data.updated_at).getTime() : 0;
+          lastRemoteUpdatedAtRef.current = remoteUpdatedAt;
           const backupUpdatedAt = recoveryBackup?.updatedAt ? new Date(recoveryBackup.updatedAt).getTime() : 0;
           
           // Only restore local backup if it belongs to the CURRENT active tab session AND is newer than the database
@@ -607,6 +610,7 @@ export default function App() {
               const newState = payload.new as any;
               if (newState && newState.state) {
                 const remoteState = newState.state as any;
+                lastRemoteUpdatedAtRef.current = newState.updated_at ? new Date(newState.updated_at).getTime() : Date.now();
                 
                 // Mark this update as a remote sync, so we don't save it back to Supabase
                 isRemoteSyncRef.current = true;
@@ -738,6 +742,56 @@ export default function App() {
 
     localStorage.setItem(backupKey, JSON.stringify(nextBackup));
   }, [topics, activities, cycleGoals, scorecard, videos, experiments, insights, user, authLoading, isStateLoaded, hydratedUserId]);
+
+  // Realtime is the fast path; versioned reconciliation is the reliability path.
+  // It keeps devices converged even when postgres_changes delivery is delayed,
+  // suspended in a background tab, or unavailable for this table publication.
+  useEffect(() => {
+    if (!supabase || !user || hydratedUserId !== user.id || syncFatal) return;
+
+    const reconcile = async () => {
+      if (reconciliationInFlightRef.current) return;
+      reconciliationInFlightRef.current = true;
+      try {
+        const { data, error } = await supabase
+          .from('dashboard_state')
+          .select('state, updated_at')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (error || !data?.state) return;
+
+        const remoteUpdatedAt = data.updated_at ? new Date(data.updated_at).getTime() : 0;
+        if (remoteUpdatedAt <= lastRemoteUpdatedAtRef.current) return;
+        lastRemoteUpdatedAtRef.current = remoteUpdatedAt;
+        const remoteState = data.state as any;
+        isRemoteSyncRef.current = true;
+
+        if (remoteState.topics) setTopics((remoteState.topics as Topic[]).filter(topic =>
+          !topic.isDemo && !topic.id.startsWith('t-manual-demo-infotainment-')
+        ));
+        if (remoteState.activities) setActivities(remoteState.activities);
+        if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
+        if (remoteState.scorecard) setScorecard(remoteState.scorecard);
+        if (remoteState.videos) setVideos(remoteState.videos);
+        if (remoteState.experiments) setExperiments(remoteState.experiments);
+        if (remoteState.insights) setInsights(remoteState.insights);
+      } finally {
+        reconciliationInFlightRef.current = false;
+      }
+    };
+
+    const interval = window.setInterval(reconcile, 2000);
+    const handleVisibility = () => { if (document.visibilityState === 'visible') reconcile(); };
+    window.addEventListener('online', reconcile);
+    document.addEventListener('visibilitychange', handleVisibility);
+    reconcile();
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('online', reconcile);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [user?.id, hydratedUserId, syncFatal]);
 
   useEffect(() => {
     if (!user || authLoading || !isStateLoaded || hydratedUserId !== user.id) return;
