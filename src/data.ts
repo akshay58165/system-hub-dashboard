@@ -21,7 +21,7 @@ export const initialSupabaseProject: SupabaseProject = {
   },
 };
 
-const infotainmentTopicSeeds: Array<Pick<Topic, 'name' | 'description' | 'channel' | 'status' | 'priority' | 'dueDate' | 'format' | 'category'>> = [
+export const retiredInfotainmentTopicSeeds: Array<Pick<Topic, 'name' | 'description' | 'channel' | 'status' | 'priority' | 'dueDate' | 'format' | 'category'>> = [
   { name: 'Why QR Codes Still Work When Damaged', description: 'A visual explanation of error correction and the hidden redundancy inside every QR code.', channel: 'LearnDriven', format: 'Short', category: 'Everyday Tech', status: 'topic', priority: 5, dueDate: '2026-07-03T18:30:00.000Z' },
   { name: 'How Autocomplete Guesses Your Next Word', description: 'Turn language-model prediction into a fast, relatable keyboard experiment.', channel: 'LearnDriven', format: 'Short', category: 'AI Explained', status: 'scripted', priority: 4, dueDate: '2026-07-06T18:30:00.000Z' },
   { name: "Why Airplane Mode Doesn't Turn Off GPS", description: 'Separate GPS reception from cellular transmission with a simple satellite analogy.', channel: 'LearnDriven', format: 'Short', category: 'Tech Myths', status: 'topic', priority: 3, dueDate: '2026-07-08T18:30:00.000Z' },
@@ -55,14 +55,9 @@ const infotainmentTopicSeeds: Array<Pick<Topic, 'name' | 'description' | 'channe
   { name: 'Inside the Recommendation War for Your Attention', description: 'Members deep dive comparing ranking objectives, feedback loops, and creator incentives.', channel: 'DecodeWorthy', format: 'Members', category: 'Platform Economics', status: 'topic', priority: 4, dueDate: null },
 ];
 
-export const initialTopics: Topic[] = infotainmentTopicSeeds.map((topic, index) => ({
-  ...topic,
-  id: `t-manual-demo-infotainment-${String(index + 1).padStart(2, '0')}`,
-  createdDate: '2026-07-01T00:00:00.000Z',
-  lastUpdated: '2026-07-01T00:00:00.000Z',
-  revenueLevel: topic.format === 'Members' ? 'High Revenue' : topic.format === 'Long' ? 'Medium Revenue' : 'Discovery',
-  isDemo: true,
-}));
+// Topic Inventory starts empty and is populated only by the creator's saved data.
+// The former infotainment demo records are intentionally not injected on startup.
+export const initialTopics: Topic[] = [];
 export const initialActivities: TopicActivity[] = [];
 
 // Clean datasets: no fabricated or placeholder data. Everything is populated live via APIs or User Input.
