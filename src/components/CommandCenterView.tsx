@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { 
   ChevronDown, 
@@ -30,7 +30,6 @@ import {
   Bar
 } from 'recharts';
 import { VideoRecord, Experiment, CreatorInsight, CycleGoal } from '../types';
-import { fetchYouTube48HourAnalytics } from '../services/youtube';
 
 interface CommandCenterViewProps {
   videos: VideoRecord[];
@@ -39,7 +38,6 @@ interface CommandCenterViewProps {
   cycleGoals: CycleGoal | null;
   scorecard: any;
   activities: any[];
-  youtubeAccessToken?: string;
   onTabChange: (tab: string) => void;
   setSelectedVideoId: (videoId: string | null) => void;
 }
@@ -66,57 +64,16 @@ export default function CommandCenterView({
   cycleGoals, 
   scorecard,
   activities,
-  youtubeAccessToken,
   onTabChange,
   setSelectedVideoId
 }: CommandCenterViewProps) {
   const [activeSubTab, setActiveSubTab] = useState<'Overview' | 'Content' | 'Audience' | 'Revenue' | 'Trends'>('Overview');
   const [selectedMetric, setSelectedMetric] = useState<'views' | 'watchtime' | 'subs' | 'revenue'>('views');
-  const [live48hViews, setLive48hViews] = useState<number | null>(null);
-  const [live48hBars, setLive48hBars] = useState<number[] | null>(null);
-  const [liveReportedThrough, setLiveReportedThrough] = useState<string | null>(null);
-  const [liveRefreshError, setLiveRefreshError] = useState(false);
-
-  useEffect(() => {
-    if (!youtubeAccessToken) {
-      setLive48hViews(null);
-      setLive48hBars(null);
-      setLiveReportedThrough(null);
-      setLiveRefreshError(false);
-      return;
-    }
-
-    let cancelled = false;
-    let requestInFlight = false;
-
-    const refresh = async () => {
-      if (requestInFlight) return;
-      requestInFlight = true;
-      try {
-        const snapshot = await fetchYouTube48HourAnalytics(youtubeAccessToken);
-        if (!cancelled) {
-          setLive48hViews(snapshot.views);
-          setLive48hBars(snapshot.hourlyViews);
-          setLiveReportedThrough(snapshot.reportedThrough);
-          setLiveRefreshError(false);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.warn('YouTube 48-hour telemetry refresh failed:', error);
-          setLiveRefreshError(true);
-        }
-      } finally {
-        requestInFlight = false;
-      }
-    };
-
-    void refresh();
-    const intervalId = window.setInterval(refresh, 1000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
-  }, [youtubeAccessToken]);
+  const live48hViews: number | null = null;
+  const live48hBars: number[] | null = null;
+  const liveReportedThrough: string | null = null;
+  const liveRefreshError = false;
+  const youtubeAccessToken: string | undefined = undefined;
 
   // 1. Calculate live metrics
   const totalViewsSum = useMemo(() => {

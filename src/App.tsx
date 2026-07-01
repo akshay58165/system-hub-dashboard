@@ -33,8 +33,6 @@ import {
   ListChecks
 } from 'lucide-react';
 import { supabase } from './services/supabase';
-import { loginWithYouTube, logoutYouTube, handleOAuthCallback, getYouTubeCredentials, orchestrateYouTubeDataFetch } from './services/youtube';
-import { generateAIActionPlan } from './services/openai';
 
 import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, VideoRecord, Experiment, CreatorInsight } from './types';
 import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, normalizeCommittedTombstones, prepareLocalTopicMutation, topicCollectionsEqual, visibleCreatorTopics } from './lib/topicSync';
@@ -163,144 +161,18 @@ export default function App() {
   const [experiments, setExperiments] = useState<Experiment[]>(initialExperiments);
   const [insights, setInsights] = useState<CreatorInsight[]>(initialCreatorInsights);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
-  const [ytCreds, setYtCreds] = useState<any>(null);
+  // YouTube UI is intentionally retained, but all OAuth/API access is disabled.
+  const ytCreds: { accessToken: string } | null = null;
+  const isSyncingYT = false;
 
   useEffect(() => {
-    const creds = handleOAuthCallback();
-    if (creds) {
-      setYtCreds(creds);
-      addEvent({
-        id: `evt-yt-login-${Date.now()}`,
-        source: 'system',
-        type: 'success',
-        message: 'YouTube Integration: Authenticated successfully. Pulling live channel feeds.',
-        timestamp: new Date().toISOString()
-      });
-    } else {
-      setYtCreds(getYouTubeCredentials());
+    localStorage.removeItem('yt_oauth_credentials');
+    localStorage.removeItem('yt_oauth_credentials_v2');
+    const callback = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    if (callback.get('state') === 'youtube_oauth') {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
     }
   }, []);
-
-  const [isSyncingYT, setIsSyncingYT] = useState(false);
-
-  useEffect(() => {
-    if (!ytCreds) return;
-
-    let active = true;
-    const syncLiveFeeds = async () => {
-      setIsSyncingYT(true);
-      addEvent({
-        id: `evt-yt-sync-start-${Date.now()}`,
-        source: 'system',
-        type: 'info',
-        message: 'YouTube Sync: Fetching live videos metadata and channel reports...',
-        timestamp: new Date().toISOString()
-      });
-
-      try {
-        const liveVideos = await orchestrateYouTubeDataFetch(ytCreds.accessToken);
-        if (!active) return;
-
-        if (liveVideos.length > 0) {
-          setVideos(liveVideos);
-
-          try {
-            addEvent({
-              id: `evt-openai-analysis-start-${Date.now()}`,
-              source: 'system',
-              type: 'info',
-              message: 'OpenAI Analyzer: Analyzing live video stats to write action priority...',
-              timestamp: new Date().toISOString()
-            });
-
-            const plan = await generateAIActionPlan('All', liveVideos, cycleGoals, scorecard, activities);
-            if (!active) return;
-
-            const newInsights: CreatorInsight[] = [];
-            
-            plan.directives.whatToDo.forEach(item => {
-              newInsights.push({
-                id: item.id,
-                title: item.title,
-                description: item.description,
-                type: 'recommendation',
-                channel: 'All',
-                reason: 'AI Production Directive (What to Do)',
-                actionLabel: item.actionLabel
-              });
-            });
-
-            plan.directives.howToKeepUp.forEach(item => {
-              newInsights.push({
-                id: item.id,
-                title: item.title,
-                description: item.description,
-                type: 'info',
-                channel: 'All',
-                reason: 'Bio-Performance Sync (How to Keep Up)',
-                actionLabel: item.actionLabel
-              });
-            });
-
-            plan.directives.whatToMaintain.forEach(item => {
-              newInsights.push({
-                id: item.id,
-                title: item.title,
-                description: item.description,
-                type: 'warning',
-                channel: 'All',
-                reason: 'Upload Upkeep (What to Maintain)',
-                actionLabel: item.actionLabel
-              });
-            });
-
-            setInsights(newInsights);
-
-            addEvent({
-              id: `evt-yt-sync-complete-${Date.now()}`,
-              source: 'system',
-              type: 'success',
-              message: `Real-time sync complete: Loaded ${liveVideos.length} videos and generated ${newInsights.length} suggestions from live feeds.`,
-              timestamp: new Date().toISOString()
-            });
-          } catch (aiError: any) {
-            console.warn('OpenAI analysis unavailable:', aiError);
-            addEvent({
-              id: `evt-yt-sync-no-ai-${Date.now()}`,
-              source: 'system',
-              type: 'warning',
-              message: `Real-time sync complete: Loaded ${liveVideos.length} videos. Secure AI analysis was unavailable.`,
-              timestamp: new Date().toISOString()
-            });
-          }
-        }
-      } catch (err: any) {
-        console.error("YouTube Live Sync failed:", err);
-        addEvent({
-          id: `evt-yt-sync-failed-${Date.now()}`,
-          source: 'system',
-          type: 'warning',
-          message: `YouTube API Sync failed: ${err.message || err}. Simulated data maintained.`,
-          timestamp: new Date().toISOString()
-        });
-
-        if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
-          logoutYouTube();
-          setYtCreds(null);
-        }
-      } finally {
-        if (active) {
-          setIsSyncingYT(false);
-        }
-      }
-    };
-
-    syncLiveFeeds();
-
-    return () => {
-      active = false;
-    };
-  }, [ytCreds]);
 
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [timeStr, setTimeStr] = useState('');
@@ -1260,8 +1132,7 @@ export default function App() {
                 <span className="font-bold">{isSyncingYT ? 'Syncing...' : 'YT Active'}</span>
                 <button 
                   onClick={() => {
-                    logoutYouTube();
-                    setYtCreds(null);
+                    // YouTube API access is intentionally disabled.
                   }}
                   className="hover:text-red-300 ml-1 cursor-pointer transition font-bold"
                   title="Disconnect YouTube integration"
@@ -1271,7 +1142,7 @@ export default function App() {
               </div>
             ) : (
               <button
-                onClick={() => loginWithYouTube()}
+                onClick={() => {}}
                 className="flex items-center gap-1.5 bg-red-950/30 hover:bg-red-900/30 text-red-400 border border-red-900/30 rounded-lg px-2.5 py-1 transition cursor-pointer font-mono text-[9px] font-bold"
               >
                 <Youtube className="h-3.5 w-3.5 shrink-0 text-red-500" />
@@ -1500,7 +1371,6 @@ export default function App() {
                 setSelectedVideoId={setSelectedVideoId}
                 scorecard={scorecard}
                 activities={activities}
-                youtubeAccessToken={ytCreds?.accessToken}
               />
             )}
 
