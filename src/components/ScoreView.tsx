@@ -49,6 +49,32 @@ interface HistoryEntry {
   description: string;
 }
 
+const LAST_WELLBEING_INSIGHT_KEY = 'unicorn_wellbeing_last_insight_v1';
+
+interface CachedWellbeingInsight {
+  insight: WellbeingInsightResult;
+  timestamp: string;
+}
+
+function loadCachedWellbeingInsight(): CachedWellbeingInsight | null {
+  try {
+    const raw = localStorage.getItem(LAST_WELLBEING_INSIGHT_KEY);
+    if (!raw) return null;
+    const cached = JSON.parse(raw) as CachedWellbeingInsight;
+    return cached?.insight && cached?.timestamp ? cached : null;
+  } catch {
+    return null;
+  }
+}
+
+function cacheWellbeingInsight(insight: WellbeingInsightResult, timestamp: string) {
+  try {
+    localStorage.setItem(LAST_WELLBEING_INSIGHT_KEY, JSON.stringify({ insight, timestamp }));
+  } catch {
+    // Keep the live result even if browser storage is unavailable.
+  }
+}
+
 export default function ScoreView({ repos, vercelProjects, supabase, scorecard, setScorecard }: ScoreViewProps) {
   // 12 Daily parameters mapped to props
   const restfulness = scorecard.restfulness;
@@ -196,13 +222,15 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
     stress
   };
 
+  const wellbeingParams = useMemo<WellbeingParams>(() => ({
+    R: restfulness, N: nutrition, H: hydration, SS: stomach, PA: physicalActivity,
+    STR: stress, D: endorphins, P: pleasantness, SA: schedule, SO: socialization,
+    REL: relations, TB: technicalities
+  }), [restfulness, nutrition, hydration, stomach, physicalActivity, stress, endorphins, pleasantness, schedule, socialization, relations, technicalities]);
+
   // Exact deterministic Bio-Focus formula and weighted sub-scores.
   const computedMetrics = useMemo(() => {
-    const readiness = generateDailyStatus({
-      R: restfulness, N: nutrition, H: hydration, SS: stomach, PA: physicalActivity,
-      STR: stress, D: endorphins, P: pleasantness, SA: schedule, SO: socialization,
-      REL: relations, TB: technicalities
-    });
+    const readiness = generateDailyStatus(wellbeingParams);
 
     return {
       aggregate: readiness.score ?? 0,
@@ -214,7 +242,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
       socialHarmony: readiness.socialScore,
       biologicalComfort: readiness.environmentScore
     };
-  }, [restfulness, nutrition, hydration, physicalActivity, endorphins, schedule, pleasantness, socialization, stomach, technicalities, relations, stress]);
+  }, [wellbeingParams]);
 
   // ---- Live Insight Engine (rule-based, no AI) ----
   // Watches every Daily Parameter. The instant ANY value changes, the old
@@ -223,9 +251,10 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
   // across any parameter — so a burst of edits (hydration, then stomach 5s
   // later, etc.) produces exactly one consolidated insight once everything
   // has actually settled, not one per click and not one per parameter.
-  const [wellbeingInsight, setWellbeingInsight] = useState<WellbeingInsightResult | null>(null);
+  const initialCachedInsightRef = useRef<CachedWellbeingInsight | null>(loadCachedWellbeingInsight());
+  const [wellbeingInsight, setWellbeingInsight] = useState<WellbeingInsightResult | null>(() => initialCachedInsightRef.current?.insight ?? null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [insightTimestamp, setInsightTimestamp] = useState<string | null>(null);
+  const [insightTimestamp, setInsightTimestamp] = useState<string | null>(() => initialCachedInsightRef.current?.timestamp ?? null);
   const insightTimerRef = useRef<NodeJS.Timeout | null>(null);
   // Snapshot of the 12 raw values as of the last effect run — used to tell a
   // genuine single-parameter user tap apart from a bulk data load (initial
@@ -238,8 +267,16 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
     const currentSnapshot = [restfulness, nutrition, hydration, stomach, physicalActivity, stress, endorphins, pleasantness, schedule, socialization, relations, technicalities];
 
     if (prevSnapshotRef.current === null) {
-      // First run ever for this mount — record the baseline, don't analyze.
+      // Restore the last completed result immediately. If there is no cached
+      // result but hydrated values already exist, derive the first result now.
       prevSnapshotRef.current = currentSnapshot;
+      if (!initialCachedInsightRef.current && currentSnapshot.filter(value => value !== null).length >= 6) {
+        const result = generateWellbeingInsight(wellbeingParams, []);
+        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setWellbeingInsight(result);
+        setInsightTimestamp(timestamp);
+        cacheWellbeingInsight(result, timestamp);
+      }
       return;
     }
 
@@ -248,7 +285,17 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
 
     if (changedCount === 0) return;
     if (changedCount > 1) {
-      // Several values moved together in one commit — a data load, not a tap.
+      // Several values moved together in one commit — this is Supabase/local
+      // hydration, not a user edit. Recompute immediately without waiting.
+      if (insightTimerRef.current) clearTimeout(insightTimerRef.current);
+      setIsAnalyzing(false);
+      if (currentSnapshot.filter(value => value !== null).length >= 6) {
+        const result = generateWellbeingInsight(wellbeingParams, []);
+        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setWellbeingInsight(result);
+        setInsightTimestamp(timestamp);
+        cacheWellbeingInsight(result, timestamp);
+      }
       return;
     }
 
@@ -259,21 +306,17 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
     if (insightTimerRef.current) clearTimeout(insightTimerRef.current);
 
     insightTimerRef.current = setTimeout(() => {
-      const params: WellbeingParams = {
-        R: restfulness, N: nutrition, H: hydration, SS: stomach, PA: physicalActivity,
-        STR: stress, D: endorphins, P: pleasantness, SA: schedule, SO: socialization,
-        REL: relations, TB: technicalities
-      };
-
       const today = new Date();
       const todayDateStr = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
-      const archive = recordTodayInArchive(todayDateStr, params);
+      const archive = recordTodayInArchive(todayDateStr, wellbeingParams);
       // Exclude today's just-written entry from the trend comparison itself.
       const priorDays = archive.filter(e => e.date !== todayDateStr);
 
-      const result = generateWellbeingInsight(params, priorDays);
+      const result = generateWellbeingInsight(wellbeingParams, priorDays);
+      const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       setWellbeingInsight(result);
-      setInsightTimestamp(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      setInsightTimestamp(timestamp);
+      cacheWellbeingInsight(result, timestamp);
       setIsAnalyzing(false);
     }, 10000);
 
@@ -830,7 +873,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                 exit={{ opacity: 0 }}
                 className="text-xs text-neutral-500 font-mono p-3"
               >
-                Change a parameter on the left and I'll read what kind of day this is once you settle for 10 seconds.
+                No completed result is saved yet. Set at least six parameters; after the first result, it will be restored here on every visit.
               </motion.p>
             )}
           </AnimatePresence>
