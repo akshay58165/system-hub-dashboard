@@ -75,6 +75,8 @@ export default function App() {
     return (localStorage.getItem('unicorn_active_tab') as any) || 'overview';
   });
 
+  const [pipelineSubView, setPipelineSubView] = useState<'videos' | 'topics'>('videos');
+
   const [cycleGoals, setCycleGoals] = useState<CycleGoal | null>(null);
 
   const [scorecard, setScorecard] = useState<any>(() => {
@@ -1026,18 +1028,6 @@ export default function App() {
               </button>
 
               <button
-                onClick={() => setActiveTab('progress')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
-                  activeTab === 'progress'
-                    ? 'bg-neutral-900 border border-neutral-850 text-amber-400'
-                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
-                }`}
-              >
-                <ListChecks className="h-3.5 w-3.5 text-amber-400" />
-                <span>Topic Workflow</span>
-              </button>
-
-              <button
                 onClick={() => setActiveTab('videolab')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
                   activeTab === 'videolab'
@@ -1210,6 +1200,13 @@ export default function App() {
                 videos={videos}
                 setVideos={setVideos}
                 onAddEvent={addEvent}
+                topics={topics}
+                setTopics={setTopics}
+                activities={activities}
+                setActivities={setActivities}
+                cycleGoals={cycleGoals}
+                activeSubView={pipelineSubView}
+                setActiveSubView={setPipelineSubView}
               />
             )}
 
@@ -1265,6 +1262,7 @@ export default function App() {
                 isAddFormOpen={isAddFormOpen}
                 setIsAddFormOpen={setIsAddFormOpen}
                 setActiveTab={setActiveTab}
+                setPipelineSubView={setPipelineSubView}
               />
             )}
 

@@ -51,11 +51,13 @@ const WORKFLOW_LABELS: Record<WorkflowStage, Record<WorkflowState, string>> = {
   post: { pending: 'Post', 'in-progress': 'Posting', completed: 'Posted' },
 };
 
-function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress }: {
+function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, labelOverride, disabled }: {
   stage: WorkflowStage;
   state: WorkflowState;
   onQuickPress: () => void;
   onLongPress: () => void;
+  labelOverride?: string;
+  disabled?: boolean;
 }) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
@@ -68,6 +70,7 @@ function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress }: {
   };
 
   const startPress = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (disabled) return;
     event.stopPropagation();
     longPressFired.current = false;
     setIsHolding(true);
@@ -79,6 +82,7 @@ function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress }: {
   };
 
   const finishPress = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (disabled) return;
     event.stopPropagation();
     const wasLongPress = longPressFired.current;
     cancelTimer();
@@ -96,25 +100,29 @@ function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress }: {
   return (
     <button
       type="button"
+      disabled={disabled}
       onPointerDown={startPress}
       onPointerUp={finishPress}
       onPointerCancel={cancelTimer}
       onPointerLeave={cancelTimer}
       onContextMenu={(event) => event.preventDefault()}
       onKeyDown={(event) => {
+        if (disabled) return;
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           onQuickPress();
         }
       }}
-      title="Quick click: mark in progress. Hold 1 second: mark complete."
-      className={`relative overflow-hidden px-2.5 py-1 rounded text-[8px] font-semibold border transition select-none touch-none cursor-pointer ${
+      title={disabled ? undefined : "Quick click: mark in progress. Hold 1 second: mark complete."}
+      className={`relative overflow-hidden px-2.5 py-1 rounded text-[8px] font-semibold border transition select-none touch-none ${
+        disabled ? 'cursor-default opacity-85' : 'cursor-pointer'
+      } ${
         state === 'pending'
           ? 'bg-neutral-950 border-neutral-850 text-neutral-400 hover:text-neutral-200'
           : palette
       } ${state === 'in-progress' ? 'ring-1 ring-white/15' : ''}`}
     >
-      {isHolding && (
+      {isHolding && !disabled && (
         <svg
           className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
           viewBox="0 0 100 32"
@@ -135,7 +143,7 @@ function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress }: {
           />
         </svg>
       )}
-      <span className="relative">{WORKFLOW_LABELS[stage][state]}</span>
+      <span className="relative">{labelOverride || WORKFLOW_LABELS[stage][state]}</span>
     </button>
   );
 }
@@ -155,6 +163,61 @@ export default function VercelView({
   const [schedTime, setSchedTime] = useState('');
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null);
 
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Automatic transition: scheduled -> posted when current time reaches/passes scheduled time
+  useEffect(() => {
+    const scheduledTopicsToPost = topics.filter(t => 
+      t.status === 'scheduled' && 
+      t.dueDate && 
+      new Date(t.dueDate) <= now
+    );
+
+    if (scheduledTopicsToPost.length > 0) {
+      setTopics(prev => prev.map(t => {
+        const matching = scheduledTopicsToPost.find(p => p.id === t.id);
+        if (matching) {
+          return {
+            ...t,
+            status: 'posted',
+            inProgress: true,
+            workflowStatuses: {
+              ...t.workflowStatuses,
+              schedule: 'completed',
+              post: 'completed'
+            },
+            lastUpdated: new Date().toISOString()
+          };
+        }
+        return t;
+      }));
+
+      scheduledTopicsToPost.forEach(t => {
+        onAddEvent({
+          id: `evt-auto-posted-${t.id}-${Date.now()}`,
+          source: 'system',
+          type: 'success',
+          message: `Workflow Engine: "${t.name}" scheduled release time reached. Auto-marked as Posted (${t.channel}).`,
+          timestamp: new Date().toISOString()
+        });
+
+        setActivities(prev => [{
+          id: `act-auto-posted-${t.id}-${Date.now()}`,
+          topicName: t.name,
+          channel: t.channel,
+          action: `Auto-Posted: Release schedule reached for ${t.name}`,
+          author: 'system',
+          timestamp: new Date().toISOString()
+        }, ...prev]);
+      });
+    }
+  }, [now, topics, setTopics, onAddEvent, setActivities]);
+
   const getWorkflowState = (topic: Topic, stage: WorkflowStage): WorkflowState => {
     const savedState = topic.workflowStatuses?.[stage];
     if (savedState) return savedState;
@@ -168,25 +231,58 @@ export default function VercelView({
       : 'pending';
   };
 
-  const updateWorkflowStage = (topic: Topic, stage: WorkflowStage, state: Exclude<WorkflowState, 'pending'>) => {
+  const handleTransitionToStage = (topic: Topic, targetStage: WorkflowStage, targetState: WorkflowState) => {
     const completedStatusByStage: Record<WorkflowStage, Topic['status']> = {
       script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted'
     };
 
-    setTopics(prev => prev.map(item => item.id === topic.id ? {
-      ...item,
-      inProgress: true,
-      status: state === 'completed' ? completedStatusByStage[stage] : item.status,
-      workflowStatuses: { ...item.workflowStatuses, [stage]: state },
-      lastUpdated: new Date().toISOString(),
-    } : item));
+    const stagesOrder: WorkflowStage[] = ['script', 'shoot', 'edit', 'schedule', 'post'];
+    const targetIdx = stagesOrder.indexOf(targetStage);
 
-    const label = WORKFLOW_LABELS[stage][state];
+    setTopics(prev => prev.map(item => {
+      if (item.id !== topic.id) return item;
+
+      const updatedStatuses: Record<string, WorkflowState> = { ...item.workflowStatuses };
+      
+      stagesOrder.forEach((stg, idx) => {
+        if (idx < targetIdx) {
+          updatedStatuses[stg] = 'completed';
+        } else if (idx === targetIdx) {
+          updatedStatuses[stg] = targetState;
+        } else {
+          delete updatedStatuses[stg];
+        }
+      });
+
+      let newStatus: Topic['status'] = 'topic';
+      if (targetState === 'completed') {
+        newStatus = completedStatusByStage[targetStage];
+      } else if (targetIdx > 0) {
+        newStatus = completedStatusByStage[stagesOrder[targetIdx - 1]];
+      }
+
+      const updatedTopic: Topic = {
+        ...item,
+        status: newStatus,
+        inProgress: true,
+        workflowStatuses: updatedStatuses,
+        lastUpdated: new Date().toISOString()
+      };
+
+      if (targetIdx < stagesOrder.indexOf('schedule')) {
+        updatedTopic.dueDate = null;
+        updatedTopic.scheduledTime = undefined;
+      }
+
+      return updatedTopic;
+    }));
+
+    const label = WORKFLOW_LABELS[targetStage][targetState];
     setActivities(prev => [{
-      id: `act-workflow-${stage}-${Date.now()}`,
+      id: `act-workflow-${targetStage}-${Date.now()}`,
       topicName: topic.name,
       channel: topic.channel,
-      action: `${label}: ${topic.name}`,
+      action: `Moved stage to ${label}: ${topic.name}`,
       author: 'typeakshay',
       timestamp: new Date().toISOString(),
     }, ...prev]);
@@ -214,6 +310,7 @@ export default function VercelView({
       inProgress: false,
       workflowStatuses: {},
       scheduledTime: undefined,
+      dueDate: null,
       lastUpdated: new Date().toISOString(),
     } : item));
     setSchedulingTopicId(current => current === topic.id ? null : current);
@@ -595,7 +692,7 @@ export default function VercelView({
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1.5">
                           <span className="px-1.5 py-0.5 rounded border text-[8px] uppercase font-bold border-blue-900/40 text-blue-400 bg-blue-950/20">
                             {topic.status}
                           </span>
@@ -607,6 +704,50 @@ export default function VercelView({
                           >
                             <Pencil className="h-3 w-3" />
                           </button>
+                          {topic.status !== 'posted' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!window.confirm(`Manually archive "${topic.name}" as Posted?`)) return;
+                                setTopics(prev => prev.map(t => t.id === topic.id ? {
+                                  ...t,
+                                  status: 'posted',
+                                  inProgress: true,
+                                  workflowStatuses: {
+                                    ...t.workflowStatuses,
+                                    script: 'completed',
+                                    shoot: 'completed',
+                                    edit: 'completed',
+                                    schedule: 'completed',
+                                    post: 'completed'
+                                  },
+                                  lastUpdated: new Date().toISOString()
+                                } : t));
+
+                                onAddEvent({
+                                  id: `evt-manual-archive-${topic.id}-${Date.now()}`,
+                                  source: 'system',
+                                  type: 'success',
+                                  message: `Workflow Engine: "${topic.name}" manually archived as Posted.`,
+                                  timestamp: new Date().toISOString()
+                                });
+
+                                setActivities(prev => [{
+                                  id: `act-manual-archive-${topic.id}-${Date.now()}`,
+                                  topicName: topic.name,
+                                  channel: topic.channel,
+                                  action: `Manually Archived: Mark "${topic.name}" as Posted`,
+                                  author: 'typeakshay',
+                                  timestamp: new Date().toISOString()
+                                }, ...prev]);
+                              }}
+                              className="p-1 rounded border border-neutral-800 text-neutral-400 hover:text-emerald-400 hover:border-emerald-900 transition flex items-center gap-0.5 cursor-pointer"
+                              title="Manually archive as Posted"
+                            >
+                              <CheckCircle className="h-3 w-3 text-emerald-500" />
+                              <span className="text-[8px] font-mono px-0.5 text-emerald-400">Archive</span>
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => resetTopicWorkflow(topic)}
@@ -634,27 +775,71 @@ export default function VercelView({
 
                       {/* Interactive Stage Recording Buttons */}
                       <div className="flex flex-wrap gap-2.5 pt-2 border-t border-neutral-900">
-                        {(['script', 'shoot', 'edit', 'schedule', 'post'] as WorkflowStage[]).map(stage => (
-                          <React.Fragment key={stage}>
-                            <WorkflowStatusButton
-                              stage={stage}
-                              state={getWorkflowState(topic, stage)}
-                              onQuickPress={() => {
-                                updateWorkflowStage(topic, stage, 'in-progress');
-                                if (stage === 'schedule') {
-                                  const defaultTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
-                                  setSchedDate(topic.dueDate ? topic.dueDate.split('T')[0] : new Date().toISOString().split('T')[0]);
-                                  setSchedTime(topic.scheduledTime || defaultTime);
-                                  setSchedulingTopicId(topic.id);
+                        {(['script', 'shoot', 'edit', 'schedule', 'post'] as WorkflowStage[]).map(stage => {
+                          const state = getWorkflowState(topic, stage);
+                          let labelOverride = undefined;
+                          let isDisabled = false;
+
+                          if (stage === 'post') {
+                            isDisabled = true;
+                            if (topic.status === 'scheduled' && topic.dueDate) {
+                              const diff = new Date(topic.dueDate).getTime() - now.getTime();
+                              if (diff > 0) {
+                                const secs = Math.floor(diff / 1000);
+                                const mins = Math.floor(secs / 60);
+                                const hours = Math.floor(mins / 60);
+                                const days = Math.floor(hours / 24);
+
+                                if (days > 0) {
+                                  labelOverride = `Posting in ${days}d ${hours % 24}h`;
+                                } else if (hours > 0) {
+                                  labelOverride = `Posting in ${hours}h ${mins % 60}m`;
+                                } else if (mins > 0) {
+                                  labelOverride = `Posting in ${mins}m ${secs % 60}s`;
+                                } else {
+                                  labelOverride = `Posting in ${secs}s`;
                                 }
-                              }}
-                              onLongPress={() => {
-                                updateWorkflowStage(topic, stage, 'completed');
-                                if (stage === 'schedule') setSchedulingTopicId(null);
-                              }}
-                            />
-                          </React.Fragment>
-                        ))}
+                              } else {
+                                labelOverride = 'Posted';
+                              }
+                            } else if (topic.status === 'posted') {
+                              labelOverride = 'Posted';
+                            } else {
+                              labelOverride = 'Post';
+                            }
+                          }
+
+                          return (
+                            <React.Fragment key={stage}>
+                              <WorkflowStatusButton
+                                stage={stage}
+                                state={state}
+                                disabled={isDisabled}
+                                labelOverride={labelOverride}
+                                onQuickPress={() => {
+                                  if (stage === 'schedule') {
+                                    const defaultTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
+                                    setSchedDate(topic.dueDate ? topic.dueDate.split('T')[0] : new Date().toISOString().split('T')[0]);
+                                    setSchedTime(topic.scheduledTime || defaultTime);
+                                    setSchedulingTopicId(topic.id);
+                                  } else {
+                                    handleTransitionToStage(topic, stage, 'in-progress');
+                                  }
+                                }}
+                                onLongPress={() => {
+                                  if (stage === 'schedule') {
+                                    const defaultTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
+                                    setSchedDate(topic.dueDate ? topic.dueDate.split('T')[0] : new Date().toISOString().split('T')[0]);
+                                    setSchedTime(topic.scheduledTime || defaultTime);
+                                    setSchedulingTopicId(topic.id);
+                                  } else {
+                                    handleTransitionToStage(topic, stage, 'completed');
+                                  }
+                                }}
+                              />
+                            </React.Fragment>
+                          );
+                        })}
                       </div>
 
                       {/* Scheduling Date/Time Picker Form Block */}
@@ -757,8 +942,10 @@ export default function VercelView({
 
             <div className="space-y-3">
               {(() => {
-                const scheduledArchive = topics.filter(t => t.inProgress && (t.status === 'scheduled' || t.status === 'posted'));
-                if (scheduledArchive.length === 0) {
+                const scheduledItems = topics.filter(t => t.inProgress && t.status === 'scheduled');
+                const postedItems = topics.filter(t => t.inProgress && t.status === 'posted');
+
+                if (scheduledItems.length === 0 && postedItems.length === 0) {
                   return (
                     <div className="text-center py-6 text-neutral-500 font-mono text-[10px] border border-dashed border-neutral-900 rounded-lg">
                       No videos currently scheduled or done. Complete the progress stages and save scheduling parameters to archive them here.
@@ -766,56 +953,93 @@ export default function VercelView({
                   );
                 }
 
-                return scheduledArchive.map(topic => {
-                  const now = new Date();
-                  const targetTimeStr = topic.dueDate || '';
-                  const isLive = targetTimeStr ? now >= new Date(targetTimeStr) : false;
+                return (
+                  <div className="space-y-4">
+                    {scheduledItems.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="text-[9px] uppercase font-bold text-purple-400 tracking-wider font-mono">Scheduled Releases</div>
+                        {scheduledItems.map(topic => (
+                          <div 
+                            key={topic.id}
+                            className="p-3 bg-neutral-900/20 border border-neutral-850 rounded-lg space-y-2 font-mono text-[10px]"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <span className="text-xs font-bold block text-neutral-200">
+                                  {topic.name}
+                                </span>
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <span className="px-1.5 py-0.2 bg-neutral-950 text-neutral-500 border border-neutral-900 rounded text-[8px]">
+                                    {topic.channel}
+                                  </span>
+                                  {topic.revenueLevel && (
+                                    <span className="px-1.5 py-0.2 bg-emerald-950/20 text-emerald-400 border border-emerald-900/30 rounded text-[8px] font-bold">
+                                      {topic.revenueLevel}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
 
-                  return (
-                    <div 
-                      key={topic.id}
-                      className={`p-3 bg-neutral-900/20 border border-neutral-850 rounded-lg space-y-2 font-mono text-[10px] transition-all duration-500 ${
-                        isLive ? 'opacity-35 grayscale border-emerald-950/20 bg-neutral-950/50' : 'opacity-100'
-                      }`}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className={`text-xs font-bold block ${isLive ? 'text-neutral-400 line-through' : 'text-neutral-200'}`}>
-                            {topic.name}
-                          </span>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <span className="px-1.5 py-0.2 bg-neutral-950 text-neutral-500 border border-neutral-900 rounded text-[8px]">
-                              {topic.channel}
-                            </span>
-                            {topic.revenueLevel && (
-                              <span className="px-1.5 py-0.2 bg-emerald-950/20 text-emerald-400 border border-emerald-900/30 rounded text-[8px] font-bold">
-                                {topic.revenueLevel}
+                              <span className="px-1.5 py-0.5 rounded border text-[8px] uppercase font-bold border-purple-900/40 text-purple-400 bg-purple-950/20">
+                                Scheduled
                               </span>
-                            )}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-neutral-500 text-[8px] pt-1">
+                              <div>Created: {new Date(topic.createdDate).toLocaleDateString()}</div>
+                              <div>
+                                Release: {topic.dueDate ? new Date(topic.dueDate).toLocaleDateString() : 'N/A'}{' '}
+                                {topic.scheduledTime ? `@ ${topic.scheduledTime}` : ''}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-
-                        {isLive ? (
-                          <span className="px-1.5 py-0.5 rounded border text-[8px] uppercase font-bold border-emerald-900/30 text-emerald-400 bg-emerald-950/20 animate-pulse">
-                            Live
-                          </span>
-                        ) : (
-                          <span className="px-1.5 py-0.5 rounded border text-[8px] uppercase font-bold border-purple-900/40 text-purple-400 bg-purple-950/20">
-                            Scheduled
-                          </span>
-                        )}
+                        ))}
                       </div>
+                    )}
 
-                      <div className="grid grid-cols-2 gap-2 text-neutral-500 text-[8px] pt-1">
-                        <div>Created: {new Date(topic.createdDate).toLocaleDateString()}</div>
-                        <div>
-                          Scheduled: {topic.dueDate ? new Date(topic.dueDate).toLocaleDateString() : 'N/A'}{' '}
-                          {topic.scheduledTime ? `@ ${topic.scheduledTime}` : ''}
-                        </div>
+                    {postedItems.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-neutral-900/50">
+                        <div className="text-[9px] uppercase font-bold text-emerald-400 tracking-wider font-mono">Posted & Completed Archive</div>
+                        {postedItems.map(topic => (
+                          <div 
+                            key={topic.id}
+                            className="p-3 bg-neutral-900/10 border border-neutral-850/60 rounded-lg space-y-2 font-mono text-[10px] opacity-75 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <span className="text-xs font-bold block text-neutral-300 line-through">
+                                  {topic.name}
+                                </span>
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <span className="px-1.5 py-0.2 bg-neutral-950 text-neutral-500 border border-neutral-900 rounded text-[8px]">
+                                    {topic.channel}
+                                  </span>
+                                  {topic.revenueLevel && (
+                                    <span className="px-1.5 py-0.2 bg-emerald-950/20 text-emerald-400 border border-emerald-900/30 rounded text-[8px] font-bold">
+                                      {topic.revenueLevel}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <span className="px-1.5 py-0.5 rounded border text-[8px] uppercase font-bold border-emerald-900/30 text-emerald-400 bg-emerald-950/20">
+                                Live
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-neutral-500 text-[8px] pt-1">
+                              <div>Created: {new Date(topic.createdDate).toLocaleDateString()}</div>
+                              <div>
+                                Published: {topic.dueDate ? new Date(topic.dueDate).toLocaleDateString() : 'N/A'}{' '}
+                                {topic.scheduledTime ? `@ ${topic.scheduledTime}` : ''}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                  );
-                });
+                    )}
+                  </div>
+                );
               })()}
             </div>
           </div>
@@ -970,7 +1194,7 @@ export default function VercelView({
                 />
               </label>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <label className="block text-[9px] uppercase text-neutral-500 font-mono">
                   Channel
                   <select
@@ -997,8 +1221,27 @@ export default function VercelView({
                   <input
                     type="date"
                     value={editingTopic.dueDate?.split('T')[0] || ''}
-                    onChange={event => setEditingTopic({ ...editingTopic, dueDate: event.target.value ? new Date(`${event.target.value}T12:00:00`).toISOString() : null })}
+                    onChange={event => {
+                      const timePart = editingTopic.scheduledTime || '12:00';
+                      setEditingTopic({ ...editingTopic, dueDate: event.target.value ? new Date(`${event.target.value}T${timePart}:00`).toISOString() : null });
+                    }}
                     className="mt-1 w-full rounded border border-neutral-800 bg-neutral-900 px-2 py-2 text-xs normal-case text-white outline-none"
+                  />
+                </label>
+                <label className="block text-[9px] uppercase text-neutral-500 font-mono">
+                  Sched Time
+                  <input
+                    type="time"
+                    value={editingTopic.scheduledTime || ''}
+                    onChange={event => {
+                      const datePart = editingTopic.dueDate ? editingTopic.dueDate.split('T')[0] : new Date().toISOString().split('T')[0];
+                      setEditingTopic({ 
+                        ...editingTopic, 
+                        scheduledTime: event.target.value,
+                        dueDate: new Date(`${datePart}T${event.target.value}:00`).toISOString()
+                      });
+                    }}
+                    className="mt-1 w-full rounded border border-neutral-800 bg-neutral-900 px-2 py-2 text-xs normal-case text-white outline-none font-mono"
                   />
                 </label>
               </div>

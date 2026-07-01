@@ -17,17 +17,39 @@ import {
   Sparkles,
   Info
 } from 'lucide-react';
-import { VideoRecord } from '../types';
+import { VideoRecord, Topic, TopicActivity, CycleGoal } from '../types';
+import VercelView from './VercelView';
 
 interface PipelineViewProps {
   videos: VideoRecord[];
   setVideos: React.Dispatch<React.SetStateAction<VideoRecord[]>>;
   onAddEvent: (evt: any) => void;
+  topics: Topic[];
+  setTopics: React.Dispatch<React.SetStateAction<Topic[]>>;
+  activities: TopicActivity[];
+  setActivities: React.Dispatch<React.SetStateAction<TopicActivity[]>>;
+  cycleGoals: CycleGoal | null;
+  activeSubView?: 'videos' | 'topics';
+  setActiveSubView?: (subView: 'videos' | 'topics') => void;
 }
 
 const STAGES = ['Topic', 'Script', 'Shoot', 'Edit', 'Thumbnail', 'Schedule', 'Published'] as const;
 
-export default function PipelineView({ videos, setVideos, onAddEvent }: PipelineViewProps) {
+export default function PipelineView({ 
+  videos, 
+  setVideos, 
+  onAddEvent,
+  topics,
+  setTopics,
+  activities,
+  setActivities,
+  cycleGoals,
+  activeSubView: propActiveSubView,
+  setActiveSubView: propSetActiveSubView
+}: PipelineViewProps) {
+  const [localSubView, setLocalSubView] = useState<'videos' | 'topics'>('videos');
+  const activeSubView = propActiveSubView || localSubView;
+  const setActiveSubView = propSetActiveSubView || setLocalSubView;
   // Filters
   const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy'>('All');
   const [selectedFormat, setSelectedFormat] = useState<'All' | 'Short' | 'Long' | 'Members'>('All');
@@ -268,7 +290,35 @@ export default function PipelineView({ videos, setVideos, onAddEvent }: Pipeline
         </div>
       </div>
 
-      {/* Control Bar: Filters & Actions */}
+      {/* Sub-Navigation Toggle */}
+      <div className="flex items-center gap-2 border-b border-neutral-900 pb-2">
+        <button
+          type="button"
+          onClick={() => setActiveSubView('videos')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition ${
+            activeSubView === 'videos'
+              ? 'bg-neutral-900 border border-neutral-850 text-white'
+              : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
+          }`}
+        >
+          <span>Video Pipeline (Kanban)</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSubView('topics')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition ${
+            activeSubView === 'topics'
+              ? 'bg-neutral-900 border border-neutral-850 text-white'
+              : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
+          }`}
+        >
+          <span>Topic Workflow</span>
+        </button>
+      </div>
+
+      {activeSubView === 'videos' ? (
+        <>
+          {/* Control Bar: Filters & Actions */}
       <div className="flex flex-col md:flex-row justify-between gap-4 py-2">
         <div className="flex flex-wrap items-center gap-3">
           
@@ -627,6 +677,19 @@ export default function PipelineView({ videos, setVideos, onAddEvent }: Pipeline
           </div>
         )}
       </AnimatePresence>
+        </>
+      ) : (
+        <VercelView
+          projects={[]}
+          onAddEvent={onAddEvent}
+          onUpdateProject={() => {}}
+          topics={topics}
+          setTopics={setTopics}
+          activities={activities}
+          setActivities={setActivities}
+          cycleGoals={cycleGoals}
+        />
+      )}
 
     </div>
   );

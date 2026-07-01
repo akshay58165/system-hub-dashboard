@@ -80,7 +80,8 @@ export default function GithubView({
   setActivities,
   isAddFormOpen: isAddFormOpenProp,
   setIsAddFormOpen: setIsAddFormOpenProp,
-  setActiveTab
+  setActiveTab,
+  setPipelineSubView
 }: GithubViewProps) {
   // 1. Selected channel filter: 'All' | 'LearnDriven' | 'DecodeWorthy'
   const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy'>('All');
