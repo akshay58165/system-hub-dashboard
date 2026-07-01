@@ -288,7 +288,7 @@ export default function GithubView({
     }
 
     const newTopic: Topic = {
-      id: `t-manual-${Date.now()}`,
+      id: `t-manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       name: newTopicName,
       description: newTopicDesc,
       channel: newTopicChannel,
@@ -307,7 +307,7 @@ export default function GithubView({
 
     // Add activity log
     const newActivity: TopicActivity = {
-      id: `act-manual-${Date.now()}`,
+      id: `act-manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       topicName: newTopicName,
       channel: newTopicChannel,
       action: `Created new topic in ${newTopicStatus} stage` + (revLvl ? ` with ${revLvl}` : ''),

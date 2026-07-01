@@ -204,7 +204,7 @@ export default function SupabaseView({
     const now = new Date().toISOString();
     const revenueLevel = getTopicRevenueLevel();
     const topic: Topic = {
-      id: `t-manual-${Date.now()}`,
+      id: `t-manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       name: newTopicName.trim(),
       description: newTopicDesc.trim(),
       channel: newTopicChannel,
@@ -220,7 +220,7 @@ export default function SupabaseView({
 
     setTopics(prev => [topic, ...prev]);
     setActivities(prev => [{
-      id: `act-manual-${Date.now()}`,
+      id: `act-manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       topicName: topic.name,
       channel: topic.channel,
       action: `Created new topic in ${topic.status} stage${revenueLevel ? ` with ${revenueLevel}` : ''}`,

@@ -278,6 +278,14 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isStateLoaded, setIsStateLoaded] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  // syncError alone is just a banner message and must never block saving —
+  // a one-time transient error (a momentary network blip during initial
+  // load, for example) used to set syncError and then permanently block
+  // every future save for the rest of the session with no automatic
+  // recovery, silently discarding everything the user added afterward.
+  // syncFatal is reserved for genuinely unrecoverable states (the
+  // dashboard_state table not existing) where retrying truly cannot help.
+  const [syncFatal, setSyncFatal] = useState(false);
 
   // Database Reset States
   const [isResetOpen, setIsResetOpen] = useState(false);
@@ -465,7 +473,11 @@ export default function App() {
           console.error("Error fetching state from Supabase:", error.message);
           if (error.message.includes('relation "public.dashboard_state" does not exist') || error.code === 'P0001') {
             setSyncError("Supabase error: Table 'public.dashboard_state' does not exist. Please run SQL migrations in your Supabase dashboard.");
+            setSyncFatal(true);
           } else {
+            // Transient (network blip, temporary outage, etc.) — show the
+            // banner but let subsequent save attempts still go through; the
+            // debounced save effect will naturally retry on the next change.
             setSyncError(`Supabase connection error: ${error.message}`);
           }
           setIsStateLoaded(true); // Let client render local fallback
@@ -563,6 +575,12 @@ export default function App() {
                 } catch { /* Continue with remote state if recovery metadata is invalid. */ }
                 const remoteState = newState.state as any;
                 if (remoteState.topics) {
+                  // Deliberately a plain overwrite, not a content-based merge:
+                  // diffing "topics missing from the incoming payload" and
+                  // re-adding them would resurrect topics a user genuinely
+                  // deleted from another device. The localUpdatedAt check
+                  // above is the correct guard against stale/out-of-order
+                  // updates — trust it and apply the payload as-is.
                   setTopics((remoteState.topics as Topic[]).filter(topic =>
                     !topic.isDemo && !topic.id.startsWith('t-manual-demo-infotainment-')
                   ));
@@ -620,7 +638,12 @@ export default function App() {
     newExperiments: Experiment[],
     newInsights: CreatorInsight[]
   ) => {
-    if (!supabase || !user || syncError) return;
+    // Only a genuinely unrecoverable state (missing schema) blocks saving.
+    // A transient syncError banner must never permanently stop future saves —
+    // that was the actual cause of topics silently never reaching the
+    // database: one past transient failure disabled every save for the rest
+    // of the session with no automatic recovery.
+    if (!supabase || !user || syncFatal) return;
     try {
       const { error } = await supabase
         .from('dashboard_state')
@@ -640,13 +663,21 @@ export default function App() {
 
       if (error) {
         console.error("Error saving state to Supabase:", error.message);
-        // Do not block local updates, but log warning
         if (error.message.includes('relation "public.dashboard_state" does not exist')) {
           setSyncError("Supabase error: Table 'public.dashboard_state' does not exist. Please run SQL migrations.");
+          setSyncFatal(true);
+        } else {
+          // Surface it, but let the next debounced save retry naturally.
+          setSyncError(`Supabase save error: ${error.message}`);
         }
+      } else {
+        // A successful save proves the connection has recovered — clear any
+        // stale error banner so the UI honestly reflects current state.
+        setSyncError(null);
       }
     } catch (e: any) {
       console.error(e);
+      setSyncError(`Supabase save error: ${e.message || 'unknown error'}`);
     }
   };
 
