@@ -316,7 +316,7 @@ export default function SupabaseView({
     };
   }, []);
 
-  const handleTriggerAI = async (mode: 'outline' | 'enhance') => {
+  const handleTriggerAI = async () => {
     if (!selectedScriptTopicId) return;
     const topic = topics.find(t => t.id === selectedScriptTopicId);
     if (!topic) return;
@@ -327,31 +327,38 @@ export default function SupabaseView({
     const targetChannel = topic.channel;
     const topicName = topic.name;
     const topicDesc = topic.description;
+    const instruction = customInstruction.trim();
+    const hasDraft = scriptText.trim().length > 0;
 
     onAddEvent({
       id: `evt-ai-request-${Date.now()}`,
       source: 'system',
       type: 'info',
-      message: `AI Core: Requesting ${mode} completion from OpenAI for topic "${topicName}" on channel [${targetChannel}]`,
+      message: `AI Core: Requesting AI completion from OpenAI for topic "${topicName}" on channel [${targetChannel}]`,
       timestamp: new Date().toISOString()
     });
 
     try {
-      const systemPrompt = getChannelSystemPrompt(targetChannel, customInstruction);
-      let userPrompt = '';
+      // The channel system prompt sets persona/style only. The actual task is
+      // whatever the selected preset or typed instruction says, verbatim —
+      // never a hardcoded "write an outline" / "enhance this draft" string
+      // that would silently override what the user actually asked for.
+      const systemPrompt = getChannelSystemPrompt(targetChannel);
+      const task = instruction || (hasDraft
+        ? 'Rewrite and improve this draft, optimizing the speech flow and pacing for spoken delivery.'
+        : 'Write a structured script outline with standard video pacing segments.');
 
-      if (mode === 'outline') {
-        userPrompt = `Topic Title: ${topicName}
+      const userPrompt = hasDraft
+        ? `Topic Title: ${topicName}
 Topic Description: ${topicDesc}
-Please write a structured script outline with standard video pacing segments.`;
-      } else {
-        userPrompt = `Topic Title: ${topicName}
 Current Draft:
 """
 ${scriptText}
 """
-Please rewrite/enhance this draft based on the system persona rules and the user instructions. Optimize the speech flow and pacing.`;
-      }
+${task}`
+        : `Topic Title: ${topicName}
+Topic Description: ${topicDesc}
+${task}`;
 
       const result = await callOpenAI(systemPrompt, userPrompt, recordAiUsage);
       handleUpdateScript(result);
@@ -1171,18 +1178,12 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                     {/* AI Quick Triggers */}
                     <div className="flex items-center gap-2 shrink-0">
                       <button
-                        onClick={() => handleTriggerAI('outline')}
+                        onClick={() => handleTriggerAI()}
                         disabled={isAiLoading || !selectedScriptTopicId}
-                        className="px-3 py-1.5 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed text-neutral-200 font-mono text-[10px] rounded transition cursor-pointer flex items-center gap-1"
-                      >
-                        <span>Generate Outline</span>
-                      </button>
-                      <button
-                        onClick={() => handleTriggerAI('enhance')}
-                        disabled={isAiLoading || !selectedScriptTopicId}
+                        title="Runs whatever preset or typed instruction is set above; falls back to a generic outline/enhance if left empty"
                         className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-black font-mono font-bold text-[10px] rounded transition cursor-pointer flex items-center gap-1"
                       >
-                        <span>Enhance Draft</span>
+                        <span>Generate Response</span>
                       </button>
                       <button
                         onClick={handleFindSources}
