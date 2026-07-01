@@ -19,7 +19,7 @@ import {
   Pencil
 } from 'lucide-react';
 import { SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, AiRulePreset, AiUsageStats, AiUsageCall } from '../types';
-import { callOpenAI, getChannelSystemPrompt, findScriptSources } from '../services/openai';
+import { callOpenAI, getChannelSystemPrompt, findScriptSources, fetchRealAccountUsage, RealAccountUsage } from '../services/openai';
 import { getTopicCurrentWorkflow, getTopicWorkflowState } from '../services/topicWorkflow';
 
 // Splits AI source-search output on raw URLs and renders them as real
@@ -135,6 +135,26 @@ export default function SupabaseView({
   const [isPresetDropdownOpen, setIsPresetDropdownOpen] = useState(false);
   const [budgetDraft, setBudgetDraft] = useState<string>(aiUsage.budgetUSD !== null ? String(aiUsage.budgetUSD) : '');
   const [isEditingBudget, setIsEditingBudget] = useState(false);
+  const [realUsage, setRealUsage] = useState<RealAccountUsage | null>(null);
+  const [isFetchingRealUsage, setIsFetchingRealUsage] = useState(false);
+  const [realUsageError, setRealUsageError] = useState<string | null>(null);
+
+  const loadRealUsage = React.useCallback(async () => {
+    setIsFetchingRealUsage(true);
+    setRealUsageError(null);
+    try {
+      const result = await fetchRealAccountUsage();
+      setRealUsage(result);
+    } catch (err: any) {
+      setRealUsageError(err.message || 'Failed to fetch real account usage.');
+    } finally {
+      setIsFetchingRealUsage(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeSubTab === 'script') loadRealUsage();
+  }, [activeSubTab, loadRealUsage]);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [isSourcesLoading, setIsSourcesLoading] = useState(false);
@@ -892,31 +912,62 @@ Please rewrite/enhance this draft based on the system persona rules and the user
                 )}
               </AnimatePresence>
 
-              {/* API Usage & Cost Tracker — every number here is derived from real token
-                  counts OpenAI returned with each response; there is no live "remaining
-                  quota" endpoint for a standard API key, so remaining is computed against
-                  the budget you set here, not fetched from OpenAI. */}
-              <div className="bg-neutral-900/40 border border-neutral-850 rounded-xl p-3.5 space-y-2.5 relative z-10">
+              {/* API Usage & Cost Tracker. "Real Account Spend" comes straight from
+                  OpenAI's Costs API (requires an Admin API key) and reflects actual
+                  billed spend for your whole account, month-to-date — not just calls
+                  made through this app. The grid below it is this app's own tracker
+                  (real token counts from each response x published per-token pricing),
+                  useful when the Admin key isn't configured. */}
+              <div className="bg-neutral-900/40 border border-neutral-850 rounded-xl p-3.5 space-y-3 relative z-10">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Gauge className="h-4 w-4 text-amber-400" />
                     <span className="text-xs font-semibold text-neutral-200">API Usage &amp; Cost</span>
-                    <span className="text-[9px] text-neutral-600 font-mono">since {new Date(aiUsage.cycleStartedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
                   </div>
                   <button
                     type="button"
                     onClick={handleResetUsageCycle}
-                    title="Start a new budget cycle (clears tracked spend, keeps your budget)"
+                    title="Start a new in-app tracking cycle (clears tracked spend, keeps your budget)"
                     className="px-2 py-1 bg-neutral-950 border border-neutral-800 hover:border-amber-800 text-neutral-500 hover:text-amber-400 rounded text-[9px] font-mono flex items-center gap-1 transition cursor-pointer"
                   >
                     <RotateCcw className="h-3 w-3" />
-                    <span>Reset Cycle</span>
+                    <span>Reset In-App Tracker</span>
                   </button>
+                </div>
+
+                {/* Real Account Spend — fetched live from OpenAI */}
+                <div className="border border-amber-900/30 bg-amber-950/10 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] uppercase font-bold tracking-wider text-amber-500">Real Account Spend (Month-to-date)</span>
+                    <button
+                      type="button"
+                      onClick={loadRealUsage}
+                      disabled={isFetchingRealUsage}
+                      title="Refresh from OpenAI"
+                      className="text-neutral-500 hover:text-amber-400 disabled:opacity-40 transition cursor-pointer"
+                    >
+                      {isFetchingRealUsage ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+                    </button>
+                  </div>
+                  {realUsageError ? (
+                    <div className="text-[10px] text-rose-400 font-mono mt-1 leading-relaxed">{realUsageError}</div>
+                  ) : realUsage ? (
+                    <>
+                      <div className="text-xl font-bold text-white font-mono mt-0.5">
+                        ${realUsage.totalCostUSD.toFixed(4)} <span className="text-[10px] text-neutral-500 uppercase">{realUsage.currency}</span>
+                      </div>
+                      <div className="text-[9px] text-neutral-500 font-mono mt-0.5">
+                        {new Date(realUsage.periodStart).toLocaleDateString([], { month: 'short', day: 'numeric' })} – {new Date(realUsage.periodEnd).toLocaleDateString([], { month: 'short', day: 'numeric' })} · fetched {new Date(realUsage.fetchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-[10px] text-neutral-500 font-mono mt-1">{isFetchingRealUsage ? 'Fetching real spend from OpenAI…' : 'Not fetched yet.'}</div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                   <div className="border border-neutral-900 rounded-lg p-2.5 bg-neutral-950/60">
-                    <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-500">Spent</span>
+                    <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-500">In-App Est. Spend</span>
                     <div className="text-sm font-bold text-white font-mono mt-0.5">${aiUsage.totalCostUSD.toFixed(4)}</div>
                   </div>
 

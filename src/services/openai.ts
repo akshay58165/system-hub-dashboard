@@ -114,6 +114,42 @@ export async function findScriptSources(script: string, onUsage?: (usage: AiUsag
   return content;
 }
 
+export interface RealAccountUsage {
+  totalCostUSD: number;
+  currency: string;
+  periodStart: string;
+  periodEnd: string;
+  fetchedAt: string;
+}
+
+// Fetches real, account-wide OpenAI spend for the current month-to-date via
+// OpenAI's Costs API. Requires an Admin API key configured server-side —
+// distinct from the in-app token tracker, which only ever sees calls made
+// through this app.
+export async function fetchRealAccountUsage(): Promise<RealAccountUsage> {
+  if (!supabase) {
+    throw new Error('Supabase authentication is not configured.');
+  }
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    throw new Error('Sign in before checking usage.');
+  }
+
+  const response = await fetch('/api/usage', {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${session.access_token}` }
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    const errMessage = errData.error || `HTTP ${response.status} Error`;
+    throw new Error(errMessage);
+  }
+
+  return response.json();
+}
+
 // Generate system prompts based on content channel strategy
 export function getChannelSystemPrompt(channel: "LearnDriven" | "DecodeWorthy", customInstruction?: string): string {
   const baseInstruction = customInstruction ? `Additional Custom Instruction: ${customInstruction}` : "";
