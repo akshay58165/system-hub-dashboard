@@ -105,6 +105,7 @@ export default function GithubView({
   const [newTopicStatus, setNewTopicStatus] = useState<'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled'>('topic');
   const [newTopicPriority, setNewTopicPriority] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [newTopicDueDate, setNewTopicDueDate] = useState('');
+  const [newTopicSchedTime, setNewTopicSchedTime] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerDate, setPickerDate] = useState(() => {
     const now = new Date();
@@ -198,8 +199,10 @@ export default function GithubView({
     const revLvl = getAutomaticRevenueLevel();
 
     let inProgress = false;
-    let finalDueDate: string | null = newTopicDueDate ? new Date(newTopicDueDate).toISOString() : null;
-    let finalSchedTime: string | undefined = undefined;
+    const defaultTime = newTopicChannel === 'LearnDriven' ? '21:09' : '19:07';
+    const finalTime = newTopicSchedTime || defaultTime;
+    let finalDueDate: string | null = newTopicDueDate ? new Date(`${newTopicDueDate}T${finalTime}:00`).toISOString() : null;
+    let finalSchedTime: string | undefined = newTopicSchedTime ? newTopicSchedTime : undefined;
     const workflowStatuses: Record<string, 'completed' | 'in-progress' | 'pending'> = {};
 
     if (newTopicStatus !== 'topic') {
@@ -222,10 +225,9 @@ export default function GithubView({
       }
 
       if (newTopicStatus === 'scheduled') {
-        const defaultTime = newTopicChannel === 'LearnDriven' ? '21:09' : '19:07';
         const baseDate = newTopicDueDate || new Date().toISOString().split('T')[0];
-        finalDueDate = new Date(`${baseDate}T${defaultTime}:00`).toISOString();
-        finalSchedTime = defaultTime;
+        finalDueDate = new Date(`${baseDate}T${finalTime}:00`).toISOString();
+        finalSchedTime = finalTime;
       }
     }
 
@@ -271,6 +273,7 @@ export default function GithubView({
     setNewTopicName('');
     setNewTopicDesc('');
     setNewTopicDueDate('');
+    setNewTopicSchedTime('');
     setNewTopicChannel(null);
     setNewTopicLane(null);
 
@@ -983,7 +986,7 @@ export default function GithubView({
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-3 pt-1 border-t border-neutral-900/60">
+                <div className="grid grid-cols-3 gap-3 pt-1 border-t border-neutral-900/60">
                   <div>
                     <label className="block uppercase text-neutral-500">Priority</label>
                     <div className="flex gap-1.5 mt-1.5">
@@ -1023,7 +1026,6 @@ export default function GithubView({
                             onClick={() => setShowDatePicker(false)} 
                           />
                           <div className="absolute right-0 mt-1.5 w-64 backdrop-blur-md bg-neutral-950/90 border border-neutral-800 rounded-xl p-3 shadow-2xl z-50 font-mono text-[9px] select-none">
-                            {/* Month Selector Header */}
                             <div className="flex items-center justify-between mb-3 text-neutral-200">
                               <span className="font-bold text-[10px] text-neutral-200">
                                 {(() => {
@@ -1039,89 +1041,91 @@ export default function GithubView({
                                   type="button"
                                   onClick={() => {
                                     setPickerDate(prev => {
-                                      let m = prev.month - 1;
-                                      let y = prev.year;
-                                      if (m < 0) { m = 11; y -= 1; }
-                                      return { month: m, year: y };
+                                      let newMonth = prev.month - 1;
+                                      let newYear = prev.year;
+                                      if (newMonth < 0) {
+                                        newMonth = 11;
+                                        newYear -= 1;
+                                      }
+                                      return { month: newMonth, year: newYear };
                                     });
                                   }}
-                                  className="p-1 bg-neutral-900 hover:bg-neutral-850 rounded border border-neutral-800 text-neutral-400 hover:text-neutral-200 transition"
+                                  className="p-1 rounded bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer"
                                 >
-                                  <ChevronLeft className="h-3 w-3" />
+                                  &lt;
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => {
                                     setPickerDate(prev => {
-                                      let m = prev.month + 1;
-                                      let y = prev.year;
-                                      if (m > 11) { m = 0; y += 1; }
-                                      return { month: m, year: y };
+                                      let newMonth = prev.month + 1;
+                                      let newYear = prev.year;
+                                      if (newMonth > 11) {
+                                        newMonth = 0;
+                                        newYear += 1;
+                                      }
+                                      return { month: newMonth, year: newYear };
                                     });
                                   }}
-                                  className="p-1 bg-neutral-900 hover:bg-neutral-850 rounded border border-neutral-800 text-neutral-400 hover:text-neutral-200 transition"
+                                  className="p-1 rounded bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer"
                                 >
-                                  <ChevronRight className="h-3 w-3" />
+                                  &gt;
                                 </button>
                               </div>
                             </div>
 
-                            {/* Days of Week headers */}
                             <div className="grid grid-cols-7 gap-1 text-center font-bold text-neutral-500 mb-1">
-                              <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+                              {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(d => (
+                                <span key={d}>{d}</span>
+                              ))}
                             </div>
 
-                            {/* Calendar Grid of Days */}
                             <div className="grid grid-cols-7 gap-1">
-                              {/* Offset empty cells */}
-                              {(() => {
-                                const firstDayIndex = new Date(pickerDate.year, pickerDate.month, 1).getDay();
-                                const startOffset = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
-                                return Array.from({ length: startOffset }).map((_, idx) => (
-                                  <span key={`empty-${idx}`} />
-                                ));
-                              })()}
-
-                              {/* Actual Month Days */}
                               {(() => {
                                 const daysInMonth = new Date(pickerDate.year, pickerDate.month + 1, 0).getDate();
-                                return Array.from({ length: daysInMonth }).map((_, idx) => {
-                                  const dayNum = idx + 1;
-                                  const dateStr = `${pickerDate.year}-${String(pickerDate.month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-                                  const isSelected = newTopicDueDate === dateStr;
-                                  const { hasLearnDriven, hasDecodeWorthy } = getScheduledTopicChannelsForDate(dateStr);
+                                const firstDayIndex = new Date(pickerDate.year, pickerDate.month, 1).getDay();
+                                const cells = [];
 
-                                  return (
+                                for (let i = 0; i < firstDayIndex; i++) {
+                                  cells.push(<div key={`empty-${i}`} />);
+                                }
+
+                                for (let day = 1; day <= daysInMonth; day++) {
+                                  const dateStr = `${pickerDate.year}-${String(pickerDate.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                  const { hasLearnDriven, hasDecodeWorthy } = getScheduledTopicChannelsForDate(dateStr);
+                                  const isSelected = newTopicDueDate === dateStr;
+
+                                  cells.push(
                                     <button
-                                      key={`day-${dayNum}`}
+                                      key={day}
                                       type="button"
                                       onClick={() => {
                                         setNewTopicDueDate(dateStr);
                                         setShowDatePicker(false);
                                       }}
-                                      className={`py-1.5 rounded flex flex-col items-center justify-between transition cursor-pointer relative ${
+                                      className={`p-1.5 rounded transition relative cursor-pointer ${
                                         isSelected 
-                                          ? 'bg-blue-600/80 text-white font-bold' 
-                                          : 'bg-neutral-900/40 hover:bg-neutral-800 text-neutral-300'
+                                          ? 'bg-rose-500 text-white font-bold' 
+                                          : 'hover:bg-neutral-900 text-neutral-300'
                                       }`}
                                     >
-                                      <span>{dayNum}</span>
-                                      {/* Dots indicator row */}
-                                      <div className="flex gap-0.5 mt-0.5 justify-center">
+                                      {day}
+                                      <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex gap-0.5">
                                         {hasLearnDriven && (
-                                          <span className="h-1 w-1 rounded-full bg-purple-500 shadow-[0_0_4px_#a855f7]" title="LearnDriven Video Scheduled" />
+                                          <span className="w-1 h-1 rounded-full bg-pink-500" />
                                         )}
                                         {hasDecodeWorthy && (
-                                          <span className="h-1 w-1 rounded-full bg-yellow-400 shadow-[0_0_4px_#facc15]" title="DecodeWorthy Video Scheduled" />
+                                          <span className="w-1 h-1 rounded-full bg-blue-500" />
                                         )}
                                       </div>
                                     </button>
                                   );
-                                });
+                                }
+
+                                return cells;
                               })()}
                             </div>
 
-                            {/* Quick Actions Footer */}
                             <div className="flex justify-between border-t border-neutral-900 mt-2.5 pt-2">
                               <button
                                 type="button"
@@ -1172,6 +1176,16 @@ export default function GithubView({
                         Tomorrow
                       </button>
                     </div>
+                  </div>
+                  <div>
+                    <label className="block uppercase text-neutral-500">Sched Time</label>
+                    <input
+                      type="time"
+                      value={newTopicSchedTime}
+                      onChange={e => setNewTopicSchedTime(e.target.value)}
+                      placeholder={newTopicChannel === 'LearnDriven' ? '21:09' : '19:07'}
+                      className="w-full bg-neutral-950 border border-neutral-900 focus-within:border-neutral-800 outline-none text-[10px] rounded px-2 py-1.5 mt-1 text-white font-mono cursor-pointer select-none"
+                    />
                   </div>
                 </div>
 
