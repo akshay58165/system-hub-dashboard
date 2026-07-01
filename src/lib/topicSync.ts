@@ -4,6 +4,17 @@ export const visibleCreatorTopics = (topics: Topic[] = []) => topics.filter(topi
   !topic.isDemo && !topic.id.startsWith('t-manual-demo-infotainment-')
 );
 
+// A valid committed snapshot never contains both a topic and its deletion
+// tombstone. Older clients produced that impossible state; the topic is the
+// recoverable user data, so it wins when normalizing that same snapshot.
+export const normalizeCommittedTombstones = (
+  topics: Topic[] = [], deletedTopicIds: Record<string, string> = {}
+) => {
+  const normalized = { ...deletedTopicIds };
+  topics.forEach(topic => delete normalized[topic.id]);
+  return normalized;
+};
+
 const topicTime = (topic: Topic) => {
   const parsed = new Date(topic.lastUpdated || topic.createdDate).getTime();
   return Number.isFinite(parsed) ? parsed : 0;

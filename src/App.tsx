@@ -37,7 +37,7 @@ import { loginWithYouTube, logoutYouTube, handleOAuthCallback, getYouTubeCredent
 import { generateAIActionPlan } from './services/openai';
 
 import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, VideoRecord, Experiment, CreatorInsight } from './types';
-import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, visibleCreatorTopics } from './lib/topicSync';
+import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, normalizeCommittedTombstones, visibleCreatorTopics } from './lib/topicSync';
 import { 
   initialGitHubRepos, 
   initialVercelProjects, 
@@ -571,10 +571,14 @@ export default function App() {
           const remoteState = isCurrentSession && backupUpdatedAt > remoteUpdatedAt && recoveryBackup?.state
             ? recoveryBackup.state
             : data.state as any;
-          topicTombstonesRef.current = remoteState.deletedTopicIds || {};
+          const hydratedTopics = visibleCreatorTopics((remoteState.topics || []) as Topic[]);
+          topicTombstonesRef.current = normalizeCommittedTombstones(hydratedTopics, remoteState.deletedTopicIds || {});
+          // Loading cloud data is read-only. Without this guard a fresh device
+          // immediately writes its just-hydrated snapshot back to the database.
+          isRemoteSyncRef.current = true;
 
           if (remoteState.topics) {
-            setTopicsState(visibleCreatorTopics(remoteState.topics as Topic[]));
+            setTopicsState(hydratedTopics);
             dirtyTopicIdsRef.current.clear();
             localStorage.removeItem(`unicorn_infotainment_demo_seed_v1_${userId}`);
           }
@@ -644,12 +648,18 @@ export default function App() {
                 if (remoteVersion && remoteVersion <= lastRemoteVersionRef.current) return;
                 lastRemoteVersionRef.current = Math.max(lastRemoteVersionRef.current, remoteVersion);
                 lastRemoteUpdatedAtRef.current = newState.updated_at ? new Date(newState.updated_at).getTime() : Date.now();
-                topicTombstonesRef.current = { ...topicTombstonesRef.current, ...(remoteState.deletedTopicIds || {}) };
+                const remoteTopics = visibleCreatorTopics((remoteState.topics || []) as Topic[]);
+                const remoteTombstones = normalizeCommittedTombstones(remoteTopics, remoteState.deletedTopicIds || {});
+                const combinedTombstones = { ...remoteTombstones, ...topicTombstonesRef.current };
+                remoteTopics.forEach(topic => {
+                  if (!dirtyTopicIdsRef.current.has(topic.id)) delete combinedTombstones[topic.id];
+                });
+                topicTombstonesRef.current = combinedTombstones;
                 isRemoteSyncRef.current = dirtyTopicIdsRef.current.size === 0;
                 
                 if (remoteState.topics) {
                   setTopicsState(localTopics => mergeRemoteWithPendingTopics(
-                    remoteState.topics as Topic[], localTopics, dirtyTopicIdsRef.current, topicTombstonesRef.current
+                    remoteTopics, localTopics, dirtyTopicIdsRef.current, topicTombstonesRef.current
                   ));
                 }
                 if (remoteState.activities) setActivities(remoteState.activities);
@@ -705,10 +715,12 @@ export default function App() {
         .select('state, version, updated_at').eq('user_id', user.id).maybeSingle();
       if (readError) throw readError;
       const remoteState = (current?.state || {}) as any;
-      const deletedTopicIds: Record<string, string> = { ...(remoteState.deletedTopicIds || {}), ...topicTombstonesRef.current };
+      const remoteTopics = visibleCreatorTopics((remoteState.topics || []) as Topic[]);
+      const remoteTombstones = normalizeCommittedTombstones(remoteTopics, remoteState.deletedTopicIds || {});
+      const deletedTopicIds: Record<string, string> = { ...remoteTombstones, ...topicTombstonesRef.current };
       topicTombstonesRef.current = deletedTopicIds;
 
-      const mergedTopics = mergeTopicsByNewest((remoteState.topics || []) as Topic[], newTopics, deletedTopicIds);
+      const mergedTopics = mergeTopicsByNewest(remoteTopics, newTopics, deletedTopicIds);
       const mergedActivities = new Map<string, TopicActivity>();
       [...((remoteState.activities || []) as TopicActivity[]), ...newActs].forEach(activity => {
         const existing = mergedActivities.get(activity.id);
@@ -859,11 +871,17 @@ export default function App() {
         lastRemoteVersionRef.current = Math.max(lastRemoteVersionRef.current, remoteVersion);
         lastRemoteUpdatedAtRef.current = remoteUpdatedAt;
         const remoteState = data.state as any;
-        topicTombstonesRef.current = { ...topicTombstonesRef.current, ...(remoteState.deletedTopicIds || {}) };
+        const remoteTopics = visibleCreatorTopics((remoteState.topics || []) as Topic[]);
+        const remoteTombstones = normalizeCommittedTombstones(remoteTopics, remoteState.deletedTopicIds || {});
+        const combinedTombstones = { ...remoteTombstones, ...topicTombstonesRef.current };
+        remoteTopics.forEach(topic => {
+          if (!dirtyTopicIdsRef.current.has(topic.id)) delete combinedTombstones[topic.id];
+        });
+        topicTombstonesRef.current = combinedTombstones;
         isRemoteSyncRef.current = dirtyTopicIdsRef.current.size === 0;
 
         if (remoteState.topics) setTopicsState(localTopics => mergeRemoteWithPendingTopics(
-          remoteState.topics as Topic[], localTopics, dirtyTopicIdsRef.current, topicTombstonesRef.current
+          remoteTopics, localTopics, dirtyTopicIdsRef.current, topicTombstonesRef.current
         ));
         if (remoteState.activities) setActivities(remoteState.activities);
         if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);

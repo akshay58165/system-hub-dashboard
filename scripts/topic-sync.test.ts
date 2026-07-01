@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Topic } from '../src/types';
-import { mergeRemoteWithPendingTopics, mergeTopicsByNewest } from '../src/lib/topicSync';
+import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, normalizeCommittedTombstones } from '../src/lib/topicSync';
 
 const topic = (id: string, lastUpdated: string, name = id): Topic => ({
   id, name, description: '', channel: 'LearnDriven', status: 'topic', priority: 3,
@@ -38,6 +38,13 @@ assert.deepEqual(
 assert.deepEqual(
   mergeTopicsByNewest([topic('deleted', oldTime)], [], { deleted: newTime }),
   []
+);
+
+// Repair the exact cross-device incident: an old client committed a topic and
+// a stale tombstone for the same id. The recoverable topic wins on hydration.
+assert.deepEqual(
+  normalizeCommittedTombstones([topic('a-for-apple', oldTime)], { 'a-for-apple': newTime, genuinelyDeleted: newTime }),
+  { genuinelyDeleted: newTime }
 );
 
 console.log('topic sync race, convergence, newest-write and deletion tests passed');
