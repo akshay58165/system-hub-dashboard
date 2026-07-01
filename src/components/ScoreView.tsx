@@ -1,23 +1,18 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Trophy, 
-  ShieldCheck, 
+import {
+  Trophy,
+  ShieldCheck,
   AlertTriangle,
   Activity,
   Heart,
   TrendingUp,
   SlidersHorizontal,
   Flame,
-  ThumbsUp,
-  Smile,
   ShieldAlert,
   Zap,
-  Coffee,
-  Sparkles,
   WifiOff,
-  UserCheck,
-  TrendingDown
+  UserCheck
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -28,7 +23,12 @@ import {
   Radar
 } from 'recharts';
 import { GitHubRepo, VercelProject, SupabaseProject } from '../types';
-import { callOpenAI } from '../services/openai';
+import {
+  generateWellbeingInsight,
+  recordTodayInArchive,
+  WellbeingParams,
+  WellbeingInsight as WellbeingInsightResult
+} from '../services/wellbeingInsights';
 
 interface ScoreViewProps {
   repos: GitHubRepo[];
@@ -321,125 +321,72 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
     };
   }, [restfulness, nutrition, hydration, physicalActivity, endorphins, schedule, pleasantness, socialization, stomach, technicalities, relations, stress]);
 
-  // ---- Live AI Analyst ----
-  // Watches the daily parameters and, after they settle (debounced so a burst
-  // of clicks across several sliders becomes one consolidated analysis, not
-  // one API call per click), asks the model for a short contextual narrative
-  // about what just changed and how it interacts with everything else.
-  const PARAM_LABELS: Record<string, string> = {
-    restfulness: 'Restfulness', nutrition: 'Nutrition', hydration: 'Hydration',
-    physicalActivity: 'Physical Activity', endorphins: 'Endorphins (Distraction)',
-    schedule: 'Schedule Adherence', pleasantness: 'Pleasantness', socialization: 'Socialization',
-    stomach: 'Stomach Status', technicalities: 'Technical Blockers', relations: 'Relationship Dynamic',
-    stress: 'Stress Level'
-  };
-
-  interface LiveInsight {
-    mood: 'positive' | 'neutral' | 'concern' | 'critical';
-    headline: string;
-    whatChanged: string;
-    factors: { label: string; detail: string }[];
-    action: string;
-    score: number;
-    readiness: 'optimal' | 'stable' | 'cautious' | 'impaired';
-  }
-
-  const [aiInsight, setAiInsight] = useState<LiveInsight | null>(null);
-  const [isAiInsightLoading, setIsAiInsightLoading] = useState(false);
-  const [aiInsightError, setAiInsightError] = useState<string | null>(null);
-  const [aiInsightTimestamp, setAiInsightTimestamp] = useState<string | null>(null);
-  const lastAnalyzedHistoryLengthRef = useRef(0);
-  const aiAnalysisTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // ---- Live Insight Engine (rule-based, no AI) ----
+  // Watches every Daily Parameter. The instant ANY value changes, the old
+  // insight is cleared and an "analyzing" state shows. A single global timer
+  // resets on every change and only fires 10 seconds after the LAST change
+  // across any parameter — so a burst of edits (hydration, then stomach 5s
+  // later, etc.) produces exactly one consolidated insight once everything
+  // has actually settled, not one per click and not one per parameter.
+  const [wellbeingInsight, setWellbeingInsight] = useState<WellbeingInsightResult | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [insightTimestamp, setInsightTimestamp] = useState<string | null>(null);
+  const insightTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Snapshot of the 12 raw values as of the last effect run — used to tell a
+  // genuine single-parameter user tap apart from a bulk data load (initial
+  // localStorage hydration, or a remote Supabase sync landing later). A real
+  // tap changes exactly one value in a commit; a bulk load replaces several
+  // at once, so it's skipped instead of being mistaken for user activity.
+  const prevSnapshotRef = useRef<(number | null)[] | null>(null);
 
   useEffect(() => {
-    // Only fire once history has genuinely grown (a parameter actually
-    // settled on a new value) and skip the very first mount.
-    if (history.length === 0 || history.length === lastAnalyzedHistoryLengthRef.current) return;
-    if (lastAnalyzedHistoryLengthRef.current === 0) {
-      // Don't analyze on initial load — only on changes made during this session.
-      lastAnalyzedHistoryLengthRef.current = history.length;
+    const currentSnapshot = [restfulness, nutrition, hydration, stomach, physicalActivity, stress, endorphins, pleasantness, schedule, socialization, relations, technicalities];
+
+    if (prevSnapshotRef.current === null) {
+      // First run ever for this mount — record the baseline, don't analyze.
+      prevSnapshotRef.current = currentSnapshot;
       return;
     }
 
-    if (aiAnalysisTimeoutRef.current) clearTimeout(aiAnalysisTimeoutRef.current);
+    const changedCount = currentSnapshot.reduce((count, v, i) => count + (v !== prevSnapshotRef.current![i] ? 1 : 0), 0);
+    prevSnapshotRef.current = currentSnapshot;
 
-    aiAnalysisTimeoutRef.current = setTimeout(async () => {
-      const analyzedLength = history.length;
-      lastAnalyzedHistoryLengthRef.current = analyzedLength;
+    if (changedCount === 0) return;
+    if (changedCount > 1) {
+      // Several values moved together in one commit — a data load, not a tap.
+      return;
+    }
 
-      setIsAiInsightLoading(true);
-      setAiInsightError(null);
+    // Exactly one parameter changed — a real user interaction.
+    setWellbeingInsight(null);
+    setIsAnalyzing(true);
 
-      const recentChanges = history.slice(0, 5).map((h: HistoryEntry) =>
-        `${h.parameter}: ${h.oldVal} -> ${h.newVal} (${h.description})`
-      ).join('\n');
+    if (insightTimerRef.current) clearTimeout(insightTimerRef.current);
 
-      const currentSnapshot = Object.entries(PARAM_LABELS)
-        .map(([key, label]) => `${label}: ${latestParamsRef.current[key] ?? 'not set'}/10`)
-        .join('\n');
+    insightTimerRef.current = setTimeout(() => {
+      const params: WellbeingParams = {
+        R: restfulness, N: nutrition, H: hydration, SS: stomach, PA: physicalActivity,
+        STR: stress, D: endorphins, P: pleasantness, SA: schedule, SO: socialization,
+        REL: relations, TB: technicalities
+      };
 
-      const systemPrompt = `You are a perceptive personal performance analyst who has been continuously watching this creator's daily biometric and mental-focus parameters all day, like someone sitting beside them taking notes.
+      const today = new Date();
+      const todayDateStr = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+      const archive = recordTodayInArchive(todayDateStr, params);
+      // Exclude today's just-written entry from the trend comparison itself.
+      const priorDays = archive.filter(e => e.date !== todayDateStr);
 
-Each time a parameter changes, analyze the change in the context of their full current state and recent history. Ground every claim in the specific numbers given, never give generic platitudes.
-
-You are also responsible for judging the creator's overall Daily Readiness score and status yourself, holistically, the same way a human coach would, not by applying a fixed formula. Weigh which parameters matter most right now, compounding effects between them (e.g. low hydration plus high stress is worse than either alone), and how concerning or healthy the overall picture is. Two profiles with the same average can deserve different scores if one has a single critical risk and the other is evenly mediocre.
-
-Respond with ONLY valid JSON in exactly this shape, no markdown fences, no commentary outside the JSON:
-{
-  "mood": "positive" | "neutral" | "concern" | "critical",
-  "headline": "4 to 7 word punchy summary of the situation right now",
-  "whatChanged": "one short sentence describing what just changed and its new value",
-  "factors": [
-    { "label": "2 to 4 word tag naming a compounding relationship, e.g. 'Hydration -> Focus'", "detail": "one short sentence explaining that specific connection using the real numbers" }
-  ],
-  "action": "one single, specific, concrete next step, starting with a verb",
-  "score": integer from 0 to 100, your own holistic judgment of overall daily readiness right now,
-  "readiness": "optimal" | "stable" | "cautious" | "impaired", your own judgment of status matching the score (optimal = excellent across the board, stable = solid with minor gaps, cautious = real concerns building, impaired = multiple serious risk factors right now)
-}
-
-Include 2 to 4 items in factors, only the ones that are actually meaningful right now given the real numbers. Choose mood honestly: positive if things are genuinely going well, neutral if mixed/stable, concern if multiple metrics are compounding negatively, critical if something needs immediate attention.`;
-
-      const userPrompt = `Most recent changes (most recent first):
-${recentChanges}
-
-Full current parameter snapshot:
-${currentSnapshot}
-
-Reference: a simple point-based formula puts today's score at ${computedMetrics.aggregate}/100. You do not have to match this, it is only a rough reference. Use your own holistic judgment for the final score and readiness status.
-
-Analyze what just changed and return the JSON.`;
-
-      try {
-        const raw = await callOpenAI(systemPrompt, userPrompt);
-        const cleanJSON = raw.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
-        const parsed = JSON.parse(cleanJSON);
-
-        // Guard the AI-controlled score/readiness since they now drive a
-        // visible status badge and chart colors — fall back to the
-        // deterministic formula's values if the model returns something
-        // malformed rather than letting a bad value reach the UI.
-        const validReadiness = ['optimal', 'stable', 'cautious', 'impaired'];
-        const safeScore = Number.isFinite(parsed.score)
-          ? Math.max(0, Math.min(100, Math.round(parsed.score)))
-          : computedMetrics.aggregate;
-        const safeReadiness = validReadiness.includes(parsed.readiness)
-          ? parsed.readiness
-          : (safeScore >= 90 ? 'optimal' : safeScore >= 75 ? 'stable' : safeScore >= 50 ? 'cautious' : 'impaired');
-
-        setAiInsight({ ...parsed, score: safeScore, readiness: safeReadiness });
-        setAiInsightTimestamp(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-      } catch (err: any) {
-        setAiInsightError(err.message || 'Live analysis failed.');
-      } finally {
-        setIsAiInsightLoading(false);
-      }
-    }, 2500);
+      const result = generateWellbeingInsight(params, priorDays);
+      setWellbeingInsight(result);
+      setInsightTimestamp(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      setIsAnalyzing(false);
+    }, 10000);
 
     return () => {
-      if (aiAnalysisTimeoutRef.current) clearTimeout(aiAnalysisTimeoutRef.current);
+      if (insightTimerRef.current) clearTimeout(insightTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [history.length]);
+  }, [restfulness, nutrition, hydration, stomach, physicalActivity, stress, endorphins, pleasantness, schedule, socialization, relations, technicalities]);
 
   // Write final transition logs when timer fires after input inactivity
   const writeFinalLog = (paramName: string, oldVal: number | null, newVal: number) => {
@@ -669,21 +616,7 @@ Analyze what just changed and return the JSON.`;
     return { label: 'IMPAIRED', color: 'text-rose-400', border: 'border-rose-950/40', bg: 'bg-rose-500/10' };
   }, [computedMetrics.aggregate]);
 
-  // Daily Readiness / Bio-Focus Score shown in the header are AI-controlled
-  // once the Live AI Analyst has weighed in for this session — its holistic
-  // judgment (compounding effects, asymmetric risk) overrides the simple
-  // point formula. Falls back to the deterministic formula before the first
-  // AI response lands, or if a request ever fails.
-  const READINESS_META: Record<string, { label: string; color: string; border: string; bg: string }> = {
-    optimal: { label: 'OPTIMAL', color: 'text-emerald-400', border: 'border-emerald-950/40', bg: 'bg-emerald-500/10' },
-    stable: { label: 'STABLE', color: 'text-blue-400', border: 'border-blue-950/40', bg: 'bg-blue-500/10' },
-    cautious: { label: 'CAUTIOUS', color: 'text-amber-400', border: 'border-amber-950/40', bg: 'bg-amber-500/10' },
-    impaired: { label: 'IMPAIRED', color: 'text-rose-400', border: 'border-rose-950/40', bg: 'bg-rose-500/10' }
-  };
-
-  const displayScore = aiInsight ? aiInsight.score : computedMetrics.aggregate;
-  const displayStatusInfo = aiInsight ? READINESS_META[aiInsight.readiness] : statusInfo;
-  const statusInfoColor = displayStatusInfo.color;
+  const statusInfoColor = statusInfo.color;
 
   // Dynamic recommendations list
   const activeWarnings = useMemo(() => {
@@ -808,28 +741,28 @@ Analyze what just changed and return the JSON.`;
           </div>
           <div className="flex items-center gap-4 bg-neutral-950 border border-neutral-850 px-5 py-3 rounded-xl font-mono">
             <div className="text-center">
-              <span className="text-[10px] uppercase text-neutral-500 tracking-wider block font-bold flex items-center justify-center gap-1">
-                Daily Readiness
-                {aiInsight && <Sparkles className="h-2.5 w-2.5 text-blue-400" title="Judged by Live AI Analyst" />}
-              </span>
+              <span className="text-[10px] uppercase text-neutral-500 tracking-wider block font-bold">Daily Readiness</span>
               <span className={`text-sm font-bold mt-0.5 block flex items-center justify-center gap-1 ${statusInfoColor}`}>
                 <ShieldCheck className="h-4 w-4" />
-                {displayStatusInfo.label}
+                {statusInfo.label}
               </span>
             </div>
             <div className="w-px h-8 bg-neutral-850" />
             <div className="text-center">
               <span className="text-[10px] uppercase text-neutral-500 tracking-wider block font-bold">Bio-Focus Score</span>
               <span className={`text-xl font-bold mt-0.5 block ${statusInfoColor}`}>
-                {displayScore}/100
+                {computedMetrics.aggregate}/100
               </span>
             </div>
           </div>
         </div>
       </motion.div>
 
-      {/* Live AI Analyst — watches Daily Parameters changes and narrates the contextual story
-          after edits settle (debounced), instead of firing per individual click. */}
+      {/* Daily Insight Engine — pure rule-based read on your parameters, no AI.
+          Any change clears the current insight and starts a 10-second settle
+          timer; the timer resets on every further change, so a burst of
+          edits produces exactly one consolidated insight once you actually
+          stop, not one per click. */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -845,11 +778,11 @@ Analyze what just changed and return the JSON.`;
           <div className="flex items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-2.5">
               <div className="grid place-items-center h-8 w-8 rounded-lg bg-blue-950/30 border border-blue-900/40 text-blue-400">
-                <Sparkles className="h-4 w-4" />
+                <Activity className="h-4 w-4" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-neutral-100 font-mono tracking-tight">Live AI Analyst</h3>
+                  <h3 className="text-sm font-bold text-neutral-100 font-mono tracking-tight">Daily Insight Engine</h3>
                   <span className="flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-emerald-950/30 border border-emerald-900/40 text-emerald-400 text-[9px] font-bold uppercase tracking-wider">
                     <span className="relative flex h-1.5 w-1.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -859,17 +792,17 @@ Analyze what just changed and return the JSON.`;
                   </span>
                 </div>
                 <p className="text-[10px] text-neutral-500 font-mono mt-0.5">
-                  Narrates what changed and how it connects to everything else, every time your parameters settle.
+                  Reads your parameters 10 seconds after your last change and tells you what kind of day this is.
                 </p>
               </div>
             </div>
-            {aiInsightTimestamp && !isAiInsightLoading && (
-              <span className="text-[9px] text-neutral-600 font-mono shrink-0">Updated {aiInsightTimestamp}</span>
+            {insightTimestamp && !isAnalyzing && (
+              <span className="text-[9px] text-neutral-600 font-mono shrink-0">Updated {insightTimestamp}</span>
             )}
           </div>
 
           <AnimatePresence mode="wait">
-            {isAiInsightLoading ? (
+            {isAnalyzing ? (
               <motion.div
                 key="loading"
                 initial={{ opacity: 0 }}
@@ -881,27 +814,20 @@ Analyze what just changed and return the JSON.`;
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
                 </span>
-                <span>Analyzing what just changed...</span>
+                <span>Waiting for your inputs to settle...</span>
               </motion.div>
-            ) : aiInsightError ? (
-              <motion.div
-                key="error"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex items-center gap-2.5 p-3 rounded-lg bg-rose-950/10 border border-rose-900/30 text-rose-400 text-xs font-mono"
-              >
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">{aiInsightError}</span>
-              </motion.div>
-            ) : aiInsight ? (
+            ) : wellbeingInsight ? (
               (() => {
-                const moodMeta = {
-                  positive: { color: 'text-emerald-400', bg: 'bg-emerald-950/15', border: 'border-emerald-900/30', icon: <ShieldCheck className="h-4 w-4" /> },
-                  neutral: { color: 'text-blue-400', bg: 'bg-blue-950/15', border: 'border-blue-900/30', icon: <Activity className="h-4 w-4" /> },
-                  concern: { color: 'text-amber-400', bg: 'bg-amber-950/15', border: 'border-amber-900/30', icon: <AlertTriangle className="h-4 w-4" /> },
-                  critical: { color: 'text-rose-400', bg: 'bg-rose-950/15', border: 'border-rose-900/30', icon: <ShieldAlert className="h-4 w-4" /> }
-                }[aiInsight.mood] || { color: 'text-blue-400', bg: 'bg-blue-950/15', border: 'border-blue-900/30', icon: <Activity className="h-4 w-4" /> };
+                const CATEGORY_ROWS: { label: string; text: string }[] = [
+                  { label: 'Bottleneck', text: wellbeingInsight.bottleneck },
+                  { label: 'Day Type', text: wellbeingInsight.dayType },
+                  { label: 'Physical', text: wellbeingInsight.physical },
+                  { label: 'Stress & Mood', text: wellbeingInsight.stressMood },
+                  { label: 'Stimulation', text: wellbeingInsight.stimulation },
+                  { label: 'Execution', text: wellbeingInsight.execution },
+                  { label: 'Social', text: wellbeingInsight.social }
+                ];
+                const confidenceColor = wellbeingInsight.dataConfidence === 'reliable' ? 'text-emerald-400' : wellbeingInsight.dataConfidence === 'partial' ? 'text-amber-400' : 'text-rose-400';
 
                 return (
                   <motion.div
@@ -909,34 +835,57 @@ Analyze what just changed and return the JSON.`;
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
-                    className={`rounded-lg border ${moodMeta.border} ${moodMeta.bg} p-4 space-y-3`}
+                    className="space-y-3"
                   >
-                    {/* Headline + mood */}
-                    <div className="flex items-start gap-2.5">
-                      <div className={`mt-0.5 shrink-0 ${moodMeta.color}`}>{moodMeta.icon}</div>
-                      <div className="min-w-0">
-                        <h4 className="text-sm font-bold text-neutral-100 leading-snug">{aiInsight.headline}</h4>
-                        <p className="text-xs text-neutral-400 font-sans mt-0.5">{aiInsight.whatChanged}</p>
-                      </div>
-                    </div>
+                    <span className={`inline-block text-[9px] font-bold uppercase tracking-wider font-mono ${confidenceColor}`}>
+                      {wellbeingInsight.dataNote}
+                    </span>
 
-                    {/* Compounding factor chips */}
-                    {aiInsight.factors?.length > 0 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {aiInsight.factors.map((f, i) => (
-                          <div key={i} className="p-2.5 rounded-lg bg-neutral-950/50 border border-neutral-850">
-                            <span className={`text-[9px] font-bold uppercase tracking-wider font-mono ${moodMeta.color}`}>{f.label}</span>
-                            <p className="text-[11px] text-neutral-400 font-sans mt-0.5 leading-snug">{f.detail}</p>
-                          </div>
+                    {/* Headline block — the single overall read for the day */}
+                    {wellbeingInsight.headline && (
+                      <div className="rounded-lg border border-blue-900/30 bg-blue-950/10 p-4">
+                        <h4 className="text-sm font-bold text-neutral-100 leading-snug mb-1.5">{wellbeingInsight.headline.title}</h4>
+                        <div className="space-y-1">
+                          {wellbeingInsight.headline.lines.map((line, i) => (
+                            <p key={i} className="text-xs text-neutral-400 font-sans leading-relaxed">{line}</p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Risk flags */}
+                    {wellbeingInsight.risks.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {wellbeingInsight.risks.map((r, i) => (
+                          <span key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-950/20 border border-rose-900/30 text-rose-400 text-[10px] font-bold font-mono uppercase tracking-wide">
+                            <AlertTriangle className="h-3 w-3" />
+                            {r}
+                          </span>
                         ))}
                       </div>
                     )}
 
                     {/* Action */}
-                    {aiInsight.action && (
-                      <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-blue-950/20 border border-blue-900/30">
-                        <Zap className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                        <span className="text-xs text-blue-200 font-sans font-medium">{aiInsight.action}</span>
+                    <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-blue-950/20 border border-blue-900/30">
+                      <Zap className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                      <span className="text-xs text-blue-200 font-sans font-medium">{wellbeingInsight.action}</span>
+                    </div>
+
+                    {/* Full category breakdown */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {CATEGORY_ROWS.map((row, i) => (
+                        <div key={i} className="p-2.5 rounded-lg bg-neutral-950/50 border border-neutral-850">
+                          <span className="text-[9px] font-bold uppercase tracking-wider font-mono text-neutral-500">{row.label}</span>
+                          <p className="text-[11px] text-neutral-400 font-sans mt-0.5 leading-snug">{row.text}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Trend — only shown once enough day-over-day history exists */}
+                    {wellbeingInsight.trend && (
+                      <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-purple-950/15 border border-purple-900/30">
+                        <TrendingUp className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                        <span className="text-xs text-purple-200 font-sans">{wellbeingInsight.trend}</span>
                       </div>
                     )}
                   </motion.div>
@@ -950,7 +899,7 @@ Analyze what just changed and return the JSON.`;
                 exit={{ opacity: 0 }}
                 className="text-xs text-neutral-500 font-mono p-3"
               >
-                Change a parameter on the left and I'll tell you what it means once it settles.
+                Change a parameter on the left and I'll read what kind of day this is once you settle for 10 seconds.
               </motion.p>
             )}
           </AnimatePresence>
@@ -1149,8 +1098,8 @@ Analyze what just changed and return the JSON.`;
                     <Radar
                       name="Bio Performance"
                       dataKey="A"
-                      stroke={displayScore >= 90 ? '#34d399' : displayScore >= 75 ? '#60a5fa' : displayScore >= 50 ? '#fbbf24' : '#f87171'}
-                      fill={displayScore >= 90 ? '#34d399' : displayScore >= 75 ? '#60a5fa' : displayScore >= 50 ? '#fbbf24' : '#f87171'}
+                      stroke={computedMetrics.aggregate >= 90 ? '#34d399' : computedMetrics.aggregate >= 75 ? '#60a5fa' : computedMetrics.aggregate >= 50 ? '#fbbf24' : '#f87171'}
+                      fill={computedMetrics.aggregate >= 90 ? '#34d399' : computedMetrics.aggregate >= 75 ? '#60a5fa' : computedMetrics.aggregate >= 50 ? '#fbbf24' : '#f87171'}
                       fillOpacity={0.15}
                       strokeWidth={2}
                     />
