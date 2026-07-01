@@ -143,7 +143,7 @@ textarea.bg-neutral-900::placeholder {
   color: rgba(255, 255, 255, 0.32);
 }
 
-/* One-second perimeter timer for press-and-hold workflow controls. */
+/* Snappy perimeter timer for press-and-hold workflow controls. */
 @keyframes workflow-hold-border {
   from { stroke-dashoffset: 1; }
   to { stroke-dashoffset: 0; }
@@ -154,5 +154,39 @@ textarea.bg-neutral-900::placeholder {
   stroke-dashoffset: 1;
   vector-effect: non-scaling-stroke;
   filter: drop-shadow(0 0 3px currentColor);
-  animation: workflow-hold-border 1s linear forwards;
+  animation: workflow-hold-border 0.8s linear forwards;
+}
+
+/* Dynamic attention blinking for pending stages near due dates */
+@keyframes blink-yellow {
+  0%, 100% { border-color: rgba(234, 179, 8, 0.35); box-shadow: 0 0 3px rgba(234, 179, 8, 0.15); }
+  50% { border-color: rgba(234, 179, 8, 0.9); box-shadow: 0 0 10px rgba(234, 179, 8, 0.55); }
+}
+
+@keyframes blink-orange {
+  0%, 100% { border-color: rgba(249, 115, 22, 0.35); box-shadow: 0 0 3px rgba(249, 115, 22, 0.15); }
+  50% { border-color: rgba(249, 115, 22, 0.9); box-shadow: 0 0 10px rgba(249, 115, 22, 0.55); }
+}
+
+@keyframes blink-red {
+  0%, 100% { border-color: rgba(239, 68, 68, 0.35); box-shadow: 0 0 3px rgba(239, 68, 68, 0.15); }
+  50% { border-color: rgba(239, 68, 68, 0.9); box-shadow: 0 0 10px rgba(239, 68, 68, 0.55); }
+}
+
+.blink-yellow {
+  animation: blink-yellow 1.4s infinite ease-in-out;
+  color: #fef08a !important;
+  text-shadow: 0 0 4px rgba(234, 179, 8, 0.4);
+}
+
+.blink-orange {
+  animation: blink-orange 1.4s infinite ease-in-out;
+  color: #fed7aa !important;
+  text-shadow: 0 0 4px rgba(249, 115, 22, 0.4);
+}
+
+.blink-red {
+  animation: blink-red 1.1s infinite ease-in-out;
+  color: #fca5a5 !important;
+  text-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
 }

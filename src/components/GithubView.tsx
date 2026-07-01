@@ -197,6 +197,38 @@ export default function GithubView({
 
     const revLvl = getAutomaticRevenueLevel();
 
+    let inProgress = false;
+    let finalDueDate: string | null = newTopicDueDate ? new Date(newTopicDueDate).toISOString() : null;
+    let finalSchedTime: string | undefined = undefined;
+    const workflowStatuses: Record<string, 'completed' | 'in-progress' | 'pending'> = {};
+
+    if (newTopicStatus !== 'topic') {
+      inProgress = true;
+      const stagesOrder: ('script' | 'shoot' | 'edit' | 'schedule' | 'post')[] = ['script', 'shoot', 'edit', 'schedule', 'post'];
+      const statusToStageIdx: Record<string, number> = {
+        scripted: 0,
+        shot: 1,
+        edited: 2,
+        scheduled: 3,
+        posted: 4
+      };
+      const targetIdx = statusToStageIdx[newTopicStatus] ?? -1;
+      if (targetIdx !== -1) {
+        stagesOrder.forEach((stg, idx) => {
+          if (idx <= targetIdx) {
+            workflowStatuses[stg] = 'completed';
+          }
+        });
+      }
+
+      if (newTopicStatus === 'scheduled') {
+        const defaultTime = newTopicChannel === 'LearnDriven' ? '21:09' : '19:07';
+        const baseDate = newTopicDueDate || new Date().toISOString().split('T')[0];
+        finalDueDate = new Date(`${baseDate}T${defaultTime}:00`).toISOString();
+        finalSchedTime = defaultTime;
+      }
+    }
+
     const newTopic: Topic = {
       id: `t-manual-${Date.now()}`,
       name: newTopicName,
@@ -204,10 +236,13 @@ export default function GithubView({
       channel: newTopicChannel,
       status: newTopicStatus,
       priority: newTopicPriority,
-      dueDate: newTopicDueDate ? new Date(newTopicDueDate).toISOString() : null,
+      dueDate: finalDueDate,
+      scheduledTime: finalSchedTime,
       createdDate: new Date().toISOString(),
       lastUpdated: new Date().toISOString(),
-      revenueLevel: revLvl || undefined
+      revenueLevel: revLvl || undefined,
+      inProgress,
+      workflowStatuses: newTopicStatus !== 'topic' ? workflowStatuses : undefined
     };
 
     setTopics(prev => [newTopic, ...prev]);
@@ -238,6 +273,12 @@ export default function GithubView({
     setNewTopicDueDate('');
     setNewTopicChannel(null);
     setNewTopicLane(null);
+
+    // Auto redirection to pipeline if the created topic is already in production
+    if (inProgress) {
+      if (setPipelineSubView) setPipelineSubView('topics');
+      if (setActiveTab) setActiveTab('pipeline');
+    }
     setEligibility({
       neutral: false,
       productTag: false,

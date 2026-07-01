@@ -51,50 +51,47 @@ const WORKFLOW_LABELS: Record<WorkflowStage, Record<WorkflowState, string>> = {
   post: { pending: 'Post', 'in-progress': 'Posting', completed: 'Posted' },
 };
 
-function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, labelOverride, disabled }: {
+function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, labelOverride, disabled, blinkClass }: {
   stage: WorkflowStage;
   state: WorkflowState;
   onQuickPress: () => void;
   onLongPress: () => void;
   labelOverride?: string;
   disabled?: boolean;
+  blinkClass?: string;
 }) {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
   const [isHolding, setIsHolding] = useState(false);
-
-  const cancelTimer = () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = null;
-    setIsHolding(false);
-  };
 
   const startPress = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (disabled) return;
     event.stopPropagation();
     longPressFired.current = false;
     setIsHolding(true);
-    timerRef.current = setTimeout(() => {
-      longPressFired.current = true;
-      setIsHolding(false);
-      onLongPress();
-    }, 1000);
   };
 
   const finishPress = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (disabled) return;
     event.stopPropagation();
     const wasLongPress = longPressFired.current;
-    cancelTimer();
+    setIsHolding(false);
     if (!wasLongPress) onQuickPress();
   };
 
+  const handleAnimationEnd = (event: React.AnimationEvent) => {
+    if (event.animationName === 'workflow-hold-border') {
+      longPressFired.current = true;
+      setIsHolding(false);
+      onLongPress();
+    }
+  };
+
   const palette = {
-    script: 'border-blue-500 bg-blue-600 text-white',
-    shoot: 'border-amber-500 bg-amber-600 text-white',
-    edit: 'border-emerald-500 bg-emerald-600 text-white',
-    schedule: 'border-purple-500 bg-purple-600 text-white',
-    post: 'border-pink-500 bg-pink-600 text-white',
+    script: 'border-blue-500 text-blue-400 bg-blue-950/20 hover:bg-blue-950/30',
+    shoot: 'border-amber-500 text-amber-400 bg-amber-950/20 hover:bg-amber-950/30',
+    edit: 'border-emerald-500 text-emerald-400 bg-emerald-950/20 hover:bg-emerald-950/30',
+    schedule: 'border-purple-500 text-purple-400 bg-purple-950/20 hover:bg-purple-950/30',
+    post: 'border-pink-500 text-pink-400 bg-pink-950/20 hover:bg-pink-950/30',
   }[stage];
 
   return (
@@ -103,9 +100,10 @@ function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, labelOv
       disabled={disabled}
       onPointerDown={startPress}
       onPointerUp={finishPress}
-      onPointerCancel={cancelTimer}
-      onPointerLeave={cancelTimer}
+      onPointerCancel={() => setIsHolding(false)}
+      onPointerLeave={() => setIsHolding(false)}
       onContextMenu={(event) => event.preventDefault()}
+      onAnimationEnd={handleAnimationEnd}
       onKeyDown={(event) => {
         if (disabled) return;
         if (event.key === 'Enter' || event.key === ' ') {
@@ -113,12 +111,12 @@ function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, labelOv
           onQuickPress();
         }
       }}
-      title={disabled ? undefined : "Quick click: mark in progress. Hold 1 second: mark complete."}
+      title={disabled ? undefined : "Quick click: mark in progress. Hold until border animation completes to mark complete."}
       className={`relative overflow-hidden px-2.5 py-1 rounded text-[8px] font-semibold border transition select-none touch-none ${
         disabled ? 'cursor-default opacity-85' : 'cursor-pointer'
       } ${
         state === 'pending'
-          ? 'bg-neutral-950 border-neutral-850 text-neutral-400 hover:text-neutral-200'
+          ? (blinkClass || 'bg-neutral-950 border-neutral-850 text-neutral-400 hover:text-neutral-200')
           : palette
       } ${state === 'in-progress' ? 'ring-1 ring-white/15' : ''}`}
     >
@@ -780,6 +778,24 @@ export default function VercelView({
                           let labelOverride = undefined;
                           let isDisabled = false;
 
+                          let blinkClass = undefined;
+                          if (state === 'pending' && topic.dueDate) {
+                            const due = new Date(topic.dueDate);
+                            due.setHours(0, 0, 0, 0);
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            const diffTime = due.getTime() - today.getTime();
+                            const daysLeft = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+                            if (daysLeft === 2) {
+                              blinkClass = 'blink-yellow';
+                            } else if (daysLeft === 1) {
+                              blinkClass = 'blink-orange';
+                            } else if (daysLeft <= 0) {
+                              blinkClass = 'blink-red';
+                            }
+                          }
+
                           if (stage === 'post') {
                             isDisabled = true;
                             if (topic.status === 'scheduled' && topic.dueDate) {
@@ -816,11 +832,12 @@ export default function VercelView({
                                 state={state}
                                 disabled={isDisabled}
                                 labelOverride={labelOverride}
+                                blinkClass={blinkClass}
                                 onQuickPress={() => {
                                   if (stage === 'schedule') {
                                     const defaultTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
                                     setSchedDate(topic.dueDate ? topic.dueDate.split('T')[0] : new Date().toISOString().split('T')[0]);
-                                    setSchedTime(topic.scheduledTime || defaultTime);
+                                    setSchedTime(topic.scheduledTime || '');
                                     setSchedulingTopicId(topic.id);
                                   } else {
                                     handleTransitionToStage(topic, stage, 'in-progress');
@@ -830,7 +847,7 @@ export default function VercelView({
                                   if (stage === 'schedule') {
                                     const defaultTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
                                     setSchedDate(topic.dueDate ? topic.dueDate.split('T')[0] : new Date().toISOString().split('T')[0]);
-                                    setSchedTime(topic.scheduledTime || defaultTime);
+                                    setSchedTime(topic.scheduledTime || '');
                                     setSchedulingTopicId(topic.id);
                                   } else {
                                     handleTransitionToStage(topic, stage, 'completed');
@@ -879,18 +896,19 @@ export default function VercelView({
                             <button
                               type="button"
                               onClick={() => {
-                                if (!schedDate || !schedTime) {
-                                  alert("Please fill in both Date and Time.");
+                                if (!schedDate) {
+                                  alert("Please select a Date.");
                                   return;
                                 }
-                                const combinedDateStr = `${schedDate}T${schedTime}:00`;
+                                const finalTime = schedTime || (topic.channel === 'LearnDriven' ? '21:09' : '19:07');
+                                const combinedDateStr = `${schedDate}T${finalTime}:00`;
                                 const finalIso = new Date(combinedDateStr).toISOString();
 
                                 setTopics(prev => prev.map(t => t.id === topic.id ? { 
                                   ...t, 
                                   status: 'scheduled', 
                                   dueDate: finalIso, 
-                                  scheduledTime: schedTime,
+                                  scheduledTime: finalTime,
                                   workflowStatuses: { ...t.workflowStatuses, schedule: 'completed' },
                                   lastUpdated: new Date().toISOString(),
                                 } : t));
@@ -900,7 +918,7 @@ export default function VercelView({
                                   id: `act-schedule-${Date.now()}`,
                                   topicName: topic.name,
                                   channel: topic.channel,
-                                  action: `Scheduled video release for ${schedDate} at ${schedTime}`,
+                                  action: `Scheduled video release for ${schedDate} at ${finalTime}`,
                                   author: 'typeakshay',
                                   timestamp: new Date().toISOString()
                                 };
@@ -910,7 +928,7 @@ export default function VercelView({
                                   id: `evt-scheduled-${Date.now()}`,
                                   source: 'github',
                                   type: 'success',
-                                  message: `Topic Engine: Scheduled "${topic.name}" to publish on ${schedDate} at ${schedTime} (${topic.channel}).`,
+                                  message: `Topic Engine: Scheduled "${topic.name}" to publish on ${schedDate} at ${finalTime} (${topic.channel}).`,
                                   timestamp: new Date().toISOString()
                                 });
 
@@ -1222,7 +1240,8 @@ export default function VercelView({
                     type="date"
                     value={editingTopic.dueDate?.split('T')[0] || ''}
                     onChange={event => {
-                      const timePart = editingTopic.scheduledTime || '12:00';
+                      const defaultTime = editingTopic.channel === 'LearnDriven' ? '21:09' : '19:07';
+                      const timePart = editingTopic.scheduledTime || defaultTime;
                       setEditingTopic({ ...editingTopic, dueDate: event.target.value ? new Date(`${event.target.value}T${timePart}:00`).toISOString() : null });
                     }}
                     className="mt-1 w-full rounded border border-neutral-800 bg-neutral-900 px-2 py-2 text-xs normal-case text-white outline-none"
@@ -1235,10 +1254,12 @@ export default function VercelView({
                     value={editingTopic.scheduledTime || ''}
                     onChange={event => {
                       const datePart = editingTopic.dueDate ? editingTopic.dueDate.split('T')[0] : new Date().toISOString().split('T')[0];
+                      const defaultTime = editingTopic.channel === 'LearnDriven' ? '21:09' : '19:07';
+                      const finalTime = event.target.value || defaultTime;
                       setEditingTopic({ 
                         ...editingTopic, 
-                        scheduledTime: event.target.value,
-                        dueDate: new Date(`${datePart}T${event.target.value}:00`).toISOString()
+                        scheduledTime: event.target.value || undefined,
+                        dueDate: new Date(`${datePart}T${finalTime}:00`).toISOString()
                       });
                     }}
                     className="mt-1 w-full rounded border border-neutral-800 bg-neutral-900 px-2 py-2 text-xs normal-case text-white outline-none font-mono"
