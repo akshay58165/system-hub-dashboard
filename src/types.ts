@@ -154,6 +154,7 @@ export interface Topic {
   inProgress?: boolean;
   scheduledTime?: string;
   postedAt?: string;
+  autoPostPaused?: boolean;
   format?: 'Short' | 'Long' | 'Members';
   category?: string;
   isDemo?: boolean;

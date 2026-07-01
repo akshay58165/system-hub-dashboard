@@ -51,11 +51,12 @@ const WORKFLOW_LABELS: Record<WorkflowStage, Record<WorkflowState, string>> = {
   post: { pending: 'Post', 'in-progress': 'Posting', completed: 'Posted' },
 };
 
-function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, labelOverride, disabled, blinkClass }: {
+function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, onReset, labelOverride, disabled, blinkClass }: {
   stage: WorkflowStage;
   state: WorkflowState;
   onQuickPress: () => void;
   onLongPress: () => void;
+  onReset: () => void;
   labelOverride?: string;
   disabled?: boolean;
   blinkClass?: string;
@@ -75,24 +76,17 @@ function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, labelOv
     event.stopPropagation();
     const wasLongPress = longPressFired.current;
     setIsHolding(false);
-    if (!wasLongPress) onQuickPress();
+    if (!wasLongPress && state !== 'completed') onQuickPress();
   };
 
   const handleAnimationEnd = (event: React.AnimationEvent) => {
-    if (event.animationName === 'workflow-hold-border') {
+    if (event.animationName === 'workflow-hold-border' || event.animationName === 'workflow-reset-border') {
       longPressFired.current = true;
       setIsHolding(false);
-      onLongPress();
+      if (state === 'completed') onReset();
+      else onLongPress();
     }
   };
-
-  const palette = {
-    script: 'border-blue-500 text-blue-400 bg-blue-950/20 hover:bg-blue-950/30',
-    shoot: 'border-amber-500 text-amber-400 bg-amber-950/20 hover:bg-amber-950/30',
-    edit: 'border-emerald-500 text-emerald-400 bg-emerald-950/20 hover:bg-emerald-950/30',
-    schedule: 'border-purple-500 text-purple-400 bg-purple-950/20 hover:bg-purple-950/30',
-    post: 'border-pink-500 text-pink-400 bg-pink-950/20 hover:bg-pink-950/30',
-  }[stage];
 
   return (
     <button
@@ -108,17 +102,21 @@ function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, labelOv
         if (disabled) return;
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          onQuickPress();
+          if (state !== 'completed') onQuickPress();
         }
       }}
-      title={disabled ? undefined : "Quick click: mark in progress. Hold until border animation completes to mark complete."}
+      title={disabled ? undefined : state === 'completed'
+        ? 'Hold 3 seconds to reset this stage.'
+        : 'Quick click: mark in progress. Hold 1 second to mark complete.'}
       className={`relative overflow-hidden px-2.5 py-1 rounded text-[8px] font-semibold border transition select-none touch-none ${
         disabled ? 'cursor-default opacity-85' : 'cursor-pointer'
       } ${
         state === 'pending'
           ? 'bg-neutral-950 border-neutral-850 text-neutral-400 hover:text-neutral-200'
-          : palette
-      } ${state === 'in-progress' ? 'ring-1 ring-white/15' : ''} ${blinkClass || ''}`}
+          : state === 'in-progress'
+            ? 'workflow-in-progress bg-emerald-600 border-emerald-400 text-white ring-1 ring-white/20'
+            : 'workflow-completed bg-neutral-900/25 border-neutral-800/50 text-neutral-500 opacity-55'
+      } ${blinkClass || ''}`}
     >
       {isHolding && !disabled && (
         <svg
@@ -128,7 +126,7 @@ function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, labelOv
           aria-hidden="true"
         >
           <rect
-            className="workflow-hold-stroke"
+            className={state === 'completed' ? 'workflow-reset-stroke' : 'workflow-hold-stroke'}
             x="1"
             y="1"
             width="98"
@@ -172,6 +170,7 @@ export default function VercelView({
   useEffect(() => {
     const scheduledTopicsToPost = topics.filter(t => 
       t.status === 'scheduled' && 
+      !t.autoPostPaused &&
       t.dueDate && 
       new Date(t.dueDate) <= now
     );
@@ -190,6 +189,7 @@ export default function VercelView({
               post: 'completed'
             },
             postedAt: new Date().toISOString(),
+            autoPostPaused: false,
             lastUpdated: new Date().toISOString()
           };
         }
@@ -306,9 +306,35 @@ export default function VercelView({
         schedule: 'completed',
         post: 'pending',
       },
+      autoPostPaused: false,
       lastUpdated: new Date().toISOString(),
     } : item));
     setSchedulingTopicId(null);
+  };
+
+  const resetWorkflowStage = (topic: Topic, targetStage: WorkflowStage) => {
+    const stagesOrder: WorkflowStage[] = ['script', 'shoot', 'edit', 'schedule', 'post'];
+    const completedStatusByStage: Record<WorkflowStage, Topic['status']> = {
+      script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted'
+    };
+    const targetIndex = stagesOrder.indexOf(targetStage);
+
+    setTopics(prev => prev.map(item => {
+      if (item.id !== topic.id) return item;
+      const workflowStatuses = { ...item.workflowStatuses };
+      stagesOrder.forEach((stage, index) => {
+        if (index >= targetIndex) delete workflowStatuses[stage];
+      });
+      return {
+        ...item,
+        status: targetIndex === 0 ? 'topic' : completedStatusByStage[stagesOrder[targetIndex - 1]],
+        workflowStatuses,
+        postedAt: undefined,
+        autoPostPaused: targetStage === 'post',
+        lastUpdated: new Date().toISOString(),
+      };
+    }));
+    if (targetStage === 'schedule' || targetStage === 'post') setSchedulingTopicId(null);
   };
 
   const saveEditedTopic = (event: React.FormEvent) => {
@@ -753,6 +779,7 @@ export default function VercelView({
                                     post: 'completed'
                                   },
                                   postedAt: new Date().toISOString(),
+                                  autoPostPaused: false,
                                   lastUpdated: new Date().toISOString()
                                 } : t));
 
@@ -839,8 +866,8 @@ export default function VercelView({
                           }
 
                           if (stage === 'post') {
-                            isDisabled = true;
-                            if (topic.status === 'scheduled' && topic.dueDate) {
+                            isDisabled = state !== 'completed';
+                            if (topic.status === 'scheduled' && topic.dueDate && !topic.autoPostPaused) {
                               const diff = new Date(topic.dueDate).getTime() - now.getTime();
                               if (diff > 0) {
                                 const secs = Math.floor(diff / 1000);
@@ -897,6 +924,7 @@ export default function VercelView({
                                     handleTransitionToStage(topic, stage, 'completed');
                                   }
                                 }}
+                                onReset={() => resetWorkflowStage(topic, stage)}
                               />
                             </React.Fragment>
                           );
@@ -954,6 +982,7 @@ export default function VercelView({
                                   dueDate: finalIso, 
                                   scheduledTime: finalTime,
                                   workflowStatuses: { ...t.workflowStatuses, schedule: 'completed' },
+                                  autoPostPaused: false,
                                   lastUpdated: new Date().toISOString(),
                                 } : t));
 

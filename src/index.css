@@ -157,6 +157,31 @@ textarea.bg-neutral-900::placeholder {
   animation: workflow-hold-border 0.8s linear forwards;
 }
 
+@keyframes workflow-reset-border {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+.workflow-reset-stroke {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 3px currentColor);
+  animation: workflow-reset-border 3s linear forwards;
+}
+
+.workflow-in-progress.blink-yellow,
+.workflow-in-progress.blink-orange,
+.workflow-in-progress.blink-red {
+  color: #fff !important;
+}
+
+.workflow-completed.blink-yellow,
+.workflow-completed.blink-orange,
+.workflow-completed.blink-red {
+  color: rgba(255, 255, 255, 0.42) !important;
+}
+
 /* Dynamic attention blinking for pending stages near due dates */
 @keyframes blink-yellow {
   0%, 100% { border-color: rgba(234, 179, 8, 0.35); box-shadow: 0 0 3px rgba(234, 179, 8, 0.15); }
