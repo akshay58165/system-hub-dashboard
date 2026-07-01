@@ -10,7 +10,15 @@ let client: any = null;
 
 if (cleanUrl && supabaseAnonKey) {
   try {
-    client = createClient(cleanUrl, supabaseAnonKey);
+    client = createClient(cleanUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
+    });
   } catch (e) {
     console.error("Failed to initialize Supabase client:", e);
   }

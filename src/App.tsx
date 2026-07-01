@@ -504,7 +504,6 @@ export default function App() {
           .from('dashboard_state')
           .select('state, updated_at')
           .eq('user_id', user.id)
-          .headers({ 'Cache-Control': 'no-cache, no-store, must-revalidate' })
           .maybeSingle();
 
         if (error) {
