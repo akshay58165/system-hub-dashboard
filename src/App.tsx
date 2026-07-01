@@ -529,6 +529,9 @@ export default function App() {
     let cancelled = false;
     const userId = user.id;
     setHydratedUserId(null);
+    // Never render an unhydrated empty dashboard during sign-in or account
+    // changes. The loading overlay remains until one coherent snapshot exists.
+    setIsStateLoaded(false);
 
     const fetchAndSubscribe = async () => {
       try {
@@ -564,22 +567,22 @@ export default function App() {
           const remoteUpdatedAt = data.updated_at ? new Date(data.updated_at).getTime() : 0;
           lastRemoteUpdatedAtRef.current = remoteUpdatedAt;
           lastRemoteVersionRef.current = data.version || 0;
-          const backupUpdatedAt = recoveryBackup?.updatedAt ? new Date(recoveryBackup.updatedAt).getTime() : 0;
-          
-          // Only restore local backup if it belongs to the CURRENT active tab session AND is newer than the database
-          const isCurrentSession = recoveryBackup && recoveryBackup.sessionId === currentSessionId;
-          const remoteState = isCurrentSession && backupUpdatedAt > remoteUpdatedAt && recoveryBackup?.state
-            ? recoveryBackup.state
-            : data.state as any;
-          const hydratedTopics = visibleCreatorTopics((remoteState.topics || []) as Topic[]);
-          topicTombstonesRef.current = normalizeCommittedTombstones(hydratedTopics, remoteState.deletedTopicIds || {});
-          // Loading cloud data is read-only. Without this guard a fresh device
-          // immediately writes its just-hydrated snapshot back to the database.
-          isRemoteSyncRef.current = true;
+          const remoteState = data.state as any;
+          const remoteTopics = visibleCreatorTopics((remoteState.topics || []) as Topic[]);
+          const backupTopics = visibleCreatorTopics((recoveryBackup?.state?.topics || []) as Topic[]);
+          const remoteTombstones = normalizeCommittedTombstones(remoteTopics, remoteState.deletedTopicIds || {});
+          const backupTombstones = normalizeCommittedTombstones(backupTopics, recoveryBackup?.state?.deletedTopicIds || {});
+          const combinedTombstones = { ...remoteTombstones, ...backupTombstones };
+          const hydratedTopics = mergeTopicsByNewest(remoteTopics, backupTopics, combinedTombstones);
+          topicTombstonesRef.current = combinedTombstones;
+          const cloudNeedsRepair = !topicCollectionsEqual(hydratedTopics, remoteTopics);
+          isRemoteSyncRef.current = !cloudNeedsRepair;
+          dirtyTopicIdsRef.current = cloudNeedsRepair
+            ? new Set(hydratedTopics.filter(topic => !remoteTopics.some(remote => remote.id === topic.id)).map(topic => topic.id))
+            : new Set();
 
           if (remoteState.topics) {
             setTopicsState(hydratedTopics);
-            dirtyTopicIdsRef.current.clear();
             localStorage.removeItem(`unicorn_infotainment_demo_seed_v1_${userId}`);
           }
           if (remoteState.activities) setActivities(remoteState.activities);
@@ -830,10 +833,20 @@ export default function App() {
     if (!user || authLoading || !isStateLoaded || hydratedUserId !== user.id) return;
     const backupKey = `unicorn_dashboard_recovery_${user.id}`;
     const historyKey = `unicorn_dashboard_recovery_history_${user.id}`;
+    let durableTopics = topics;
+    let durableTombstones = { ...topicTombstonesRef.current };
+    try {
+      const previousBackup = JSON.parse(localStorage.getItem(backupKey) || 'null');
+      const previousTopics = visibleCreatorTopics((previousBackup?.state?.topics || []) as Topic[]);
+      const previousTombstones = normalizeCommittedTombstones(previousTopics, previousBackup?.state?.deletedTopicIds || {});
+      durableTombstones = { ...previousTombstones, ...durableTombstones };
+      durableTopics = mergeTopicsByNewest(previousTopics, topics, durableTombstones);
+    } catch { /* A malformed old backup must not block the current snapshot. */ }
+
     const nextBackup = {
       updatedAt: new Date().toISOString(),
       sessionId: currentSessionId,
-      state: { topics, deletedTopicIds: topicTombstonesRef.current, activities, cycleGoals, scorecard, videos, experiments, insights }
+      state: { topics: durableTopics, deletedTopicIds: durableTombstones, activities, cycleGoals, scorecard, videos, experiments, insights }
     };
 
     try {

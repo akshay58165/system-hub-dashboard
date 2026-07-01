@@ -48,4 +48,9 @@ assert.deepEqual(
   { genuinelyDeleted: newTime }
 );
 
+// A durable five-topic browser replica repairs an intermittently empty cloud
+// document instead of allowing the visible inventory to flash to zero.
+const durableFive = ['a', 'b', 'c', 'd', 'e'].map(id => topic(id, newTime));
+assert.equal(mergeTopicsByNewest([], durableFive).length, 5);
+
 console.log('topic sync race, convergence, newest-write and deletion tests passed');
