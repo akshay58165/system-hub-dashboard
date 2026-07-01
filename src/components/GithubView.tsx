@@ -60,50 +60,62 @@ function formatTimeAgo(dateStr: string) {
 
 // Blinking logic helper (Due date within 2 days gap)
 function shouldBlink(dueDateStr: string | null, now: Date = new Date()) {
-  if (!dueDateStr) return false;
-  const due = new Date(dueDateStr);
-  const diffTime = due.getTime() - now.getTime();
-  const diffDays = diffTime / (1000 * 60 * 60 * 24);
-  // Blink if due date is within 2 days (48 hours) and not already past
-  return diffDays >= -0.5 && diffDays <= 2;
+  try {
+    if (!dueDateStr) return false;
+    const due = new Date(dueDateStr);
+    if (isNaN(due.getTime())) return false;
+    const diffTime = due.getTime() - now.getTime();
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+    // Blink if due date is within 2 days (48 hours) and not already past
+    return diffDays >= -0.5 && diffDays <= 2;
+  } catch (err) {
+    console.error('Error in shouldBlink:', err);
+    return false;
+  }
 }
 
 // Generate human-friendly countdown label for due soon status
-function getDueDateWarningText(dueDateStr: string | null, now: Date) {
-  if (!dueDateStr) return '';
-  const due = new Date(dueDateStr);
-  const diff = due.getTime() - now.getTime();
+function getDueDateWarningText(dueDateStr: string | null, now: Date = new Date()) {
+  try {
+    if (!dueDateStr) return '';
+    const due = new Date(dueDateStr);
+    if (isNaN(due.getTime())) return '';
+    const diff = due.getTime() - now.getTime();
 
-  if (diff <= 0) {
-    return 'Warning: Overdue!';
-  }
-
-  const secs = Math.floor(diff / 1000);
-  const mins = Math.floor(secs / 60);
-  const hours = Math.floor(mins / 60);
-  const days = Math.floor(hours / 24);
-
-  // Parse direct local dates to see if it is today
-  // We use local date strings to compare dates directly
-  const localDueStr = due.toLocaleDateString();
-  const localNowStr = now.toLocaleDateString();
-  const isToday = localDueStr === localNowStr;
-
-  if (isToday || days === 0) {
-    if (hours > 0) {
-      return `Warning: Due in ${hours}h ${mins % 60}m!`;
-    } else if (mins > 0) {
-      return `Warning: Due in ${mins}m ${secs % 60}s!`;
-    } else {
-      return `Warning: Due in ${secs}s!`;
+    if (diff <= 0) {
+      return 'Warning: Overdue!';
     }
-  }
 
-  if (days === 1) {
-    return `Warning: Due in 1 day!`;
-  }
+    const secs = Math.floor(diff / 1000);
+    const mins = Math.floor(secs / 60);
+    const hours = Math.floor(mins / 60);
+    const days = Math.floor(hours / 24);
 
-  return `Warning: Due in ${days} days!`;
+    // Parse direct local dates to see if it is today
+    // We use local date strings to compare dates directly
+    const localDueStr = due.toLocaleDateString();
+    const localNowStr = now.toLocaleDateString();
+    const isToday = localDueStr === localNowStr;
+
+    if (isToday || days === 0) {
+      if (hours > 0) {
+        return `Warning: Due in ${hours}h ${mins % 60}m!`;
+      } else if (mins > 0) {
+        return `Warning: Due in ${mins}m ${secs % 60}s!`;
+      } else {
+        return `Warning: Due in ${secs}s!`;
+      }
+    }
+
+    if (days === 1) {
+      return `Warning: Due in 1 day!`;
+    }
+
+    return `Warning: Due in ${days} days!`;
+  } catch (err) {
+    console.error('Error in getDueDateWarningText:', err);
+    return '';
+  }
 }
 
 export default function GithubView({ 
