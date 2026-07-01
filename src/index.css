@@ -142,3 +142,17 @@ input.bg-neutral-900::placeholder,
 textarea.bg-neutral-900::placeholder {
   color: rgba(255, 255, 255, 0.32);
 }
+
+/* One-second perimeter timer for press-and-hold workflow controls. */
+@keyframes workflow-hold-border {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+.workflow-hold-stroke {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 3px currentColor);
+  animation: workflow-hold-border 1s linear forwards;
+}

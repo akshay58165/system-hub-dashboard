@@ -111,7 +111,27 @@ function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress }: {
           : palette
       } ${state === 'in-progress' ? 'ring-1 ring-white/15' : ''}`}
     >
-      {isHolding && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-white/80 animate-pulse" />}
+      {isHolding && (
+        <svg
+          className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+          viewBox="0 0 100 32"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <rect
+            className="workflow-hold-stroke"
+            x="1"
+            y="1"
+            width="98"
+            height="30"
+            rx="5"
+            pathLength="1"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          />
+        </svg>
+      )}
       <span className="relative">{WORKFLOW_LABELS[stage][state]}</span>
     </button>
   );
