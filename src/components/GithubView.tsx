@@ -26,6 +26,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { GitHubRepo, SystemEvent, Topic, TopicActivity } from '../types';
+import { getTopicCurrentWorkflow, getTopicWorkflowState } from '../services/topicWorkflow';
 
 interface GithubViewProps {
   repos: GitHubRepo[];
@@ -375,11 +376,11 @@ export default function GithubView({
   // Compute aggregate stats based on channel
   const stats = useMemo(() => {
     const subset = topics.filter(t => selectedChannel === 'All' || t.channel === selectedChannel);
-    const topicCount = subset.filter(t => t.status === 'topic').length;
-    const scripted = subset.filter(t => t.status === 'scripted').length;
-    const shot = subset.filter(t => t.status === 'shot').length;
-    const edited = subset.filter(t => t.status === 'edited').length;
-    const scheduled = subset.filter(t => t.status === 'scheduled').length;
+    const topicCount = subset.filter(t => getTopicWorkflowState(t, 'script') === 'pending').length;
+    const scripted = subset.filter(t => getTopicWorkflowState(t, 'script') === 'completed').length;
+    const shot = subset.filter(t => getTopicWorkflowState(t, 'shoot') === 'completed').length;
+    const edited = subset.filter(t => getTopicWorkflowState(t, 'edit') === 'completed').length;
+    const scheduled = subset.filter(t => getTopicWorkflowState(t, 'schedule') === 'completed').length;
 
     // Last created date
     let lastCreatedText = 'No topics';
@@ -605,17 +606,17 @@ export default function GithubView({
               ) : (
                 filteredTopics.map(topic => {
                   const prio = getPriorityDetails(topic.priority);
-                  const isDueSoon = shouldBlink(topic.dueDate, now);
+                  const workflow = getTopicCurrentWorkflow(topic);
+                  const isDueSoon = getTopicWorkflowState(topic, 'schedule') !== 'completed' && shouldBlink(topic.dueDate, now);
 
                   // Colors for statuses
                   const statusColors = {
-                    topic: 'text-purple-400 bg-purple-950/20 border-purple-900/20',
-                    scripted: 'text-blue-400 bg-blue-950/20 border-blue-900/20',
-                    shot: 'text-amber-400 bg-amber-950/20 border-amber-900/20',
-                    edited: 'text-emerald-400 bg-emerald-950/20 border-emerald-900/20',
-                    scheduled: 'text-pink-400 bg-pink-950/20 border-pink-900/20',
-                    posted: 'text-rose-400 bg-rose-950/20 border-rose-900/20'
-                  }[topic.status];
+                    script: 'text-blue-400 bg-blue-950/20 border-blue-900/20',
+                    shoot: 'text-amber-400 bg-amber-950/20 border-amber-900/20',
+                    edit: 'text-emerald-400 bg-emerald-950/20 border-emerald-900/20',
+                    schedule: 'text-pink-400 bg-pink-950/20 border-pink-900/20',
+                    post: 'text-rose-400 bg-rose-950/20 border-rose-900/20'
+                  }[workflow.stage];
 
                   return (
                     <div 
@@ -733,7 +734,7 @@ export default function GithubView({
                       {/* Status and Priority Badges */}
                       <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
                         <span className={`px-2 py-0.5 rounded border text-[9px] font-bold uppercase ${statusColors}`}>
-                          {topic.status}
+                          {workflow.label}
                         </span>
 
                         <span className={`px-2 py-0.5 rounded border text-[9px] font-bold ${prio.style}`}>

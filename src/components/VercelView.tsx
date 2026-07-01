@@ -27,6 +27,7 @@ import {
   CartesianGrid 
 } from 'recharts';
 import { Topic, TopicActivity, SystemEvent, CycleGoal } from '../types';
+import { getTopicCurrentWorkflow, getTopicWorkflowState } from '../services/topicWorkflow';
 
 interface VercelViewProps {
   projects: any[]; // Kept for interface compatibility in App.tsx
@@ -217,18 +218,7 @@ export default function VercelView({
     }
   }, [now, topics, setTopics, onAddEvent, setActivities]);
 
-  const getWorkflowState = (topic: Topic, stage: WorkflowStage): WorkflowState => {
-    const savedState = topic.workflowStatuses?.[stage];
-    if (savedState) return savedState;
-
-    const completedStatusByStage: Record<WorkflowStage, Topic['status']> = {
-      script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted'
-    };
-    const statusOrder: Topic['status'][] = ['topic', 'scripted', 'shot', 'edited', 'scheduled', 'posted'];
-    return statusOrder.indexOf(topic.status) >= statusOrder.indexOf(completedStatusByStage[stage])
-      ? 'completed'
-      : 'pending';
-  };
+  const getWorkflowState = getTopicWorkflowState;
 
   const getUrgencyInfo = (topic: Topic) => {
     const scheduleComplete = getWorkflowState(topic, 'schedule') === 'completed' || topic.status === 'scheduled' || topic.status === 'posted';
@@ -750,6 +740,7 @@ export default function VercelView({
                 return activeProgress.map(topic => {
                   const isSchedulingThis = schedulingTopicId === topic.id;
                   const urgency = getUrgencyInfo(topic);
+                  const currentWorkflow = getTopicCurrentWorkflow(topic);
                   return (
                     <div 
                       key={topic.id} 
@@ -771,7 +762,7 @@ export default function VercelView({
                         </div>
                         <div className="flex items-center gap-1.5">
                           <span className="px-1.5 py-0.5 rounded border text-[8px] uppercase font-bold border-blue-900/40 text-blue-400 bg-blue-950/20">
-                            {topic.status}
+                            {currentWorkflow.label}
                           </span>
                           <button
                             type="button"

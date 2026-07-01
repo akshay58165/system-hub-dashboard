@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal } from '../types';
 import { callOpenAI, getChannelSystemPrompt, findScriptSources } from '../services/openai';
+import { getTopicCurrentWorkflow, getTopicWorkflowState } from '../services/topicWorkflow';
 
 // Splits AI source-search output on raw URLs and renders them as real
 // clickable links that open in a new tab, while preserving line breaks.
@@ -502,9 +503,9 @@ Please rewrite/enhance this draft based on the system persona rules and the user
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {(() => {
           const totalTopics = topics.length;
-          const scheduledTopics = topics.filter(t => t.status === 'scheduled').length;
-          const inProgressTopics = topics.filter(t => t.status !== 'topic' && t.status !== 'scheduled').length;
-          const pendingTopics = topics.filter(t => t.status === 'topic').length;
+          const scheduledTopics = topics.filter(t => getTopicWorkflowState(t, 'schedule') === 'completed').length;
+          const inProgressTopics = topics.filter(t => getTopicCurrentWorkflow(t).state === 'in-progress').length;
+          const pendingTopics = topics.filter(t => getTopicWorkflowState(t, 'script') === 'pending').length;
           const throughputPct = totalTopics > 0 ? Math.round((scheduledTopics / totalTopics) * 100) : 0;
           return (
             <>
