@@ -49,10 +49,27 @@ export interface WellbeingInsight {
   action: string;
   trend: string | null;
   headline: { title: string; lines: string[] } | null;
+  readiness: DailyStatusResult;
+  bottleneckTag: string;
+  dayTypeTag: string;
   scores: {
     physicalScore: number; mentalScore: number; executionScore: number; socialScore: number;
     frictionScore: number; recoveryNeedScore: number; distractionRiskScore: number; flatnessRiskScore: number;
   };
+}
+
+export interface DailyStatusResult {
+  status: string;
+  score: number | null;
+  dayType: string;
+  confidence: 'Low' | 'Medium' | 'High';
+  missingCount: number;
+  penalty: number;
+  physicalScore: number;
+  mentalScore: number;
+  executionScore: number;
+  socialScore: number;
+  environmentScore: number;
 }
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
@@ -105,7 +122,142 @@ function n(val: number | null): number {
   return val === null ? 5.5 : val;
 }
 
+export function distractionBalanceScore(value: number): number {
+  if (value === 5 || value === 6) return 100;
+  if (value === 4 || value === 7) return 80;
+  if (value === 3) return 65;
+  if (value === 8) return 45;
+  if (value === 2) return 50;
+  if (value === 9) return 20;
+  if (value === 1) return 35;
+  if (value === 10) return 5;
+  return 50;
+}
+
+// Exact local Bio-Focus formula. This function is deterministic and performs
+// no network request, AI inference, or asynchronous work.
+export function generateDailyStatus(raw: WellbeingParams): DailyStatusResult {
+  const missingCount = Object.values(raw).filter(value => value === null).length;
+  const R = n(raw.R), N = n(raw.N), H = n(raw.H), SS = n(raw.SS), PA = n(raw.PA);
+  const STR = n(raw.STR), D = n(raw.D), P = n(raw.P);
+  const SA = n(raw.SA), SO = n(raw.SO), REL = n(raw.REL), TB = n(raw.TB);
+
+  const stressScore = (11 - STR) * 10;
+  const blockerScore = (11 - TB) * 10;
+  const dScore = distractionBalanceScore(D);
+
+  const physicalScore =
+    R * 10 * 0.30 +
+    N * 10 * 0.20 +
+    H * 10 * 0.20 +
+    SS * 10 * 0.20 +
+    PA * 10 * 0.10;
+
+  const mentalScore =
+    stressScore * 0.40 +
+    P * 10 * 0.30 +
+    dScore * 0.30;
+
+  const executionScore =
+    SA * 10 * 0.40 +
+    blockerScore * 0.30 +
+    R * 10 * 0.15 +
+    stressScore * 0.15;
+
+  const socialScore =
+    REL * 10 * 0.40 +
+    SO * 10 * 0.25 +
+    P * 10 * 0.20 +
+    stressScore * 0.15;
+
+  const environmentScore =
+    SA * 10 * 0.45 +
+    blockerScore * 0.45 +
+    stressScore * 0.10;
+
+  let score =
+    physicalScore * 0.30 +
+    mentalScore * 0.25 +
+    executionScore * 0.25 +
+    socialScore * 0.10 +
+    environmentScore * 0.10;
+
+  let penalty = 0;
+  if (R <= 3 && STR >= 7) penalty += 12;
+  else if (R <= 4 && STR >= 7) penalty += 8;
+  else if (R <= 3) penalty += 6;
+
+  if (N <= 3 && H <= 3) penalty += 8;
+  else if (N <= 4 && H <= 4) penalty += 5;
+
+  if (SS <= 3) penalty += 5;
+  if (SS <= 3 && STR >= 7) penalty += 8;
+
+  if (D >= 9 && SA <= 5) penalty += 12;
+  else if (D >= 8 && SA <= 5) penalty += 8;
+  else if (D >= 8 && STR >= 7) penalty += 10;
+
+  if (TB >= 8 && SA <= 4) penalty += 12;
+  else if (TB >= 7) penalty += 8;
+
+  if (REL <= 3 && STR >= 7) penalty += 8;
+  else if (REL <= 4 && P <= 4) penalty += 5;
+
+  if (D <= 2 && P <= 3 && PA <= 3) penalty += 8;
+  else if (D <= 3 && P <= 4) penalty += 5;
+
+  score = Math.round(clamp(score - penalty, 0, 100));
+
+  let status: string;
+  if (missingCount >= 6) status = 'Insufficient Data';
+  else if (score < 15) status = 'Collapsed';
+  else if (R <= 3 && STR >= 7) status = 'Recovery Required';
+  else if (STR >= 9 && P <= 3) status = 'Overloaded';
+  else if (TB >= 8 && SA <= 5) status = 'Blocked';
+  else if (STR >= 8 && D >= 8) status = 'Volatile';
+  else if (D >= 8 && SA <= 5) status = 'Scattered';
+  else if (REL <= 3 && STR >= 6) status = 'Emotionally Loaded';
+  else if (D <= 3 && P <= 4 && PA <= 4) status = 'Flat';
+  else if (SA >= 7 && TB >= 7) status = 'Disciplined but Blocked';
+  else if (SA <= 4 && TB <= 3 && STR <= 6) status = 'Self-Drift';
+  else if (R >= 8 && STR <= 3 && TB <= 3 && SA >= 8 && D >= 4 && D <= 6) status = 'Peak';
+  else if (score >= 85) status = 'Strong';
+  else if (score >= 75) status = 'Ready';
+  else if (score >= 65) status = 'Cautious';
+  else if (score >= 55) status = 'Stabilizing';
+  else if (score >= 45) status = 'Low Power';
+  else if (score >= 30) status = 'Fragile';
+  else status = 'Critical';
+
+  let dayType: string;
+  if (missingCount >= 6) dayType = 'Unknown';
+  else if (R >= 8 && STR <= 3 && TB <= 3 && SA >= 8 && D >= 4 && D <= 6) dayType = 'Deep Work Day';
+  else if (P >= 7 && STR <= 5 && R >= 6 && TB <= 4 && D >= 4 && D <= 7) dayType = 'Creative Day';
+  else if (SA >= 7 && TB <= 4 && R >= 6) dayType = 'Execution Day';
+  else if (R <= 4 || score <= 44) dayType = 'Recovery Day';
+  else if (TB >= 7) dayType = 'Friction Fixing Day';
+  else if (D >= 8) dayType = 'Distraction Control Day';
+  else if (REL <= 4 && STR >= 6) dayType = 'Emotional Reset Day';
+  else if (score >= 55 && score <= 74) dayType = 'Maintenance Day';
+  else dayType = 'Normal Functioning Day';
+
+  return {
+    status,
+    score: missingCount >= 6 ? null : score,
+    dayType,
+    confidence: missingCount >= 6 ? 'Low' : missingCount >= 3 ? 'Medium' : 'High',
+    missingCount,
+    penalty,
+    physicalScore: Math.round(physicalScore),
+    mentalScore: Math.round(mentalScore),
+    executionScore: Math.round(executionScore),
+    socialScore: Math.round(socialScore),
+    environmentScore: Math.round(environmentScore)
+  };
+}
+
 export function generateWellbeingInsight(raw: WellbeingParams, dailyHistory: DailyHistoryEntry[]): WellbeingInsight {
+  const readiness = generateDailyStatus(raw);
   const R = n(raw.R), N = n(raw.N), H = n(raw.H), SS = n(raw.SS), PA = n(raw.PA);
   const STR = n(raw.STR), D = n(raw.D), P = n(raw.P);
   const SA = n(raw.SA), SO = n(raw.SO), REL = n(raw.REL), TB = n(raw.TB);
@@ -145,39 +297,42 @@ export function generateWellbeingInsight(raw: WellbeingParams, dailyHistory: Dai
 
   // ---- Step 5: main bottleneck ----
   let bottleneck: string;
+  let bottleneckTag: string;
   if (recoveryNeedScore >= 7) {
     bottleneck = 'Your main bottleneck today is recovery. The body is not giving enough support for high-output work.';
+    bottleneckTag = 'Recovery';
   } else if (frictionScore >= 7) {
     bottleneck = 'Your main bottleneck today is friction. The issue is not only discipline, the system around you is making execution harder.';
+    bottleneckTag = 'Friction';
   } else if (mentalScore <= 4.5) {
     bottleneck = 'Your main bottleneck today is mental load. Work may feel heavier than it actually is.';
+    bottleneckTag = 'Mental Load';
   } else if (socialScore <= 4.5) {
     bottleneck = 'Your main bottleneck today is social or emotional background noise.';
+    bottleneckTag = 'Social/Emotional';
   } else if (executionScore <= 4.5) {
     bottleneck = 'Your main bottleneck today is execution structure. Energy may exist, but it is not converting into planned action.';
+    bottleneckTag = 'Execution';
   } else {
     bottleneck = 'No major bottleneck is visible today. The day is usable.';
+    bottleneckTag = 'Clear';
   }
 
   // ---- Step 6: day type ----
-  let dayType: string;
-  if (R >= 7 && STR <= 3 && TB <= 3 && SA >= 7 && D >= 4 && D <= 6) {
-    dayType = 'This is a deep work day. Use it for scripting, editing, planning, difficult decisions, or focused creative work.';
-  } else if (physicalScore >= 7 && executionScore >= 7 && mentalScore >= 6) {
-    dayType = 'This is an execution day. Push important output forward before the state changes.';
-  } else if (P >= 7 && R >= 6 && STR <= 5 && TB <= 4 && D >= 4 && D <= 7) {
-    dayType = 'This is a creative day. It is suitable for ideation, writing, brainstorming, and content thinking.';
-  } else if (recoveryNeedScore >= 7) {
-    dayType = 'This is a recovery day. Forcing maximum output may create more resistance tomorrow.';
-  } else if (TB >= 7 || (TB >= 6 && SA <= 4)) {
-    dayType = 'This is a friction day. Fix tools, systems, pending setup, or blockers before expecting clean productivity.';
-  } else if (D >= 8 && SA <= 5) {
-    dayType = 'This is a distraction control day. Avoid open-ended digital spaces and keep tasks closed, short, and timed.';
-  } else if (REL <= 3 && (STR >= 6 || P <= 4)) {
-    dayType = 'This is an emotional reset day. Relationship noise may affect focus and decision quality.';
-  } else {
-    dayType = 'This is a maintenance day. Use it for moderate tasks, cleanup, admin, and steady progress.';
-  }
+  const dayTypeTag = readiness.dayType.replace(/ Day$/, '');
+  const dayTypeDescriptions: Record<string, string> = {
+    'Deep Work Day': 'This is a deep work day. Use it for scripting, editing, planning, difficult decisions, or focused creative work.',
+    'Creative Day': 'This is a creative day. It is suitable for ideation, writing, brainstorming, and content thinking.',
+    'Execution Day': 'This is an execution day. Push important output forward before the state changes.',
+    'Recovery Day': 'This is a recovery day. Forcing maximum output may create more resistance tomorrow.',
+    'Friction Fixing Day': 'This is a friction fixing day. Fix tools, systems, pending setup, or blockers before expecting clean productivity.',
+    'Distraction Control Day': 'This is a distraction control day. Avoid open-ended digital spaces and keep tasks closed, short, and timed.',
+    'Emotional Reset Day': 'This is an emotional reset day. Relationship noise may affect focus and decision quality.',
+    'Maintenance Day': 'This is a maintenance day. Use it for moderate tasks, cleanup, admin, and steady progress.',
+    'Normal Functioning Day': 'This is a normal functioning day. Use the available energy for balanced, sustainable work.',
+    Unknown: 'Complete more daily parameters to determine the best kind of work for today.'
+  };
+  const dayType = dayTypeDescriptions[readiness.dayType] || dayTypeDescriptions['Normal Functioning Day'];
 
   // ---- Step 7: physical insight ----
   let physical: string;
@@ -301,40 +456,8 @@ export function generateWellbeingInsight(raw: WellbeingParams, dailyHistory: Dai
   // ---- Full priority order: single overall headline for the day ----
   let headline: WellbeingInsight['headline'] = null;
   if (missingCount < 6) {
-    type Kind =
-      | 'high_recovery_need' | 'mental_overload' | 'system_blocked' | 'high_distraction_pressure'
-      | 'deep_work_day' | 'execution_day' | 'creative_day' | 'relationship_stress_spillover'
-      | 'self_drift' | 'disciplined_but_blocked' | 'maintenance_day';
-
-    let kind: Kind;
-    if (recoveryNeedScore >= 8) kind = 'high_recovery_need';
-    else if (STR >= 9 && P <= 3) kind = 'mental_overload';
-    else if (TB >= 8 && SA <= 4) kind = 'system_blocked';
-    else if (D >= 9 && SA <= 5) kind = 'high_distraction_pressure';
-    else if (R >= 7 && STR <= 3 && TB <= 3 && SA >= 7 && D >= 4 && D <= 6) kind = 'deep_work_day';
-    else if (physicalScore >= 7 && executionScore >= 7) kind = 'execution_day';
-    else if (P >= 7 && STR <= 5 && D >= 4 && D <= 7) kind = 'creative_day';
-    else if (REL <= 3 && STR >= 6) kind = 'relationship_stress_spillover';
-    else if (SA <= 4 && TB <= 3) kind = 'self_drift';
-    else if (SA >= 7 && TB >= 7) kind = 'disciplined_but_blocked';
-    else kind = 'maintenance_day';
-
-    const HEADLINE_TITLES: Record<Kind, string> = {
-      high_recovery_need: 'Recovery day',
-      mental_overload: 'Mental overload',
-      system_blocked: 'System blocked',
-      high_distraction_pressure: 'Distraction control day',
-      deep_work_day: 'Deep work day',
-      execution_day: 'Execution day',
-      creative_day: 'Creative day',
-      relationship_stress_spillover: 'Relationship stress spillover',
-      self_drift: 'Self-drift',
-      disciplined_but_blocked: 'Disciplined but blocked',
-      maintenance_day: 'Maintenance day'
-    };
-
     headline = {
-      title: HEADLINE_TITLES[kind],
+      title: `${readiness.status} • ${readiness.dayType}`,
       lines: [dayType, bottleneck, `Best action: ${action}`]
     };
   }
@@ -387,6 +510,9 @@ export function generateWellbeingInsight(raw: WellbeingParams, dailyHistory: Dai
     action,
     trend,
     headline,
+    readiness,
+    bottleneckTag,
+    dayTypeTag,
     scores: { physicalScore, mentalScore, executionScore, socialScore, frictionScore, recoveryNeedScore, distractionRiskScore, flatnessRiskScore }
   };
 }

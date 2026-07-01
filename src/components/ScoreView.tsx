@@ -25,6 +25,7 @@ import {
 import { GitHubRepo, VercelProject, SupabaseProject } from '../types';
 import {
   generateWellbeingInsight,
+  generateDailyStatus,
   recordTodayInArchive,
   WellbeingParams,
   WellbeingInsight as WellbeingInsightResult
@@ -195,129 +196,23 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
     stress
   };
 
-  // Compile calculations (aggregated Bio-Score and Radar Chart vectors)
+  // Exact deterministic Bio-Focus formula and weighted sub-scores.
   const computedMetrics = useMemo(() => {
-    const getPoints = (name: string, val: number | null) => {
-      if (val === null) return 0;
-      if (['restfulness', 'nutrition', 'hydration', 'schedule', 'pleasantness', 'stomach'].includes(name)) {
-        return val;
-      }
-      if (name === 'physicalActivity') {
-        if (val >= 5 && val <= 7) return 10;
-        if (val === 3 || val === 4 || val === 8 || val === 9) return 6;
-        return 3;
-      }
-      if (name === 'endorphins') {
-        if (val <= 2) return 10;
-        if (val <= 4) return 8;
-        if (val <= 6) return 5;
-        if (val <= 8) return 3;
-        return 1;
-      }
-      if (name === 'socialization') {
-        if (val >= 5 && val <= 7) return 10;
-        if (val === 3 || val === 4 || val === 8 || val === 9) return 6;
-        return 4;
-      }
-      if (name === 'technicalities') {
-        if (val <= 2) return 10;
-        if (val <= 4) return 8;
-        if (val <= 6) return 5;
-        if (val <= 8) return 3;
-        return 1;
-      }
-      if (name === 'relations') {
-        if (val >= 9) return 10;
-        if (val >= 7) return 8;
-        if (val >= 5) return 6;
-        if (val >= 3) return 3;
-        return 1;
-      }
-      if (name === 'stress') {
-        if (val <= 2) return 10;
-        if (val <= 4) return 8;
-        if (val <= 6) return 5;
-        if (val <= 8) return 3;
-        return 1;
-      }
-      return 0;
-    };
-
-    const paramsList = [
-      { name: 'restfulness', val: restfulness },
-      { name: 'nutrition', val: nutrition },
-      { name: 'hydration', val: hydration },
-      { name: 'physicalActivity', val: physicalActivity },
-      { name: 'endorphins', val: endorphins },
-      { name: 'schedule', val: schedule },
-      { name: 'pleasantness', val: pleasantness },
-      { name: 'socialization', val: socialization },
-      { name: 'stomach', val: stomach },
-      { name: 'technicalities', val: technicalities },
-      { name: 'relations', val: relations },
-      { name: 'stress', val: stress }
-    ];
-
-    const activeParams = paramsList.filter(p => p.val !== null);
-    const activeCount = activeParams.length;
-
-    let aggregate = 0;
-    if (activeCount > 0) {
-      const activePointsSum = activeParams.reduce((sum, p) => sum + getPoints(p.name, p.val), 0);
-      aggregate = Math.round((activePointsSum / (activeCount * 10)) * 100);
-    }
-
-    // Compute composite metrics for Recharts Radar Chart (bound 10-100)
-    const physActive = [restfulness, nutrition, hydration, physicalActivity].filter(v => v !== null) as number[];
-    const physEnergy = physActive.length > 0
-      ? Math.min(100, Math.max(10, Math.round(
-          (physActive.reduce((sum, v) => sum + v, 0) / physActive.length) * 10
-        )))
-      : 10;
-
-    const focusActive = [endorphins, stress, technicalities].filter(v => v !== null) as number[];
-    const focusBandwidth = focusActive.length > 0
-      ? Math.min(100, Math.max(10, Math.round(
-          ((10 - (focusActive[0] || 0)) + (10 - (focusActive[1] || 0)) + (10 - (focusActive[2] || 0))) / focusActive.length * 10
-        )))
-      : 10;
-
-    const timeActive = [schedule, socialization].filter(v => v !== null) as number[];
-    const timeEfficiency = timeActive.length > 0
-      ? Math.min(100, Math.max(10, Math.round(
-          (timeActive.reduce((sum, v) => sum + v, 0) / timeActive.length) * 10
-        )))
-      : 10;
-
-    const emotionalActive = [pleasantness, stomach, relations].filter(v => v !== null) as number[];
-    const emotionalVibe = emotionalActive.length > 0
-      ? Math.min(100, Math.max(10, Math.round(
-          (emotionalActive.reduce((sum, v) => sum + v, 0) / emotionalActive.length) * 10
-        )))
-      : 10;
-
-    const socialActive = [socialization, relations].filter(v => v !== null) as number[];
-    const socialHarmony = socialActive.length > 0
-      ? Math.min(100, Math.max(10, Math.round(
-          (socialActive.reduce((sum, v) => sum + v, 0) / socialActive.length) * 10
-        )))
-      : 10;
-
-    const bioActive = [stomach, stress, restfulness].filter(v => v !== null) as number[];
-    const biologicalComfort = bioActive.length > 0
-      ? Math.min(100, Math.max(10, Math.round(
-          ((bioActive[0] || 0) + (10 - (bioActive[1] || 0)) + (bioActive[2] || 0)) / bioActive.length * 10
-        )))
-      : 10;
+    const readiness = generateDailyStatus({
+      R: restfulness, N: nutrition, H: hydration, SS: stomach, PA: physicalActivity,
+      STR: stress, D: endorphins, P: pleasantness, SA: schedule, SO: socialization,
+      REL: relations, TB: technicalities
+    });
 
     return {
-      aggregate,
-      physEnergy,
-      focusBandwidth,
-      timeEfficiency,
-      emotionalVibe,
-      socialHarmony,
-      biologicalComfort
+      aggregate: readiness.score ?? 0,
+      readiness,
+      physEnergy: readiness.physicalScore,
+      focusBandwidth: readiness.mentalScore,
+      timeEfficiency: readiness.executionScore,
+      emotionalVibe: readiness.socialScore,
+      socialHarmony: readiness.socialScore,
+      biologicalComfort: readiness.environmentScore
     };
   }, [restfulness, nutrition, hydration, physicalActivity, endorphins, schedule, pleasantness, socialization, stomach, technicalities, relations, stress]);
 
@@ -609,12 +504,21 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
 
   // Dynamic status parameters
   const statusInfo = useMemo(() => {
-    const score = computedMetrics.aggregate;
-    if (score >= 90) return { label: 'OPTIMAL', color: 'text-emerald-400', border: 'border-emerald-950/40', bg: 'bg-emerald-500/10' };
-    if (score >= 75) return { label: 'STABLE', color: 'text-blue-400', border: 'border-blue-950/40', bg: 'bg-blue-500/10' };
-    if (score >= 50) return { label: 'CAUTIOUS', color: 'text-amber-400', border: 'border-amber-950/40', bg: 'bg-amber-500/10' };
-    return { label: 'IMPAIRED', color: 'text-rose-400', border: 'border-rose-950/40', bg: 'bg-rose-500/10' };
-  }, [computedMetrics.aggregate]);
+    const status = computedMetrics.readiness.status;
+    const positive = ['Peak', 'Strong', 'Ready', 'Socially Supported'];
+    const caution = ['Cautious', 'Stabilizing', 'Disciplined but Blocked', 'Capable but Pressured'];
+    const danger = ['Collapsed', 'Critical', 'Recovery Required', 'Overloaded', 'Blocked', 'Volatile'];
+    const color = positive.includes(status)
+      ? 'text-emerald-400'
+      : caution.includes(status)
+        ? 'text-amber-400'
+        : danger.includes(status)
+          ? 'text-rose-400'
+          : status === 'Insufficient Data'
+            ? 'text-neutral-400'
+            : 'text-blue-400';
+    return { label: status, color };
+  }, [computedMetrics.readiness.status]);
 
   const statusInfoColor = statusInfo.color;
 
@@ -751,7 +655,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
             <div className="text-center">
               <span className="text-[10px] uppercase text-neutral-500 tracking-wider block font-bold">Bio-Focus Score</span>
               <span className={`text-xl font-bold mt-0.5 block ${statusInfoColor}`}>
-                {computedMetrics.aggregate}/100
+                {computedMetrics.readiness.score === null ? '—/100' : `${computedMetrics.readiness.score}/100`}
               </span>
             </div>
           </div>
@@ -1107,8 +1011,8 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                     <Radar
                       name="Bio Performance"
                       dataKey="A"
-                      stroke={computedMetrics.aggregate >= 90 ? '#34d399' : computedMetrics.aggregate >= 75 ? '#60a5fa' : computedMetrics.aggregate >= 50 ? '#fbbf24' : '#f87171'}
-                      fill={computedMetrics.aggregate >= 90 ? '#34d399' : computedMetrics.aggregate >= 75 ? '#60a5fa' : computedMetrics.aggregate >= 50 ? '#fbbf24' : '#f87171'}
+                      stroke={computedMetrics.aggregate >= 85 ? '#34d399' : computedMetrics.aggregate >= 75 ? '#60a5fa' : computedMetrics.aggregate >= 55 ? '#fbbf24' : '#f87171'}
+                      fill={computedMetrics.aggregate >= 85 ? '#34d399' : computedMetrics.aggregate >= 75 ? '#60a5fa' : computedMetrics.aggregate >= 55 ? '#fbbf24' : '#f87171'}
                       fillOpacity={0.15}
                       strokeWidth={2}
                     />
