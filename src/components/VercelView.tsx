@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Layers, 
@@ -37,6 +37,86 @@ interface VercelViewProps {
   cycleGoals: CycleGoal | null;
 }
 
+type WorkflowStage = 'script' | 'shoot' | 'edit' | 'schedule' | 'post';
+type WorkflowState = 'pending' | 'in-progress' | 'completed';
+
+const WORKFLOW_LABELS: Record<WorkflowStage, Record<WorkflowState, string>> = {
+  script: { pending: 'Script', 'in-progress': 'Scripting', completed: 'Scripted' },
+  shoot: { pending: 'Shoot', 'in-progress': 'Shooting', completed: 'Shot' },
+  edit: { pending: 'Edit', 'in-progress': 'Editing', completed: 'Edited' },
+  schedule: { pending: 'Schedule', 'in-progress': 'Scheduling', completed: 'Scheduled' },
+  post: { pending: 'Post', 'in-progress': 'Posting', completed: 'Posted' },
+};
+
+function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress }: {
+  stage: WorkflowStage;
+  state: WorkflowState;
+  onQuickPress: () => void;
+  onLongPress: () => void;
+}) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFired = useRef(false);
+  const [isHolding, setIsHolding] = useState(false);
+
+  const cancelTimer = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
+    setIsHolding(false);
+  };
+
+  const startPress = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    longPressFired.current = false;
+    setIsHolding(true);
+    timerRef.current = setTimeout(() => {
+      longPressFired.current = true;
+      setIsHolding(false);
+      onLongPress();
+    }, 1000);
+  };
+
+  const finishPress = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    const wasLongPress = longPressFired.current;
+    cancelTimer();
+    if (!wasLongPress) onQuickPress();
+  };
+
+  const palette = {
+    script: 'border-blue-500 bg-blue-600 text-white',
+    shoot: 'border-amber-500 bg-amber-600 text-white',
+    edit: 'border-emerald-500 bg-emerald-600 text-white',
+    schedule: 'border-purple-500 bg-purple-600 text-white',
+    post: 'border-pink-500 bg-pink-600 text-white',
+  }[stage];
+
+  return (
+    <button
+      type="button"
+      onPointerDown={startPress}
+      onPointerUp={finishPress}
+      onPointerCancel={cancelTimer}
+      onPointerLeave={cancelTimer}
+      onContextMenu={(event) => event.preventDefault()}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onQuickPress();
+        }
+      }}
+      title="Quick click: mark in progress. Hold 1 second: mark complete."
+      className={`relative overflow-hidden px-2.5 py-1 rounded text-[8px] font-semibold border transition select-none touch-none cursor-pointer ${
+        state === 'pending'
+          ? 'bg-neutral-950 border-neutral-850 text-neutral-400 hover:text-neutral-200'
+          : palette
+      } ${state === 'in-progress' ? 'ring-1 ring-white/15' : ''}`}
+    >
+      {isHolding && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-white/80 animate-pulse" />}
+      <span className="relative">{WORKFLOW_LABELS[stage][state]}</span>
+    </button>
+  );
+}
+
 export default function VercelView({ 
   onAddEvent, 
   topics, 
@@ -50,6 +130,43 @@ export default function VercelView({
   const [schedulingTopicId, setSchedulingTopicId] = useState<string | null>(null);
   const [schedDate, setSchedDate] = useState('');
   const [schedTime, setSchedTime] = useState('');
+
+  const getWorkflowState = (topic: Topic, stage: WorkflowStage): WorkflowState => {
+    const savedState = topic.workflowStatuses?.[stage];
+    if (savedState) return savedState;
+
+    const completedStatusByStage: Record<WorkflowStage, Topic['status']> = {
+      script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted'
+    };
+    const statusOrder: Topic['status'][] = ['topic', 'scripted', 'shot', 'edited', 'scheduled', 'posted'];
+    return statusOrder.indexOf(topic.status) >= statusOrder.indexOf(completedStatusByStage[stage])
+      ? 'completed'
+      : 'pending';
+  };
+
+  const updateWorkflowStage = (topic: Topic, stage: WorkflowStage, state: Exclude<WorkflowState, 'pending'>) => {
+    const completedStatusByStage: Record<WorkflowStage, Topic['status']> = {
+      script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted'
+    };
+
+    setTopics(prev => prev.map(item => item.id === topic.id ? {
+      ...item,
+      inProgress: true,
+      status: state === 'completed' ? completedStatusByStage[stage] : item.status,
+      workflowStatuses: { ...item.workflowStatuses, [stage]: state },
+      lastUpdated: new Date().toISOString(),
+    } : item));
+
+    const label = WORKFLOW_LABELS[stage][state];
+    setActivities(prev => [{
+      id: `act-workflow-${stage}-${Date.now()}`,
+      topicName: topic.name,
+      channel: topic.channel,
+      action: `${label}: ${topic.name}`,
+      author: 'typeakshay',
+      timestamp: new Date().toISOString(),
+    }, ...prev]);
+  };
 
   // Filtered topics
   const filteredTopics = useMemo(() => {
@@ -397,7 +514,7 @@ export default function VercelView({
 
             <div className="space-y-3">
               {(() => {
-                const activeProgress = topics.filter(t => t.inProgress && t.status !== 'scheduled');
+                const activeProgress = topics.filter(t => t.inProgress && t.status !== 'scheduled' && t.status !== 'posted');
                 if (activeProgress.length === 0) {
                   return (
                     <div className="text-center py-6 text-neutral-500 font-mono text-[10px] border border-dashed border-neutral-900 rounded-lg">
@@ -440,57 +557,27 @@ export default function VercelView({
 
                       {/* Interactive Stage Recording Buttons */}
                       <div className="flex flex-wrap gap-2.5 pt-2 border-t border-neutral-900">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTopics(prev => prev.map(t => t.id === topic.id ? { ...t, status: 'scripted' } : t));
-                          }}
-                          className={`px-2.5 py-1 rounded text-[8px] font-semibold border transition cursor-pointer ${
-                            topic.status === 'scripted'
-                              ? 'bg-blue-600 border-blue-500 text-white'
-                              : 'bg-neutral-950 border-neutral-850 text-neutral-400 hover:text-neutral-200'
-                          }`}
-                        >
-                          Script
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTopics(prev => prev.map(t => t.id === topic.id ? { ...t, status: 'shot' } : t));
-                          }}
-                          className={`px-2.5 py-1 rounded text-[8px] font-semibold border transition cursor-pointer ${
-                            topic.status === 'shot'
-                              ? 'bg-amber-600 border-amber-500 text-white'
-                              : 'bg-neutral-950 border-neutral-850 text-neutral-400 hover:text-neutral-200'
-                          }`}
-                        >
-                          Shoot
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTopics(prev => prev.map(t => t.id === topic.id ? { ...t, status: 'edited' } : t));
-                          }}
-                          className={`px-2.5 py-1 rounded text-[8px] font-semibold border transition cursor-pointer ${
-                            topic.status === 'edited'
-                              ? 'bg-emerald-600 border-emerald-500 text-white'
-                              : 'bg-neutral-950 border-neutral-850 text-neutral-400 hover:text-neutral-200'
-                          }`}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const defaultTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
-                            setSchedDate(topic.dueDate ? topic.dueDate.split('T')[0] : new Date().toISOString().split('T')[0]);
-                            setSchedTime(defaultTime);
-                            setSchedulingTopicId(topic.id);
-                          }}
-                          className="px-2.5 py-1 rounded text-[8px] font-bold border bg-purple-950/40 border-purple-900/60 text-purple-400 hover:bg-purple-900 hover:text-white transition cursor-pointer"
-                        >
-                          Schedule
-                        </button>
+                        {(['script', 'shoot', 'edit', 'schedule', 'post'] as WorkflowStage[]).map(stage => (
+                          <React.Fragment key={stage}>
+                            <WorkflowStatusButton
+                              stage={stage}
+                              state={getWorkflowState(topic, stage)}
+                              onQuickPress={() => {
+                                updateWorkflowStage(topic, stage, 'in-progress');
+                                if (stage === 'schedule') {
+                                  const defaultTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
+                                  setSchedDate(topic.dueDate ? topic.dueDate.split('T')[0] : new Date().toISOString().split('T')[0]);
+                                  setSchedTime(topic.scheduledTime || defaultTime);
+                                  setSchedulingTopicId(topic.id);
+                                }
+                              }}
+                              onLongPress={() => {
+                                updateWorkflowStage(topic, stage, 'completed');
+                                if (stage === 'schedule') setSchedulingTopicId(null);
+                              }}
+                            />
+                          </React.Fragment>
+                        ))}
                       </div>
 
                       {/* Scheduling Date/Time Picker Form Block */}
@@ -541,7 +628,9 @@ export default function VercelView({
                                   ...t, 
                                   status: 'scheduled', 
                                   dueDate: finalIso, 
-                                  scheduledTime: schedTime 
+                                  scheduledTime: schedTime,
+                                  workflowStatuses: { ...t.workflowStatuses, schedule: 'completed' },
+                                  lastUpdated: new Date().toISOString(),
                                 } : t));
 
                                 // Add activity log
@@ -591,7 +680,7 @@ export default function VercelView({
 
             <div className="space-y-3">
               {(() => {
-                const scheduledArchive = topics.filter(t => t.inProgress && t.status === 'scheduled');
+                const scheduledArchive = topics.filter(t => t.inProgress && (t.status === 'scheduled' || t.status === 'posted'));
                 if (scheduledArchive.length === 0) {
                   return (
                     <div className="text-center py-6 text-neutral-500 font-mono text-[10px] border border-dashed border-neutral-900 rounded-lg">

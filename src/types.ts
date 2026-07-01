@@ -145,7 +145,7 @@ export interface Topic {
   name: string;
   description: string;
   channel: 'LearnDriven' | 'DecodeWorthy';
-  status: 'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled';
+  status: 'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted';
   priority: 1 | 2 | 3 | 4 | 5;
   dueDate: string | null;
   createdDate: string;
@@ -156,6 +156,7 @@ export interface Topic {
   format?: 'Short' | 'Long' | 'Members';
   category?: string;
   isDemo?: boolean;
+  workflowStatuses?: Partial<Record<'script' | 'shoot' | 'edit' | 'schedule' | 'post', 'pending' | 'in-progress' | 'completed'>>;
 }
 
 export interface TopicActivity {
