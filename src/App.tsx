@@ -125,7 +125,19 @@ export default function App() {
   // imported above, silently breaking every auth/db/realtime call in this file.
   const [supabaseProject, setSupabaseProject] = useState<SupabaseProject>(initialSupabaseProject);
   const [events, setEvents] = useState<SystemEvent[]>([]);
-  const [topics, setTopics] = useState<Topic[]>(initialTopics);
+  const [topics, setTopicsState] = useState<Topic[]>(initialTopics);
+  const topicTombstonesRef = useRef<Record<string, string>>({});
+  const setTopics: React.Dispatch<React.SetStateAction<Topic[]>> = (update) => {
+    setTopicsState(previous => {
+      const next = typeof update === 'function' ? update(previous) : update;
+      const nextIds = new Set(next.map(topic => topic.id));
+      const deletedAt = new Date().toISOString();
+      previous.forEach(topic => {
+        if (!nextIds.has(topic.id)) topicTombstonesRef.current[topic.id] = deletedAt;
+      });
+      return next;
+    });
+  };
   const [activities, setActivities] = useState<TopicActivity[]>(initialActivities);
   const [videos, setVideos] = useState<VideoRecord[]>(initialVideos);
   const [experiments, setExperiments] = useState<Experiment[]>(initialExperiments);
@@ -539,13 +551,14 @@ export default function App() {
           const remoteState = isCurrentSession && backupUpdatedAt > remoteUpdatedAt && recoveryBackup?.state
             ? recoveryBackup.state
             : data.state as any;
+          topicTombstonesRef.current = remoteState.deletedTopicIds || {};
 
           if (remoteState.topics) {
             const remoteTopics = remoteState.topics as Topic[];
             const creatorTopics = remoteTopics.filter(topic =>
               !topic.isDemo && !topic.id.startsWith('t-manual-demo-infotainment-')
             );
-            setTopics(creatorTopics);
+            setTopicsState(creatorTopics);
             localStorage.removeItem(`unicorn_infotainment_demo_seed_v1_${userId}`);
           }
           if (remoteState.activities) setActivities(remoteState.activities);
@@ -611,12 +624,13 @@ export default function App() {
               if (newState && newState.state) {
                 const remoteState = newState.state as any;
                 lastRemoteUpdatedAtRef.current = newState.updated_at ? new Date(newState.updated_at).getTime() : Date.now();
+                topicTombstonesRef.current = remoteState.deletedTopicIds || {};
                 
                 // Mark this update as a remote sync, so we don't save it back to Supabase
                 isRemoteSyncRef.current = true;
                 
                 if (remoteState.topics) {
-                  setTopics((remoteState.topics as Topic[]).filter(topic =>
+                  setTopicsState((remoteState.topics as Topic[]).filter(topic =>
                     !topic.isDemo && !topic.id.startsWith('t-manual-demo-infotainment-')
                   ));
                 }
@@ -663,6 +677,57 @@ export default function App() {
     };
   }, [user?.id]);
 
+  const saveConflictSafeState = async (
+    newTopics: Topic[], newActs: TopicActivity[], newGoals: CycleGoal | null,
+    newScorecard: any, newVideos: VideoRecord[], newExperiments: Experiment[], newInsights: CreatorInsight[]
+  ) => {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const { data: current, error: readError } = await supabase.from('dashboard_state')
+        .select('state, version, updated_at').eq('user_id', user.id).maybeSingle();
+      if (readError) throw readError;
+      const remoteState = (current?.state || {}) as any;
+      const deletedTopicIds: Record<string, string> = { ...(remoteState.deletedTopicIds || {}), ...topicTombstonesRef.current };
+      topicTombstonesRef.current = deletedTopicIds;
+
+      const mergedTopics = new Map<string, Topic>();
+      [...((remoteState.topics || []) as Topic[]), ...newTopics].forEach(topic => {
+        if (deletedTopicIds[topic.id]) return;
+        const existing = mergedTopics.get(topic.id);
+        const topicTime = new Date(topic.lastUpdated || topic.createdDate).getTime();
+        const existingTime = existing ? new Date(existing.lastUpdated || existing.createdDate).getTime() : -1;
+        if (!existing || topicTime >= existingTime) mergedTopics.set(topic.id, topic);
+      });
+      const mergedActivities = new Map<string, TopicActivity>();
+      [...((remoteState.activities || []) as TopicActivity[]), ...newActs].forEach(activity => {
+        const existing = mergedActivities.get(activity.id);
+        if (!existing || new Date(activity.timestamp).getTime() >= new Date(existing.timestamp).getTime()) mergedActivities.set(activity.id, activity);
+      });
+      const nextState = {
+        ...remoteState, topics: Array.from(mergedTopics.values()), deletedTopicIds,
+        activities: Array.from(mergedActivities.values()).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
+        cycleGoals: newGoals, scorecard: newScorecard, videos: newVideos,
+        experiments: newExperiments, insights: newInsights
+      };
+      const nextVersion = (current?.version || 0) + 1;
+      const updatedAt = new Date().toISOString();
+      if (!current) {
+        const { error } = await supabase.from('dashboard_state').insert({ user_id: user.id, state: nextState, version: nextVersion, updated_at: updatedAt });
+        if (error?.code === '23505') continue;
+        if (error) throw error;
+        lastRemoteUpdatedAtRef.current = new Date(updatedAt).getTime();
+        return;
+      }
+      const { data: saved, error } = await supabase.from('dashboard_state')
+        .update({ state: nextState, version: nextVersion, updated_at: updatedAt })
+        .eq('user_id', user.id).eq('version', current.version).select('updated_at').maybeSingle();
+      if (error) throw error;
+      if (!saved) continue;
+      lastRemoteUpdatedAtRef.current = new Date(saved.updated_at || updatedAt).getTime();
+      return;
+    }
+    throw new Error('Concurrent sync conflict could not be resolved after four attempts.');
+  };
+
   // 4. Save local state changes back to Supabase
   const saveStateToSupabase = async (
     newTopics: Topic[], 
@@ -680,6 +745,9 @@ export default function App() {
     // of the session with no automatic recovery.
     if (!supabase || !user || syncFatal) return;
     try {
+      await saveConflictSafeState(newTopics, newActs, newGoals, newScorecard, newVideos, newExperiments, newInsights);
+      setSyncError(null);
+      return;
       const { error } = await supabase
         .from('dashboard_state')
         .upsert({
@@ -725,7 +793,7 @@ export default function App() {
     const nextBackup = {
       updatedAt: new Date().toISOString(),
       sessionId: currentSessionId,
-      state: { topics, activities, cycleGoals, scorecard, videos, experiments, insights }
+      state: { topics, deletedTopicIds: topicTombstonesRef.current, activities, cycleGoals, scorecard, videos, experiments, insights }
     };
 
     try {
@@ -765,8 +833,9 @@ export default function App() {
         lastRemoteUpdatedAtRef.current = remoteUpdatedAt;
         const remoteState = data.state as any;
         isRemoteSyncRef.current = true;
+        topicTombstonesRef.current = remoteState.deletedTopicIds || {};
 
-        if (remoteState.topics) setTopics((remoteState.topics as Topic[]).filter(topic =>
+        if (remoteState.topics) setTopicsState((remoteState.topics as Topic[]).filter(topic =>
           !topic.isDemo && !topic.id.startsWith('t-manual-demo-infotainment-')
         ));
         if (remoteState.activities) setActivities(remoteState.activities);
