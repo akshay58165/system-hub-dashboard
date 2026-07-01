@@ -333,6 +333,13 @@ export interface ScorecardState {
   archive: ScorecardDayEntry[]; // past days only, ascending by date, capped at 90
 }
 
+export interface AiRulePreset {
+  id: string;
+  name: string;
+  instruction: string;
+  createdAt: string;
+}
+
 export interface MonthForecast {
   expectedViews: number;
   expectedSubscribers: number;

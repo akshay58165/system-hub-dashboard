@@ -7,9 +7,13 @@ import {
   FileSpreadsheet,
   FileText,
   Link2,
-  Loader2
+  Loader2,
+  BookmarkPlus,
+  Trash2,
+  Save,
+  X
 } from 'lucide-react';
-import { SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal } from '../types';
+import { SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, AiRulePreset } from '../types';
 import { callOpenAI, getChannelSystemPrompt, findScriptSources } from '../services/openai';
 import { getTopicCurrentWorkflow, getTopicWorkflowState } from '../services/topicWorkflow';
 
@@ -44,6 +48,8 @@ interface SupabaseViewProps {
   setActivities: React.Dispatch<React.SetStateAction<TopicActivity[]>>;
   cycleGoals: CycleGoal | null;
   setCycleGoals: React.Dispatch<React.SetStateAction<CycleGoal | null>>;
+  aiPresets: AiRulePreset[];
+  setAiPresets: React.Dispatch<React.SetStateAction<AiRulePreset[]>>;
 }
 
 const TOPIC_REVENUE_OPTIONS = [
@@ -68,7 +74,9 @@ export default function SupabaseView({
   activities,
   setActivities,
   cycleGoals,
-  setCycleGoals
+  setCycleGoals,
+  aiPresets,
+  setAiPresets
 }: SupabaseViewProps) {
   const [activeSubTab, setActiveSubTab] = useState<'tables' | 'script' | 'goals'>('tables');
 
@@ -112,6 +120,9 @@ export default function SupabaseView({
 
   // OpenAI requests are authenticated and handled by the server-side API route.
   const [customInstruction, setCustomInstruction] = useState('');
+  const [selectedPresetId, setSelectedPresetId] = useState<string>('');
+  const [isSavingPreset, setIsSavingPreset] = useState(false);
+  const [presetNameDraft, setPresetNameDraft] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [isSourcesLoading, setIsSourcesLoading] = useState(false);
@@ -334,6 +345,42 @@ Please rewrite/enhance this draft based on the system persona rules and the user
     } finally {
       setIsAiLoading(false);
     }
+  };
+
+  const handleSelectPreset = (presetId: string) => {
+    setSelectedPresetId(presetId);
+    if (!presetId) return;
+    const preset = aiPresets.find(p => p.id === presetId);
+    if (preset) setCustomInstruction(preset.instruction);
+  };
+
+  const handleSaveNewPreset = () => {
+    const name = presetNameDraft.trim();
+    if (!name || !customInstruction.trim()) return;
+    const newPreset: AiRulePreset = {
+      id: `preset-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name,
+      instruction: customInstruction.trim(),
+      createdAt: new Date().toISOString()
+    };
+    setAiPresets(prev => [...prev, newPreset]);
+    setSelectedPresetId(newPreset.id);
+    setPresetNameDraft('');
+    setIsSavingPreset(false);
+  };
+
+  const handleUpdateSelectedPreset = () => {
+    if (!selectedPresetId || !customInstruction.trim()) return;
+    setAiPresets(prev => prev.map(p => p.id === selectedPresetId ? { ...p, instruction: customInstruction.trim() } : p));
+  };
+
+  const handleDeleteSelectedPreset = () => {
+    if (!selectedPresetId) return;
+    const preset = aiPresets.find(p => p.id === selectedPresetId);
+    if (!preset) return;
+    if (!window.confirm(`Delete preset "${preset.name}"?`)) return;
+    setAiPresets(prev => prev.filter(p => p.id !== selectedPresetId));
+    setSelectedPresetId('');
   };
 
   // Finds real, verified sources for every claim in the current script draft.
@@ -798,45 +845,130 @@ Please rewrite/enhance this draft based on the system persona rules and the user
               </AnimatePresence>
 
               {/* Secure AI Toolbar Controls */}
-              <div className="bg-neutral-900/40 border border-neutral-850 rounded-xl p-3 flex flex-col md:flex-row items-center gap-3 relative z-10">
-                  {/* Custom AI Instructions Input Box */}
-                  <div className="flex-1 w-full flex items-center gap-2 bg-neutral-950 border border-neutral-800 rounded px-2.5 py-1.5 focus-within:border-emerald-800 transition">
-                    <span className="text-[10px] text-neutral-500 font-mono uppercase shrink-0">Custom AI Rule:</span>
-                    <input 
-                      type="text"
-                      value={customInstruction}
-                      disabled={isAiLoading || !selectedScriptTopicId}
-                      onChange={(e) => setCustomInstruction(e.target.value)}
-                      placeholder={selectedScriptTopicId ? "e.g., 'Make it punchier', 'Explain details using train analogies', 'Keep it short'" : "Select a topic first to write AI rules"}
-                      className="w-full bg-transparent text-xs text-neutral-200 outline-none border-none placeholder-neutral-600 font-mono"
-                    />
+              <div className="bg-neutral-900/40 border border-neutral-850 rounded-xl p-3 flex flex-col gap-2.5 relative z-10">
+                  {/* Preset Selector Row */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <div className="flex-1 flex items-center gap-2 bg-neutral-950 border border-neutral-800 rounded px-2.5 py-1.5">
+                      <span className="text-[10px] text-neutral-500 font-mono uppercase shrink-0">Preset:</span>
+                      <select
+                        value={selectedPresetId}
+                        disabled={isAiLoading}
+                        onChange={(e) => handleSelectPreset(e.target.value)}
+                        className="w-full bg-transparent text-xs text-neutral-200 outline-none border-none font-mono cursor-pointer"
+                      >
+                        <option value="">— No preset (typed instruction) —</option>
+                        {aiPresets.map(preset => (
+                          <option key={preset.id} value={preset.id}>{preset.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => { setIsSavingPreset(true); setPresetNameDraft(''); }}
+                        disabled={isAiLoading || !customInstruction.trim()}
+                        title="Save the current instruction as a new named preset"
+                        className="px-2.5 py-1.5 bg-neutral-950 border border-neutral-800 hover:border-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed text-neutral-300 hover:text-emerald-400 font-mono text-[10px] rounded transition cursor-pointer flex items-center gap-1"
+                      >
+                        <BookmarkPlus className="h-3 w-3" />
+                        <span>Save New</span>
+                      </button>
+                      {selectedPresetId && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleUpdateSelectedPreset}
+                            disabled={isAiLoading || !customInstruction.trim()}
+                            title="Overwrite this preset with the current instruction text"
+                            className="px-2.5 py-1.5 bg-neutral-950 border border-neutral-800 hover:border-blue-800 disabled:opacity-40 disabled:cursor-not-allowed text-neutral-300 hover:text-blue-400 font-mono text-[10px] rounded transition cursor-pointer flex items-center gap-1"
+                          >
+                            <Save className="h-3 w-3" />
+                            <span>Update</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleDeleteSelectedPreset}
+                            title="Delete this preset"
+                            className="p-1.5 bg-neutral-950 border border-neutral-800 hover:border-rose-800 text-neutral-500 hover:text-rose-400 rounded transition cursor-pointer"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
 
-                  {/* AI Quick Triggers */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={() => handleTriggerAI('outline')}
-                      disabled={isAiLoading || !selectedScriptTopicId}
-                      className="px-3 py-1.5 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed text-neutral-200 font-mono text-[10px] rounded transition cursor-pointer flex items-center gap-1"
-                    >
-                      <span>Generate Outline</span>
-                    </button>
-                    <button
-                      onClick={() => handleTriggerAI('enhance')}
-                      disabled={isAiLoading || !selectedScriptTopicId}
-                      className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-black font-mono font-bold text-[10px] rounded transition cursor-pointer flex items-center gap-1"
-                    >
-                      <span>Enhance Draft</span>
-                    </button>
-                    <button
-                      onClick={handleFindSources}
-                      disabled={isSourcesLoading || isAiLoading || !scriptText.trim()}
-                      title={!scriptText.trim() ? 'Write or paste a script first' : 'Find real, verified sources for every claim in the script'}
-                      className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-black font-mono font-bold text-[10px] rounded transition cursor-pointer flex items-center gap-1"
-                    >
-                      {isSourcesLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Link2 className="h-3 w-3" />}
-                      <span>Give Sources</span>
-                    </button>
+                  {/* Inline "Save New Preset" name form */}
+                  {isSavingPreset && (
+                    <div className="flex items-center gap-2 bg-neutral-950 border border-emerald-900/40 rounded px-2.5 py-1.5">
+                      <span className="text-[10px] text-emerald-500 font-mono uppercase shrink-0">Preset Name:</span>
+                      <input
+                        type="text"
+                        autoFocus
+                        value={presetNameDraft}
+                        onChange={(e) => setPresetNameDraft(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleSaveNewPreset(); if (e.key === 'Escape') setIsSavingPreset(false); }}
+                        placeholder="e.g., 'Punchy Shorts Hook', 'Explainer with Analogies'"
+                        className="flex-1 bg-transparent text-xs text-neutral-200 outline-none border-none placeholder-neutral-600 font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSaveNewPreset}
+                        disabled={!presetNameDraft.trim()}
+                        className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-black font-mono font-bold text-[10px] rounded transition cursor-pointer"
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsSavingPreset(false)}
+                        className="p-1 text-neutral-500 hover:text-white transition cursor-pointer"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col md:flex-row items-center gap-3">
+                    {/* Custom AI Instructions Input Box */}
+                    <div className="flex-1 w-full flex items-center gap-2 bg-neutral-950 border border-neutral-800 rounded px-2.5 py-1.5 focus-within:border-emerald-800 transition">
+                      <span className="text-[10px] text-neutral-500 font-mono uppercase shrink-0">Custom AI Rule:</span>
+                      <input
+                        type="text"
+                        value={customInstruction}
+                        disabled={isAiLoading || !selectedScriptTopicId}
+                        onChange={(e) => { setCustomInstruction(e.target.value); setSelectedPresetId(''); }}
+                        placeholder={selectedScriptTopicId ? "e.g., 'Make it punchier', 'Explain details using train analogies', 'Keep it short'" : "Select a topic first to write AI rules"}
+                        className="w-full bg-transparent text-xs text-neutral-200 outline-none border-none placeholder-neutral-600 font-mono"
+                      />
+                    </div>
+
+                    {/* AI Quick Triggers */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleTriggerAI('outline')}
+                        disabled={isAiLoading || !selectedScriptTopicId}
+                        className="px-3 py-1.5 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed text-neutral-200 font-mono text-[10px] rounded transition cursor-pointer flex items-center gap-1"
+                      >
+                        <span>Generate Outline</span>
+                      </button>
+                      <button
+                        onClick={() => handleTriggerAI('enhance')}
+                        disabled={isAiLoading || !selectedScriptTopicId}
+                        className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-black font-mono font-bold text-[10px] rounded transition cursor-pointer flex items-center gap-1"
+                      >
+                        <span>Enhance Draft</span>
+                      </button>
+                      <button
+                        onClick={handleFindSources}
+                        disabled={isSourcesLoading || isAiLoading || !scriptText.trim()}
+                        title={!scriptText.trim() ? 'Write or paste a script first' : 'Find real, verified sources for every claim in the script'}
+                        className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-black font-mono font-bold text-[10px] rounded transition cursor-pointer flex items-center gap-1"
+                      >
+                        {isSourcesLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Link2 className="h-3 w-3" />}
+                        <span>Give Sources</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
