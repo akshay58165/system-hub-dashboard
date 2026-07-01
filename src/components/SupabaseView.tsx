@@ -386,6 +386,23 @@ ${task}`;
     }
   };
 
+  // Source-finding needs a live web search (a different API call than a plain
+  // completion) to verify real URLs, so one button still has to pick between
+  // the two actions. Routed by keywords in the instruction rather than a
+  // separate control, per explicit choice over the toggle alternative.
+  const SOURCE_KEYWORDS = ['source', 'citation', 'cite', 'verify', 'reference', 'link'];
+
+  const handleGetResponse = async () => {
+    if (!selectedScriptTopicId) return;
+    const instruction = customInstruction.trim().toLowerCase();
+    const wantsSources = SOURCE_KEYWORDS.some(keyword => instruction.includes(keyword));
+    if (wantsSources && scriptText.trim()) {
+      await handleFindSources();
+    } else {
+      await handleTriggerAI();
+    }
+  };
+
   const handleSelectPreset = (presetId: string) => {
     setSelectedPresetId(presetId);
     setIsPresetDropdownOpen(false);
@@ -1175,24 +1192,16 @@ ${task}`;
                       />
                     </div>
 
-                    {/* AI Quick Triggers */}
+                    {/* AI Quick Trigger — single action, routed by the instruction's own wording */}
                     <div className="flex items-center gap-2 shrink-0">
                       <button
-                        onClick={() => handleTriggerAI()}
-                        disabled={isAiLoading || !selectedScriptTopicId}
-                        title="Runs whatever preset or typed instruction is set above; falls back to a generic outline/enhance if left empty"
+                        onClick={handleGetResponse}
+                        disabled={isAiLoading || isSourcesLoading || !selectedScriptTopicId}
+                        title="Runs the preset or typed instruction above. Mentions of 'source'/'citation'/'verify'/'reference'/'link' route to real source-verification instead of text generation."
                         className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-black font-mono font-bold text-[10px] rounded transition cursor-pointer flex items-center gap-1"
                       >
-                        <span>Generate Response</span>
-                      </button>
-                      <button
-                        onClick={handleFindSources}
-                        disabled={isSourcesLoading || isAiLoading || !scriptText.trim()}
-                        title={!scriptText.trim() ? 'Write or paste a script first' : 'Find real, verified sources for every claim in the script'}
-                        className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-black font-mono font-bold text-[10px] rounded transition cursor-pointer flex items-center gap-1"
-                      >
-                        {isSourcesLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Link2 className="h-3 w-3" />}
-                        <span>Give Sources</span>
+                        {isSourcesLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                        <span>Get Response</span>
                       </button>
                     </div>
                   </div>
