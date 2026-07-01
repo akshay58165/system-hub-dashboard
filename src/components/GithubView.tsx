@@ -59,14 +59,51 @@ function formatTimeAgo(dateStr: string) {
 }
 
 // Blinking logic helper (Due date within 2 days gap)
-function shouldBlink(dueDateStr: string | null) {
+function shouldBlink(dueDateStr: string | null, now: Date) {
   if (!dueDateStr) return false;
   const due = new Date(dueDateStr);
-  const now = new Date();
   const diffTime = due.getTime() - now.getTime();
   const diffDays = diffTime / (1000 * 60 * 60 * 24);
   // Blink if due date is within 2 days (48 hours) and not already past
   return diffDays >= -0.5 && diffDays <= 2;
+}
+
+// Generate human-friendly countdown label for due soon status
+function getDueDateWarningText(dueDateStr: string | null, now: Date) {
+  if (!dueDateStr) return '';
+  const due = new Date(dueDateStr);
+  const diff = due.getTime() - now.getTime();
+
+  if (diff <= 0) {
+    return 'Warning: Overdue!';
+  }
+
+  const secs = Math.floor(diff / 1000);
+  const mins = Math.floor(secs / 60);
+  const hours = Math.floor(mins / 60);
+  const days = Math.floor(hours / 24);
+
+  // Parse direct local dates to see if it is today
+  // We use local date strings to compare dates directly
+  const localDueStr = due.toLocaleDateString();
+  const localNowStr = now.toLocaleDateString();
+  const isToday = localDueStr === localNowStr;
+
+  if (isToday || days === 0) {
+    if (hours > 0) {
+      return `Warning: Due in ${hours}h ${mins % 60}m!`;
+    } else if (mins > 0) {
+      return `Warning: Due in ${mins}m ${secs % 60}s!`;
+    } else {
+      return `Warning: Due in ${secs}s!`;
+    }
+  }
+
+  if (days === 1) {
+    return `Warning: Due in 1 day!`;
+  }
+
+  return `Warning: Due in ${days} days!`;
 }
 
 export default function GithubView({ 
@@ -83,6 +120,12 @@ export default function GithubView({
   setActiveTab,
   setPipelineSubView
 }: GithubViewProps) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   // 1. Selected channel filter: 'All' | 'LearnDriven' | 'DecodeWorthy'
   const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy'>('All');
 
@@ -550,7 +593,7 @@ export default function GithubView({
               ) : (
                 filteredTopics.map(topic => {
                   const prio = getPriorityDetails(topic.priority);
-                  const isDueSoon = shouldBlink(topic.dueDate);
+                  const isDueSoon = shouldBlink(topic.dueDate, now);
 
                   // Colors for statuses
                   const statusColors = {
@@ -574,7 +617,7 @@ export default function GithubView({
                       <div className="flex items-start gap-3 flex-1 min-w-0">
                         {/* Red LED blinking dot if due date is within 1 day gap */}
                         {isDueSoon ? (
-                          <div className="mt-1 shrink-0" title="Due in 1 day!">
+                          <div className="mt-1 shrink-0" title={getDueDateWarningText(topic.dueDate, now)}>
                             <span className="relative flex h-2.5 w-2.5">
                               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
@@ -665,7 +708,11 @@ export default function GithubView({
                             <div className="flex items-center gap-1 text-[9px] text-neutral-500 italic mt-0.5 font-sans">
                               <Calendar className="h-3 w-3" />
                               <span>Due date: {new Date(topic.dueDate).toLocaleDateString()}</span>
-                              {isDueSoon && <span className="text-red-400 font-bold ml-1 uppercase animate-pulse">Warning: Due in 1 day!</span>}
+                              {isDueSoon && (
+                                <span className="text-red-400 font-bold ml-1 uppercase animate-pulse">
+                                  {getDueDateWarningText(topic.dueDate, now)}
+                                </span>
+                              )}
                             </div>
                           )}
                         </div>
