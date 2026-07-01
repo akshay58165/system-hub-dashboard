@@ -65,6 +65,16 @@ const ForecastingView = lazy(() => import('./components/ForecastingView'));
 const ExperimentTrackerView = lazy(() => import('./components/ExperimentTrackerView'));
 const InsightsView = lazy(() => import('./components/InsightsView'));
 
+// Get or create session ID for the current tab session
+let currentSessionId = '';
+try {
+  currentSessionId = sessionStorage.getItem('unicorn_session_id') || '';
+  if (!currentSessionId) {
+    currentSessionId = `sess-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    sessionStorage.setItem('unicorn_session_id', currentSessionId);
+  }
+} catch { /* ignore in non-browser context */ }
+
 export default function App() {
   useEffect(() => {
     // Remove credentials stored by versions that called OpenAI from the browser.
@@ -494,6 +504,7 @@ export default function App() {
           .from('dashboard_state')
           .select('state, updated_at')
           .eq('user_id', user.id)
+          .headers({ 'Cache-Control': 'no-cache, no-store, must-revalidate' })
           .maybeSingle();
 
         if (error) {
@@ -512,7 +523,21 @@ export default function App() {
         }
 
         if (data && data.state) {
-          const remoteState = data.state as any;
+          const backupKey = `unicorn_dashboard_recovery_${userId}`;
+          let recoveryBackup: { updatedAt: string; sessionId: string; state: any } | null = null;
+          try {
+            recoveryBackup = JSON.parse(localStorage.getItem(backupKey) || 'null');
+          } catch { /* Ignore */ }
+          
+          const remoteUpdatedAt = data.updated_at ? new Date(data.updated_at).getTime() : 0;
+          const backupUpdatedAt = recoveryBackup?.updatedAt ? new Date(recoveryBackup.updatedAt).getTime() : 0;
+          
+          // Only restore local backup if it belongs to the CURRENT active tab session AND is newer than the database
+          const isCurrentSession = recoveryBackup && recoveryBackup.sessionId === currentSessionId;
+          const remoteState = isCurrentSession && backupUpdatedAt > remoteUpdatedAt && recoveryBackup?.state
+            ? recoveryBackup.state
+            : data.state as any;
+
           if (remoteState.topics) {
             const remoteTopics = remoteState.topics as Topic[];
             const creatorTopics = remoteTopics.filter(topic =>
@@ -696,6 +721,7 @@ export default function App() {
     const historyKey = `unicorn_dashboard_recovery_history_${user.id}`;
     const nextBackup = {
       updatedAt: new Date().toISOString(),
+      sessionId: currentSessionId,
       state: { topics, activities, cycleGoals, scorecard, videos, experiments, insights }
     };
 
