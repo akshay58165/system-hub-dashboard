@@ -343,7 +343,7 @@ export default function GithubView({
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="relative overflow-hidden rounded-xl border border-neutral-900 bg-neutral-950 shadow-[0_4px_30px_rgba(0,0,0,0.3)]"
+        className="relative overflow-hidden rounded-xl border border-neutral-800/80 bg-neutral-900/70 shadow-[0_10px_30px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.025)]"
       >
         <motion.div
           className="absolute -top-16 -right-10 w-64 h-64 rounded-full bg-blue-500/8 blur-3xl pointer-events-none"
@@ -392,7 +392,7 @@ export default function GithubView({
         {/* Left Column (Main content block) */}
         <div className="lg:col-span-2 space-y-6">
           {/* Info Card (Topic Status Details) */}
-          <div className="bg-neutral-950/80 border border-neutral-900 rounded-xl p-5 relative overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.15)] hover:border-neutral-800/40 transition duration-300">
+          <div className="bg-neutral-900/70 border border-neutral-800/80 rounded-xl p-5 relative overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.025)] hover:border-neutral-700/80 transition duration-300">
             <div className="flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-2">
@@ -450,7 +450,7 @@ export default function GithubView({
           </div>
 
           {/* Topics List Card (repurposed from GitHub Actions) */}
-          <div className="bg-neutral-950/80 border border-neutral-900 rounded-xl p-5 shadow-[0_4px_20px_rgba(0,0,0,0.15)] hover:border-neutral-800/40 transition duration-300">
+          <div className="bg-neutral-900/70 border border-neutral-800/80 rounded-xl p-5 shadow-[0_10px_30px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.025)] hover:border-neutral-700/80 transition duration-300">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
               <div>
                 <h3 className="text-sm font-semibold text-neutral-200">Topics List</h3>
@@ -651,7 +651,7 @@ export default function GithubView({
         {/* Right Sidebar Column */}
         <div className="space-y-6">
           {/* Add / Edit Topic Card (repurposed from Pull Requests) */}
-          <div className="bg-neutral-950/80 border border-neutral-900 rounded-xl p-5 shadow-[0_4px_20px_rgba(0,0,0,0.15)] hover:border-neutral-800/40 transition duration-300">
+          <div className="bg-neutral-900/70 border border-neutral-800/80 rounded-xl p-5 shadow-[0_10px_30px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.025)] hover:border-neutral-700/80 transition duration-300">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-neutral-200">Topic Management</h3>
               <button 
@@ -1227,7 +1227,7 @@ export default function GithubView({
           </div>
 
           {/* Activity Log (repurposed from Commit History) */}
-          <div className="bg-neutral-950/80 border border-neutral-900 rounded-xl p-5 shadow-[0_4px_20px_rgba(0,0,0,0.15)] hover:border-neutral-800/40 transition duration-300">
+          <div className="bg-neutral-900/70 border border-neutral-800/80 rounded-xl p-5 shadow-[0_10px_30px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.025)] hover:border-neutral-700/80 transition duration-300">
             <h3 className="text-sm font-semibold text-neutral-200 mb-3">Activity Log</h3>
             <div className="space-y-3 max-h-[290px] overflow-y-auto pr-1">
               {filteredActivities.length === 0 ? (
