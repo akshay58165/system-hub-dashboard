@@ -818,14 +818,14 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
               </motion.div>
             ) : wellbeingInsight ? (
               (() => {
-                const CATEGORY_ROWS: { label: string; text: string }[] = [
-                  { label: 'Bottleneck', text: wellbeingInsight.bottleneck },
-                  { label: 'Day Type', text: wellbeingInsight.dayType },
-                  { label: 'Physical', text: wellbeingInsight.physical },
-                  { label: 'Stress & Mood', text: wellbeingInsight.stressMood },
-                  { label: 'Stimulation', text: wellbeingInsight.stimulation },
-                  { label: 'Execution', text: wellbeingInsight.execution },
-                  { label: 'Social', text: wellbeingInsight.social }
+                const CATEGORY_ROWS: { label: string; text: string; icon: React.ReactNode; color: string; bg: string; border: string }[] = [
+                  { label: 'Bottleneck', text: wellbeingInsight.bottleneck, icon: <AlertTriangle className="h-3.5 w-3.5" />, color: 'text-rose-400', bg: 'bg-rose-950/30', border: 'border-rose-900/40' },
+                  { label: 'Day Type', text: wellbeingInsight.dayType, icon: <Flame className="h-3.5 w-3.5" />, color: 'text-amber-400', bg: 'bg-amber-950/30', border: 'border-amber-900/40' },
+                  { label: 'Physical', text: wellbeingInsight.physical, icon: <Heart className="h-3.5 w-3.5" />, color: 'text-emerald-400', bg: 'bg-emerald-950/30', border: 'border-emerald-900/40' },
+                  { label: 'Stress & Mood', text: wellbeingInsight.stressMood, icon: <Activity className="h-3.5 w-3.5" />, color: 'text-blue-400', bg: 'bg-blue-950/30', border: 'border-blue-900/40' },
+                  { label: 'Stimulation', text: wellbeingInsight.stimulation, icon: <Zap className="h-3.5 w-3.5" />, color: 'text-purple-400', bg: 'bg-purple-950/30', border: 'border-purple-900/40' },
+                  { label: 'Execution', text: wellbeingInsight.execution, icon: <ShieldCheck className="h-3.5 w-3.5" />, color: 'text-cyan-400', bg: 'bg-cyan-950/30', border: 'border-cyan-900/40' },
+                  { label: 'Social', text: wellbeingInsight.social, icon: <UserCheck className="h-3.5 w-3.5" />, color: 'text-pink-400', bg: 'bg-pink-950/30', border: 'border-pink-900/40' }
                 ];
                 const confidenceColor = wellbeingInsight.dataConfidence === 'reliable' ? 'text-emerald-400' : wellbeingInsight.dataConfidence === 'partial' ? 'text-amber-400' : 'text-rose-400';
 
@@ -872,12 +872,21 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                     </div>
 
                     {/* Full category breakdown */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       {CATEGORY_ROWS.map((row, i) => (
-                        <div key={i} className="p-2.5 rounded-lg bg-neutral-950/50 border border-neutral-850">
-                          <span className="text-[9px] font-bold uppercase tracking-wider font-mono text-neutral-500">{row.label}</span>
-                          <p className="text-[11px] text-neutral-400 font-sans mt-0.5 leading-snug">{row.text}</p>
-                        </div>
+                        <motion.div
+                          key={i}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.25, delay: i * 0.04 }}
+                          className={`p-3 rounded-lg border ${row.border} ${row.bg} flex items-start gap-2.5`}
+                        >
+                          <div className={`mt-0.5 shrink-0 ${row.color}`}>{row.icon}</div>
+                          <div className="min-w-0">
+                            <span className={`text-[9px] font-bold uppercase tracking-wider font-mono ${row.color}`}>{row.label}</span>
+                            <p className="text-[11px] text-neutral-300 font-sans mt-0.5 leading-snug">{row.text}</p>
+                          </div>
+                        </motion.div>
                       ))}
                     </div>
 
