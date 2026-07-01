@@ -230,6 +230,32 @@ export default function VercelView({
       : 'pending';
   };
 
+  const getUrgencyInfo = (topic: Topic) => {
+    const scheduleComplete = getWorkflowState(topic, 'schedule') === 'completed' || topic.status === 'scheduled' || topic.status === 'posted';
+    if (!topic.dueDate || scheduleComplete) return null;
+
+    const differenceMs = new Date(topic.dueDate).getTime() - now.getTime();
+    const absoluteSeconds = Math.max(0, Math.floor(Math.abs(differenceMs) / 1000));
+    const days = Math.floor(absoluteSeconds / 86400);
+    const hours = Math.floor((absoluteSeconds % 86400) / 3600);
+    const minutes = Math.floor((absoluteSeconds % 3600) / 60);
+    const seconds = absoluteSeconds % 60;
+
+    if (differenceMs > 72 * 60 * 60 * 1000) return null;
+
+    const clock = days > 0
+      ? `${days}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`
+      : `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+    return {
+      overdue: differenceMs <= 0,
+      clock,
+      message: differenceMs <= 0
+        ? 'DEADLINE BREACHED — COMPLETE THE REMAINING STAGES NOW'
+        : 'CRITICAL WINDOW — UTMOST ACTION REQUIRED',
+    };
+  };
+
   const handleTransitionToStage = (topic: Topic, targetStage: WorkflowStage, targetState: WorkflowState) => {
     const completedStatusByStage: Record<WorkflowStage, Topic['status']> = {
       script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted'
@@ -723,6 +749,7 @@ export default function VercelView({
                 
                 return activeProgress.map(topic => {
                   const isSchedulingThis = schedulingTopicId === topic.id;
+                  const urgency = getUrgencyInfo(topic);
                   return (
                     <div 
                       key={topic.id} 
@@ -832,6 +859,28 @@ export default function VercelView({
                         <div>Due Date: {topic.dueDate ? new Date(topic.dueDate).toLocaleDateString() : 'None'}</div>
                       </div>
 
+                      {urgency && (
+                        <div className="emergency-countdown relative overflow-hidden rounded-lg border border-red-500/60 bg-red-950/25 px-3 py-2.5 shadow-[0_0_22px_rgba(239,68,68,0.18)]">
+                          <div className="emergency-scanline pointer-events-none absolute inset-x-0 top-0 h-px bg-red-300/70" />
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span className="relative flex h-3 w-3 shrink-0">
+                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                                <span className="emergency-led relative inline-flex h-3 w-3 rounded-full bg-red-500" />
+                              </span>
+                              <div className="min-w-0">
+                                <div className="text-[8px] font-black uppercase tracking-[0.18em] text-red-400">{urgency.message}</div>
+                                <div className="mt-0.5 text-[8px] text-red-200/60">Warning remains active until scheduling is completed.</div>
+                              </div>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <div className="text-[7px] font-bold uppercase tracking-widest text-red-400/70">{urgency.overdue ? 'Overdue by' : 'Time remaining'}</div>
+                              <div className="emergency-clock mt-0.5 text-sm font-black tabular-nums tracking-wider text-red-300">{urgency.clock}</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Interactive Stage Recording Buttons */}
                       <div className="flex flex-wrap gap-2.5 pt-2 border-t border-neutral-900">
                         {(['script', 'shoot', 'edit', 'schedule', 'post'] as WorkflowStage[]).map(stage => {
@@ -841,7 +890,7 @@ export default function VercelView({
                           let blinkClass = undefined;
 
                           const scheduleComplete = getWorkflowState(topic, 'schedule') === 'completed' || topic.status === 'scheduled' || topic.status === 'posted';
-                          if (!scheduleComplete && topic.dueDate) {
+                          if (state !== 'completed' && !scheduleComplete && topic.dueDate) {
                             const due = new Date(topic.dueDate);
                             due.setHours(0, 0, 0, 0);
                             const today = new Date();

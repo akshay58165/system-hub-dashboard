@@ -182,6 +182,26 @@ textarea.bg-neutral-900::placeholder {
   color: rgba(255, 255, 255, 0.42) !important;
 }
 
+@keyframes emergency-led-pulse {
+  0%, 100% { box-shadow: 0 0 4px #ef4444, 0 0 10px rgba(239, 68, 68, 0.55); }
+  50% { box-shadow: 0 0 8px #fff, 0 0 20px #ef4444, 0 0 34px rgba(239, 68, 68, 0.8); }
+}
+
+@keyframes emergency-clock-pulse {
+  0%, 100% { opacity: 0.82; text-shadow: 0 0 5px rgba(239, 68, 68, 0.55); }
+  50% { opacity: 1; text-shadow: 0 0 12px rgba(239, 68, 68, 0.95); }
+}
+
+@keyframes emergency-scan {
+  from { transform: translateY(0); opacity: 0; }
+  15% { opacity: 0.8; }
+  to { transform: translateY(64px); opacity: 0; }
+}
+
+.emergency-led { animation: emergency-led-pulse 0.8s ease-in-out infinite; }
+.emergency-clock { animation: emergency-clock-pulse 1s ease-in-out infinite; }
+.emergency-scanline { animation: emergency-scan 2.2s linear infinite; }
+
 /* Dynamic attention blinking for pending stages near due dates */
 @keyframes blink-yellow {
   0%, 100% { border-color: rgba(234, 179, 8, 0.35); box-shadow: 0 0 3px rgba(234, 179, 8, 0.15); }
