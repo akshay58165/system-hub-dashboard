@@ -50,27 +50,36 @@ interface HistoryEntry {
   description: string;
 }
 
-const LAST_WELLBEING_INSIGHT_KEY = 'unicorn_wellbeing_last_insight_v1';
+const LAST_WELLBEING_INSIGHT_KEY = 'unicorn_wellbeing_last_insight_v2';
 
 interface CachedWellbeingInsight {
   insight: WellbeingInsightResult;
   timestamp: string;
+  dateKey: string;
 }
 
-function loadCachedWellbeingInsight(): CachedWellbeingInsight | null {
+// A cached insight is only ever trustworthy for the exact calendar day it was
+// computed for, AND only if today's 12 parameters are still all filled right
+// now. Without this check, a stale insight computed yesterday (or one
+// generated before the strict 12/12 gating existed) would keep resurfacing
+// on every load — showing "Critical"/"null/100" fragments from old data
+// instead of honestly asking for today's real values.
+function loadCachedWellbeingInsight(todayKey: string, isTodayComplete: boolean): CachedWellbeingInsight | null {
+  if (!isTodayComplete) return null;
   try {
     const raw = localStorage.getItem(LAST_WELLBEING_INSIGHT_KEY);
     if (!raw) return null;
     const cached = JSON.parse(raw) as CachedWellbeingInsight;
-    return cached?.insight && cached?.timestamp ? cached : null;
+    if (!cached?.insight || !cached?.timestamp || cached.dateKey !== todayKey) return null;
+    return cached;
   } catch {
     return null;
   }
 }
 
-function cacheWellbeingInsight(insight: WellbeingInsightResult, timestamp: string) {
+function cacheWellbeingInsight(insight: WellbeingInsightResult, timestamp: string, dateKey: string) {
   try {
-    localStorage.setItem(LAST_WELLBEING_INSIGHT_KEY, JSON.stringify({ insight, timestamp }));
+    localStorage.setItem(LAST_WELLBEING_INSIGHT_KEY, JSON.stringify({ insight, timestamp, dateKey }));
   } catch {
     // Keep the live result even if browser storage is unavailable.
   }
@@ -185,7 +194,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
   // across any parameter — so a burst of edits (hydration, then stomach 5s
   // later, etc.) produces exactly one consolidated insight once everything
   // has actually settled, not one per click and not one per parameter.
-  const initialCachedInsightRef = useRef<CachedWellbeingInsight | null>(loadCachedWellbeingInsight());
+  const initialCachedInsightRef = useRef<CachedWellbeingInsight | null>(loadCachedWellbeingInsight(today.date, filledCount === 12));
   const [wellbeingInsight, setWellbeingInsight] = useState<WellbeingInsightResult | null>(() => initialCachedInsightRef.current?.insight ?? null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [insightTimestamp, setInsightTimestamp] = useState<string | null>(() => initialCachedInsightRef.current?.timestamp ?? null);
@@ -211,7 +220,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
         const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         setWellbeingInsight(result);
         setInsightTimestamp(timestamp);
-        cacheWellbeingInsight(result, timestamp);
+        cacheWellbeingInsight(result, timestamp, today.date);
       }
       return;
     }
@@ -230,7 +239,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
         const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         setWellbeingInsight(result);
         setInsightTimestamp(timestamp);
-        cacheWellbeingInsight(result, timestamp);
+        cacheWellbeingInsight(result, timestamp, today.date);
       } else {
         setWellbeingInsight(null);
       }
@@ -249,7 +258,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
         const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         setWellbeingInsight(result);
         setInsightTimestamp(timestamp);
-        cacheWellbeingInsight(result, timestamp);
+        cacheWellbeingInsight(result, timestamp, today.date);
       }
       setIsAnalyzing(false);
     }, 10000);
