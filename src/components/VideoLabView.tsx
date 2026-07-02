@@ -69,13 +69,9 @@ export default function VideoLabView({
 
   const handleMouseEnter = (e: React.MouseEvent, dateStr: string) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const container = e.currentTarget.closest('.relative');
-    if (!container) return;
-    const containerRect = container.getBoundingClientRect();
-
     setHoveredDayData({
-      x: rect.left - containerRect.left + rect.width / 2,
-      y: rect.top - containerRect.top - 8,
+      x: rect.left + rect.width / 2,
+      y: rect.top - 8,
       dateStr,
       posts: postsByDate[dateStr] || []
     });
@@ -845,7 +841,7 @@ export default function VideoLabView({
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.15 }}
             style={{ 
-              position: 'absolute', 
+              position: 'fixed', 
               left: `${hoveredDayData.x}px`, 
               top: `${hoveredDayData.y}px`, 
               transform: 'translate(-50%, -100%)' 
