@@ -64,6 +64,7 @@ export default function VideoLabView({
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [selectedMonth, setSelectedMonth] = useState<number>(6); // July (0-indexed: 6)
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [selectedWeekIdx, setSelectedWeekIdx] = useState<number>(0);
 
   // Form states for adding new mock video
   const [showAddForm, setShowAddForm] = useState(false);
@@ -347,9 +348,50 @@ export default function VideoLabView({
               )}
 
               {viewMode === 'weekly' && (
-                <span className="text-xs font-bold text-white uppercase tracking-wider">
-                  Weekly Feed Monitor (Current Month View)
-                </span>
+                <>
+                  <button 
+                    onClick={() => {
+                      if (selectedWeekIdx === 0) {
+                        // Go to last week of previous month
+                        const prevMonth = selectedMonth === 0 ? 11 : selectedMonth - 1;
+                        const prevYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear;
+                        const prevMonthDaysCount = new Date(prevYear, prevMonth + 1, 0).getDate();
+                        const prevMonthFirstDayIndex = new Date(prevYear, prevMonth, 1).getDay();
+                        const totalPrevDays = prevMonthDaysCount + prevMonthFirstDayIndex;
+                        const prevWeeksCount = Math.ceil(totalPrevDays / 7);
+                        setSelectedMonth(prevMonth);
+                        setSelectedYear(prevYear);
+                        setSelectedWeekIdx(prevWeeksCount - 1);
+                      } else {
+                        setSelectedWeekIdx(w => w - 1);
+                      }
+                    }}
+                    className="p-1 bg-zinc-900 hover:bg-zinc-800 rounded border border-zinc-800 transition"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    {monthNames[selectedMonth]} {selectedYear} - Week {selectedWeekIdx + 1}
+                  </span>
+                  <button 
+                    onClick={() => {
+                      const maxWeeks = Math.ceil(calendarDays.length / 7);
+                      if (selectedWeekIdx >= maxWeeks - 1) {
+                        // Go to first week of next month
+                        const nextMonth = selectedMonth === 11 ? 0 : selectedMonth + 1;
+                        const nextYear = selectedMonth === 11 ? selectedYear + 1 : selectedYear;
+                        setSelectedMonth(nextMonth);
+                        setSelectedYear(nextYear);
+                        setSelectedWeekIdx(0);
+                      } else {
+                        setSelectedWeekIdx(w => w + 1);
+                      }
+                    }}
+                    className="p-1 bg-zinc-900 hover:bg-zinc-800 rounded border border-zinc-800 transition"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </>
               )}
 
               {viewMode === 'yearly' && (
@@ -500,45 +542,47 @@ export default function VideoLabView({
           )}
 
           {/* VIEW: WEEKLY */}
-          {viewMode === 'weekly' && (
-            <div className="space-y-6">
-              {/* Show weeks in the current month */}
-              {Array.from({ length: 5 }).map((_, weekIdx) => {
-                const weekDays = calendarDays.slice(weekIdx * 7, (weekIdx + 1) * 7);
-                if (weekDays.length === 0) return null;
+          {viewMode === 'weekly' && (() => {
+            const weekDays = calendarDays.slice(selectedWeekIdx * 7, (selectedWeekIdx + 1) * 7);
+            if (weekDays.length === 0) return null;
 
-                return (
-                  <div key={weekIdx} className="space-y-2 border-b border-zinc-900/50 pb-4 last:border-b-0">
-                    <span className="text-[10px] text-zinc-500 uppercase font-bold">Week {weekIdx + 1}</span>
-                    <div className="grid grid-cols-7 gap-3">
-                      {weekDays.map(({ dateStr, dayNum, isCurrentMonth }) => {
-                        const dayPosts = postsByDate[dateStr] || [];
-                        const isSelected = selectedDay === dateStr;
+            return (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-zinc-500 uppercase font-bold">Week {selectedWeekIdx + 1} Feed View</span>
+                  <span className="text-[8px] text-zinc-400 font-mono">
+                    Total Week Posts: {
+                      weekDays.reduce((acc, d) => acc + (postsByDate[d.dateStr]?.length || 0), 0)
+                    }
+                  </span>
+                </div>
+                <div className="grid grid-cols-7 gap-3">
+                  {weekDays.map(({ dateStr, dayNum, isCurrentMonth }) => {
+                    const dayPosts = postsByDate[dateStr] || [];
+                    const isSelected = selectedDay === dateStr;
 
-                        return (
-                          <div 
-                            key={dateStr}
-                            onClick={() => setSelectedDay(isSelected ? null : dateStr)}
-                            className={`cursor-pointer transition-all duration-300 ${isCurrentMonth ? '' : 'opacity-25'}`}
-                          >
-                            <div className="flex justify-between items-center mb-1">
-                              <span className="text-[9px] font-bold text-zinc-500">{dayNum}</span>
-                              {dayPosts.length > 0 && (
-                                <span className="text-[8px] bg-indigo-950 text-indigo-400 px-1 rounded-sm">{dayPosts.length}p</span>
-                              )}
-                            </div>
-                            <div className="aspect-square">
-                              {renderSubdividedBlock(dateStr, 'h-full w-full')}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                    return (
+                      <div 
+                        key={dateStr}
+                        onClick={() => setSelectedDay(isSelected ? null : dateStr)}
+                        className={`cursor-pointer transition-all duration-300 ${isCurrentMonth ? '' : 'opacity-25'}`}
+                      >
+                        <div className="flex justify-between items-center mb-1">
+                          <span className={`text-[9px] font-bold ${isSelected ? 'text-indigo-400 font-black' : 'text-zinc-500'}`}>{dayNum}</span>
+                          {dayPosts.length > 0 && (
+                            <span className="text-[8px] bg-indigo-950 text-indigo-400 px-1 rounded-sm">{dayPosts.length}p</span>
+                          )}
+                        </div>
+                        <div className="aspect-square">
+                          {renderSubdividedBlock(dateStr, 'h-full w-full')}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* VIEW: MONTHLY (ELABORATED SINGLE MONTH 1-31 GRID MAP) */}
           {viewMode === 'monthly' && (
