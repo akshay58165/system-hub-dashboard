@@ -109,7 +109,7 @@ function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, onReset
       title={disabled ? undefined : state === 'completed'
         ? 'Hold 3 seconds to reset this stage.'
         : 'Quick click: mark in progress. Hold 1 second to mark complete.'}
-      className={`relative overflow-hidden px-2.5 py-1 rounded text-[8px] font-semibold border transition select-none touch-none ${
+      className={`relative overflow-hidden px-2 py-0.5 rounded text-[8px] font-semibold border transition select-none touch-none ${
         disabled ? 'cursor-default opacity-85' : 'cursor-pointer'
       } ${
         state === 'pending'
@@ -779,7 +779,7 @@ export default function VercelView({
               <span className="text-[10px] font-mono text-neutral-500">{filteredTopics.length} topics · quick click / hold 1s</span>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
               {(() => {
                 const activeProgress = filteredTopics;
                 if (activeProgress.length === 0) {
@@ -795,14 +795,14 @@ export default function VercelView({
                   const urgency = getUrgencyInfo(topic);
                   const currentWorkflow = getTopicCurrentWorkflow(topic);
                   return (
-                    <div 
-                      key={topic.id} 
-                      className="p-3 bg-neutral-900/40 border border-neutral-850 rounded-lg space-y-3 font-mono text-[10px]"
+                    <div
+                      key={topic.id}
+                      className="p-2.5 bg-neutral-900/40 border border-neutral-850 rounded-lg space-y-2 font-mono text-[10px]"
                     >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="text-xs font-bold text-neutral-200 block">{topic.name}</span>
-                          <div className="flex items-center gap-1.5 mt-1">
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs font-bold text-neutral-200">{topic.name}</span>
                             <span className="px-1.5 py-0.2 bg-neutral-950 text-neutral-500 border border-neutral-900 rounded text-[8px]">
                               {topic.channel}
                             </span>
@@ -811,12 +811,15 @@ export default function VercelView({
                                 {topic.revenueLevel}
                               </span>
                             )}
+                            <span className="px-1.5 py-0.2 rounded border text-[8px] uppercase font-bold border-blue-900/40 text-blue-400 bg-blue-950/20">
+                              {currentWorkflow.label}
+                            </span>
+                          </div>
+                          <div className="text-[8px] text-neutral-600 mt-0.5 truncate">
+                            Created {new Date(topic.createdDate).toLocaleDateString()} · Due {topic.dueDate ? new Date(topic.dueDate).toLocaleDateString() : 'None'}
                           </div>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="px-1.5 py-0.5 rounded border text-[8px] uppercase font-bold border-blue-900/40 text-blue-400 bg-blue-950/20">
-                            {currentWorkflow.label}
-                          </span>
+                        <div className="flex items-center gap-1 shrink-0">
                           <button
                             type="button"
                             onClick={() => {
@@ -897,37 +900,27 @@ export default function VercelView({
                         </div>
                       </div>
 
-                      {/* Created and Due Date Meta Elements */}
-                      <div className="grid grid-cols-2 gap-2 text-neutral-500 text-[8px] pt-1">
-                        <div>Created: {new Date(topic.createdDate).toLocaleDateString()}</div>
-                        <div>Due Date: {topic.dueDate ? new Date(topic.dueDate).toLocaleDateString() : 'None'}</div>
-                      </div>
-
                       {urgency && (
-                        <div className="emergency-countdown relative overflow-hidden rounded-lg border border-red-500/60 bg-red-950/25 px-3 py-2.5 shadow-[0_0_22px_rgba(239,68,68,0.18)]">
-                          <div className="emergency-shimmer pointer-events-none absolute inset-y-0 -left-1/2 w-1/3" />
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex min-w-0 items-center gap-2">
-                              <span className="emergency-led-housing relative flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full" aria-hidden="true">
-                                <span className="emergency-led-lens relative block h-[11px] w-[11px] rounded-full">
-                                  <span className="emergency-led-specular absolute left-[2px] top-[1px] h-[3px] w-[4px] rounded-full" />
-                                </span>
-                              </span>
-                              <div className="min-w-0">
-                                <div className="text-[8px] font-black uppercase tracking-[0.18em] text-red-400">{urgency.message}</div>
-                                <div className="mt-0.5 text-[8px] text-red-200/60">Warning remains active until scheduling is completed.</div>
-                              </div>
-                            </div>
-                            <div className="shrink-0 text-right">
-                              <div className="text-[7px] font-bold uppercase tracking-widest text-red-400/70">{urgency.overdue ? 'Overdue by' : 'Time remaining'}</div>
-                              <div className="emergency-clock mt-0.5 text-sm font-black tabular-nums tracking-wider text-red-300">{urgency.clock}</div>
-                            </div>
+                        <div
+                          className="emergency-countdown flex items-center justify-between gap-2 rounded-md border border-red-500/50 bg-red-950/20 px-2 py-1"
+                          title="Warning remains active until scheduling is completed."
+                        >
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="emergency-led-housing relative flex h-2.5 w-2.5 shrink-0 items-center justify-center rounded-full" aria-hidden="true">
+                              <span className="emergency-led-lens relative block h-2 w-2 rounded-full" />
+                            </span>
+                            <span className="text-[8px] font-black uppercase tracking-wide text-red-400 truncate">
+                              {urgency.overdue ? 'Overdue' : 'Critical window'}
+                            </span>
                           </div>
+                          <span className="emergency-clock text-[10px] font-black tabular-nums tracking-wider text-red-300 shrink-0">
+                            {urgency.clock}
+                          </span>
                         </div>
                       )}
 
                       {/* Interactive Stage Recording Buttons */}
-                      <div className="flex flex-wrap gap-2.5 pt-2 border-t border-neutral-900">
+                      <div className="flex flex-wrap gap-1.5 pt-1.5 border-t border-neutral-900">
                         {(['script', 'shoot', 'edit', 'schedule', 'post'] as WorkflowStage[]).map(stage => {
                           const state = getWorkflowState(topic, stage);
                           let labelOverride = undefined;
