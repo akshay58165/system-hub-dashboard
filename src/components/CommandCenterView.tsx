@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { 
   ChevronDown, 
@@ -31,7 +31,6 @@ import {
   Bar
 } from 'recharts';
 import { VideoRecord, Experiment, CreatorInsight, CycleGoal, YoutubeRevenueData } from '../types';
-import { fetchYoutubeRevenue, startYoutubeAuth, disconnectYoutube } from '../services/youtube';
 
 interface CommandCenterViewProps {
   videos: VideoRecord[];
@@ -42,6 +41,14 @@ interface CommandCenterViewProps {
   activities: any[];
   onTabChange: (tab: string) => void;
   setSelectedVideoId: (videoId: string | null) => void;
+  // YouTube connection is owned by App.tsx (one connect action in the
+  // header governs the whole app) — this view only ever reads it.
+  youtubeRevenue: YoutubeRevenueData | null;
+  isLoadingYoutube: boolean;
+  youtubeError: string | null;
+  onConnectYoutube: () => void;
+  onRefreshYoutube: () => void;
+  isConnectingYoutube: boolean;
 }
 
 // Custom Dot for chart
@@ -59,72 +66,29 @@ const CustomDot = (props: any) => {
   );
 };
 
-export default function CommandCenterView({ 
-  videos, 
-  experiments, 
-  insights, 
-  cycleGoals, 
+export default function CommandCenterView({
+  videos,
+  experiments,
+  insights,
+  cycleGoals,
   scorecard,
   activities,
   onTabChange,
-  setSelectedVideoId
+  setSelectedVideoId,
+  youtubeRevenue,
+  isLoadingYoutube,
+  youtubeError,
+  onConnectYoutube,
+  onRefreshYoutube,
+  isConnectingYoutube
 }: CommandCenterViewProps) {
   const [activeSubTab, setActiveSubTab] = useState<'Overview' | 'Content' | 'Audience' | 'Revenue' | 'Trends'>('Overview');
-  const [selectedMetric, setSelectedMetric] = useState<'views' | 'watchtime' | 'subs'>('views');
+  const [selectedMetric, setSelectedMetric] = useState<'views' | 'watchtime'>('views');
   const live48hViews: number | null = null;
   const live48hBars: number[] | null = null;
   const liveReportedThrough: string | null = null;
   const liveRefreshError = false;
-
-  // Real revenue from YouTube's own Analytics API — never a formula guess.
-  // Connection state and the actual number both come from api/youtube-revenue.js.
-  const [youtubeRevenue, setYoutubeRevenue] = useState<YoutubeRevenueData | null>(null);
-  const [isLoadingRevenue, setIsLoadingRevenue] = useState(false);
-  const [revenueError, setRevenueError] = useState<string | null>(null);
-  const [isConnectingYoutube, setIsConnectingYoutube] = useState(false);
-  const [isDisconnectingYoutube, setIsDisconnectingYoutube] = useState(false);
   const youtubeAccessToken = youtubeRevenue?.connected ? 'connected' : undefined;
-
-  const loadYoutubeRevenue = React.useCallback(async () => {
-    setIsLoadingRevenue(true);
-    setRevenueError(null);
-    try {
-      const result = await fetchYoutubeRevenue();
-      setYoutubeRevenue(result);
-      if (result.connected && result.error) setRevenueError(result.error);
-    } catch (err: any) {
-      setRevenueError(err.message || 'Failed to fetch YouTube revenue.');
-    } finally {
-      setIsLoadingRevenue(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadYoutubeRevenue();
-  }, [loadYoutubeRevenue]);
-
-  const handleConnectYoutube = async () => {
-    setIsConnectingYoutube(true);
-    try {
-      await startYoutubeAuth();
-    } catch (err: any) {
-      setRevenueError(err.message || 'Failed to start YouTube connection.');
-      setIsConnectingYoutube(false);
-    }
-  };
-
-  const handleDisconnectYoutube = async () => {
-    if (!window.confirm('Disconnect this YouTube channel? Revenue will stop updating until reconnected.')) return;
-    setIsDisconnectingYoutube(true);
-    try {
-      await disconnectYoutube();
-      setYoutubeRevenue({ connected: false });
-    } catch (err: any) {
-      setRevenueError(err.message || 'Failed to disconnect YouTube.');
-    } finally {
-      setIsDisconnectingYoutube(false);
-    }
-  };
 
   // 1. Calculate live metrics
   const totalViewsSum = useMemo(() => {
@@ -140,13 +104,6 @@ export default function CommandCenterView({
     }, 0);
   }, [videos]);
 
-  const totalSubsGained = useMemo(() => {
-    return videos.reduce((sum, v) => {
-      const views = v.metrics?.lifetimeViews || 0;
-      const rate = v.metrics?.subscribersGainedPer1kViews || 5;
-      return sum + (views * rate) / 1000;
-    }, 0);
-  }, [videos]);
 
   const formatMetricValue = (val: number, type: 'views' | 'watchtime' | 'subs') => {
     if (val >= 1000000) {
@@ -166,13 +123,11 @@ export default function CommandCenterView({
       const dateLabel = new Date(v.uploadDate).toLocaleDateString([], { day: 'numeric', month: 'short' });
       const views = v.metrics?.lifetimeViews || 0;
       const watchtime = Math.round((views * (v.duration || 0) * ((v.metrics?.averagePercentageViewed || 50) / 100)) / 3600);
-      const subs = Math.round((views * (v.metrics?.subscribersGainedPer1kViews || 5)) / 1000);
 
       return {
         date: dateLabel,
         views,
         watchtime,
-        subs,
         hasShort: v.format === 'Short',
         hasVideo: v.format !== 'Short'
       };
@@ -267,10 +222,13 @@ export default function CommandCenterView({
     if (defaultDirectives.whatToChase.length === 0) {
       // Dynamic forecasting milestone
       const subGoal = (cycleGoals as any)?.subscribersTarget || 100000;
+      const gainedMtd = youtubeRevenue?.connected ? youtubeRevenue.subscribersNetGained : undefined;
       defaultDirectives.whatToChase.push({
         id: 'def-chase-1',
         title: 'Chase Subscriber Target',
-        description: `Gained ${Math.round(totalSubsGained).toLocaleString()} subs. Chase target of ${subGoal.toLocaleString()} subscribers.`,
+        description: gainedMtd !== undefined
+          ? `Gained ${gainedMtd.toLocaleString()} subs this month. Chase target of ${subGoal.toLocaleString()} subscribers.`
+          : `Connect YouTube to track progress toward your ${subGoal.toLocaleString()} subscriber target.`,
         actionLabel: 'View Forecast'
       });
     }
@@ -316,7 +274,7 @@ export default function CommandCenterView({
     }
 
     return defaultDirectives;
-  }, [videos, insights, cycleGoals, scorecard]);
+  }, [videos, insights, cycleGoals, scorecard, youtubeRevenue]);
 
   // Action Button Handler that navigates tabs
   const handleActionClick = (actionLabel: string, id?: string) => {
@@ -406,51 +364,56 @@ export default function CommandCenterView({
                 </div>
               </button>
 
-              <button 
-                onClick={() => setSelectedMetric('subs')}
-                className={`p-3.5 text-left border-r border-[#272727] flex flex-col justify-between transition-colors ${selectedMetric === 'subs' ? 'bg-[#161616]' : 'hover:bg-[#161616]/40'}`}
-              >
+              <div className="p-3.5 text-left border-r border-[#272727] flex flex-col justify-between">
                 <span className="text-[10px] text-[#aaaaaa] font-semibold tracking-wide uppercase">Subscribers</span>
                 <div className="mt-2.5">
-                  <span className="text-xl font-bold tracking-tight text-white block">
-                    +{formatMetricValue(totalSubsGained, 'subs')}
-                  </span>
-                  <span className="text-[9px] text-[#aaaaaa] block mt-0.5 font-mono">Net Gained</span>
+                  {!youtubeRevenue || isLoadingYoutube ? (
+                    <span className="text-xs text-[#777777] font-mono">{isLoadingYoutube ? 'Loading…' : 'Checking connection…'}</span>
+                  ) : youtubeRevenue.connected ? (
+                    youtubeRevenue.subscribersNetGained === undefined ? (
+                      <span className="text-[10px] text-amber-400 font-mono leading-snug block">Subscriber data unavailable</span>
+                    ) : (
+                      <>
+                        <span className="text-xl font-bold tracking-tight text-white block">
+                          {youtubeRevenue.subscribersNetGained >= 0 ? '+' : ''}{youtubeRevenue.subscribersNetGained.toLocaleString()}
+                        </span>
+                        <span className="text-[9px] text-[#aaaaaa] block mt-0.5 font-mono">Real • Net Gained MTD</span>
+                      </>
+                    )
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={onConnectYoutube}
+                      disabled={isConnectingYoutube}
+                      className="text-xs font-bold text-cyan-400 hover:text-cyan-300 disabled:opacity-40 transition"
+                    >
+                      {isConnectingYoutube ? 'Redirecting…' : 'Connect YouTube →'}
+                    </button>
+                  )}
                 </div>
-              </button>
+              </div>
 
               <div className="p-3.5 text-left flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] text-[#aaaaaa] font-semibold tracking-wide uppercase">Revenue (MTD)</span>
                   {youtubeRevenue?.connected && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={loadYoutubeRevenue}
-                        disabled={isLoadingRevenue}
-                        title="Refresh from YouTube"
-                        className="text-[#666] hover:text-cyan-400 disabled:opacity-40 transition"
-                      >
-                        <RotateCcw className={`h-3 w-3 ${isLoadingRevenue ? 'animate-spin' : ''}`} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleDisconnectYoutube}
-                        disabled={isDisconnectingYoutube}
-                        title="Disconnect this YouTube channel"
-                        className="text-[9px] font-mono text-[#666] hover:text-rose-400 disabled:opacity-40 transition"
-                      >
-                        Disconnect
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={onRefreshYoutube}
+                      disabled={isLoadingYoutube}
+                      title="Refresh from YouTube"
+                      className="text-[#666] hover:text-cyan-400 disabled:opacity-40 transition"
+                    >
+                      <RotateCcw className={`h-3 w-3 ${isLoadingYoutube ? 'animate-spin' : ''}`} />
+                    </button>
                   )}
                 </div>
                 <div className="mt-2.5">
-                  {!youtubeRevenue || isLoadingRevenue ? (
-                    <span className="text-xs text-[#777777] font-mono">{isLoadingRevenue ? 'Loading…' : 'Checking connection…'}</span>
+                  {!youtubeRevenue || isLoadingYoutube ? (
+                    <span className="text-xs text-[#777777] font-mono">{isLoadingYoutube ? 'Loading…' : 'Checking connection…'}</span>
                   ) : youtubeRevenue.connected ? (
-                    revenueError ? (
-                      <span className="text-[10px] text-amber-400 font-mono leading-snug block">{revenueError}</span>
+                    youtubeError ? (
+                      <span className="text-[10px] text-amber-400 font-mono leading-snug block">{youtubeError}</span>
                     ) : (
                       <>
                         <span className="text-xl font-bold tracking-tight text-white block">
@@ -464,7 +427,7 @@ export default function CommandCenterView({
                   ) : (
                     <button
                       type="button"
-                      onClick={handleConnectYoutube}
+                      onClick={onConnectYoutube}
                       disabled={isConnectingYoutube}
                       className="text-xs font-bold text-cyan-400 hover:text-cyan-300 disabled:opacity-40 transition"
                     >

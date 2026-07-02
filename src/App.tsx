@@ -28,13 +28,16 @@ import {
   Bookmark,
   Clapperboard,
   Sparkles,
-  ListChecks
+  ListChecks,
+  Youtube,
+  Loader2
 } from 'lucide-react';
 import { supabase } from './services/supabase';
 
-import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, VideoRecord, Experiment, CreatorInsight, ScorecardState, AiRulePreset, AiUsageStats } from './types';
+import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, VideoRecord, Experiment, CreatorInsight, ScorecardState, AiRulePreset, AiUsageStats, YoutubeRevenueData } from './types';
 import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, normalizeCommittedTombstones, prepareLocalTopicMutation, topicCollectionsEqual, visibleCreatorTopics } from './lib/topicSync';
 import { normalizeScorecard, rolloverScorecard } from './services/scorecardStorage';
+import { fetchYoutubeRevenue, startYoutubeAuth, disconnectYoutube } from './services/youtube';
 import { 
   initialGitHubRepos, 
   initialVercelProjects, 
@@ -161,6 +164,15 @@ export default function App() {
   const [activities, setActivities] = useState<TopicActivity[]>(initialActivities);
   const [aiPresets, setAiPresets] = useState<AiRulePreset[]>([]);
   const [aiUsage, setAiUsage] = useState<AiUsageStats>(() => createEmptyAiUsageStats());
+
+  // Single, app-wide YouTube connection — fetched once here (not per-view),
+  // so every tile that shows YouTube data reflects the same connection
+  // state and nothing ever re-prompts for auth on its own. The one and
+  // only place that starts the OAuth flow is the header control below.
+  const [youtubeRevenue, setYoutubeRevenue] = useState<YoutubeRevenueData | null>(null);
+  const [isLoadingYoutube, setIsLoadingYoutube] = useState(false);
+  const [youtubeError, setYoutubeError] = useState<string | null>(null);
+  const [isConnectingYoutube, setIsConnectingYoutube] = useState(false);
   const [videos, setVideos] = useState<VideoRecord[]>(initialVideos);
   const [experiments, setExperiments] = useState<Experiment[]>(initialExperiments);
   const [insights, setInsights] = useState<CreatorInsight[]>(initialCreatorInsights);
@@ -630,6 +642,45 @@ export default function App() {
       }
     };
   }, [user?.id]);
+
+  const loadYoutubeRevenue = async () => {
+    setIsLoadingYoutube(true);
+    setYoutubeError(null);
+    try {
+      const result = await fetchYoutubeRevenue();
+      setYoutubeRevenue(result);
+      if (result.connected && (result as any).error) setYoutubeError((result as any).error);
+    } catch (err: any) {
+      setYoutubeError(err.message || 'Failed to fetch YouTube data.');
+    } finally {
+      setIsLoadingYoutube(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!user || authLoading) return;
+    loadYoutubeRevenue();
+  }, [user?.id, authLoading]);
+
+  const handleConnectYoutube = async () => {
+    setIsConnectingYoutube(true);
+    try {
+      await startYoutubeAuth();
+    } catch (err: any) {
+      setYoutubeError(err.message || 'Failed to start YouTube connection.');
+      setIsConnectingYoutube(false);
+    }
+  };
+
+  const handleDisconnectYoutube = async () => {
+    if (!window.confirm('Disconnect this YouTube channel? Revenue and subscriber data will stop updating until reconnected.')) return;
+    try {
+      await disconnectYoutube();
+      setYoutubeRevenue({ connected: false });
+    } catch (err: any) {
+      setYoutubeError(err.message || 'Failed to disconnect YouTube.');
+    }
+  };
 
   const saveConflictSafeState = async (
     newTopics: Topic[], newActs: TopicActivity[], newGoals: CycleGoal | null,
@@ -1172,6 +1223,38 @@ export default function App() {
               <span>{syncError ? 'Cloud Sync Error' : 'Cloud Sync Active'}</span>
             </div>
 
+            {/* Global YouTube connection control — the ONE place that starts the
+                OAuth flow anywhere in the app. Every YouTube-backed tile just
+                reads this same state; nothing else ever prompts for auth. */}
+            {!youtubeRevenue || isLoadingYoutube ? (
+              <div className="hidden lg:flex items-center gap-1.5 bg-neutral-900 border border-neutral-850 rounded-lg px-2.5 py-1 text-neutral-500 font-mono text-[9px]">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <span>YouTube</span>
+              </div>
+            ) : youtubeRevenue.connected ? (
+              <div className="hidden lg:flex items-center gap-2 bg-red-950/20 border border-red-900/30 rounded-lg px-2.5 py-1 text-red-400 select-none font-mono">
+                <Youtube className="h-3.5 w-3.5" />
+                <span className="max-w-[110px] truncate text-[9px] font-bold">{youtubeRevenue.channelTitle || 'Connected'}</span>
+                <button
+                  onClick={handleDisconnectYoutube}
+                  className="hover:text-white ml-1 cursor-pointer transition"
+                  title="Disconnect YouTube"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleConnectYoutube}
+                disabled={isConnectingYoutube}
+                className="hidden lg:flex items-center gap-1.5 bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 hover:border-red-900/40 disabled:opacity-40 rounded-lg px-2.5 py-1 text-neutral-400 hover:text-red-400 font-mono text-[9px] font-bold transition cursor-pointer"
+                title="Connect your YouTube channel for real revenue and subscriber data"
+              >
+                <Youtube className="h-3.5 w-3.5" />
+                <span>{isConnectingYoutube ? 'Redirecting…' : 'Connect YouTube'}</span>
+              </button>
+            )}
+
             {/* Supabase Sync Auth Control — header only renders once `user` is set */}
             <div className="flex items-center gap-2 bg-emerald-950/20 border border-emerald-900/30 rounded-lg px-2.5 py-1 text-emerald-400 select-none font-mono">
               <UserIcon className="h-3.5 w-3.5 text-emerald-400" />
@@ -1393,6 +1476,12 @@ export default function App() {
                 setSelectedVideoId={setSelectedVideoId}
                 scorecard={scorecard}
                 activities={activities}
+                youtubeRevenue={youtubeRevenue}
+                isLoadingYoutube={isLoadingYoutube}
+                youtubeError={youtubeError}
+                onConnectYoutube={handleConnectYoutube}
+                onRefreshYoutube={loadYoutubeRevenue}
+                isConnectingYoutube={isConnectingYoutube}
               />
             )}
 

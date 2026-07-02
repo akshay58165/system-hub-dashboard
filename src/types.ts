@@ -365,6 +365,7 @@ export interface YoutubeRevenueData {
   channelTitle?: string;
   revenue?: number;
   currency?: string;
+  subscribersNetGained?: number;
   periodStart?: string;
   periodEnd?: string;
   fetchedAt?: string;

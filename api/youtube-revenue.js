@@ -114,9 +114,23 @@ export default async function handler(request, response) {
       currency: 'INR',
     });
 
-    const analyticsResponse = await fetch(`https://youtubeanalytics.googleapis.com/v2/reports?${analyticsParams.toString()}`, {
-      headers: { Authorization: `Bearer ${liveAccessToken}` },
+    // subscribersGained/subscribersLost fall under the already-granted
+    // yt-analytics.readonly scope — no extra consent needed for this one.
+    const subsParams = new URLSearchParams({
+      ids: 'channel==MINE',
+      startDate,
+      endDate,
+      metrics: 'subscribersGained,subscribersLost',
     });
+
+    const [analyticsResponse, subsResponse] = await Promise.all([
+      fetch(`https://youtubeanalytics.googleapis.com/v2/reports?${analyticsParams.toString()}`, {
+        headers: { Authorization: `Bearer ${liveAccessToken}` },
+      }),
+      fetch(`https://youtubeanalytics.googleapis.com/v2/reports?${subsParams.toString()}`, {
+        headers: { Authorization: `Bearer ${liveAccessToken}` },
+      }),
+    ]);
 
     if (!analyticsResponse.ok) {
       const errBody = await analyticsResponse.text().catch(() => '');
@@ -139,11 +153,23 @@ export default async function handler(request, response) {
     const analyticsData = await analyticsResponse.json();
     const revenue = analyticsData.rows?.[0]?.[0] ?? 0;
 
+    let subscribersNetGained;
+    if (subsResponse.ok) {
+      const subsData = await subsResponse.json();
+      const gained = subsData.rows?.[0]?.[0] ?? 0;
+      const lost = subsData.rows?.[0]?.[1] ?? 0;
+      subscribersNetGained = gained - lost;
+    } else {
+      const errBody = await subsResponse.text().catch(() => '');
+      console.error(`YouTube subscribers query failed (non-fatal, ${subsResponse.status}): ${errBody}`);
+    }
+
     return sendJson(response, 200, {
       connected: true,
       channelTitle: tokenRow.channel_title || undefined,
       revenue,
       currency: 'INR',
+      subscribersNetGained,
       periodStart: monthStart.toISOString(),
       periodEnd: now.toISOString(),
       fetchedAt: now.toISOString(),
