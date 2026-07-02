@@ -56,7 +56,7 @@ export default function ContentActivityView({ activities, topics, onShowBacklog,
     });
   }, [activities, search, channelFilter]);
 
-  // Context-specific metrics — derived from real content actions, not generic log levels.
+  // Context-specific metrics - derived from real content actions, not generic log levels.
   const stats = useMemo(() => {
     const todayStr = new Date().toDateString();
     const today = activities.filter(a => new Date(a.timestamp).toDateString() === todayStr).length;
@@ -78,7 +78,7 @@ export default function ContentActivityView({ activities, topics, onShowBacklog,
               Content Activity Log
             </h2>
             <p className="text-xs text-neutral-400 mt-1">
-              Every real action you've taken — topics added, stage moves, scheduling, and edits.
+              Every real action you've taken - topics added, stage moves, scheduling, and edits.
             </p>
           </div>
           <button
@@ -152,7 +152,7 @@ export default function ContentActivityView({ activities, topics, onShowBacklog,
               <div className="flex flex-col items-center justify-center py-20 text-neutral-500 gap-2">
                 <Activity className="h-8 w-8 text-neutral-600" />
                 <span className="text-xs font-mono">
-                  {activities.length === 0 ? 'No content activity yet — add a topic to get started.' : 'No actions matching the current filters.'}
+                  {activities.length === 0 ? 'No content activity yet - add a topic to get started.' : 'No actions matching the current filters.'}
                 </span>
               </div>
             ) : (

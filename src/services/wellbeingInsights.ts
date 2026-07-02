@@ -1,4 +1,4 @@
-// Pure rule-based Daily Readiness insight engine — no AI, no network calls.
+// Pure rule-based Daily Readiness insight engine - no AI, no network calls.
 // Input is the 12 raw 1-10 parameter values (or null if unset). Output is a
 // structured, human-readable interpretation of the day, computed entirely
 // from if/else layers as specified, not a giant lookup table of every
@@ -9,7 +9,7 @@
 //   STR=stressLevel D=endorphinsDistraction(hidden) P=pleasantness
 //   SA=scheduleAdherence SO=socialization REL=relationshipDynamic TB=technicalBlockers
 //
-// D is never surfaced to the user as "horniness"/"arousal" — only as
+// D is never surfaced to the user as "horniness"/"arousal" - only as
 // "reward drive", "distraction pressure", "stimulation load", or
 // "attention pull".
 
@@ -73,7 +73,7 @@ export interface DailyStatusResult {
 }
 
 // Human-readable labels for the short codes, in the same order as the
-// `allRaw` array below — used to build "fill in X, Y, Z" messaging.
+// `allRaw` array below - used to build "fill in X, Y, Z" messaging.
 const PARAM_LABELS_ORDER: { key: keyof WellbeingParams; label: string }[] = [
   { key: 'R', label: 'Restfulness' },
   { key: 'N', label: 'Nutrition' },
@@ -387,7 +387,7 @@ export function generateWellbeingInsight(raw: WellbeingParams, dailyHistory: Dai
     stressMood = 'Mental state is mixed. Choose tasks that do not require perfect mood.';
   }
 
-  // ---- Step 9: hidden metric (D) — public-safe wording only ----
+  // ---- Step 9: hidden metric (D) - public-safe wording only ----
   let stimulation: string;
   if (D >= 9 && STR >= 7) {
     stimulation = 'Reward drive and stress are both high. This is an escape-seeking state. Keep the environment controlled.';
@@ -483,7 +483,7 @@ export function generateWellbeingInsight(raw: WellbeingParams, dailyHistory: Dai
     };
   }
 
-  // ---- Trend logic — only once at least 6 prior days of history exist ----
+  // ---- Trend logic - only once at least 6 prior days of history exist ----
   let trend: string | null = null;
   if (dailyHistory.length >= 6) {
     const last3 = dailyHistory.slice(-3);

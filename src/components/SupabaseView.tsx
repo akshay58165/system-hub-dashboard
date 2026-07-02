@@ -338,7 +338,7 @@ export default function SupabaseView({
 
     try {
       // The channel system prompt sets persona/style only. The actual task is
-      // whatever the selected preset or typed instruction says, verbatim —
+      // whatever the selected preset or typed instruction says, verbatim -
       // never a hardcoded "write an outline" / "enhance this draft" string
       // that would silently override what the user actually asked for.
       const systemPrompt = getChannelSystemPrompt(targetChannel);
@@ -388,7 +388,7 @@ ${task}`;
   // completion) to verify real URLs, so one button still has to pick between
   // the two actions. Keyword-sniffing the instruction text turned out
   // unreliable in practice (a preset's own wording can innocently contain a
-  // trigger word like "link" or "source" and misfire) — routed by the
+  // trigger word like "link" or "source" and misfire) - routed by the
   // explicit findSourcesMode toggle instead.
   const handleGetResponse = async () => {
     if (!selectedScriptTopicId) return;
@@ -544,7 +544,7 @@ ${task}`;
     }
   };
 
-  // Biometrics logs — read-only snapshot of what the Score tab's sliders have written to localStorage
+  // Biometrics logs - read-only snapshot of what the Score tab's sliders have written to localStorage
   const [biometricsLogs] = useState<any[]>(() => {
     try {
       const stored = localStorage.getItem('unicorn_scorecard_db_logs');
@@ -558,7 +558,7 @@ ${task}`;
 
   return (
     <div className="space-y-6">
-      {/* Top header — matches the AI Insights design language */}
+      {/* Top header - matches the AI Insights design language */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -589,7 +589,7 @@ ${task}`;
         </div>
       </motion.div>
 
-      {/* Hardware Performance Grid — only metrics with a real backing source */}
+      {/* Hardware Performance Grid - only metrics with a real backing source */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {(() => {
           const totalTopics = topics.length;
@@ -785,7 +785,7 @@ ${task}`;
                         </label>
                         <div className="space-y-1">
                           <span className="uppercase text-neutral-500">Auto Revenue Level</span>
-                          <div className="h-[34px] bg-neutral-950/60 border border-neutral-800 rounded px-2.5 flex items-center text-xs font-bold text-emerald-400">{getTopicRevenueLevel() || '—'}</div>
+                          <div className="h-[34px] bg-neutral-950/60 border border-neutral-800 rounded px-2.5 flex items-center text-xs font-bold text-emerald-400">{getTopicRevenueLevel() || '-'}</div>
                         </div>
                       </div>
 
@@ -823,7 +823,7 @@ ${task}`;
 
               {/* API Usage & Cost Tracker. "Real Account Spend" comes straight from
                   OpenAI's Costs API (requires an Admin API key) and reflects actual
-                  billed spend for your whole account, month-to-date — not just calls
+                  billed spend for your whole account, month-to-date - not just calls
                   made through this app. The grid below it is this app's own tracker
                   (real token counts from each response x published per-token pricing),
                   useful when the Admin key isn't configured. */}
@@ -844,7 +844,7 @@ ${task}`;
                   </button>
                 </div>
 
-                {/* Real Account Spend — fetched live from OpenAI */}
+                {/* Real Account Spend - fetched live from OpenAI */}
                 <div className="border border-amber-900/30 bg-amber-950/10 rounded-lg p-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[9px] uppercase font-bold tracking-wider text-amber-500">Real Account Spend (Month-to-date)</span>
@@ -913,7 +913,7 @@ ${task}`;
                       </div>
                     ) : (
                       <div className="text-sm font-bold text-white font-mono mt-0.5">
-                        {aiUsage.budgetUSD !== null ? `$${Number(aiUsage.budgetUSD).toFixed(2)}` : '— Not set —'}
+                        {aiUsage.budgetUSD !== null ? `$${Number(aiUsage.budgetUSD).toFixed(2)}` : '- Not set -'}
                       </div>
                     )}
                   </div>
@@ -923,7 +923,7 @@ ${task}`;
                     <div className={`text-sm font-bold font-mono mt-0.5 ${
                       aiUsage.budgetUSD === null ? 'text-neutral-500' : (Number(aiUsage.budgetUSD) - Number(aiUsage.totalCostUSD || 0)) < 0 ? 'text-rose-400' : 'text-emerald-400'
                     }`}>
-                      {aiUsage.budgetUSD !== null ? `$${(Number(aiUsage.budgetUSD) - Number(aiUsage.totalCostUSD || 0)).toFixed(4)}` : '— Set a budget —'}
+                      {aiUsage.budgetUSD !== null ? `$${(Number(aiUsage.budgetUSD) - Number(aiUsage.totalCostUSD || 0)).toFixed(4)}` : '- Set a budget -'}
                     </div>
                   </div>
 
@@ -936,13 +936,13 @@ ${task}`;
                 {aiUsage.lastCall ? (
                   <div className="text-[10px] text-neutral-500 font-mono border-t border-neutral-900 pt-2">
                     Last call ({new Date(aiUsage.lastCall.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}):{' '}
-                    <span className="text-neutral-300">{aiUsage.lastCall.model}</span>{' — '}
+                    <span className="text-neutral-300">{aiUsage.lastCall.model}</span>{' - '}
                     {Number(aiUsage.lastCall.promptTokens || 0).toLocaleString()} in / {Number(aiUsage.lastCall.completionTokens || 0).toLocaleString()} out{' '}
                     ({Number(aiUsage.lastCall.totalTokens || 0).toLocaleString()} tokens) · ${Number(aiUsage.lastCall.costUSD || 0).toFixed(5)} · {aiUsage.callCount} call{aiUsage.callCount === 1 ? '' : 's'} this cycle
                   </div>
                 ) : (
                   <div className="text-[10px] text-neutral-600 font-mono border-t border-neutral-900 pt-2 italic">
-                    No AI calls made yet this cycle — cost estimates use published per-token pricing since OpenAI doesn't return a dollar amount directly.
+                    No AI calls made yet this cycle - cost estimates use published per-token pricing since OpenAI doesn't return a dollar amount directly.
                   </div>
                 )}
               </div>
@@ -960,7 +960,7 @@ ${task}`;
                       >
                         <span className="text-[10px] text-neutral-500 font-mono uppercase shrink-0">Preset:</span>
                         <span className="flex-1 text-left text-xs text-neutral-200 font-mono truncate">
-                          {selectedPresetId ? aiPresets.find(p => p.id === selectedPresetId)?.name : '— No preset (typed instruction) —'}
+                          {selectedPresetId ? aiPresets.find(p => p.id === selectedPresetId)?.name : '- No preset (typed instruction) -'}
                         </span>
                         <ChevronDown className={`h-3.5 w-3.5 text-neutral-500 shrink-0 transition-transform ${isPresetDropdownOpen ? 'rotate-180' : ''}`} />
                       </button>
@@ -975,7 +975,7 @@ ${task}`;
                               className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs font-mono text-neutral-300 hover:bg-neutral-900 transition cursor-pointer"
                             >
                               <Check className={`h-3 w-3 shrink-0 ${!selectedPresetId ? 'opacity-100 text-emerald-400' : 'opacity-0'}`} />
-                              <span>— No preset (typed instruction) —</span>
+                              <span>- No preset (typed instruction) -</span>
                             </button>
                             {aiPresets.length === 0 ? (
                               <div className="px-3 py-2 text-[10px] font-mono text-neutral-600 italic">No saved presets yet.</div>
@@ -1077,7 +1077,7 @@ ${task}`;
                       />
                     </div>
 
-                    {/* AI Quick Trigger — single action, mode picked explicitly by the toggle */}
+                    {/* AI Quick Trigger - single action, mode picked explicitly by the toggle */}
                     <div className="flex items-center gap-3 shrink-0">
                       <label
                         title={!scriptText.trim() ? 'Write or paste a script first to find sources for it' : 'Verify real sources for the current script instead of generating/rewriting it'}

@@ -10,8 +10,8 @@ function redirectWithStatus(response, status) {
 
 // Completes the Google OAuth authorization-code flow for YouTube Analytics
 // access. `state` carries the user's Supabase access token (set by the
-// client when it built the initial consent URL) so this callback — a plain
-// browser redirect with no Authorization header available — can still
+// client when it built the initial consent URL) so this callback - a plain
+// browser redirect with no Authorization header available - can still
 // verify which user the resulting refresh token belongs to.
 export default async function handler(request, response) {
   const clientId = process.env.YOUTUBE_CLIENT_ID || process.env.VITE_YOUTUBE_CLIENT_ID;
@@ -68,7 +68,7 @@ export default async function handler(request, response) {
     if (!refreshToken) {
       // Google only returns a refresh_token on first consent (or when
       // access_type=offline&prompt=consent forces re-issue, which the
-      // client always requests) — if it's missing here, the exchange
+      // client always requests) - if it's missing here, the exchange
       // itself is broken rather than something we can silently recover from.
       console.error('YouTube token exchange succeeded but returned no refresh_token.');
       return redirectWithStatus(response, 'no_refresh_token');
@@ -92,7 +92,7 @@ export default async function handler(request, response) {
     }
 
     // Write as the authenticated user via a client carrying their own JWT,
-    // so RLS (auth.uid() = user_id) authorizes the upsert — no service-role
+    // so RLS (auth.uid() = user_id) authorizes the upsert - no service-role
     // key needed, same pattern the rest of the app's endpoints use.
     const userScopedSupabase = createClient(cleanUrl, supabaseKey, {
       auth: { autoRefreshToken: false, persistSession: false },

@@ -5,7 +5,7 @@ function sendJson(response, status, body) {
   response.end(JSON.stringify(body));
 }
 
-// Real, account-wide OpenAI spend — not derived from tokens this app happened
+// Real, account-wide OpenAI spend - not derived from tokens this app happened
 // to see. Requires an Admin API key (organization owner only, generated at
 // platform.openai.com/settings/organization/admin-keys with the
 // api.usage.read scope), which is a different key type from the regular

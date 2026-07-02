@@ -15,6 +15,28 @@
   --color-neutral-50:  #ffffff;
 }
 
+.command-action-target {
+  position: relative;
+  z-index: 2;
+  animation: command-action-target-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes command-action-target-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(251, 113, 133, 0.7), 0 0 14px rgba(244, 63, 94, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(251, 113, 133, 1), 0 0 30px rgba(244, 63, 94, 0.75);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .command-action-target {
+    animation: none;
+    box-shadow: 0 0 0 3px rgba(251, 113, 133, 1), 0 0 24px rgba(244, 63, 94, 0.65);
+  }
+}
+
 /* Set dark color scheme globally to prevent native light-themed scrollbars */
 html {
   color-scheme: dark;
@@ -120,7 +142,7 @@ html {
 }
 
 /* Form controls (inputs, selects, textareas) need to read as a distinct,
-   slightly-raised surface against the glass panels/modals they sit inside —
+   slightly-raised surface against the glass panels/modals they sit inside -
    otherwise a `bg-neutral-900 border-neutral-900` panel and an identically
    styled input inside it blend into one indistinguishable block.
    This targets the common Tailwind utility combo used across the app

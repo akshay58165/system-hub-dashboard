@@ -1,6 +1,6 @@
 // Date-keyed scorecard state: owns "what day is it", day-rollover (today ->
 // archive), and migration from the old flat single-day shape. Pure functions
-// only — no localStorage/network access — so App.tsx stays the single place
+// only - no localStorage/network access - so App.tsx stays the single place
 // that decides when to persist/sync.
 
 import { ScorecardDayEntry, ScorecardParams, ScorecardState } from '../types';
@@ -25,7 +25,7 @@ const PARAM_KEYS = Object.keys(PARAM_LABELS) as (keyof ScorecardParams)[];
 
 const ARCHIVE_MAX_DAYS = 90;
 
-// Local calendar day, zero-padded — the single source of truth for "what day
+// Local calendar day, zero-padded - the single source of truth for "what day
 // is it" used everywhere in the scorecard. (Previously built inline as
 // `${y}-${m}-${d}` with no zero-padding, producing malformed strings like
 // "2026-7-2" that could never match a correctly padded string.)
@@ -106,8 +106,8 @@ export function rolloverScorecard(state: ScorecardState): ScorecardState {
   };
 }
 
-// Accepts anything currently stored under `scorecard` — a fresh/empty value,
-// the old flat single-day shape, or the current { today, archive } shape —
+// Accepts anything currently stored under `scorecard` - a fresh/empty value,
+// the old flat single-day shape, or the current { today, archive } shape -
 // and always returns a valid, rollover-correct ScorecardState. Safe to call
 // on every read of remote/local scorecard data.
 export function normalizeScorecard(raw: any): ScorecardState {

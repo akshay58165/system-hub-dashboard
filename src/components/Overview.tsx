@@ -342,7 +342,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
     };
   }, [topics]);
 
-  // "What should I do next" + "what's overdue" — the two questions a creator
+  // "What should I do next" + "what's overdue" - the two questions a creator
   // actually opens the dashboard to answer, computed from real topic state.
   const actionableMetrics = useMemo(() => {
     const today = new Date();
@@ -380,7 +380,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
     return { overdueCount: overdue.length, nextUp, nextUpDueLabel };
   }, [topics]);
 
-  // 14-day "don't break the chain" heatmap — real activity presence per day.
+  // 14-day "don't break the chain" heatmap - real activity presence per day.
   const activityHeatmap = useMemo(() => {
     const days: { iso: string; label: string; count: number }[] = [];
     const today = new Date();
@@ -394,7 +394,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
     return days;
   }, [activities]);
 
-  // Real goal pace — compares actual scheduling velocity against the active
+  // Real goal pace - compares actual scheduling velocity against the active
   // cycle target set in Action Hub. Honest empty state if no cycle is set.
   const goalPace = useMemo(() => {
     if (!cycleGoals) return null;
@@ -582,8 +582,8 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
     <div className="space-y-6">
       <AIInsightsBanner />
 
-      {/* Pipeline Flow — same visual language as AI Insights: glow blobs, icon badges, motion entrance.
-          All values below are real, computed from your actual topics — only the presentation changed. */}
+      {/* Pipeline Flow - same visual language as AI Insights: glow blobs, icon badges, motion entrance.
+          All values below are real, computed from your actual topics - only the presentation changed. */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -608,11 +608,11 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
             </div>
             <div>
               <h2 className="text-sm font-bold text-neutral-100 font-mono tracking-tight">Streak Engine</h2>
-              <p className="text-[10px] text-neutral-500 font-mono">Real creation streaks, daily momentum, and goal pace — built to keep the chain alive.</p>
+              <p className="text-[10px] text-neutral-500 font-mono">Real creation streaks, daily momentum, and goal pace - built to keep the chain alive.</p>
             </div>
           </div>
 
-          {/* Streak flame cards + Today's Move — the three things that should hit you the moment you open this app */}
+          {/* Streak flame cards + Today's Move - the three things that should hit you the moment you open this app */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
             {[
               { channel: 'LearnDriven' as const, data: streakMetrics.learnDriven },
@@ -670,7 +670,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
               );
             })}
 
-            {/* Today's Move — one clear, real, actionable next step */}
+            {/* Today's Move - one clear, real, actionable next step */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -699,20 +699,20 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
                 if (urgentStreak) {
                   return (
                     <p className="text-xs text-neutral-300 leading-relaxed">
-                      <span className="text-amber-400 font-bold">{urgentStreak.channel}</span> {urgentStreak.msg} — keep the chain alive today.
+                      <span className="text-amber-400 font-bold">{urgentStreak.channel}</span> {urgentStreak.msg} - keep the chain alive today.
                     </p>
                   );
                 }
                 if (actionableMetrics.nextUp) {
                   return (
                     <p className="text-xs text-neutral-300 leading-relaxed">
-                      Next up: <span className="text-white font-bold">"{actionableMetrics.nextUp.name}"</span> — {actionableMetrics.nextUpDueLabel}.
+                      Next up: <span className="text-white font-bold">"{actionableMetrics.nextUp.name}"</span> - {actionableMetrics.nextUpDueLabel}.
                     </p>
                   );
                 }
                 return (
                   <p className="text-xs text-emerald-400 leading-relaxed font-bold">
-                    All caught up — nothing urgent. Great work staying ahead.
+                    All caught up - nothing urgent. Great work staying ahead.
                   </p>
                 );
               })()}
@@ -725,7 +725,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
             </motion.div>
           </div>
 
-          {/* 14-day chain — real activity presence, not a fabricated streak number */}
+          {/* 14-day chain - real activity presence, not a fabricated streak number */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -754,7 +754,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
             </div>
           </motion.div>
 
-          {/* Goal Pace — real cycle target vs real scheduling velocity */}
+          {/* Goal Pace - real cycle target vs real scheduling velocity */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -793,7 +793,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
                   <div className="text-right">
                     <span className="text-[10px] font-mono text-purple-400/70 uppercase tracking-wider">Required Pace</span>
                     <div className="text-2xl font-bold text-purple-400 font-mono tracking-tight">
-                      {Number.isFinite(goalPace.requiredPace) ? goalPace.requiredPace.toFixed(1) : '—'} <span className="text-[10px] text-purple-400/50 uppercase">vids/wk</span>
+                      {Number.isFinite(goalPace.requiredPace) ? goalPace.requiredPace.toFixed(1) : '-'} <span className="text-[10px] text-purple-400/50 uppercase">vids/wk</span>
                     </div>
                   </div>
                 </div>
@@ -805,7 +805,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
                   <span className={`text-[11px] font-mono ${goalPace.aheadOfSchedule ? 'text-emerald-400' : 'text-amber-400'}`}>
                     {goalPace.aheadOfSchedule
                       ? 'On pace to hit your goal. Keep it up.'
-                      : `${goalPace.remaining} more needed — pick up the pace to stay on track.`}
+                      : `${goalPace.remaining} more needed - pick up the pace to stay on track.`}
                   </span>
                 </div>
 
@@ -829,7 +829,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
         </div>
       </motion.div>
 
-      {/* Status tiles — restyled to match, same real counts as before */}
+      {/* Status tiles - restyled to match, same real counts as before */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
@@ -842,7 +842,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
             topicTitle: actionableMetrics.nextUp?.name ?? null,
             dueLabel: actionableMetrics.nextUpDueLabel,
             footLabel: 'Your highest-priority unfinished topic',
-            footValue: actionableMetrics.nextUp ? actionableMetrics.nextUp.channel : '—'
+            footValue: actionableMetrics.nextUp ? actionableMetrics.nextUp.channel : '-'
           },
           {
             label: 'Overdue',
@@ -905,7 +905,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
                     </span>
                   </>
                 ) : (
-                  <p className="text-sm font-bold text-neutral-500">No topics yet — add one</p>
+                  <p className="text-sm font-bold text-neutral-500">No topics yet - add one</p>
                 )}
               </div>
             ) : (

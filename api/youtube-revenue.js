@@ -5,7 +5,7 @@ function sendJson(response, status, body) {
   response.end(JSON.stringify(body));
 }
 
-// Real, live channel revenue from YouTube's own Analytics API —
+// Real, live channel revenue from YouTube's own Analytics API -
 // "estimatedRevenue" is YouTube's own metric name (the same figure YouTube
 // Studio itself shows, subject to AdSense adjustments/holds), not a number
 // this app invents. Requires the channel owner to have connected via OAuth.
@@ -40,7 +40,7 @@ export default async function handler(request, response) {
     return sendJson(response, 401, { error: 'Invalid or expired session.' });
   }
 
-  // User-scoped client so RLS (auth.uid() = user_id) governs read/write —
+  // User-scoped client so RLS (auth.uid() = user_id) governs read/write -
   // no service-role key needed.
   const userScopedSupabase = createClient(cleanUrl, supabaseKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -115,7 +115,7 @@ export default async function handler(request, response) {
     });
 
     // subscribersGained/subscribersLost fall under the already-granted
-    // yt-analytics.readonly scope — no extra consent needed for this one.
+    // yt-analytics.readonly scope - no extra consent needed for this one.
     const subsParams = new URLSearchParams({
       ids: 'channel==MINE',
       startDate,
@@ -124,7 +124,7 @@ export default async function handler(request, response) {
     });
 
     // Total current subscriber count is a YouTube Data API v3 concept
-    // (channels.list statistics), not an Analytics metric — needs the
+    // (channels.list statistics), not an Analytics metric - needs the
     // youtube.readonly scope. Fetched best-effort: if the connected token
     // predates this scope being requested, this call alone fails with 401/403
     // and subscriberCount is simply omitted rather than shown as fake.
@@ -151,7 +151,7 @@ export default async function handler(request, response) {
         detail = parsed.error?.message || errBody;
       } catch { /* not JSON, use raw body */ }
       // Monetization-scope errors are common for non-monetized or
-      // non-owner-authenticated channels — surface honestly instead of
+      // non-owner-authenticated channels - surface honestly instead of
       // showing a fabricated number.
       return sendJson(response, 200, {
         connected: true,

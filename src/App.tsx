@@ -126,7 +126,7 @@ export default function App() {
   }, []);
   const [repos, setRepos] = useState<GitHubRepo[]>(initialGitHubRepos);
   const [vercelProjects, setVercelProjects] = useState<VercelProject[]>(initialVercelProjects);
-  // Renamed from `supabase` — that name was shadowing the real Supabase client
+  // Renamed from `supabase` - that name was shadowing the real Supabase client
   // imported above, silently breaking every auth/db/realtime call in this file.
   const [supabaseProject, setSupabaseProject] = useState<SupabaseProject>(initialSupabaseProject);
   const [events, setEvents] = useState<SystemEvent[]>([]);
@@ -229,7 +229,7 @@ export default function App() {
   const [aiPresets, setAiPresets] = useState<AiRulePreset[]>([]);
   const [aiUsage, setAiUsage] = useState<AiUsageStats>(() => createEmptyAiUsageStats());
 
-  // Single, app-wide YouTube connection — fetched once here (not per-view),
+  // Single, app-wide YouTube connection - fetched once here (not per-view),
   // so every tile that shows YouTube data reflects the same connection
   // state and nothing ever re-prompts for auth on its own. The one and
   // only place that starts the OAuth flow is the header control below.
@@ -415,7 +415,7 @@ export default function App() {
     }
 
     // api/youtube-auth-callback.js redirects back here with ?youtube=<status>
-    // after the OAuth flow completes (or fails) — surface it once, then
+    // after the OAuth flow completes (or fails) - surface it once, then
     // strip the param so a refresh doesn't re-show the same event.
     const query = new URLSearchParams(window.location.search);
     const youtubeStatus = query.get('youtube');
@@ -484,7 +484,7 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isStateLoaded, setIsStateLoaded] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
-  // syncError alone is just a banner message and must never block saving —
+  // syncError alone is just a banner message and must never block saving -
   // a one-time transient error (a momentary network blip during initial
   // load, for example) used to set syncError and then permanently block
   // every future save for the rest of the session with no automatic
@@ -714,7 +714,7 @@ export default function App() {
             setSyncError("Supabase error: Table 'public.dashboard_state' does not exist. Please run SQL migrations in your Supabase dashboard.");
             setSyncFatal(true);
           } else {
-            // Transient (network blip, temporary outage, etc.) — show the
+            // Transient (network blip, temporary outage, etc.) - show the
             // banner but let subsequent save attempts still go through; the
             // debounced save effect will naturally retry on the next change.
             setSyncError(`Supabase connection error: ${error.message}`);
@@ -806,7 +806,7 @@ export default function App() {
         setIsStateLoaded(true); // Completed initial load
 
         // Bail out if this effect was cleaned up while the above awaits were
-        // in flight (e.g. a token-refresh auth event fired again) — creating
+        // in flight (e.g. a token-refresh auth event fired again) - creating
         // a channel after cancellation is what caused stale, duplicate
         // subscriptions on the same channel name.
         if (cancelled) return;
@@ -1011,7 +1011,7 @@ export default function App() {
     newUsage: AiUsageStats
   ) => {
     // Only a genuinely unrecoverable state (missing schema) blocks saving.
-    // A transient syncError banner must never permanently stop future saves —
+    // A transient syncError banner must never permanently stop future saves -
     // that was the actual cause of topics silently never reaching the
     // database: one past transient failure disabled every save for the rest
     // of the session with no automatic recovery.
@@ -1046,7 +1046,7 @@ export default function App() {
           setSyncError(`Supabase save error: ${error.message}`);
         }
       } else {
-        // A successful save proves the connection has recovered — clear any
+        // A successful save proves the connection has recovered - clear any
         // stale error banner so the UI honestly reflects current state.
         setSyncError(null);
       }
@@ -1276,7 +1276,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Auth Gate — no guest access. The whole app stays hidden until signed in. */}
+      {/* Auth Gate - no guest access. The whole app stays hidden until signed in. */}
       {isStateLoaded && !authLoading && !user && (
         <div className="fixed inset-0 z-50 bg-neutral-950 flex items-center justify-center p-4">
           <motion.div
@@ -1304,7 +1304,7 @@ export default function App() {
             </div>
 
             <p className="text-[10px] text-neutral-400 leading-normal mb-4 font-sans">
-              Sign in to access your dashboard. Topics, goals, and progress are stored in the cloud and sync across every device on this account — no guest mode.
+              Sign in to access your dashboard. Topics, goals, and progress are stored in the cloud and sync across every device on this account - no guest mode.
             </p>
 
             <form
@@ -1409,7 +1409,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Everything below is gated behind a signed-in user — no guest data. */}
+      {/* Everything below is gated behind a signed-in user - no guest data. */}
       {user && (
       <>
       {/* Database Warning Banner */}
@@ -1476,7 +1476,7 @@ export default function App() {
               <span>{syncError ? 'Cloud Sync Error' : 'Cloud Sync Active'}</span>
             </div>
 
-            {/* Global YouTube connection control — the ONE place that starts the
+            {/* Global YouTube connection control - the ONE place that starts the
                 OAuth flow anywhere in the app. Every YouTube-backed tile just
                 reads this same state; nothing else ever prompts for auth. */}
             {!youtubeRevenue || isLoadingYoutube ? (
@@ -1508,7 +1508,7 @@ export default function App() {
               </button>
             )}
 
-            {/* Supabase Sync Auth Control — header only renders once `user` is set */}
+            {/* Supabase Sync Auth Control - header only renders once `user` is set */}
             <div className="flex items-center gap-2 bg-emerald-950/20 border border-emerald-900/30 rounded-lg px-2.5 py-1 text-emerald-400 select-none font-mono">
               <UserIcon className="h-3.5 w-3.5 text-emerald-400" />
               <span className="max-w-[90px] truncate text-[9px] font-bold">{user.email}</span>
@@ -1739,13 +1739,26 @@ export default function App() {
                     const topicCard = document.getElementById(`topic-control-${topicId}`);
                     const target = control || topicCard;
                     if (!target) return;
+                    document.querySelectorAll('.command-action-target').forEach((element) => {
+                      element.classList.remove('command-action-target');
+                    });
+                    target.classList.add('command-action-target');
+
+                    const acknowledgeTarget = () => {
+                      target.classList.remove('command-action-target');
+                      target.removeEventListener('pointerenter', acknowledgeTarget);
+                      target.removeEventListener('pointerdown', acknowledgeTarget);
+                      target.removeEventListener('touchstart', acknowledgeTarget);
+                      target.removeEventListener('click', acknowledgeTarget);
+                      target.removeEventListener('keydown', acknowledgeTarget);
+                    };
+                    target.addEventListener('pointerenter', acknowledgeTarget);
+                    target.addEventListener('pointerdown', acknowledgeTarget);
+                    target.addEventListener('touchstart', acknowledgeTarget, { passive: true });
+                    target.addEventListener('click', acknowledgeTarget);
+                    target.addEventListener('keydown', acknowledgeTarget);
                     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     if (control instanceof HTMLElement) control.focus({ preventScroll: true });
-                    target.animate([
-                      { boxShadow: '0 0 0 0 rgba(251,113,133,0)' },
-                      { boxShadow: '0 0 0 3px rgba(251,113,133,.9), 0 0 28px rgba(244,63,94,.45)' },
-                      { boxShadow: '0 0 0 0 rgba(251,113,133,0)' }
-                    ], { duration: 1800, easing: 'ease-out' });
                   }, 350);
                 }}
               />
@@ -1939,7 +1952,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-1.5">
             <Laptop className="h-4 w-4" />
-            <span>Unicorn's Desk Panel — Cloud Sync Integration Active</span>
+            <span>Unicorn's Desk Panel - Cloud Sync Integration Active</span>
           </div>
           <div className="flex items-center gap-4">
             <span>Last Updated: {formatRelativeTime(lastDbUpdateTime)}</span>

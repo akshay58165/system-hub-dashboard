@@ -440,7 +440,7 @@ export default function GithubView({
 
   return (
     <div className="space-y-6">
-      {/* Top header — same visual language as AI Insights: icon badge, glow blob, motion entrance */}
+      {/* Top header - same visual language as AI Insights: icon badge, glow blob, motion entrance */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -923,7 +923,7 @@ export default function GithubView({
                   <div>
                     <label className="block uppercase text-neutral-500">Auto Revenue Level</label>
                     <div className="w-full bg-neutral-950/60 border border-neutral-900 text-emerald-400 font-bold text-xs rounded px-2.5 py-1.5 mt-1 select-none h-[28px] flex items-center">
-                      {getAutomaticRevenueLevel() || '—'}
+                      {getAutomaticRevenueLevel() || '-'}
                     </div>
                   </div>
                   <div>

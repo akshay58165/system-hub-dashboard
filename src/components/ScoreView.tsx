@@ -62,7 +62,7 @@ interface CachedWellbeingInsight {
 // computed for, AND only if today's 12 parameters are still all filled right
 // now. Without this check, a stale insight computed yesterday (or one
 // generated before the strict 12/12 gating existed) would keep resurfacing
-// on every load — showing "Critical"/"null/100" fragments from old data
+// on every load - showing "Critical"/"null/100" fragments from old data
 // instead of honestly asking for today's real values.
 function loadCachedWellbeingInsight(todayKey: string, isTodayComplete: boolean): CachedWellbeingInsight | null {
   if (!isTodayComplete) return null;
@@ -88,7 +88,7 @@ function cacheWellbeingInsight(insight: WellbeingInsightResult, timestamp: strin
 export default function ScoreView({ repos, vercelProjects, supabase, scorecard, setScorecard }: ScoreViewProps) {
   // Day-rollover (today -> archive) is owned centrally by App.tsx before
   // `scorecard` ever reaches this component. Everything here reads/writes
-  // through `scorecard.today` — the current calendar day's working entry.
+  // through `scorecard.today` - the current calendar day's working entry.
   const today = scorecard.today;
 
   const setTodayField = <K extends keyof ScorecardDayEntry>(key: K, val: ScorecardDayEntry[K]) =>
@@ -191,7 +191,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
   // Watches every Daily Parameter. The instant ANY value changes, the old
   // insight is cleared and an "analyzing" state shows. A single global timer
   // resets on every change and only fires 10 seconds after the LAST change
-  // across any parameter — so a burst of edits (hydration, then stomach 5s
+  // across any parameter - so a burst of edits (hydration, then stomach 5s
   // later, etc.) produces exactly one consolidated insight once everything
   // has actually settled, not one per click and not one per parameter.
   const initialCachedInsightRef = useRef<CachedWellbeingInsight | null>(loadCachedWellbeingInsight(today.date, filledCount === 12));
@@ -199,7 +199,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [insightTimestamp, setInsightTimestamp] = useState<string | null>(() => initialCachedInsightRef.current?.timestamp ?? null);
   const insightTimerRef = useRef<NodeJS.Timeout | null>(null);
-  // Snapshot of the 12 raw values as of the last effect run — used to tell a
+  // Snapshot of the 12 raw values as of the last effect run - used to tell a
   // genuine single-parameter user tap apart from a bulk data load (initial
   // localStorage hydration, or a remote Supabase sync landing later). A real
   // tap changes exactly one value in a commit; a bulk load replaces several
@@ -230,7 +230,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
 
     if (changedCount === 0) return;
     if (changedCount > 1) {
-      // Several values moved together in one commit — this is Supabase/local
+      // Several values moved together in one commit - this is Supabase/local
       // hydration, not a user edit. Recompute immediately without waiting.
       if (insightTimerRef.current) clearTimeout(insightTimerRef.current);
       setIsAnalyzing(false);
@@ -246,7 +246,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
       return;
     }
 
-    // Exactly one parameter changed — a real user interaction.
+    // Exactly one parameter changed - a real user interaction.
     setWellbeingInsight(null);
     setIsAnalyzing(true);
 
@@ -484,7 +484,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
           : status === 'Insufficient Data'
             ? 'text-neutral-400'
             : 'text-blue-400';
-    const label = status === 'Insufficient Data' ? `Incomplete — ${filledCount}/12 set` : status;
+    const label = status === 'Insufficient Data' ? `Incomplete - ${filledCount}/12 set` : status;
     return { label, color };
   }, [computedMetrics.readiness.status, filledCount]);
 
@@ -586,7 +586,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
 
   return (
     <div className="space-y-6">
-      {/* Top Banner Header — sticky so live readiness/score stay visible while you fill in parameters.
+      {/* Top Banner Header - sticky so live readiness/score stay visible while you fill in parameters.
           Same visual language as AI Insights: icon badge, glow blob, motion entrance. */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
@@ -623,14 +623,14 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
             <div className="text-center">
               <span className="text-[10px] uppercase text-neutral-500 tracking-wider block font-bold">Bio-Focus Score</span>
               <span className={`text-xl font-bold mt-0.5 block ${statusInfoColor}`}>
-                {computedMetrics.readiness.score === null ? '—/100' : `${computedMetrics.readiness.score}/100`}
+                {computedMetrics.readiness.score === null ? '-/100' : `${computedMetrics.readiness.score}/100`}
               </span>
             </div>
           </div>
         </div>
       </motion.div>
 
-      {/* Daily Insight Engine — pure rule-based read on your parameters, no AI.
+      {/* Daily Insight Engine - pure rule-based read on your parameters, no AI.
           Any change clears the current insight and starts a 10-second settle
           timer; the timer resets on every further change, so a burst of
           edits produces exactly one consolidated insight once you actually
@@ -722,7 +722,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                         </div>
                         <div>
                           <span className="text-xl font-bold text-white">{wellbeingInsight.readiness.status}</span>
-                          <p className="text-[10px] text-neutral-500 mt-1 font-mono">Bio-Focus {wellbeingInsight.readiness.score ?? '—'}/100</p>
+                          <p className="text-[10px] text-neutral-500 mt-1 font-mono">Bio-Focus {wellbeingInsight.readiness.score ?? '-'}/100</p>
                         </div>
                       </div>
 
@@ -780,7 +780,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                       ))}
                     </div>
 
-                    {/* Trend — only shown once enough day-over-day history exists */}
+                    {/* Trend - only shown once enough day-over-day history exists */}
                     {wellbeingInsight.trend && (
                       <div className="max-w-7xl mx-auto flex items-center gap-2.5 p-3 rounded-xl bg-purple-950/15 border border-purple-900/30">
                         <TrendingUp className="h-3.5 w-3.5 text-purple-400 shrink-0" />
@@ -805,7 +805,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
         </div>
       </motion.div>
 
-      {/* Main Content Layout Grid — items-start lets the right side stick without stretching to match the (independently scrolling) parameters column */}
+      {/* Main Content Layout Grid - items-start lets the right side stick without stretching to match the (independently scrolling) parameters column */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
         
         {/* Left Column: Parameter Inputs */}
@@ -946,7 +946,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                           <span className="text-neutral-300">{item.label}</span>
                           <span className={`${displayColor} font-bold`}>{displayValue}</span>
                         </div>
-                        {/* One-tap value selector — tap a number to set it instantly, no dragging/repeated clicks */}
+                        {/* One-tap value selector - tap a number to set it instantly, no dragging/repeated clicks */}
                         <div className="flex items-center gap-1">
                           {Array.from({ length: 10 }, (_, i) => i + 1).map(n => {
                             const active = item.val === n;
@@ -975,7 +975,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
           </div>
         </div>
 
-        {/* Right side: Radar, Log History & Recommendations — sticky so the live view stays put while you fill in parameters on the left.
+        {/* Right side: Radar, Log History & Recommendations - sticky so the live view stays put while you fill in parameters on the left.
             Offset clears the app header+nav (top-28) plus the sticky banner's own height above it. */}
         <div className="space-y-6 xl:col-span-2 xl:sticky xl:top-[15rem] z-10">
           
@@ -1052,7 +1052,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
 
           </div>
 
-          {/* Daily History — browse previously archived days ("what was 10 days back") */}
+          {/* Daily History - browse previously archived days ("what was 10 days back") */}
           <div className="bg-neutral-900 border border-neutral-850 rounded-xl p-5 space-y-4 shadow-sm">
             <div className="flex items-center gap-2 border-b border-neutral-850 pb-3">
               <Calendar className="h-4 w-4 text-rose-400" />
@@ -1114,7 +1114,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                         </>
                       ) : (
                         <p className="text-neutral-500 font-sans leading-relaxed">
-                          This day was incomplete — {getMissingParamLabels(day).join(', ')} were never set.
+                          This day was incomplete - {getMissingParamLabels(day).join(', ')} were never set.
                         </p>
                       )}
                     </div>

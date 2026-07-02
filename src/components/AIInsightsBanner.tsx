@@ -1,9 +1,9 @@
 // ============================================================================
-// AI Insights Banner — live, animated "what should I do next" panel.
+// AI Insights Banner - live, animated "what should I do next" panel.
 //
 // PLACEHOLDER DATA NOTICE: the `PLACEHOLDER_INSIGHTS` array below is sample
 // content standing in for a future real AI integration. It is intentionally
-// NOT derived from real topics/activities yet — it exists so the visual
+// NOT derived from real topics/activities yet - it exists so the visual
 // design can be reviewed and polished before wiring the actual model call.
 // When the AI integration lands, replace `PLACEHOLDER_INSIGHTS` with the
 // model's structured response (same `Insight` shape) and delete this notice.
@@ -175,7 +175,7 @@ export default function AIInsightsBanner() {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      {/* Animated background glows — slow drifting blobs for a "living" feel */}
+      {/* Animated background glows - slow drifting blobs for a "living" feel */}
       <motion.div
         className="absolute -top-24 -left-16 w-72 h-72 rounded-full bg-blue-500/10 blur-3xl pointer-events-none"
         animate={{ x: [0, 40, -10, 0], y: [0, 20, 40, 0] }}
@@ -253,7 +253,7 @@ export default function AIInsightsBanner() {
           </div>
         </div>
 
-        {/* Headline insight — large, auto-rotating */}
+        {/* Headline insight - large, auto-rotating */}
         <div className="relative min-h-[148px]">
           <AnimatePresence mode="wait">
             <motion.div

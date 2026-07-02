@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 // Published per-1M-token USD rates for models this app calls. OpenAI's API
 // responses only ever return token counts, never a billed dollar amount, so
 // cost is always an estimate derived from real token counts against these
-// published rates — not a number OpenAI itself hands back.
+// published rates - not a number OpenAI itself hands back.
 const MODEL_PRICING_USD_PER_1M: Record<string, { input: number; output: number }> = {
   'gpt-4o-mini': { input: 0.15, output: 0.60 },
   'gpt-4o': { input: 2.5, output: 10 },
@@ -123,7 +123,7 @@ export interface RealAccountUsage {
 }
 
 // Fetches real, account-wide OpenAI spend for the current month-to-date via
-// OpenAI's Costs API. Requires an Admin API key configured server-side —
+// OpenAI's Costs API. Requires an Admin API key configured server-side -
 // distinct from the in-app token tracker, which only ever sees calls made
 // through this app.
 export async function fetchRealAccountUsage(): Promise<RealAccountUsage> {

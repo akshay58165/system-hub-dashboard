@@ -255,8 +255,8 @@ export default function VercelView({
       stuck,
       clock,
       message: overdue
-        ? 'DEADLINE BREACHED — COMPLETE THE REMAINING STAGES NOW'
-        : 'CRITICAL WINDOW — UTMOST ACTION REQUIRED',
+        ? 'DEADLINE BREACHED - COMPLETE THE REMAINING STAGES NOW'
+        : 'CRITICAL WINDOW - UTMOST ACTION REQUIRED',
     };
   };
 
@@ -737,7 +737,7 @@ export default function VercelView({
 
   return (
     <div className="space-y-6">
-      {/* Top header — matches the AI Insights design language */}
+      {/* Top header - matches the AI Insights design language */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -1027,7 +1027,7 @@ export default function VercelView({
                           <div className="flex items-center gap-1.5">
                             <AlertTriangle className="h-3 w-3 text-amber-400 shrink-0" />
                             <span className="text-[9px] font-bold text-amber-300">
-                              {urgency.daysOverdue}d overdue — decide what to do
+                              {urgency.daysOverdue}d overdue - decide what to do
                             </span>
                           </div>
                           <div className="flex flex-wrap gap-1.5">
