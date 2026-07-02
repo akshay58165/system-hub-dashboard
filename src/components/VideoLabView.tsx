@@ -36,6 +36,10 @@ interface UnifiedPost {
   dateStr: string;
   source: 'pipeline' | 'video';
   state: 'published' | 'scheduled';
+  time: string;
+  contentType: string;
+  revenueLevel: string;
+  priority?: number;
 }
 
 // Content types styling helper
@@ -58,6 +62,23 @@ const getFormatColor = (channel: 'LearnDriven' | 'DecodeWorthy', format: 'Short'
 
 const getFormatLabel = (channel: 'LearnDriven' | 'DecodeWorthy', format: 'Short' | 'Long' | 'Members'): string => {
   return `${channel} ${format}`;
+};
+
+const getContentPattern = (format: 'Short' | 'Long' | 'Members', contentType = '') => {
+  const normalized = contentType.toLowerCase();
+  if (/news|trend|update|current/.test(normalized)) return { backgroundImage: 'repeating-linear-gradient(135deg, transparent 0 9px, rgba(255,255,255,.14) 9px 11px)', backgroundSize: '18px 18px' };
+  if (/explain|educat|guide|how|practical/.test(normalized)) return { backgroundImage: 'linear-gradient(rgba(255,255,255,.09) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.09) 1px, transparent 1px)', backgroundSize: '16px 16px' };
+  if (/story|entertain|infotain|myth|curiosity/.test(normalized)) return { backgroundImage: 'radial-gradient(circle at 3px 3px, rgba(255,255,255,.2) 1.5px, transparent 1.6px)', backgroundSize: '12px 12px' };
+  if (format === 'Short') return { backgroundImage: 'repeating-linear-gradient(135deg, transparent 0 9px, rgba(255,255,255,.12) 9px 11px)', backgroundSize: '18px 18px' };
+  if (format === 'Long') return { backgroundImage: 'linear-gradient(rgba(255,255,255,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px)', backgroundSize: '16px 16px' };
+  return { backgroundImage: 'radial-gradient(circle at 3px 3px, rgba(255,255,255,.18) 1.5px, transparent 1.6px)', backgroundSize: '12px 12px' };
+};
+
+const displayTime = (value?: string) => {
+  if (!value) return 'Time not set';
+  if (/^\d{2}:\d{2}/.test(value)) return value.slice(0, 5);
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
 export default function VideoLabView({ 
@@ -114,7 +135,10 @@ export default function VideoLabView({
           format: v.format,
           dateStr: dateStr,
           source: 'video',
-          state: 'published'
+          state: 'published',
+          time: displayTime(v.publishTime || v.uploadDate),
+          contentType: v.contentType || v.category || 'Unclassified',
+          revenueLevel: v.tags?.revenuePotential || 'Not tagged'
         });
       }
     });
@@ -129,7 +153,11 @@ export default function VideoLabView({
           format: t.format || 'Long', // Default to Long if undefined
           dateStr: t.dueDate.split('T')[0],
           source: 'pipeline',
-          state: t.status === 'posted' ? 'published' : 'scheduled'
+          state: t.status === 'posted' ? 'published' : 'scheduled',
+          time: displayTime(t.postedAt || t.scheduledTime),
+          contentType: t.category || 'Unclassified',
+          revenueLevel: t.revenueLevel || 'Not tagged',
+          priority: t.priority
         });
       }
     });
@@ -295,7 +323,11 @@ export default function VideoLabView({
       scheduleStatus: 'completed',
       publishedStatus: 'completed',
       productionEffortHours: 2,
-      tags: []
+      tags: {
+        topicType: 'Simulation', hookType: 'Unspecified', contentStructure: 'Unspecified',
+        productionStyle: 'Unspecified', audienceIntent: 'Unspecified', difficulty: 'Unspecified',
+        evergreenPotential: 'Medium', revenuePotential: 'Medium', subscriberPotential: 'Medium', repeatability: 'Medium'
+      }
     };
 
     setVideos(prev => [mockRecord, ...prev]);
@@ -343,17 +375,22 @@ export default function VideoLabView({
       >
         {dayPosts.slice(0, 4).map((post) => {
           const color = getFormatColor(post.channelName, post.format);
+          const isSingle = count === 1;
           return (
             <div 
               key={post.id} 
-              style={{ backgroundColor: color }}
-              className="rounded-[2px] w-full h-full relative p-0.5 flex items-center justify-center overflow-hidden"
+              style={{ backgroundColor: color, ...getContentPattern(post.format, post.contentType) }}
+              className="rounded-[3px] w-full h-full relative overflow-hidden text-left"
               title={`${post.title} (${getFormatLabel(post.channelName, post.format)})`}
             >
               {!isYearly && (
-                <span className="text-[7px] leading-tight font-sans font-bold text-white/95 text-center truncate w-full px-0.5 select-none tracking-tight block">
-                  {post.title}
-                </span>
+                <div className={`absolute inset-0 flex flex-col bg-gradient-to-b from-black/5 via-black/20 to-black/70 ${isSingle ? 'justify-between p-3 pt-7' : 'justify-end p-1.5'}`}>
+                  {isSingle && <div className="flex items-center justify-between gap-1"><span className="rounded bg-black/35 px-1.5 py-0.5 text-[7px] font-bold uppercase text-white/85">{post.state}</span><span className="rounded bg-black/35 px-1.5 py-0.5 text-[7px] font-bold text-white/90">{post.time}</span></div>}
+                  <div>
+                    <div className={`${isSingle ? 'text-[12px] leading-[1.15]' : 'text-[8px] leading-tight'} line-clamp-2 font-sans font-extrabold text-white drop-shadow-md`}>{post.title}</div>
+                    {isSingle && <div className="mt-2 flex flex-wrap gap-1"><span className="rounded border border-white/15 bg-black/35 px-1.5 py-0.5 text-[7px] font-bold uppercase text-white/85">{post.contentType}</span><span className="rounded border border-white/15 bg-black/35 px-1.5 py-0.5 text-[7px] font-bold uppercase text-white/85">Revenue {post.revenueLevel}</span><span className="rounded border border-white/15 bg-black/35 px-1.5 py-0.5 text-[7px] font-bold uppercase text-white/85">{post.format}</span></div>}
+                  </div>
+                </div>
               )}
             </div>
           );
@@ -870,13 +907,14 @@ export default function VideoLabView({
                         return (
                           <div 
                             key={post.id}
-                            className="bg-zinc-900/30 border border-zinc-900 rounded-lg p-3 space-y-2 relative overflow-hidden"
+                            className="border border-zinc-900 rounded-lg p-3 space-y-3 relative overflow-hidden"
+                            style={{ backgroundColor: `${color}12`, ...getContentPattern(post.format, post.contentType) }}
                           >
                             {/* Color strip */}
                             <div className="absolute top-0 left-0 bottom-0 w-1" style={{ backgroundColor: color }} />
                             
                             <div className="flex justify-between items-start pl-2">
-                              <span className="text-[10px] font-bold text-white tracking-tight line-clamp-2 pr-4">{post.title}</span>
+                              <span className="text-sm font-bold text-white tracking-tight leading-tight line-clamp-2 pr-4">{post.title}</span>
                               {post.source === 'video' ? (
                                 <button 
                                   onClick={() => handleDeletePost(post)}
@@ -900,7 +938,11 @@ export default function VideoLabView({
                               <span className="px-1.5 py-0.2 bg-zinc-900 text-zinc-400 border border-zinc-850 rounded text-[8px]">
                                 {post.format}
                               </span>
+                              <span className="px-1.5 py-0.2 bg-zinc-950/80 text-zinc-300 border border-zinc-800 rounded text-[8px]">{post.contentType}</span>
+                              <span className="px-1.5 py-0.2 bg-amber-950/40 text-amber-300 border border-amber-900/40 rounded text-[8px]">Revenue {post.revenueLevel}</span>
+                              {post.priority && <span className="px-1.5 py-0.2 bg-rose-950/40 text-rose-300 border border-rose-900/40 rounded text-[8px]">Priority {post.priority}</span>}
                             </div>
+                            <div className="flex items-center justify-between border-t border-white/5 pt-2 pl-2 text-[8px] uppercase text-zinc-500"><span>{post.state}</span><span className="font-bold text-zinc-300">{post.time}</span></div>
                           </div>
                         );
                       })}
@@ -958,6 +1000,15 @@ export default function VideoLabView({
                   </div>
                 </div>
               </div>
+
+              <div className="space-y-2 border-t border-zinc-900 pt-3">
+                <span className="text-[9px] text-zinc-500 font-bold uppercase block tracking-wider">Content patterns</span>
+                {[
+                  { label: 'News / trends', format: 'Short' as const, type: 'News update' },
+                  { label: 'Explainers / guides', format: 'Long' as const, type: 'Practical explainer' },
+                  { label: 'Stories / infotainment', format: 'Members' as const, type: 'Infotainment story' }
+                ].map(item => <div key={item.label} className="flex items-center gap-2"><div className="h-3 w-5 rounded-[2px] bg-indigo-700" style={getContentPattern(item.format, item.type)} /><span className="text-[9px] text-zinc-400">{item.label}</span></div>)}
+              </div>
             </div>
           </div>
 
@@ -995,7 +1046,8 @@ export default function VideoLabView({
                       <span className="text-[8px] font-bold uppercase" style={{ color }}>{post.channelName}</span>
                       <span className="text-[8px] text-zinc-600 bg-zinc-900 border border-zinc-850 px-1 rounded-sm">{post.format}</span>
                     </div>
-                    <p className="text-white leading-normal pl-3 font-semibold line-clamp-2">{post.title}</p>
+                    <p className="text-white text-[11px] leading-normal pl-3 font-semibold line-clamp-2">{post.title}</p>
+                    <div className="flex flex-wrap gap-1 pl-3 text-[7px] uppercase text-zinc-500"><span>{post.time}</span><span>-</span><span>{post.contentType}</span><span>-</span><span className="text-amber-400">Revenue {post.revenueLevel}</span></div>
                   </div>
                 );
               })}
