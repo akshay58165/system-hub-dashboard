@@ -133,6 +133,7 @@ export default function SupabaseView({
   const [isSavingPreset, setIsSavingPreset] = useState(false);
   const [presetNameDraft, setPresetNameDraft] = useState('');
   const [isPresetDropdownOpen, setIsPresetDropdownOpen] = useState(false);
+  const [findSourcesMode, setFindSourcesMode] = useState(false);
   const [budgetDraft, setBudgetDraft] = useState<string>(aiUsage.budgetUSD !== null ? String(aiUsage.budgetUSD) : '');
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [realUsage, setRealUsage] = useState<RealAccountUsage | null>(null);
@@ -388,15 +389,13 @@ ${task}`;
 
   // Source-finding needs a live web search (a different API call than a plain
   // completion) to verify real URLs, so one button still has to pick between
-  // the two actions. Routed by keywords in the instruction rather than a
-  // separate control, per explicit choice over the toggle alternative.
-  const SOURCE_KEYWORDS = ['source', 'citation', 'cite', 'verify', 'reference', 'link'];
-
+  // the two actions. Keyword-sniffing the instruction text turned out
+  // unreliable in practice (a preset's own wording can innocently contain a
+  // trigger word like "link" or "source" and misfire) — routed by the
+  // explicit findSourcesMode toggle instead.
   const handleGetResponse = async () => {
     if (!selectedScriptTopicId) return;
-    const instruction = customInstruction.trim().toLowerCase();
-    const wantsSources = SOURCE_KEYWORDS.some(keyword => instruction.includes(keyword));
-    if (wantsSources && scriptText.trim()) {
+    if (findSourcesMode && scriptText.trim()) {
       await handleFindSources();
     } else {
       await handleTriggerAI();
@@ -1192,15 +1191,30 @@ ${task}`;
                       />
                     </div>
 
-                    {/* AI Quick Trigger — single action, routed by the instruction's own wording */}
-                    <div className="flex items-center gap-2 shrink-0">
+                    {/* AI Quick Trigger — single action, mode picked explicitly by the toggle */}
+                    <div className="flex items-center gap-3 shrink-0">
+                      <label
+                        title={!scriptText.trim() ? 'Write or paste a script first to find sources for it' : 'Verify real sources for the current script instead of generating/rewriting it'}
+                        className={`flex items-center gap-1.5 text-[9px] font-mono uppercase select-none ${!scriptText.trim() ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer text-neutral-400 hover:text-neutral-200'}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={findSourcesMode}
+                          disabled={!scriptText.trim()}
+                          onChange={(e) => setFindSourcesMode(e.target.checked)}
+                          className="accent-blue-500 cursor-pointer"
+                        />
+                        Find Sources
+                      </label>
                       <button
                         onClick={handleGetResponse}
                         disabled={isAiLoading || isSourcesLoading || !selectedScriptTopicId}
-                        title="Runs the preset or typed instruction above. Mentions of 'source'/'citation'/'verify'/'reference'/'link' route to real source-verification instead of text generation."
-                        className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-black font-mono font-bold text-[10px] rounded transition cursor-pointer flex items-center gap-1"
+                        title={findSourcesMode ? 'Find real, verified sources for the current script' : 'Runs the preset or typed instruction above to generate/rewrite the script'}
+                        className={`px-3 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed font-mono font-bold text-[10px] rounded transition cursor-pointer flex items-center gap-1 ${
+                          findSourcesMode ? 'bg-blue-500 hover:bg-blue-600 text-black' : 'bg-emerald-500 hover:bg-emerald-600 text-black'
+                        }`}
                       >
-                        {isSourcesLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                        {(isAiLoading || isSourcesLoading) ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                         <span>Get Response</span>
                       </button>
                     </div>
