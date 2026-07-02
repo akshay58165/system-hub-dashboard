@@ -9,6 +9,10 @@ const REDIRECT_URI = `${APP_URL}/api/youtube-auth-callback`;
 const SCOPES = [
   'https://www.googleapis.com/auth/yt-analytics-monetary.readonly',
   'https://www.googleapis.com/auth/yt-analytics.readonly',
+  // Required for the real current total subscriber count (YouTube Data API
+  // v3 channels.list), a different permission than the Analytics scopes
+  // above — Google requires separate consent for it.
+  'https://www.googleapis.com/auth/youtube.readonly',
 ].join(' ');
 
 // Builds the Google consent URL and immediately navigates to it. `state`

@@ -123,13 +123,23 @@ export default async function handler(request, response) {
       metrics: 'subscribersGained,subscribersLost',
     });
 
-    const [analyticsResponse, subsResponse] = await Promise.all([
+    // Total current subscriber count is a YouTube Data API v3 concept
+    // (channels.list statistics), not an Analytics metric — needs the
+    // youtube.readonly scope. Fetched best-effort: if the connected token
+    // predates this scope being requested, this call alone fails with 401/403
+    // and subscriberCount is simply omitted rather than shown as fake.
+    const channelStatsRequest = fetch('https://www.googleapis.com/youtube/v3/channels?part=statistics&mine=true', {
+      headers: { Authorization: `Bearer ${liveAccessToken}` },
+    });
+
+    const [analyticsResponse, subsResponse, channelStatsResponse] = await Promise.all([
       fetch(`https://youtubeanalytics.googleapis.com/v2/reports?${analyticsParams.toString()}`, {
         headers: { Authorization: `Bearer ${liveAccessToken}` },
       }),
       fetch(`https://youtubeanalytics.googleapis.com/v2/reports?${subsParams.toString()}`, {
         headers: { Authorization: `Bearer ${liveAccessToken}` },
       }),
+      channelStatsRequest,
     ]);
 
     if (!analyticsResponse.ok) {
@@ -164,12 +174,23 @@ export default async function handler(request, response) {
       console.error(`YouTube subscribers query failed (non-fatal, ${subsResponse.status}): ${errBody}`);
     }
 
+    let subscriberCount;
+    if (channelStatsResponse.ok) {
+      const channelStatsData = await channelStatsResponse.json();
+      const rawCount = channelStatsData.items?.[0]?.statistics?.subscriberCount;
+      if (rawCount !== undefined) subscriberCount = Number(rawCount);
+    } else {
+      const errBody = await channelStatsResponse.text().catch(() => '');
+      console.error(`YouTube channel stats query failed (non-fatal, ${channelStatsResponse.status}): ${errBody}`);
+    }
+
     return sendJson(response, 200, {
       connected: true,
       channelTitle: tokenRow.channel_title || undefined,
       revenue,
       currency: 'INR',
       subscribersNetGained,
+      subscriberCount,
       periodStart: monthStart.toISOString(),
       periodEnd: now.toISOString(),
       fetchedAt: now.toISOString(),

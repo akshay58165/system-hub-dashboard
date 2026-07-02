@@ -370,14 +370,20 @@ export default function CommandCenterView({
                   {!youtubeRevenue || isLoadingYoutube ? (
                     <span className="text-xs text-[#777777] font-mono">{isLoadingYoutube ? 'Loading…' : 'Checking connection…'}</span>
                   ) : youtubeRevenue.connected ? (
-                    youtubeRevenue.subscribersNetGained === undefined ? (
-                      <span className="text-[10px] text-amber-400 font-mono leading-snug block">Subscriber data unavailable</span>
+                    youtubeRevenue.subscriberCount === undefined ? (
+                      <span className="text-[10px] text-amber-400 font-mono leading-snug block">
+                        Total count needs one more permission — reconnect via the YouTube control in the header.
+                      </span>
                     ) : (
                       <>
                         <span className="text-xl font-bold tracking-tight text-white block">
-                          {youtubeRevenue.subscribersNetGained >= 0 ? '+' : ''}{youtubeRevenue.subscribersNetGained.toLocaleString()}
+                          {youtubeRevenue.subscriberCount.toLocaleString()}
                         </span>
-                        <span className="text-[9px] text-[#aaaaaa] block mt-0.5 font-mono">Real • Net Gained MTD</span>
+                        <span className="text-[9px] text-[#aaaaaa] block mt-0.5 font-mono">
+                          Real • Total{youtubeRevenue.subscribersNetGained !== undefined
+                            ? ` • ${youtubeRevenue.subscribersNetGained >= 0 ? '+' : ''}${youtubeRevenue.subscribersNetGained.toLocaleString()} MTD`
+                            : ''}
+                        </span>
                       </>
                     )
                   ) : (
