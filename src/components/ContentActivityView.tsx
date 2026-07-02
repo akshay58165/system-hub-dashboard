@@ -16,12 +16,17 @@ interface ContentActivityViewProps {
   onShowBacklog: () => void;
 }
 
+const activityTime = (activity: TopicActivity) => {
+  const parsed = Date.parse(activity.timestamp);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 export default function ContentActivityView({ activities, topics, onShowBacklog }: ContentActivityViewProps) {
   const [search, setSearch] = useState('');
   const [channelFilter, setChannelFilter] = useState<string>('all');
 
   const filtered = useMemo(() => {
-    return activities.filter(act => {
+    const result = activities.filter(act => {
       const q = search.toLowerCase();
       const matchesSearch =
         !q ||
@@ -30,6 +35,13 @@ export default function ContentActivityView({ activities, topics, onShowBacklog 
         act.author.toLowerCase().includes(q);
       const matchesChannel = channelFilter === 'all' || act.channel === channelFilter;
       return matchesSearch && matchesChannel;
+    });
+
+    // Always show the newest action first. ID provides deterministic ordering
+    // when multiple actions share the same timestamp or an old timestamp is invalid.
+    return [...result].sort((a, b) => {
+      const timestampDifference = activityTime(b) - activityTime(a);
+      return timestampDifference !== 0 ? timestampDifference : b.id.localeCompare(a.id);
     });
   }, [activities, search, channelFilter]);
 
