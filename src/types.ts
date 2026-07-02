@@ -172,6 +172,9 @@ export interface TopicActivity {
   action: string;
   author: string;
   timestamp: string;
+  topicId?: string;
+  targetTab?: 'pipeline' | 'topics' | 'actionhub';
+  targetSubView?: 'videos' | 'topics';
 }
 
 export interface CycleGoal {

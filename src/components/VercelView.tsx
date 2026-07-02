@@ -877,6 +877,7 @@ export default function VercelView({
                   return (
                     <div
                       key={topic.id}
+                      id={`topic-control-${topic.id}`}
                       className="p-2.5 bg-neutral-900/40 border border-neutral-850 rounded-lg space-y-2 font-mono text-[10px]"
                     >
                       <div className="flex justify-between items-start gap-2">

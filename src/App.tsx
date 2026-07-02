@@ -180,6 +180,21 @@ export default function App() {
       if (auditChanges.length > 0) {
         const activityIdsBeforeMutation = new Set(activitiesRef.current.map(activity => activity.id));
         queueMicrotask(() => {
+          const newlyAddedForTopic = (topicName: string) => activitiesRef.current.find(activity =>
+            !activityIdsBeforeMutation.has(activity.id) && activity.topicName === topicName
+          );
+          const entriesNeedingTargets = auditChanges
+            .map(change => ({ change, activity: newlyAddedForTopic(change.topic.name) }))
+            .filter(entry => entry.activity && !entry.activity.topicId);
+          if (entriesNeedingTargets.length > 0) {
+            const targets = new Map(entriesNeedingTargets.map(entry => [entry.activity!.id, entry.change.topic.id]));
+            setActivities(current => current.map(activity => targets.has(activity.id) ? {
+              ...activity,
+              topicId: targets.get(activity.id),
+              targetTab: 'pipeline',
+              targetSubView: 'topics'
+            } : activity));
+          }
           const missing = auditChanges.filter(change => !activitiesRef.current.some(activity =>
             !activityIdsBeforeMutation.has(activity.id) && activity.topicName === change.topic.name
           ));
@@ -199,7 +214,10 @@ export default function App() {
               channel: change.topic.channel,
               action,
               author: 'typeakshay',
-              timestamp: changedAt
+              timestamp: changedAt,
+              topicId: change.topic.id,
+              targetTab: 'pipeline',
+              targetSubView: 'topics'
             };
           });
           setActivities(current => [...generated, ...current]);
@@ -425,6 +443,28 @@ export default function App() {
   const addEvent = (evt: SystemEvent) => {
     setEvents(prev => [evt, ...prev].slice(0, 200));
     setLastDbUpdateTime(new Date());
+  };
+
+  const navigateToActivity = (activity: TopicActivity) => {
+    const topic = topics.find(item => item.id === activity.topicId || item.name === activity.topicName);
+    const video = videos.find(item => item.id === activity.topicId || item.title === activity.topicName);
+    const targetSubView = activity.targetSubView || (topic ? 'topics' : 'videos');
+    const targetId = targetSubView === 'topics'
+      ? `topic-control-${activity.topicId || topic?.id || ''}`
+      : `pipeline-video-${activity.topicId || video?.id || ''}`;
+
+    setActiveTab(activity.targetTab || 'pipeline');
+    setPipelineSubView(targetSubView);
+    window.setTimeout(() => {
+      const element = document.getElementById(targetId);
+      if (!element) return;
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      element.animate([
+        { boxShadow: '0 0 0 1px rgba(56,189,248,.25), 0 0 0 rgba(56,189,248,0)' },
+        { boxShadow: '0 0 0 2px rgba(56,189,248,.9), 0 0 28px rgba(56,189,248,.35)' },
+        { boxShadow: '0 0 0 1px rgba(56,189,248,.15), 0 0 0 rgba(56,189,248,0)' }
+      ], { duration: 1600, easing: 'ease-out' });
+    }, 250);
   };
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
   const [logsSubView, setLogsSubView] = useState<'content' | 'backlog' | 'tables'>('content');
@@ -1832,6 +1872,7 @@ export default function App() {
                     activities={activities}
                     topics={topics}
                     onShowBacklog={() => setLogsSubView('backlog')}
+                    onNavigateActivity={navigateToActivity}
                   />
                 )}
                 

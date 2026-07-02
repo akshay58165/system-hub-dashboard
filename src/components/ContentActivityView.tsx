@@ -14,6 +14,7 @@ interface ContentActivityViewProps {
   activities: TopicActivity[];
   topics: Topic[];
   onShowBacklog: () => void;
+  onNavigateActivity: (activity: TopicActivity) => void;
 }
 
 const activityTime = (activity: TopicActivity) => {
@@ -21,7 +22,7 @@ const activityTime = (activity: TopicActivity) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-export default function ContentActivityView({ activities, topics, onShowBacklog }: ContentActivityViewProps) {
+export default function ContentActivityView({ activities, topics, onShowBacklog, onNavigateActivity }: ContentActivityViewProps) {
   const [search, setSearch] = useState('');
   const [channelFilter, setChannelFilter] = useState<string>('all');
 
@@ -157,7 +158,14 @@ export default function ContentActivityView({ activities, topics, onShowBacklog 
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.15 }}
-                    className="p-3 bg-neutral-900/20 border border-neutral-900 rounded-lg flex items-start gap-3 hover:bg-neutral-900/40 transition text-xs font-mono"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => onNavigateActivity(act)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') onNavigateActivity(act);
+                    }}
+                    title="Open this activity in its workspace"
+                    className="p-3 bg-neutral-900/20 border border-neutral-900 rounded-lg flex items-start gap-3 hover:bg-neutral-900/40 hover:border-blue-900/40 transition text-xs font-mono cursor-pointer focus:outline-none focus:border-blue-700"
                   >
                     <div className="mt-0.5">
                       <Youtube className={`h-4 w-4 ${isLD ? 'text-blue-400' : 'text-emerald-400'}`} />

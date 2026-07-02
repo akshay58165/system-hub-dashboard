@@ -110,7 +110,10 @@ export default function PipelineView({
             channel: v.channelName,
             action: `Advanced pipeline stage from ${v.pipelineStage} to ${nextStage}`,
             author: 'typeakshay',
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            topicId: v.id,
+            targetTab: 'pipeline',
+            targetSubView: 'videos'
           }, ...current]);
 
           return { ...v, ...updated };
@@ -164,7 +167,10 @@ export default function PipelineView({
           channel: v.channelName,
           action: `Moved pipeline stage from ${v.pipelineStage} to ${targetStage}`,
           author: 'typeakshay',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          topicId: v.id,
+          targetTab: 'pipeline',
+          targetSubView: 'videos'
         }, ...current]);
 
         return { ...v, ...updated };
@@ -465,6 +471,7 @@ export default function PipelineView({
                     <motion.div
                       layout
                       key={video.id}
+                      id={`pipeline-video-${video.id}`}
                       draggable={true}
                       onDragStart={(e) => {
                         e.dataTransfer.setData('text/plain', video.id);
