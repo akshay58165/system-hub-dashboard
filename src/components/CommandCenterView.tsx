@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { 
   ChevronDown, 
@@ -17,7 +17,8 @@ import {
   Brain,
   Sparkles,
   Shield,
-  ActivitySquare
+  ActivitySquare,
+  RotateCcw
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -29,7 +30,8 @@ import {
   BarChart,
   Bar
 } from 'recharts';
-import { VideoRecord, Experiment, CreatorInsight, CycleGoal } from '../types';
+import { VideoRecord, Experiment, CreatorInsight, CycleGoal, YoutubeRevenueData } from '../types';
+import { fetchYoutubeRevenue, startYoutubeAuth, disconnectYoutube } from '../services/youtube';
 
 interface CommandCenterViewProps {
   videos: VideoRecord[];
@@ -68,12 +70,61 @@ export default function CommandCenterView({
   setSelectedVideoId
 }: CommandCenterViewProps) {
   const [activeSubTab, setActiveSubTab] = useState<'Overview' | 'Content' | 'Audience' | 'Revenue' | 'Trends'>('Overview');
-  const [selectedMetric, setSelectedMetric] = useState<'views' | 'watchtime' | 'subs' | 'revenue'>('views');
+  const [selectedMetric, setSelectedMetric] = useState<'views' | 'watchtime' | 'subs'>('views');
   const live48hViews: number | null = null;
   const live48hBars: number[] | null = null;
   const liveReportedThrough: string | null = null;
   const liveRefreshError = false;
-  const youtubeAccessToken: string | undefined = undefined;
+
+  // Real revenue from YouTube's own Analytics API — never a formula guess.
+  // Connection state and the actual number both come from api/youtube-revenue.js.
+  const [youtubeRevenue, setYoutubeRevenue] = useState<YoutubeRevenueData | null>(null);
+  const [isLoadingRevenue, setIsLoadingRevenue] = useState(false);
+  const [revenueError, setRevenueError] = useState<string | null>(null);
+  const [isConnectingYoutube, setIsConnectingYoutube] = useState(false);
+  const [isDisconnectingYoutube, setIsDisconnectingYoutube] = useState(false);
+  const youtubeAccessToken = youtubeRevenue?.connected ? 'connected' : undefined;
+
+  const loadYoutubeRevenue = React.useCallback(async () => {
+    setIsLoadingRevenue(true);
+    setRevenueError(null);
+    try {
+      const result = await fetchYoutubeRevenue();
+      setYoutubeRevenue(result);
+      if (result.connected && result.error) setRevenueError(result.error);
+    } catch (err: any) {
+      setRevenueError(err.message || 'Failed to fetch YouTube revenue.');
+    } finally {
+      setIsLoadingRevenue(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadYoutubeRevenue();
+  }, [loadYoutubeRevenue]);
+
+  const handleConnectYoutube = async () => {
+    setIsConnectingYoutube(true);
+    try {
+      await startYoutubeAuth();
+    } catch (err: any) {
+      setRevenueError(err.message || 'Failed to start YouTube connection.');
+      setIsConnectingYoutube(false);
+    }
+  };
+
+  const handleDisconnectYoutube = async () => {
+    if (!window.confirm('Disconnect this YouTube channel? Revenue will stop updating until reconnected.')) return;
+    setIsDisconnectingYoutube(true);
+    try {
+      await disconnectYoutube();
+      setYoutubeRevenue({ connected: false });
+    } catch (err: any) {
+      setRevenueError(err.message || 'Failed to disconnect YouTube.');
+    } finally {
+      setIsDisconnectingYoutube(false);
+    }
+  };
 
   // 1. Calculate live metrics
   const totalViewsSum = useMemo(() => {
@@ -97,18 +148,7 @@ export default function CommandCenterView({
     }, 0);
   }, [videos]);
 
-  const totalRevenue = useMemo(() => {
-    return videos.reduce((sum, v) => {
-      const views = v.metrics?.lifetimeViews || 0;
-      const rpm = v.format === 'Short' ? 15 : v.format === 'Members' ? 450 : 300;
-      return sum + (views * rpm) / 1000;
-    }, 0);
-  }, [videos]);
-
-  const formatMetricValue = (val: number, type: 'views' | 'watchtime' | 'subs' | 'revenue') => {
-    if (type === 'revenue') {
-      return `₹${Math.round(val).toLocaleString()}`;
-    }
+  const formatMetricValue = (val: number, type: 'views' | 'watchtime' | 'subs') => {
     if (val >= 1000000) {
       return `${(val / 1000000).toFixed(1)}M`;
     }
@@ -127,14 +167,12 @@ export default function CommandCenterView({
       const views = v.metrics?.lifetimeViews || 0;
       const watchtime = Math.round((views * (v.duration || 0) * ((v.metrics?.averagePercentageViewed || 50) / 100)) / 3600);
       const subs = Math.round((views * (v.metrics?.subscribersGainedPer1kViews || 5)) / 1000);
-      const revenue = Math.round((views * (v.format === 'Short' ? 15 : v.format === 'Members' ? 450 : 300)) / 1000);
 
       return {
         date: dateLabel,
         views,
         watchtime,
         subs,
-        revenue,
         hasShort: v.format === 'Short',
         hasVideo: v.format !== 'Short'
       };
@@ -381,18 +419,60 @@ export default function CommandCenterView({
                 </div>
               </button>
 
-              <button 
-                onClick={() => setSelectedMetric('revenue')}
-                className={`p-3.5 text-left flex flex-col justify-between transition-colors ${selectedMetric === 'revenue' ? 'bg-[#161616]' : 'hover:bg-[#161616]/40'}`}
-              >
-                <span className="text-[10px] text-[#aaaaaa] font-semibold tracking-wide uppercase">Est. Revenue</span>
-                <div className="mt-2.5">
-                  <span className="text-xl font-bold tracking-tight text-white block">
-                    {formatMetricValue(totalRevenue, 'revenue')}
-                  </span>
-                  <span className="text-[9px] text-[#aaaaaa] block mt-0.5 font-mono">INR Base</span>
+              <div className="p-3.5 text-left flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-[#aaaaaa] font-semibold tracking-wide uppercase">Revenue (MTD)</span>
+                  {youtubeRevenue?.connected && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={loadYoutubeRevenue}
+                        disabled={isLoadingRevenue}
+                        title="Refresh from YouTube"
+                        className="text-[#666] hover:text-cyan-400 disabled:opacity-40 transition"
+                      >
+                        <RotateCcw className={`h-3 w-3 ${isLoadingRevenue ? 'animate-spin' : ''}`} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDisconnectYoutube}
+                        disabled={isDisconnectingYoutube}
+                        title="Disconnect this YouTube channel"
+                        className="text-[9px] font-mono text-[#666] hover:text-rose-400 disabled:opacity-40 transition"
+                      >
+                        Disconnect
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </button>
+                <div className="mt-2.5">
+                  {!youtubeRevenue || isLoadingRevenue ? (
+                    <span className="text-xs text-[#777777] font-mono">{isLoadingRevenue ? 'Loading…' : 'Checking connection…'}</span>
+                  ) : youtubeRevenue.connected ? (
+                    revenueError ? (
+                      <span className="text-[10px] text-amber-400 font-mono leading-snug block">{revenueError}</span>
+                    ) : (
+                      <>
+                        <span className="text-xl font-bold tracking-tight text-white block">
+                          ₹{Math.round(youtubeRevenue.revenue || 0).toLocaleString()}
+                        </span>
+                        <span className="text-[9px] text-[#aaaaaa] block mt-0.5 font-mono">
+                          Real • YouTube Analytics{youtubeRevenue.channelTitle ? ` • ${youtubeRevenue.channelTitle}` : ''}
+                        </span>
+                      </>
+                    )
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleConnectYoutube}
+                      disabled={isConnectingYoutube}
+                      className="text-xs font-bold text-cyan-400 hover:text-cyan-300 disabled:opacity-40 transition"
+                    >
+                      {isConnectingYoutube ? 'Redirecting…' : 'Connect YouTube →'}
+                    </button>
+                  )}
+                </div>
+              </div>
 
             </div>
 

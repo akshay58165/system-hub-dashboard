@@ -172,6 +172,27 @@ export default function App() {
     if (callback.get('state') === 'youtube_oauth') {
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
     }
+
+    // api/youtube-auth-callback.js redirects back here with ?youtube=<status>
+    // after the OAuth flow completes (or fails) — surface it once, then
+    // strip the param so a refresh doesn't re-show the same event.
+    const query = new URLSearchParams(window.location.search);
+    const youtubeStatus = query.get('youtube');
+    if (youtubeStatus) {
+      const isSuccess = youtubeStatus === 'connected';
+      addEvent({
+        id: `evt-youtube-oauth-${Date.now()}`,
+        source: 'system',
+        type: isSuccess ? 'success' : 'error',
+        message: isSuccess
+          ? 'YouTube Analytics: Channel connected successfully.'
+          : `YouTube Analytics: Connection failed (${youtubeStatus}).`,
+        timestamp: new Date().toISOString()
+      });
+      query.delete('youtube');
+      const remaining = query.toString();
+      window.history.replaceState(null, '', window.location.pathname + (remaining ? `?${remaining}` : ''));
+    }
   }, []);
 
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);

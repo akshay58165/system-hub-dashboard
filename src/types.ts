@@ -360,6 +360,16 @@ export interface AiUsageStats {
   cycleStartedAt: string;
 }
 
+export interface YoutubeRevenueData {
+  connected: boolean;
+  channelTitle?: string;
+  revenue?: number;
+  currency?: string;
+  periodStart?: string;
+  periodEnd?: string;
+  fetchedAt?: string;
+}
+
 export interface MonthForecast {
   expectedViews: number;
   expectedSubscribers: number;
