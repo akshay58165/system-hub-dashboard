@@ -384,11 +384,11 @@ export default function VideoLabView({
               title={`${post.title} (${getFormatLabel(post.channelName, post.format)})`}
             >
               {!isYearly && (
-                <div className={`absolute inset-0 flex flex-col bg-gradient-to-b from-black/5 via-black/20 to-black/70 ${isSingle ? 'justify-between p-3 pt-7' : 'justify-end p-1.5'}`}>
-                  {isSingle && <div className="flex items-center justify-between gap-1"><span className="rounded bg-black/35 px-1.5 py-0.5 text-[7px] font-bold uppercase text-white/85">{post.state}</span><span className="rounded bg-black/35 px-1.5 py-0.5 text-[7px] font-bold text-white/90">{post.time}</span></div>}
+                <div className={`absolute inset-0 flex min-w-0 flex-col bg-gradient-to-b from-black/5 via-black/20 to-black/70 ${isSingle ? 'justify-between p-2.5 pt-7' : 'justify-end p-1.5'}`}>
+                  {isSingle && <div className="flex min-w-0 items-center justify-between gap-1"><span className="min-w-0 truncate rounded bg-black/40 px-1.5 py-0.5 text-[6px] font-bold uppercase text-white/85">{post.state}</span><span className="shrink-0 whitespace-nowrap rounded bg-black/40 px-1.5 py-0.5 text-[6px] font-bold text-white/90">{post.time}</span></div>}
                   <div>
                     <div className={`${isSingle ? 'text-[12px] leading-[1.15]' : 'text-[8px] leading-tight'} line-clamp-2 font-sans font-extrabold text-white drop-shadow-md`}>{post.title}</div>
-                    {isSingle && <div className="mt-2 flex flex-wrap gap-1"><span className="rounded border border-white/15 bg-black/35 px-1.5 py-0.5 text-[7px] font-bold uppercase text-white/85">{post.contentType}</span><span className="rounded border border-white/15 bg-black/35 px-1.5 py-0.5 text-[7px] font-bold uppercase text-white/85">Revenue {post.revenueLevel}</span><span className="rounded border border-white/15 bg-black/35 px-1.5 py-0.5 text-[7px] font-bold uppercase text-white/85">{post.format}</span></div>}
+                    {isSingle && <div className="mt-2 grid min-w-0 grid-cols-2 gap-1"><span title={post.contentType} className="col-span-2 truncate rounded border border-white/15 bg-black/40 px-1.5 py-0.5 text-[6px] font-bold uppercase text-white/85">{post.contentType}</span><span title={`Revenue ${post.revenueLevel}`} className="truncate rounded border border-white/15 bg-black/40 px-1.5 py-0.5 text-[6px] font-bold uppercase text-white/85">Revenue {post.revenueLevel}</span><span className="truncate rounded border border-white/15 bg-black/40 px-1.5 py-0.5 text-right text-[6px] font-bold uppercase text-white/85">{post.format}</span></div>}
                   </div>
                 </div>
               )}
@@ -490,10 +490,10 @@ export default function VideoLabView({
       </section>
 
       {/* Grid Display Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
         
         {/* Left Side: Matrix Renderer (3 columns) */}
-        <div className="lg:col-span-3 space-y-6 bg-zinc-950/40 border border-zinc-900/80 rounded-xl p-6">
+        <div className="min-w-0 space-y-6 bg-zinc-950/40 border border-zinc-900/80 rounded-xl p-4 sm:p-6">
           
           {/* Matrix Header Navigation */}
           <div className="flex items-center justify-between pb-4 border-b border-zinc-900">
@@ -691,7 +691,8 @@ export default function VideoLabView({
 
           {/* VIEW: CALENDAR */}
           {viewMode === 'calendar' && (
-            <div className="space-y-4">
+            <div className="overflow-x-auto pb-2">
+              <div className="min-w-[840px] space-y-4">
               <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
                 <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
               </div>
@@ -724,6 +725,7 @@ export default function VideoLabView({
                     </div>
                   );
                 })}
+              </div>
               </div>
             </div>
           )}
@@ -874,7 +876,7 @@ export default function VideoLabView({
         </div>
 
         {/* Right Side: Day Details & Interactive Feed Monitor (1 column) */}
-        <div className="space-y-6">
+        <div className="grid gap-6 xl:grid-cols-2 2xl:block 2xl:space-y-6">
           
           {/* Day Feed panel */}
           <div className="bg-zinc-950 border border-zinc-900 rounded-xl p-5 shadow-lg space-y-4">
