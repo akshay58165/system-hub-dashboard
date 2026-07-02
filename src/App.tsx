@@ -177,6 +177,134 @@ export default function App() {
   const [experiments, setExperiments] = useState<Experiment[]>(initialExperiments);
   const [insights, setInsights] = useState<CreatorInsight[]>(initialCreatorInsights);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
+
+  // Bidirectional Synchronization between topics and videos
+  useEffect(() => {
+    // 1. Synchronize topics into videos
+    setVideos(prevVideos => {
+      let changed = false;
+      const nextVideos = [...prevVideos];
+
+      // Remove videos that are deleted in tombstones
+      const deletedIds = new Set(Object.keys(topicTombstonesRef.current));
+      const filteredVideos = nextVideos.filter(v => {
+        if (deletedIds.has(v.id)) {
+          changed = true;
+          return false;
+        }
+        return true;
+      });
+
+      const videoMap = new Map(filteredVideos.map(v => [v.id, v]));
+
+      topics.forEach(t => {
+        const v = videoMap.get(t.id);
+        
+        // Map Topic status to Video pipelineStage
+        let stage: 'Topic' | 'Script' | 'Shoot' | 'Edit' | 'Thumbnail' | 'Schedule' | 'Published' = 'Topic';
+        if (t.status === 'scripted') stage = 'Script';
+        else if (t.status === 'shot') stage = 'Shoot';
+        else if (t.status === 'edited') stage = 'Edit';
+        else if (t.status === 'scheduled') stage = 'Schedule';
+        else if (t.status === 'posted') stage = 'Published';
+
+        if (!v) {
+          // Create new VideoRecord
+          const newVideo: VideoRecord = {
+            id: t.id,
+            channelName: t.channel,
+            title: t.name,
+            format: t.format || 'Long',
+            contentType: t.format === 'Short' ? 'News decode' : 'Deep explainer',
+            topic: t.category || 'General',
+            pipelineStage: stage,
+            scriptStatus: t.status !== 'topic' ? 'completed' : 'pending',
+            shootStatus: (t.status === 'shot' || t.status === 'edited' || t.status === 'scheduled' || t.status === 'posted') ? 'completed' : 'pending',
+            editStatus: (t.status === 'edited' || t.status === 'scheduled' || t.status === 'posted') ? 'completed' : 'pending',
+            thumbnailStatus: t.format === 'Short' ? 'not-applicable' : ((t.status === 'scheduled' || t.status === 'posted') ? 'completed' : 'pending'),
+            scheduleStatus: (t.status === 'scheduled' || t.status === 'posted') ? 'completed' : 'pending',
+            publishedStatus: t.status === 'posted' ? 'completed' : 'pending',
+            productionEffortHours: 2,
+            blockedReason: t.blockedReason
+          };
+          filteredVideos.push(newVideo);
+          changed = true;
+        } else {
+          // Sync existing fields if changed
+          if (
+            v.title !== t.name || 
+            v.channelName !== t.channel || 
+            v.format !== (t.format || 'Long') || 
+            v.pipelineStage !== stage ||
+            v.blockedReason !== t.blockedReason
+          ) {
+            v.title = t.name;
+            v.channelName = t.channel;
+            v.format = t.format || 'Long';
+            v.pipelineStage = stage;
+            v.blockedReason = t.blockedReason;
+            changed = true;
+          }
+        }
+      });
+
+      return changed ? filteredVideos : prevVideos;
+    });
+  }, [topics]);
+
+  useEffect(() => {
+    // 2. Synchronize videos back into topics
+    setTopicsState(prevTopics => {
+      let changed = false;
+      const nextTopics = [...prevTopics];
+      const topicMap = new Map(nextTopics.map(t => [t.id, t]));
+
+      videos.forEach(v => {
+        const t = topicMap.get(v.id);
+
+        // Map Video pipelineStage to Topic status
+        let status: 'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted' = 'topic';
+        if (v.pipelineStage === 'Script') status = 'scripted';
+        else if (v.pipelineStage === 'Shoot') status = 'shot';
+        else if (v.pipelineStage === 'Edit' || v.pipelineStage === 'Thumbnail') status = 'edited';
+        else if (v.pipelineStage === 'Schedule') status = 'scheduled';
+        else if (v.pipelineStage === 'Published') status = 'posted';
+
+        if (!t) {
+          // Create new Topic if created from Pipeline Kanban
+          const newTopic: Topic = {
+            id: v.id,
+            name: v.title,
+            description: v.notes || '',
+            channel: v.channelName,
+            status: status,
+            priority: 3,
+            dueDate: v.uploadDate || null,
+            createdDate: new Date().toISOString(),
+            lastUpdated: new Date().toISOString(),
+            format: v.format,
+            blockedReason: v.blockedReason
+          };
+          nextTopics.push(newTopic);
+          changed = true;
+        } else {
+          // Update status if changed from Kanban drag-and-drop
+          if (t.status !== status || t.name !== v.title || t.channel !== v.channelName || t.format !== v.format || t.blockedReason !== v.blockedReason) {
+            t.status = status;
+            t.name = v.title;
+            t.channel = v.channelName;
+            t.format = v.format;
+            t.blockedReason = v.blockedReason;
+            t.lastUpdated = new Date().toISOString();
+            changed = true;
+          }
+        }
+      });
+
+      return changed ? nextTopics : prevTopics;
+    });
+  }, [videos]);
+
   useEffect(() => {
     localStorage.removeItem('yt_oauth_credentials');
     localStorage.removeItem('yt_oauth_credentials_v2');
