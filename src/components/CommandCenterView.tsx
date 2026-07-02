@@ -6,6 +6,7 @@ import {
   ShieldCheck, Sparkles, Target, TrendingUp, Zap
 } from 'lucide-react';
 import type { CycleGoal, Experiment, CreatorInsight, Topic, TopicActivity, VideoRecord } from '../types';
+import { getTopicCurrentWorkflow } from '../services/topicWorkflow';
 
 interface CommandCenterViewProps {
   topics: Topic[];
@@ -16,6 +17,7 @@ interface CommandCenterViewProps {
   scorecard: any;
   activities: TopicActivity[];
   onTabChange: (tab: string) => void;
+  onOpenTopicPipeline: () => void;
   setSelectedVideoId: (videoId: string | null) => void;
 }
 
@@ -49,8 +51,30 @@ const deadlineText = (dueDate: string | null) => {
   return `${Math.ceil(hours / 24)}d remaining`;
 };
 
+const nextActionForTopic = (topic: Topic) => {
+  if (topic.blockedReason) return `Resolve blocker: ${topic.blockedReason}`;
+  const workflow = getTopicCurrentWorkflow(topic);
+  if (workflow.state === 'in-progress') {
+    return ({
+      script: 'Finish the script, then hold Script to mark it Scripted',
+      shoot: 'Finish recording, then hold Shoot to mark it Shot',
+      edit: 'Finish the edit, then hold Edit to mark it Edited',
+      schedule: 'Choose the publish date and time, then complete scheduling',
+      post: 'Finish publishing, then hold Post to mark it Posted'
+    } as const)[workflow.stage];
+  }
+  return ({
+    topic: topic.inProgress ? 'Start scripting — click Script' : 'Start the pipeline, then begin scripting',
+    scripted: 'Start recording — click Shoot',
+    shot: 'Start post-production — click Edit',
+    edited: 'Set the publish date and time — click Schedule',
+    scheduled: 'Verify the release and publish at the scheduled time',
+    posted: 'Review performance and capture learnings'
+  } as const)[topic.status];
+};
+
 export default function CommandCenterView({
-  topics, videos, experiments, insights, cycleGoals, activities, onTabChange
+  topics, videos, experiments, insights, cycleGoals, activities, onTabChange, onOpenTopicPipeline
 }: CommandCenterViewProps) {
   const model = useMemo(() => {
     const now = Date.now();
@@ -152,7 +176,7 @@ export default function CommandCenterView({
         <div className="rounded-2xl border border-rose-950/50 bg-neutral-950/70 p-5">
           <div className="mb-4 flex items-center justify-between">
             <div><div className="flex items-center gap-2 text-sm font-bold text-white"><Flame className="h-4 w-4 text-rose-400" /> Action queue</div><p className="mt-1 text-[11px] text-neutral-500">Ordered by consequence and deadline.</p></div>
-            <button onClick={() => onTabChange('pipeline')} className="flex items-center gap-1 font-mono text-[10px] text-rose-400 hover:text-rose-300">Open pipeline <ArrowUpRight className="h-3 w-3" /></button>
+            <button onClick={onOpenTopicPipeline} className="flex items-center gap-1 font-mono text-[10px] text-rose-400 hover:text-rose-300">Open pipeline <ArrowUpRight className="h-3 w-3" /></button>
           </div>
           <div className="space-y-2.5">
             {model.attention.length === 0 ? (
@@ -160,11 +184,12 @@ export default function CommandCenterView({
             ) : model.attention.slice(0, 6).map((topic, index) => {
               const isBlocked = Boolean(topic.blockedReason);
               const isOverdue = topic.dueDate && timeValue(topic.dueDate) < Date.now();
+              const nextAction = nextActionForTopic(topic);
               return (
-                <button key={topic.id} onClick={() => onTabChange('pipeline')} className="group flex w-full items-center gap-3 rounded-xl border border-neutral-850 bg-neutral-900/30 p-3 text-left transition hover:border-rose-900/60 hover:bg-rose-950/10">
+                <button key={topic.id} onClick={onOpenTopicPipeline} className="group flex w-full items-center gap-3 rounded-xl border border-neutral-850 bg-neutral-900/30 p-3 text-left transition hover:border-rose-900/60 hover:bg-rose-950/10">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-neutral-950 font-mono text-[10px] text-neutral-500">0{index + 1}</span>
                   <span className={`h-2 w-2 shrink-0 rounded-full ${isBlocked || isOverdue ? 'bg-rose-500 shadow-[0_0_9px_#f43f5e]' : 'bg-amber-400'}`} />
-                  <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-neutral-200">{topic.name}</span><span className="mt-0.5 block truncate text-[10px] text-neutral-500">{isBlocked ? topic.blockedReason : `${topic.channel} · ${topic.status}`}</span></span>
+                  <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="truncate text-xs font-semibold text-neutral-200">{topic.name}</span><span className="font-mono text-[8px] uppercase text-neutral-600">{topic.channel} · {topic.status}</span></span><span className={`mt-1 block text-[10px] font-medium ${isBlocked || isOverdue ? 'text-rose-300' : 'text-amber-200'}`}><span className="mr-1 font-mono text-[8px] uppercase tracking-wider text-neutral-600">Next</span>{nextAction}</span></span>
                   <span className={`rounded-md px-2 py-1 font-mono text-[9px] ${isBlocked || isOverdue ? 'bg-rose-950/40 text-rose-400' : 'bg-amber-950/30 text-amber-300'}`}>{isBlocked ? 'BLOCKED' : deadlineText(topic.dueDate)}</span>
                   <ArrowUpRight className="h-3.5 w-3.5 text-neutral-700 transition group-hover:text-rose-400" />
                 </button>

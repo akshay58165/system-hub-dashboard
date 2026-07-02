@@ -1730,6 +1730,10 @@ export default function App() {
                 setSelectedVideoId={setSelectedVideoId}
                 scorecard={scorecard}
                 activities={activities}
+                onOpenTopicPipeline={() => {
+                  setPipelineSubView('topics');
+                  setActiveTab('pipeline');
+                }}
               />
             )}
 
