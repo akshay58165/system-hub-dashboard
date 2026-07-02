@@ -104,6 +104,14 @@ export default function PipelineView({
             message: `Pipeline: "${v.title}" advanced to ${nextStage}.`,
             timestamp: new Date().toISOString()
           });
+          setActivities(current => [{
+            id: `act-pipeline-advance-${Date.now()}-${v.id}`,
+            topicName: v.title,
+            channel: v.channelName,
+            action: `Advanced pipeline stage from ${v.pipelineStage} to ${nextStage}`,
+            author: 'typeakshay',
+            timestamp: new Date().toISOString()
+          }, ...current]);
 
           return { ...v, ...updated };
         }
@@ -150,6 +158,14 @@ export default function PipelineView({
           message: `Pipeline: "${v.title}" moved to ${targetStage}.`,
           timestamp: new Date().toISOString()
         });
+        setActivities(current => [{
+          id: `act-pipeline-move-${Date.now()}-${v.id}`,
+          topicName: v.title,
+          channel: v.channelName,
+          action: `Moved pipeline stage from ${v.pipelineStage} to ${targetStage}`,
+          author: 'typeakshay',
+          timestamp: new Date().toISOString()
+        }, ...current]);
 
         return { ...v, ...updated };
       }
