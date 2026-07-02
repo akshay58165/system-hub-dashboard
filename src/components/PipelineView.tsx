@@ -112,6 +112,51 @@ export default function PipelineView({
     }));
   };
 
+  const handleMoveStage = (videoId: string, targetStage: typeof STAGES[number]) => {
+    setVideos(prev => prev.map(v => {
+      if (v.id === videoId) {
+        if (v.pipelineStage === targetStage) return v;
+
+        // Skip Thumbnail stage for Shorts if targetStage is Thumbnail
+        if (targetStage === 'Thumbnail' && v.format === 'Short') {
+          return v; 
+        }
+
+        const stageIdx = STAGES.indexOf(targetStage);
+        const updated: Partial<VideoRecord> = {
+          pipelineStage: targetStage,
+          scriptStatus: stageIdx > 1 ? 'completed' : (stageIdx === 1 ? 'in-progress' : 'pending'),
+          shootStatus: stageIdx > 2 ? 'completed' : (stageIdx === 2 ? 'in-progress' : 'pending'),
+          editStatus: stageIdx > 3 ? 'completed' : (stageIdx === 3 ? 'in-progress' : 'pending'),
+        };
+
+        if (v.format === 'Short') {
+          updated.thumbnailStatus = 'not-applicable';
+        } else {
+          updated.thumbnailStatus = stageIdx > 4 ? 'completed' : (stageIdx === 4 ? 'in-progress' : 'pending');
+        }
+
+        updated.scheduleStatus = targetStage === 'Schedule' || targetStage === 'Published' ? 'completed' : 'pending';
+        updated.publishedStatus = targetStage === 'Published' ? 'completed' : 'pending';
+
+        if (targetStage === 'Published' && !v.uploadDate) {
+          updated.uploadDate = new Date().toISOString();
+        }
+
+        onAddEvent({
+          id: `evt-pipeline-move-${Date.now()}`,
+          source: 'system',
+          type: 'info',
+          message: `Pipeline: "${v.title}" moved to ${targetStage}.`,
+          timestamp: new Date().toISOString()
+        });
+
+        return { ...v, ...updated };
+      }
+      return v;
+    }));
+  };
+
   const handleOpenEdit = (video: VideoRecord) => {
     setEditingVideoId(video.id);
     setEditStage(video.pipelineStage);
@@ -380,65 +425,79 @@ export default function PipelineView({
           const items = filteredVideos.filter(v => v.pipelineStage === stage);
 
           return (
-            <div key={stage} className="min-w-[160px] bg-neutral-950 border border-neutral-850 rounded-xl p-3 flex flex-col gap-3 min-h-[450px]">
+            <div 
+              key={stage} 
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                const videoId = e.dataTransfer.getData('text/plain');
+                handleMoveStage(videoId, stage);
+              }}
+              className="min-w-[160px] bg-neutral-950/60 border border-neutral-850/60 rounded-xl p-3 flex flex-col gap-3 min-h-[450px]"
+            >
               
               {/* Stage Header */}
-              <div className="flex justify-between items-center pb-2 border-b border-neutral-850">
-                <span className="text-xs font-bold text-neutral-300 font-mono tracking-wide">{stage}</span>
-                <span className="px-2 py-0.5 bg-[#1f1f1f] text-neutral-400 rounded-full text-[9px] font-mono">{items.length}</span>
+              <div className="flex justify-between items-center pb-2 border-b border-neutral-900">
+                <span className="text-xs font-bold text-neutral-400 font-mono tracking-wide uppercase">{stage}</span>
+                <span className="px-2 py-0.5 bg-neutral-900 border border-neutral-850 text-neutral-400 rounded-full text-[9px] font-mono">{items.length}</span>
               </div>
 
               {/* Cards List */}
-              <div className="flex flex-col gap-2.5 overflow-y-auto flex-1 max-h-[500px] scrollbar-none">
+              <div className="flex flex-col gap-2.5 overflow-y-auto flex-1 max-h-[550px] scrollbar-none">
                 {items.map(video => {
                   const isLearnDriven = video.channelName === 'LearnDriven';
                   return (
                     <motion.div
                       layout
                       key={video.id}
+                      draggable={true}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('text/plain', video.id);
+                      }}
                       onClick={() => handleOpenEdit(video)}
-                      className={`p-3 rounded-lg bg-neutral-900 border relative overflow-hidden transition-all duration-200 group cursor-pointer ${video.blockedReason ? 'border-red-900/60 shadow-[0_0_10px_rgba(239,68,68,0.1)] hover:border-red-800' : 'border-neutral-850 hover:border-neutral-800 hover:bg-neutral-800/40'}`}
+                      style={{ 
+                        borderLeft: isLearnDriven 
+                          ? '2px solid rgba(168, 85, 247, 0.4)' 
+                          : '2px solid rgba(16, 185, 129, 0.4)' 
+                      }}
+                      className={`p-3 rounded-lg bg-zinc-900/35 border border-zinc-850/50 hover:border-zinc-700/60 hover:bg-zinc-850/30 relative overflow-hidden transition-all duration-200 group cursor-grab active:cursor-grabbing hover:shadow-[0_0_15px_rgba(139,92,246,0.04)] ${video.blockedReason ? 'border-red-950/40 bg-red-950/5' : ''}`}
                     >
-                      {/* Brand highlight bar */}
-                      <div className={`absolute top-0 left-0 bottom-0 w-1 ${isLearnDriven ? 'bg-purple-500' : 'bg-emerald-500'}`} />
-
                       <div className="flex flex-col gap-1.5">
                         {/* Tags / Badges */}
-                        <div className="flex flex-wrap items-center gap-1">
-                          <span className={`text-[8px] font-mono px-1 rounded uppercase ${isLearnDriven ? 'text-purple-300/80 bg-purple-950/20 border border-purple-900/20' : 'text-emerald-300/80 bg-emerald-950/20 border border-emerald-900/20'}`}>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase ${isLearnDriven ? 'text-purple-400 bg-purple-950/10 border-purple-900/20' : 'text-emerald-400 bg-emerald-950/10 border-emerald-900/20'}`}>
                             {video.channelName === 'LearnDriven' ? 'LD' : 'DW'}
                           </span>
-                          <span className="text-[8px] font-mono bg-neutral-900 text-neutral-400 px-1 rounded">
+                          <span className="text-[8px] font-mono font-bold bg-zinc-900/60 text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-850">
                             {video.format}
                           </span>
                           {video.blockedReason && (
-                            <span className="text-[8px] font-mono bg-red-950/50 text-red-400 px-1 rounded border border-red-900/40 animate-pulse">
+                            <span className="text-[8px] font-mono font-bold bg-red-950/30 text-red-400 px-1.5 py-0.5 rounded border border-red-900/40 animate-pulse">
                               BLOCKED
                             </span>
                           )}
                         </div>
 
                         {/* Title */}
-                        <h4 className="text-[11px] font-bold text-white leading-tight font-sans line-clamp-2">
+                        <h4 className="text-[11px] font-semibold text-zinc-100 leading-tight font-sans line-clamp-2">
                           {video.title}
                         </h4>
 
                         {/* Topic Label */}
-                        <span className="text-[9px] font-mono text-neutral-500 mt-1 flex items-center gap-1">
+                        <span className="text-[9px] font-mono text-zinc-500 mt-1 flex items-center gap-1">
                           <GitBranch className="h-3 w-3 shrink-0" />
                           <span className="truncate">{video.topic}</span>
                         </span>
 
                         {/* Drag indicator/Action hover overlay */}
                         {stage !== 'Published' && (
-                          <div className="mt-2.5 pt-2.5 border-t border-neutral-900 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <span className="text-[8px] font-mono text-neutral-600">Click to edit</span>
+                          <div className="mt-2.5 pt-2.5 border-t border-neutral-900/60 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="text-[8px] font-mono text-neutral-600">Drag or click edit</span>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleAdvanceStage(video.id);
                               }}
-                              className="text-[9px] font-mono text-emerald-400 hover:text-emerald-300 flex items-center gap-0.5 font-bold"
+                              className="text-[9px] font-mono text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 font-bold"
                             >
                               <span>Next</span>
                               <Play className="h-2 w-2 fill-current" />
