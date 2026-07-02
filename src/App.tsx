@@ -130,6 +130,13 @@ export default function App() {
   // imported above, silently breaking every auth/db/realtime call in this file.
   const [supabaseProject, setSupabaseProject] = useState<SupabaseProject>(initialSupabaseProject);
   const [events, setEvents] = useState<SystemEvent[]>([]);
+  const [activities, setActivitiesState] = useState<TopicActivity[]>(initialActivities);
+  const activitiesRef = useRef<TopicActivity[]>(initialActivities);
+  const setActivities: React.Dispatch<React.SetStateAction<TopicActivity[]>> = (update) => {
+    const next = typeof update === 'function' ? update(activitiesRef.current) : update;
+    activitiesRef.current = next;
+    setActivitiesState(next);
+  };
   const isRemoteSyncRef = useRef(false);
   const [topics, setTopicsState] = useState<Topic[]>(initialTopics);
   const topicTombstonesRef = useRef<Record<string, string>>({});
@@ -138,8 +145,10 @@ export default function App() {
   const setTopics: React.Dispatch<React.SetStateAction<Topic[]>> = (update) => {
     setTopicsState(previous => {
       const requested = typeof update === 'function' ? update(previous) : update;
-      const next = prepareLocalTopicMutation(previous, requested);
+      const changedAt = new Date().toISOString();
+      const next = prepareLocalTopicMutation(previous, requested, changedAt);
       const previousById = new Map(previous.map(topic => [topic.id, topic]));
+      const nextById = new Map(next.map(topic => [topic.id, topic]));
       const nextIds = new Set(next.map(topic => topic.id));
       const deletedAt = new Date().toISOString();
       previous.forEach(topic => {
@@ -159,10 +168,46 @@ export default function App() {
       // Otherwise the next real edit can be mistaken for an echo and never saved.
       isRemoteSyncRef.current = false;
       topicMutationEpochRef.current += 1;
+
+      const auditChanges = [
+        ...next.filter(topic => {
+          const oldTopic = previousById.get(topic.id);
+          return !oldTopic || oldTopic !== topic;
+        }).map(topic => ({ topic, previous: previousById.get(topic.id), deleted: false })),
+        ...previous.filter(topic => !nextById.has(topic.id)).map(topic => ({ topic, previous: topic, deleted: true }))
+      ];
+
+      if (auditChanges.length > 0) {
+        const activityIdsBeforeMutation = new Set(activitiesRef.current.map(activity => activity.id));
+        queueMicrotask(() => {
+          const missing = auditChanges.filter(change => !activitiesRef.current.some(activity =>
+            !activityIdsBeforeMutation.has(activity.id) && activity.topicName === change.topic.name
+          ));
+          if (missing.length === 0) return;
+
+          const generated = missing.map((change, index): TopicActivity => {
+            const previousTopic = change.previous;
+            let action = 'Updated topic details';
+            if (change.deleted) action = 'Deleted topic';
+            else if (!previousTopic) action = 'Created topic';
+            else if (previousTopic.status !== change.topic.status || previousTopic.inProgress !== change.topic.inProgress) {
+              action = `Changed workflow from ${previousTopic.status}${previousTopic.inProgress ? ' (pipeline)' : ''} to ${change.topic.status}${change.topic.inProgress ? ' (pipeline)' : ''}`;
+            }
+            return {
+              id: `act-auto-${Date.now()}-${index}-${change.topic.id}`,
+              topicName: change.topic.name,
+              channel: change.topic.channel,
+              action,
+              author: 'typeakshay',
+              timestamp: changedAt
+            };
+          });
+          setActivities(current => [...generated, ...current]);
+        });
+      }
       return next;
     });
   };
-  const [activities, setActivities] = useState<TopicActivity[]>(initialActivities);
   const [aiPresets, setAiPresets] = useState<AiRulePreset[]>([]);
   const [aiUsage, setAiUsage] = useState<AiUsageStats>(() => createEmptyAiUsageStats());
 
