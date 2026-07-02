@@ -90,6 +90,35 @@ function createEmptyAiUsageStats(): AiUsageStats {
   };
 }
 
+function highlightCommandDestination(target: HTMLElement, shouldFocus = false) {
+  document.querySelectorAll('.command-action-target').forEach((element) => {
+    element.classList.remove('command-action-target');
+  });
+  target.classList.add('command-action-target');
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  if (shouldFocus) target.focus({ preventScroll: true });
+
+  // Let the navigation and smooth scroll finish before acknowledgement starts.
+  // This prevents a stationary mouse from clearing the glow as the new panel mounts beneath it.
+  window.setTimeout(() => {
+    const acknowledgeTarget = () => {
+      target.classList.remove('command-action-target');
+      target.removeEventListener('pointerenter', acknowledgeTarget);
+      target.removeEventListener('pointermove', acknowledgeTarget);
+      target.removeEventListener('pointerdown', acknowledgeTarget);
+      target.removeEventListener('touchstart', acknowledgeTarget);
+      target.removeEventListener('click', acknowledgeTarget);
+      target.removeEventListener('keydown', acknowledgeTarget);
+    };
+    target.addEventListener('pointerenter', acknowledgeTarget);
+    target.addEventListener('pointermove', acknowledgeTarget);
+    target.addEventListener('pointerdown', acknowledgeTarget);
+    target.addEventListener('touchstart', acknowledgeTarget, { passive: true });
+    target.addEventListener('click', acknowledgeTarget);
+    target.addEventListener('keydown', acknowledgeTarget);
+  }, 500);
+}
+
 export default function App() {
   useEffect(() => {
     // Remove credentials stored by versions that called OpenAI from the browser.
@@ -1708,6 +1737,7 @@ export default function App() {
       <main className="w-full px-4 sm:px-6 lg:px-8 py-6">
         <AnimatePresence mode="wait">
           <motion.div
+            id="active-workspace-panel"
             key={activeTab}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1726,39 +1756,26 @@ export default function App() {
                 experiments={experiments}
                 insights={insights}
                 cycleGoals={cycleGoals}
-                onTabChange={setActiveTab}
+                onTabChange={(tab) => {
+                  setActiveTab(tab);
+                  window.setTimeout(() => {
+                    const destination = document.getElementById('active-workspace-panel');
+                    if (destination) highlightCommandDestination(destination);
+                  }, 350);
+                }}
                 setSelectedVideoId={setSelectedVideoId}
                 scorecard={scorecard}
                 activities={activities}
                 onOpenTopicPipeline={(topicId, action) => {
                   setPipelineSubView('topics');
                   setActiveTab('pipeline');
-                  if (!topicId || !action) return;
                   window.setTimeout(() => {
                     const control = document.getElementById(`topic-action-${topicId}-${action}`);
                     const topicCard = document.getElementById(`topic-control-${topicId}`);
-                    const target = control || topicCard;
+                    const workspace = document.getElementById('active-workspace-panel');
+                    const target = control || topicCard || workspace;
                     if (!target) return;
-                    document.querySelectorAll('.command-action-target').forEach((element) => {
-                      element.classList.remove('command-action-target');
-                    });
-                    target.classList.add('command-action-target');
-
-                    const acknowledgeTarget = () => {
-                      target.classList.remove('command-action-target');
-                      target.removeEventListener('pointerenter', acknowledgeTarget);
-                      target.removeEventListener('pointerdown', acknowledgeTarget);
-                      target.removeEventListener('touchstart', acknowledgeTarget);
-                      target.removeEventListener('click', acknowledgeTarget);
-                      target.removeEventListener('keydown', acknowledgeTarget);
-                    };
-                    target.addEventListener('pointerenter', acknowledgeTarget);
-                    target.addEventListener('pointerdown', acknowledgeTarget);
-                    target.addEventListener('touchstart', acknowledgeTarget, { passive: true });
-                    target.addEventListener('click', acknowledgeTarget);
-                    target.addEventListener('keydown', acknowledgeTarget);
-                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    if (control instanceof HTMLElement) control.focus({ preventScroll: true });
+                    highlightCommandDestination(target, Boolean(control));
                   }, 350);
                 }}
               />
