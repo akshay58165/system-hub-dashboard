@@ -213,7 +213,7 @@ export default function App() {
               topicName: change.topic.name,
               channel: change.topic.channel,
               action,
-              author: 'typeakshay',
+              author: 'Akshay',
               timestamp: changedAt,
               topicId: change.topic.id,
               targetTab: 'pipeline',

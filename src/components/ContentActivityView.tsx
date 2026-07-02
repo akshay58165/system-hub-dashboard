@@ -22,6 +22,16 @@ const activityTime = (activity: TopicActivity) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const displayAuthor = (author: string) => author.toLowerCase() === 'typeakshay' ? 'Akshay' : author;
+
+const displayAction = (activity: TopicActivity) => {
+  const escapedTopic = activity.topicName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return activity.action
+    .replace(new RegExp(`\\s*["“]?${escapedTopic}["”]?\\s*$`, 'i'), '')
+    .replace(/\s*:\s*$/, '')
+    .trim();
+};
+
 export default function ContentActivityView({ activities, topics, onShowBacklog, onNavigateActivity }: ContentActivityViewProps) {
   const [search, setSearch] = useState('');
   const [channelFilter, setChannelFilter] = useState<string>('all');
@@ -151,6 +161,7 @@ export default function ContentActivityView({ activities, topics, onShowBacklog,
                 const dateStr = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
                 const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
                 const isLD = act.channel === 'LearnDriven';
+                const actionLabel = displayAction(act);
 
                 return (
                   <motion.div
@@ -158,22 +169,22 @@ export default function ContentActivityView({ activities, topics, onShowBacklog,
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.15 }}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => onNavigateActivity(act)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') onNavigateActivity(act);
-                    }}
-                    title="Open this activity in its workspace"
-                    className="p-3 bg-neutral-900/20 border border-neutral-900 rounded-lg flex items-start gap-3 hover:bg-neutral-900/40 hover:border-blue-900/40 transition text-xs font-mono cursor-pointer focus:outline-none focus:border-blue-700"
+                    className="p-3 bg-neutral-900/20 border border-neutral-900 rounded-lg flex items-start gap-3 hover:bg-neutral-900/40 transition text-xs font-mono"
                   >
                     <div className="mt-0.5">
                       <Youtube className={`h-4 w-4 ${isLD ? 'text-blue-400' : 'text-emerald-400'}`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-neutral-300 tracking-wide">
-                        <span className="text-white font-bold">@{act.author}</span> {act.action}{' '}
-                        <span className={`font-bold ${isLD ? 'text-blue-400' : 'text-emerald-400'}`}>"{act.topicName}"</span>
+                        <span className="text-white font-bold">{displayAuthor(act.author)}</span> {actionLabel}{' '}
+                        <button
+                          type="button"
+                          onClick={() => onNavigateActivity(act)}
+                          className={`font-bold hover:underline cursor-pointer ${isLD ? 'text-blue-400' : 'text-emerald-400'}`}
+                          title="Open this topic at the recorded activity"
+                        >
+                          "{act.topicName}"
+                        </button>
                       </p>
                       <div className="flex items-center gap-2.5 mt-1">
                         <span className={`px-1.5 py-0.2 rounded font-mono text-[9px] uppercase font-semibold tracking-wider ${

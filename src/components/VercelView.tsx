@@ -351,13 +351,14 @@ export default function VercelView({
       return updatedTopic;
     }));
 
+    const previousLabel = getTopicCurrentWorkflow(topic).label;
     const label = WORKFLOW_LABELS[targetStage][targetState];
     setActivities(prev => [{
       id: `act-workflow-${targetStage}-${Date.now()}`,
       topicName: topic.name,
       channel: topic.channel,
-      action: `Moved stage to ${label}: ${topic.name}`,
-      author: 'typeakshay',
+      action: `Changed workflow from ${previousLabel} to ${label}`,
+      author: 'Akshay',
       timestamp: new Date().toISOString(),
     }, ...prev]);
   };
