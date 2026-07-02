@@ -255,6 +255,8 @@ export default function VideoLabView({
       gridStyle = { gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' };
     }
 
+    const isYearly = sizeClass.includes('w-[12px]');
+
     return (
       <div 
         style={gridStyle}
@@ -266,9 +268,15 @@ export default function VideoLabView({
             <div 
               key={post.id} 
               style={{ backgroundColor: color }}
-              className="rounded-[2px] w-full h-full relative"
+              className="rounded-[2px] w-full h-full relative p-0.5 flex items-center justify-center overflow-hidden"
               title={`${post.title} (${getFormatLabel(post.channelName, post.format)})`}
-            />
+            >
+              {!isYearly && (
+                <span className="text-[7px] leading-tight font-sans font-bold text-white/95 text-center truncate w-full px-0.5 select-none tracking-tight block">
+                  {post.title}
+                </span>
+              )}
+            </div>
           );
         })}
         {dayPosts.length > 4 && (
