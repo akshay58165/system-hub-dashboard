@@ -432,13 +432,13 @@ export default function PipelineView({
                 const videoId = e.dataTransfer.getData('text/plain');
                 handleMoveStage(videoId, stage);
               }}
-              className="min-w-[150px] bg-neutral-950/45 border border-neutral-900/60 rounded-lg p-2.5 flex flex-col gap-2 min-h-[420px]"
+              className="min-w-[150px] bg-neutral-950/20 border border-neutral-900/30 rounded-lg p-2.5 flex flex-col gap-2 min-h-[420px]"
             >
               
               {/* Stage Header */}
-              <div className="flex justify-between items-center pb-1.5 border-b border-neutral-900">
-                <span className="text-[10px] font-bold text-neutral-400 font-mono tracking-wider uppercase">{stage}</span>
-                <span className="px-1.5 py-0.2 bg-neutral-900 border border-neutral-850 text-neutral-400 rounded text-[8px] font-mono">{items.length}</span>
+              <div className="flex justify-between items-center pb-1.5 border-b border-neutral-900/40">
+                <span className="text-[10px] font-bold text-neutral-500 font-mono tracking-wider uppercase">{stage}</span>
+                <span className="px-1.5 py-0.2 bg-neutral-900/40 border border-neutral-900/30 text-neutral-500 rounded text-[8px] font-mono">{items.length}</span>
               </div>
 
               {/* Cards List */}
@@ -456,35 +456,35 @@ export default function PipelineView({
                       onClick={() => handleOpenEdit(video)}
                       style={{ 
                         borderLeft: isLearnDriven 
-                          ? '2px solid rgba(168, 85, 247, 0.5)' 
-                          : '2px solid rgba(16, 185, 129, 0.5)' 
+                          ? '2px solid rgba(168, 85, 247, 0.3)' 
+                          : '2px solid rgba(16, 185, 129, 0.3)' 
                       }}
-                      className={`p-2.5 rounded bg-zinc-900/25 border border-zinc-850/40 hover:border-zinc-750 hover:bg-zinc-850/20 relative overflow-hidden transition-all duration-150 group cursor-grab active:cursor-grabbing hover:shadow-[0_0_10px_rgba(139,92,246,0.03)] ${video.blockedReason ? 'border-red-950/30 bg-red-950/5' : ''}`}
+                      className={`p-2.5 rounded bg-zinc-900/10 border border-zinc-900/20 hover:border-zinc-800/40 hover:bg-zinc-850/15 relative overflow-hidden transition-all duration-150 group cursor-grab active:cursor-grabbing hover:shadow-[0_0_8px_rgba(139,92,246,0.015)] ${video.blockedReason ? 'border-red-950/20 bg-red-950/3' : ''}`}
                     >
                       <div className="flex flex-col gap-1">
                         {/* Tags / Badges */}
                         <div className="flex flex-wrap items-center gap-1">
-                          <span className={`text-[7px] font-mono font-bold px-1 py-0.2 rounded border uppercase ${isLearnDriven ? 'text-purple-400 bg-purple-950/10 border-purple-900/10' : 'text-emerald-400 bg-emerald-950/10 border-emerald-900/10'}`}>
+                          <span className={`text-[7px] font-mono font-bold px-1 py-0.2 rounded border uppercase ${isLearnDriven ? 'text-purple-400/80 bg-purple-950/5 border-purple-900/10' : 'text-emerald-400/80 bg-emerald-950/5 border-emerald-900/10'}`}>
                             {video.channelName === 'LearnDriven' ? 'LD' : 'DW'}
                           </span>
-                          <span className="text-[7px] font-mono font-bold bg-zinc-900/50 text-zinc-400 px-1 py-0.2 rounded border border-zinc-850">
+                          <span className="text-[7px] font-mono font-bold bg-zinc-900/30 text-zinc-500 px-1 py-0.2 rounded border border-zinc-900/30">
                             {video.format}
                           </span>
                           {video.blockedReason && (
-                            <span className="text-[7px] font-mono font-bold bg-red-950/20 text-red-450 px-1 py-0.2 rounded border border-red-900/20 animate-pulse">
+                            <span className="text-[7px] font-mono font-bold bg-red-950/10 text-red-400/80 px-1 py-0.2 rounded border border-red-900/15 animate-pulse">
                               BLOCKED
                             </span>
                           )}
                         </div>
 
                         {/* Title */}
-                        <h4 className="text-[10px] font-bold text-zinc-150 leading-snug font-sans line-clamp-2 pr-4">
+                        <h4 className="text-[10px] font-semibold text-zinc-300 leading-snug font-sans line-clamp-2 pr-4">
                           {video.title}
                         </h4>
 
                         {/* Topic Label */}
-                        <span className="text-[8px] font-mono text-zinc-500 flex items-center gap-1 select-none">
-                          <GitBranch className="h-2.5 w-2.5 shrink-0 text-zinc-600" />
+                        <span className="text-[8px] font-mono text-zinc-650 flex items-center gap-1 select-none">
+                          <GitBranch className="h-2.5 w-2.5 shrink-0 text-zinc-700" />
                           <span className="truncate">{video.topic}</span>
                         </span>
 
@@ -495,7 +495,7 @@ export default function PipelineView({
                               e.stopPropagation();
                               handleAdvanceStage(video.id);
                             }}
-                            className="absolute bottom-2 right-2 p-1 bg-zinc-950 border border-zinc-800 rounded hover:border-zinc-700 text-indigo-400 hover:text-indigo-300 opacity-0 group-hover:opacity-100 transition-all duration-150 flex items-center justify-center shadow-md cursor-pointer"
+                            className="absolute bottom-2 right-2 p-1 bg-zinc-950 border border-zinc-850 rounded hover:border-zinc-800 text-indigo-400 hover:text-indigo-300 opacity-0 group-hover:opacity-100 transition-all duration-150 flex items-center justify-center shadow-md cursor-pointer"
                             title="Move to next stage"
                           >
                             <Play className="h-2 w-2 fill-current" />
