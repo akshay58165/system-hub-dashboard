@@ -53,7 +53,7 @@ const WORKFLOW_LABELS: Record<WorkflowStage, Record<WorkflowState, string>> = {
   post: { pending: 'Post', 'in-progress': 'Posting', completed: 'Posted' },
 };
 
-function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, onReset, labelOverride, disabled, blinkClass }: {
+function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, onReset, labelOverride, disabled, blinkClass, controlId }: {
   stage: WorkflowStage;
   state: WorkflowState;
   onQuickPress: () => void;
@@ -62,6 +62,7 @@ function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, onReset
   labelOverride?: string;
   disabled?: boolean;
   blinkClass?: string;
+  controlId?: string;
 }) {
   const longPressFired = useRef(false);
   const [isHolding, setIsHolding] = useState(false);
@@ -92,6 +93,7 @@ function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, onReset
 
   return (
     <button
+      id={controlId}
       type="button"
       disabled={disabled}
       onPointerDown={startPress}
@@ -991,6 +993,7 @@ export default function VercelView({
                             </span>
                           </div>
                           <button
+                            id={`topic-action-${topic.id}-unblock`}
                             type="button"
                             onClick={() => handleUnblock(topic)}
                             className="text-[8px] font-bold uppercase text-blue-400 hover:text-blue-300 shrink-0 cursor-pointer"
@@ -1141,6 +1144,7 @@ export default function VercelView({
                           return (
                             <React.Fragment key={stage}>
                               <WorkflowStatusButton
+                                controlId={`topic-action-${topic.id}-${stage}`}
                                 stage={stage}
                                 state={state}
                                 disabled={isDisabled}

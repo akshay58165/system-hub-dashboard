@@ -1730,9 +1730,23 @@ export default function App() {
                 setSelectedVideoId={setSelectedVideoId}
                 scorecard={scorecard}
                 activities={activities}
-                onOpenTopicPipeline={() => {
+                onOpenTopicPipeline={(topicId, action) => {
                   setPipelineSubView('topics');
                   setActiveTab('pipeline');
+                  if (!topicId || !action) return;
+                  window.setTimeout(() => {
+                    const control = document.getElementById(`topic-action-${topicId}-${action}`);
+                    const topicCard = document.getElementById(`topic-control-${topicId}`);
+                    const target = control || topicCard;
+                    if (!target) return;
+                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    if (control instanceof HTMLElement) control.focus({ preventScroll: true });
+                    target.animate([
+                      { boxShadow: '0 0 0 0 rgba(251,113,133,0)' },
+                      { boxShadow: '0 0 0 3px rgba(251,113,133,.9), 0 0 28px rgba(244,63,94,.45)' },
+                      { boxShadow: '0 0 0 0 rgba(251,113,133,0)' }
+                    ], { duration: 1800, easing: 'ease-out' });
+                  }, 350);
                 }}
               />
             )}
