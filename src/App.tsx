@@ -190,6 +190,13 @@ export default function App() {
       const filteredVideos = nextVideos.filter(v => {
         if (deletedIds.has(v.id)) {
           changed = true;
+          addEvent({
+            id: `evt-sync-del-${Date.now()}-${v.id}`,
+            source: 'system',
+            type: 'info',
+            message: `Sync: Removed pipeline card for "${v.title}" (deleted topic).`,
+            timestamp: new Date().toISOString()
+          });
           return false;
         }
         return true;
@@ -229,6 +236,13 @@ export default function App() {
           };
           filteredVideos.push(newVideo);
           changed = true;
+          addEvent({
+            id: `evt-sync-new-${Date.now()}-${t.id}`,
+            source: 'system',
+            type: 'success',
+            message: `Sync: Created pipeline card for topic "${t.name}" in stage "${stage}".`,
+            timestamp: new Date().toISOString()
+          });
         } else {
           // Sync existing fields if changed
           if (
@@ -238,12 +252,20 @@ export default function App() {
             v.pipelineStage !== stage ||
             v.blockedReason !== t.blockedReason
           ) {
+            const oldStage = v.pipelineStage;
             v.title = t.name;
             v.channelName = t.channel;
             v.format = t.format || 'Long';
             v.pipelineStage = stage;
             v.blockedReason = t.blockedReason;
             changed = true;
+            addEvent({
+              id: `evt-sync-up-${Date.now()}-${t.id}`,
+              source: 'system',
+              type: 'info',
+              message: `Sync: Updated pipeline card "${t.name}" (Stage: ${oldStage} -> ${stage}).`,
+              timestamp: new Date().toISOString()
+            });
           }
         }
       });
@@ -287,9 +309,17 @@ export default function App() {
           };
           nextTopics.push(newTopic);
           changed = true;
+          addEvent({
+            id: `evt-sync-newt-${Date.now()}-${v.id}`,
+            source: 'system',
+            type: 'success',
+            message: `Sync: Created workflow topic "${v.title}" from Kanban card (Status: ${status}).`,
+            timestamp: new Date().toISOString()
+          });
         } else {
           // Update status if changed from Kanban drag-and-drop
           if (t.status !== status || t.name !== v.title || t.channel !== v.channelName || t.format !== v.format || t.blockedReason !== v.blockedReason) {
+            const oldStatus = t.status;
             t.status = status;
             t.name = v.title;
             t.channel = v.channelName;
@@ -297,6 +327,13 @@ export default function App() {
             t.blockedReason = v.blockedReason;
             t.lastUpdated = new Date().toISOString();
             changed = true;
+            addEvent({
+              id: `evt-sync-upt-${Date.now()}-${v.id}`,
+              source: 'system',
+              type: 'info',
+              message: `Sync: Updated workflow topic "${v.title}" from Kanban card (Status: ${oldStatus} -> ${status}).`,
+              timestamp: new Date().toISOString()
+            });
           }
         }
       });
@@ -338,6 +375,11 @@ export default function App() {
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [timeStr, setTimeStr] = useState('');
   const [lastDbUpdateTime, setLastDbUpdateTime] = useState<Date>(new Date(Date.now() - 5000));
+  
+  const addEvent = (evt: SystemEvent) => {
+    setEvents(prev => [evt, ...prev].slice(0, 200));
+    setLastDbUpdateTime(new Date());
+  };
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
   const [logsSubView, setLogsSubView] = useState<'content' | 'backlog'>('content');
 
@@ -1062,10 +1104,7 @@ export default function App() {
 
 
 
-  const addEvent = (evt: SystemEvent) => {
-    setEvents(prev => [evt, ...prev.slice(0, 29)]);
-    setLastDbUpdateTime(new Date());
-  };
+
 
   const handleUpdateRepo = (repoId: string, updatedRepo: Partial<GitHubRepo>) => {
     setRepos(prev => prev.map(r => r.id === repoId ? { ...r, ...updatedRepo } : r));
