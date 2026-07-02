@@ -65,6 +65,21 @@ export default function VideoLabView({
   const [selectedMonth, setSelectedMonth] = useState<number>(6); // July (0-indexed: 6)
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [selectedWeekIdx, setSelectedWeekIdx] = useState<number>(0);
+  const [hoveredDayData, setHoveredDayData] = useState<{ x: number; y: number; dateStr: string; posts: UnifiedPost[] } | null>(null);
+
+  const handleMouseEnter = (e: React.MouseEvent, dateStr: string) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const container = e.currentTarget.closest('.relative');
+    if (!container) return;
+    const containerRect = container.getBoundingClientRect();
+
+    setHoveredDayData({
+      x: rect.left - containerRect.left + rect.width / 2,
+      y: rect.top - containerRect.top - 8,
+      dateStr,
+      posts: postsByDate[dateStr] || []
+    });
+  };
 
   // Form states for adding new mock video
   const [showAddForm, setShowAddForm] = useState(false);
@@ -269,7 +284,7 @@ export default function VideoLabView({
   const p = { channelName: 'LearnDriven' as const, format: 'Short' as const };
 
   return (
-    <div className="space-y-6 font-mono text-zinc-300">
+    <div className="space-y-6 font-mono text-zinc-300 relative">
       
       {/* Top Banner Control Panel */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-950 border border-zinc-900 rounded-xl p-5 shadow-lg">
@@ -519,6 +534,8 @@ export default function VideoLabView({
                     <div 
                       key={dateStr}
                       onClick={() => setSelectedDay(isSelected ? null : dateStr)}
+                      onMouseEnter={(e) => handleMouseEnter(e, dateStr)}
+                      onMouseLeave={() => setHoveredDayData(null)}
                       className={`relative aspect-square cursor-pointer flex flex-col justify-between ${
                         isCurrentMonth ? '' : 'opacity-30'
                       }`}
@@ -565,6 +582,8 @@ export default function VideoLabView({
                       <div 
                         key={dateStr}
                         onClick={() => setSelectedDay(isSelected ? null : dateStr)}
+                        onMouseEnter={(e) => handleMouseEnter(e, dateStr)}
+                        onMouseLeave={() => setHoveredDayData(null)}
                         className={`cursor-pointer transition-all duration-300 ${isCurrentMonth ? '' : 'opacity-25'}`}
                       >
                         <div className="flex justify-between items-center mb-1">
@@ -604,6 +623,8 @@ export default function VideoLabView({
                     <div 
                       key={dateStr}
                       onClick={() => setSelectedDay(isSelected ? null : dateStr)}
+                      onMouseEnter={(e) => handleMouseEnter(e, dateStr)}
+                      onMouseLeave={() => setHoveredDayData(null)}
                       className="relative aspect-square cursor-pointer flex flex-col justify-between"
                     >
                       {/* Subdivided blocks inside the cell */}
@@ -656,8 +677,9 @@ export default function VideoLabView({
                           <div
                             key={dayIdx}
                             onClick={() => setSelectedDay(selectedDay === dateStr ? null : dateStr)}
+                            onMouseEnter={(e) => handleMouseEnter(e, dateStr)}
+                            onMouseLeave={() => setHoveredDayData(null)}
                             className="relative cursor-pointer"
-                            title={`${date.toLocaleDateString()}: ${dayPosts.length} videos`}
                           >
                             {renderSubdividedBlock(dateStr, 'w-[12px] h-[12px]')}
                           </div>
@@ -805,6 +827,45 @@ export default function VideoLabView({
         </div>
 
       </div>
+
+      {/* Floating Tooltip */}
+      <AnimatePresence>
+        {hoveredDayData && hoveredDayData.posts.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 5 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.15 }}
+            style={{ 
+              position: 'absolute', 
+              left: `${hoveredDayData.x}px`, 
+              top: `${hoveredDayData.y}px`, 
+              transform: 'translate(-50%, -100%)' 
+            }}
+            className="z-50 bg-zinc-950/95 border border-zinc-800 p-3 rounded-lg shadow-2xl w-64 space-y-2 pointer-events-none font-mono text-[10px] backdrop-blur-md"
+          >
+            <div className="border-b border-zinc-900 pb-1.5 flex justify-between items-center text-zinc-500 font-bold uppercase">
+              <span>{new Date(hoveredDayData.dateStr).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+              <span className="bg-zinc-900 px-1 py-0.2 rounded text-zinc-400">{hoveredDayData.posts.length} Posts</span>
+            </div>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {hoveredDayData.posts.map(post => {
+                const color = getFormatColor(post.channelName, post.format);
+                return (
+                  <div key={post.id} className="space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                      <span className="text-[8px] font-bold uppercase" style={{ color }}>{post.channelName}</span>
+                      <span className="text-[8px] text-zinc-600 bg-zinc-900 border border-zinc-850 px-1 rounded-sm">{post.format}</span>
+                    </div>
+                    <p className="text-white leading-normal pl-3 font-semibold line-clamp-2">{post.title}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
