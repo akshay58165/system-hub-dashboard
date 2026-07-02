@@ -1721,6 +1721,7 @@ export default function App() {
             }>
             {activeTab === 'overview' && (
               <CommandCenterView
+                topics={topics}
                 videos={videos}
                 experiments={experiments}
                 insights={insights}
@@ -1729,12 +1730,6 @@ export default function App() {
                 setSelectedVideoId={setSelectedVideoId}
                 scorecard={scorecard}
                 activities={activities}
-                youtubeRevenue={youtubeRevenue}
-                isLoadingYoutube={isLoadingYoutube}
-                youtubeError={youtubeError}
-                onConnectYoutube={handleConnectYoutube}
-                onRefreshYoutube={loadYoutubeRevenue}
-                isConnectingYoutube={isConnectingYoutube}
               />
             )}
 

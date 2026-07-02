@@ -1,762 +1,236 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
-import { 
-  ChevronDown, 
-  ArrowDown, 
-  Play, 
-  TrendingDown, 
-  Info,
-  ExternalLink,
-  MoreVertical,
-  Activity,
-  UserCheck,
-  Video,
-  AlertTriangle,
-  CheckCircle,
-  TrendingUp,
-  Brain,
-  Sparkles,
-  Shield,
-  ActivitySquare,
-  RotateCcw
+import {
+  Activity, AlertTriangle, ArrowUpRight, CalendarClock, CheckCircle2,
+  CircleDot, Clock3, Flame, Gauge, Layers3, ListTodo, Radio,
+  ShieldCheck, Sparkles, Target, TrendingUp, Zap
 } from 'lucide-react';
-import { 
-  ResponsiveContainer, 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  Tooltip,
-  BarChart,
-  Bar
-} from 'recharts';
-import { VideoRecord, Experiment, CreatorInsight, CycleGoal, YoutubeRevenueData } from '../types';
+import type { CycleGoal, Experiment, CreatorInsight, Topic, TopicActivity, VideoRecord } from '../types';
 
 interface CommandCenterViewProps {
+  topics: Topic[];
   videos: VideoRecord[];
   experiments: Experiment[];
   insights: CreatorInsight[];
   cycleGoals: CycleGoal | null;
   scorecard: any;
-  activities: any[];
+  activities: TopicActivity[];
   onTabChange: (tab: string) => void;
   setSelectedVideoId: (videoId: string | null) => void;
-  // YouTube connection is owned by App.tsx (one connect action in the
-  // header governs the whole app) — this view only ever reads it.
-  youtubeRevenue: YoutubeRevenueData | null;
-  isLoadingYoutube: boolean;
-  youtubeError: string | null;
-  onConnectYoutube: () => void;
-  onRefreshYoutube: () => void;
-  isConnectingYoutube: boolean;
 }
 
-// Custom Dot for chart
-const CustomDot = (props: any) => {
-  const { cx, cy, payload } = props;
-  if (!payload.hasShort && !payload.hasVideo) return null;
-  return (
-    <g transform={`translate(${cx - 8}, ${cy + 8})`}>
-      {payload.hasShort ? (
-        <circle cx="8" cy="8" r="6" fill="#ff4e4e" />
-      ) : (
-        <circle cx="8" cy="8" r="6" fill="#3ea6ff" />
-      )}
-    </g>
-  );
+const stageMeta = [
+  { key: 'topic', label: 'Ideas', color: '#a855f7' },
+  { key: 'scripted', label: 'Scripted', color: '#3b82f6' },
+  { key: 'shot', label: 'Shot', color: '#f59e0b' },
+  { key: 'edited', label: 'Edited', color: '#10b981' },
+  { key: 'scheduled', label: 'Scheduled', color: '#ec4899' },
+  { key: 'posted', label: 'Posted', color: '#22c55e' }
+] as const;
+
+const timeValue = (value?: string | null) => {
+  const parsed = value ? Date.parse(value) : NaN;
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const relativeTime = (value: string) => {
+  const seconds = Math.max(0, Math.floor((Date.now() - timeValue(value)) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+};
+
+const deadlineText = (dueDate: string | null) => {
+  if (!dueDate) return 'No deadline';
+  const hours = Math.round((timeValue(dueDate) - Date.now()) / 36e5);
+  if (hours < 0) return `${Math.abs(hours)}h overdue`;
+  if (hours < 24) return `${hours}h remaining`;
+  return `${Math.ceil(hours / 24)}d remaining`;
 };
 
 export default function CommandCenterView({
-  videos,
-  experiments,
-  insights,
-  cycleGoals,
-  scorecard,
-  activities,
-  onTabChange,
-  setSelectedVideoId,
-  youtubeRevenue,
-  isLoadingYoutube,
-  youtubeError,
-  onConnectYoutube,
-  onRefreshYoutube,
-  isConnectingYoutube
+  topics, videos, experiments, insights, cycleGoals, activities, onTabChange
 }: CommandCenterViewProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'Overview' | 'Content' | 'Audience' | 'Revenue' | 'Trends'>('Overview');
-  const [selectedMetric, setSelectedMetric] = useState<'views' | 'watchtime'>('views');
-  const live48hViews: number | null = null;
-  const live48hBars: number[] | null = null;
-  const liveReportedThrough: string | null = null;
-  const liveRefreshError = false;
-  const youtubeAccessToken = youtubeRevenue?.connected ? 'connected' : undefined;
-
-  // 1. Calculate live metrics
-  const totalViewsSum = useMemo(() => {
-    return videos.reduce((sum, v) => sum + (v.metrics?.lifetimeViews || 0), 0);
-  }, [videos]);
-
-  const totalWatchTimeHours = useMemo(() => {
-    return videos.reduce((sum, v) => {
-      const views = v.metrics?.lifetimeViews || 0;
-      const duration = v.duration || 0;
-      const retention = v.metrics?.averagePercentageViewed || 50;
-      return sum + (views * duration * (retention / 100)) / 3600;
-    }, 0);
-  }, [videos]);
-
-
-  const formatMetricValue = (val: number, type: 'views' | 'watchtime' | 'subs') => {
-    if (val >= 1000000) {
-      return `${(val / 1000000).toFixed(1)}M`;
-    }
-    if (val >= 1000) {
-      return `${(val / 1000).toFixed(1)}K`;
-    }
-    return Math.round(val).toString();
-  };
-
-  // 2. Timeline chart data
-  const mainChartData = useMemo(() => {
-    if (videos.length === 0) return [];
-    const sorted = [...videos].sort((a, b) => new Date(a.uploadDate).getTime() - new Date(b.uploadDate).getTime());
-    return sorted.map(v => {
-      const dateLabel = new Date(v.uploadDate).toLocaleDateString([], { day: 'numeric', month: 'short' });
-      const views = v.metrics?.lifetimeViews || 0;
-      const watchtime = Math.round((views * (v.duration || 0) * ((v.metrics?.averagePercentageViewed || 50) / 100)) / 3600);
-
-      return {
-        date: dateLabel,
-        views,
-        watchtime,
-        hasShort: v.format === 'Short',
-        hasVideo: v.format !== 'Short'
-      };
+  const model = useMemo(() => {
+    const now = Date.now();
+    const incomplete = topics.filter(topic => topic.status !== 'posted');
+    const blocked = incomplete.filter(topic => Boolean(topic.blockedReason));
+    const overdue = incomplete.filter(topic => topic.dueDate && timeValue(topic.dueDate) < now);
+    const dueSoon = incomplete.filter(topic => {
+      const due = timeValue(topic.dueDate);
+      return due >= now && due <= now + 24 * 36e5;
     });
-  }, [videos]);
-
-  // 3. Dynamic Realtime Stats
-  const fallback48hViews = useMemo(() => {
-    const viewsFromVelocity = videos.reduce((sum, v) => sum + (v.metrics?.viewVelocity || 0) * 48, 0);
-    return Math.round(viewsFromVelocity || totalViewsSum * 0.06);
-  }, [videos, totalViewsSum]);
-
-  const display48hViews = live48hViews ?? fallback48hViews;
-
-  const realtime48hData = useMemo(() => {
-    if (live48hBars) {
-      return live48hBars.map((views, hour) => ({ hour, views }));
-    }
-    return Array.from({ length: 48 }, (_, i) => ({
-      hour: i,
-      views: Math.round((display48hViews / 48) * (0.8 + Math.random() * 0.4))
+    const attention = [...incomplete]
+      .filter(topic => topic.blockedReason || overdue.includes(topic) || dueSoon.includes(topic))
+      .sort((a, b) => {
+        const risk = (topic: Topic) => topic.blockedReason ? 0 : overdue.includes(topic) ? 1 : 2;
+        return risk(a) - risk(b) || timeValue(a.dueDate) - timeValue(b.dueDate) || a.priority - b.priority;
+      });
+    const posted = topics.filter(topic => topic.status === 'posted').length;
+    const scheduled = topics.filter(topic => topic.status === 'scheduled').length;
+    const completion = topics.length ? Math.round((posted / topics.length) * 100) : 0;
+    const todayKey = new Date().toDateString();
+    const actionsToday = activities.filter(item => new Date(item.timestamp).toDateString() === todayKey).length;
+    const recent = [...activities].sort((a, b) => timeValue(b.timestamp) - timeValue(a.timestamp)).slice(0, 7);
+    const maxStage = Math.max(1, ...stageMeta.map(stage => topics.filter(topic => topic.status === stage.key).length));
+    const stages = stageMeta.map(stage => ({
+      ...stage,
+      count: topics.filter(topic => topic.status === stage.key).length,
+      width: Math.max(4, Math.round((topics.filter(topic => topic.status === stage.key).length / maxStage) * 100))
     }));
-  }, [display48hViews, live48hBars]);
-
-  // 4. Dynamic Directives (Integrated from synced OpenAI insights or derived locally)
-  const directives = useMemo(() => {
-    const defaultDirectives = {
-      whatToDo: [] as any[],
-      whatIsDone: [] as any[],
-      whatToChase: [] as any[],
-      whatToMaintain: [] as any[],
-      howToKeepUp: [] as any[]
-    };
-
-    // Filter synced insights if present
-    insights.forEach(ins => {
-      const directiveItem = {
-        id: ins.id,
-        title: ins.title,
-        description: ins.description,
-        actionLabel: ins.actionLabel || 'Action'
-      };
-
-      if (ins.reason?.includes('What to Do')) {
-        defaultDirectives.whatToDo.push(directiveItem);
-      } else if (ins.reason?.includes('How to Keep Up')) {
-        defaultDirectives.howToKeepUp.push(directiveItem);
-      } else if (ins.reason?.includes('What to Maintain')) {
-        defaultDirectives.whatToMaintain.push(directiveItem);
-      }
+    const channels = (['LearnDriven', 'DecodeWorthy'] as const).map(channel => {
+      const channelTopics = topics.filter(topic => topic.channel === channel);
+      const done = channelTopics.filter(topic => topic.status === 'posted').length;
+      const atRisk = channelTopics.filter(topic => topic.blockedReason || overdue.includes(topic)).length;
+      return { channel, total: channelTopics.length, done, atRisk, active: channelTopics.length - done };
     });
+    const activityDays = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(now - (6 - index) * 864e5);
+      const count = activities.filter(item => new Date(item.timestamp).toDateString() === date.toDateString()).length;
+      return { label: date.toLocaleDateString([], { weekday: 'short' }).slice(0, 2), count };
+    });
+    const maxActivity = Math.max(1, ...activityDays.map(day => day.count));
+    return {
+      incomplete, blocked, overdue, dueSoon, attention, posted, scheduled,
+      completion, actionsToday, recent, stages, channels, activityDays, maxActivity
+    };
+  }, [topics, activities]);
 
-    // Fallbacks if list is empty
-    if (defaultDirectives.whatToDo.length === 0) {
-      const blockedVideo = videos.find(v => v.pipelineStage === 'Edit' || v.blockedReason);
-      if (blockedVideo) {
-        defaultDirectives.whatToDo.push({
-          id: 'def-do-1',
-          title: 'Resolve Editing Block',
-          description: `Resolve rendering blocks or edit pipeline items on "${blockedVideo.title}".`,
-          actionLabel: 'Resolve Pipeline Block'
-        });
-      } else {
-        defaultDirectives.whatToDo.push({
-          id: 'def-do-2',
-          title: 'Draft Script Backlog',
-          description: 'Upload queue count is empty. Plan and script a high-potential technology decode.',
-          actionLabel: 'Start Scripting'
-        });
-      }
-    }
-
-    if (defaultDirectives.whatIsDone.length === 0) {
-      const published = videos.filter(v => v.pipelineStage === 'Published');
-      if (published.length > 0) {
-        defaultDirectives.whatIsDone.push({
-          id: 'def-done-1',
-          title: 'Published Recent Video',
-          description: `"${published[0].title}" was uploaded and is gathering real-time telemetry.`,
-          actionLabel: 'View Analytics'
-        });
-      } else {
-        defaultDirectives.whatIsDone.push({
-          id: 'def-done-2',
-          title: 'System Connected',
-          description: 'YouTube Channel API key and Supabase database engines loaded successfully.',
-          actionLabel: 'View Logs'
-        });
-      }
-    }
-
-    if (defaultDirectives.whatToChase.length === 0) {
-      // Dynamic forecasting milestone
-      const subGoal = (cycleGoals as any)?.subscribersTarget || 100000;
-      const gainedMtd = youtubeRevenue?.connected ? youtubeRevenue.subscribersNetGained : undefined;
-      defaultDirectives.whatToChase.push({
-        id: 'def-chase-1',
-        title: 'Chase Subscriber Target',
-        description: gainedMtd !== undefined
-          ? `Gained ${gainedMtd.toLocaleString()} subs this month. Chase target of ${subGoal.toLocaleString()} subscribers.`
-          : `Connect YouTube to track progress toward your ${subGoal.toLocaleString()} subscriber target.`,
-        actionLabel: 'View Forecast'
-      });
-    }
-
-    if (defaultDirectives.whatToMaintain.length === 0) {
-      const uploads = videos.length;
-      defaultDirectives.whatToMaintain.push({
-        id: 'def-maint-1',
-        title: 'Maintain Upload Cadence',
-        description: `Upload frequency is ${uploads} videos this month. Maintain target threshold.`,
-        actionLabel: 'Review Pipeline'
-      });
-    }
-
-    if (defaultDirectives.howToKeepUp.length === 0) {
-      // Correlate well-being inputs
-      const sleep = scorecard?.sleep || 8;
-      const stress = scorecard?.stress || 3;
-      const energy = scorecard?.energy || 8;
-
-      if (sleep < 7) {
-        defaultDirectives.howToKeepUp.push({
-          id: 'def-keep-1',
-          title: 'Sleep Budget Deficit',
-          description: `Your logged sleep is low (${sleep}/10). Lower rest scores correlate with a 15% increase in production latency. Prioritize creative recovery today.`,
-          actionLabel: 'Check Bio Scorecard'
-        });
-      } else if (stress > 6) {
-        defaultDirectives.howToKeepUp.push({
-          id: 'def-keep-2',
-          title: 'High Stress Warning',
-          description: `Stress parameter is high (${stress}/10). Focus on planning/scripting rather than heavy editing lines to optimize output quality.`,
-          actionLabel: 'Check Bio Scorecard'
-        });
-      } else {
-        defaultDirectives.howToKeepUp.push({
-          id: 'def-keep-3',
-          title: 'Optimal Performance State',
-          description: `All biometrics indicators (Energy: ${energy}/10) are healthy. Focus levels are high. Execute high-effort filming work today.`,
-          actionLabel: 'Check Bio Scorecard'
-        });
-      }
-    }
-
-    return defaultDirectives;
-  }, [videos, insights, cycleGoals, scorecard, youtubeRevenue]);
-
-  // Action Button Handler that navigates tabs
-  const handleActionClick = (actionLabel: string, id?: string) => {
-    const label = actionLabel.toLowerCase();
-    if (label.includes('script') || label.includes('video')) {
-      onTabChange('video-lab');
-    } else if (label.includes('pipeline') || label.includes('review')) {
-      onTabChange('pipeline');
-    } else if (label.includes('scorecard') || label.includes('bio')) {
-      onTabChange('dashboard'); // switches to primary cockpit tab (usually has biometrics)
-    } else if (label.includes('stats') || label.includes('analytics') || label.includes('forecast')) {
-      setActiveSubTab('Overview');
-    }
-  };
-
-  const topVideos = useMemo(() => {
-    return [...videos].sort((a, b) => (b.metrics?.lifetimeViews || 0) - (a.metrics?.lifetimeViews || 0)).slice(0, 3);
-  }, [videos]);
-
-  const latestVideo = useMemo(() => {
-    if (videos.length === 0) return null;
-    return [...videos].sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime())[0];
-  }, [videos]);
+  const activeExperiments = experiments.filter(item => item.status === 'active');
+  const warningInsights = insights.filter(item => item.type === 'warning' || item.type === 'recommendation').slice(0, 3);
+  const cycleTarget = cycleGoals ? [
+    cycleGoals.learnDrivenShorts, cycleGoals.learnDrivenLong,
+    cycleGoals.learnDrivenMembers, cycleGoals.decodeWorthyShorts
+  ].reduce<number>((sum, value) => sum + (value || 0), 0) : 0;
+  const cycleDelivered = topics.filter(topic => topic.status === 'posted').length;
+  const cycleProgress = cycleTarget ? Math.min(100, Math.round((cycleDelivered / cycleTarget) * 100)) : 0;
+  const systemTone = model.blocked.length || model.overdue.length ? 'ACTION REQUIRED' : model.dueSoon.length ? 'WATCH CLOSELY' : 'SYSTEM CLEAR';
+  const systemColor = model.blocked.length || model.overdue.length ? 'rose' : model.dueSoon.length ? 'amber' : 'emerald';
 
   return (
-    <div className="space-y-6 text-[#f1f1f1] font-sans pb-12">
-      
-      {/* Premium Top Bar */}
-      <div className="flex justify-between items-center bg-[#161616]/40 backdrop-blur-xl border border-[#272727]/60 p-4 rounded-2xl">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center">
-            <Sparkles className="h-5 w-5 text-cyan-400" />
-          </div>
+    <div className="space-y-5 pb-10">
+      <section className="relative overflow-hidden rounded-2xl border border-neutral-800 bg-[linear-gradient(120deg,rgba(15,12,24,.98),rgba(5,14,18,.98))] p-5 md:p-6">
+        <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-cyan-500/8 blur-3xl" />
+        <div className="pointer-events-none absolute -left-20 bottom-0 h-48 w-48 rounded-full bg-purple-500/8 blur-3xl" />
+        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-white leading-none">Unified CommandCenter</h1>
-            <p className="text-[10px] text-[#aaaaaa] mt-1 font-mono">INTEGRATED TELEMETRY & STRATEGY ENGINE</p>
+            <div className="mb-2 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[.24em] text-cyan-400">
+              <Radio className="h-3.5 w-3.5 animate-pulse" /> Live content operations
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">Creator Command Center</h1>
+            <p className="mt-2 max-w-2xl text-sm text-neutral-400">One screen for what needs action now, where production is accumulating, and what is safely moving forward.</p>
+          </div>
+          <div className={`min-w-[250px] rounded-xl border p-4 ${systemColor === 'rose' ? 'border-rose-900/50 bg-rose-950/20' : systemColor === 'amber' ? 'border-amber-900/50 bg-amber-950/20' : 'border-emerald-900/50 bg-emerald-950/20'}`}>
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[9px] uppercase tracking-widest text-neutral-500">Operational state</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${systemColor === 'rose' ? 'bg-rose-500 shadow-[0_0_12px_#f43f5e]' : systemColor === 'amber' ? 'bg-amber-400 shadow-[0_0_12px_#f59e0b]' : 'bg-emerald-400 shadow-[0_0_12px_#10b981]'}`} />
+            </div>
+            <div className={`mt-2 font-mono text-lg font-bold ${systemColor === 'rose' ? 'text-rose-400' : systemColor === 'amber' ? 'text-amber-300' : 'text-emerald-400'}`}>{systemTone}</div>
+            <div className="mt-1 text-xs text-neutral-500">{model.blocked.length} blocked · {model.overdue.length} overdue · {model.dueSoon.length} due soon</div>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-xs font-mono text-[#aaaaaa] bg-[#0f0f0f] border border-[#272727] px-3.5 py-1.5 rounded-full select-none">
-          <Activity className="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
-          <span>REAL-TIME ANALYSIS SYNCHRONIZED</span>
-        </div>
-      </div>
+      </section>
 
-      {/* Telemetry Chart Deck */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Core Metrics Box */}
-        <div className="lg:col-span-2 bg-[#161616]/60 backdrop-blur-xl border border-[#272727]/60 rounded-2xl p-5 shadow-lg flex flex-col justify-between">
-          <div>
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <h2 className="text-lg font-bold text-white tracking-tight">Channel Trajectory</h2>
-                <p className="text-xs text-[#aaaaaa] mt-0.5">Aggregated recent metrics from linked active publishing channels.</p>
-              </div>
-              <div className="flex items-center gap-1 text-[10px] font-mono text-[#aaaaaa] bg-[#1f1f1f] px-3 py-1 rounded-full border border-[#272727]">
-                <span>Last 30 Days</span>
-              </div>
-            </div>
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {[
+          { label: 'Needs attention', value: model.attention.length, note: `${model.blocked.length} blocked`, icon: AlertTriangle, iconClass: 'text-rose-400' },
+          { label: 'In production', value: model.incomplete.length, note: `${model.scheduled} scheduled`, icon: Layers3, iconClass: 'text-amber-400' },
+          { label: 'Completion', value: `${model.completion}%`, note: `${model.posted} posted`, icon: Gauge, iconClass: 'text-emerald-400' },
+          { label: 'Actions today', value: model.actionsToday, note: 'live audit events', icon: Activity, iconClass: 'text-blue-400' },
+          { label: 'Experiments', value: activeExperiments.length, note: 'currently active', icon: Sparkles, iconClass: 'text-purple-400' }
+        ].map(card => (
+          <div key={card.label} className="rounded-xl border border-neutral-850 bg-neutral-950/65 p-4 backdrop-blur transition hover:border-neutral-700">
+            <div className="flex items-center justify-between"><span className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">{card.label}</span><card.icon className={`h-4 w-4 ${card.iconClass}`} /></div>
+            <div className="mt-3 text-2xl font-bold text-neutral-100">{card.value}</div>
+            <div className="mt-1 font-mono text-[9px] text-neutral-600">{card.note}</div>
+          </div>
+        ))}
+      </section>
 
-            {/* Metrics cards bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-0 border border-[#272727] rounded-xl overflow-hidden bg-[#0f0f0f]/80 mb-6">
-              
-              <button 
-                onClick={() => setSelectedMetric('views')}
-                className={`p-3.5 text-left border-r border-[#272727] flex flex-col justify-between transition-colors ${selectedMetric === 'views' ? 'bg-[#161616]' : 'hover:bg-[#161616]/40'}`}
-              >
-                <span className="text-[10px] text-[#aaaaaa] font-semibold tracking-wide uppercase">Views</span>
-                <div className="mt-2.5">
-                  <span className="text-xl font-bold tracking-tight text-white block">
-                    {formatMetricValue(totalViewsSum, 'views')}
-                  </span>
-                  <span className="text-[9px] text-[#aaaaaa] block mt-0.5 font-mono">Cumulative</span>
-                </div>
-              </button>
-
-              <button 
-                onClick={() => setSelectedMetric('watchtime')}
-                className={`p-3.5 text-left border-r border-[#272727] flex flex-col justify-between transition-colors ${selectedMetric === 'watchtime' ? 'bg-[#161616]' : 'hover:bg-[#161616]/40'}`}
-              >
-                <span className="text-[10px] text-[#aaaaaa] font-semibold tracking-wide uppercase">Watch Time</span>
-                <div className="mt-2.5">
-                  <span className="text-xl font-bold tracking-tight text-white block">
-                    {formatMetricValue(totalWatchTimeHours, 'watchtime')}
-                  </span>
-                  <span className="text-[9px] text-[#aaaaaa] block mt-0.5 font-mono">Hours</span>
-                </div>
-              </button>
-
-              <div className="p-3.5 text-left border-r border-[#272727] flex flex-col justify-between">
-                <span className="text-[10px] text-[#aaaaaa] font-semibold tracking-wide uppercase">Subscribers</span>
-                <div className="mt-2.5">
-                  {!youtubeRevenue || isLoadingYoutube ? (
-                    <span className="text-xs text-[#777777] font-mono">{isLoadingYoutube ? 'Loading…' : 'Checking connection…'}</span>
-                  ) : youtubeRevenue.connected ? (
-                    youtubeRevenue.subscriberCount === undefined ? (
-                      <span className="text-[10px] text-amber-400 font-mono leading-snug block">
-                        Total count needs one more permission — reconnect via the YouTube control in the header.
-                      </span>
-                    ) : (
-                      <>
-                        <span className="text-xl font-bold tracking-tight text-white block">
-                          {youtubeRevenue.subscriberCount.toLocaleString()}
-                        </span>
-                        <span className="text-[9px] text-[#aaaaaa] block mt-0.5 font-mono">
-                          Real • Total{youtubeRevenue.subscribersNetGained !== undefined
-                            ? ` • ${youtubeRevenue.subscribersNetGained >= 0 ? '+' : ''}${youtubeRevenue.subscribersNetGained.toLocaleString()} MTD`
-                            : ''}
-                        </span>
-                      </>
-                    )
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={onConnectYoutube}
-                      disabled={isConnectingYoutube}
-                      className="text-xs font-bold text-cyan-400 hover:text-cyan-300 disabled:opacity-40 transition"
-                    >
-                      {isConnectingYoutube ? 'Redirecting…' : 'Connect YouTube →'}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-3.5 text-left flex flex-col justify-between">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-[#aaaaaa] font-semibold tracking-wide uppercase">Revenue (MTD)</span>
-                  {youtubeRevenue?.connected && (
-                    <button
-                      type="button"
-                      onClick={onRefreshYoutube}
-                      disabled={isLoadingYoutube}
-                      title="Refresh from YouTube"
-                      className="text-[#666] hover:text-cyan-400 disabled:opacity-40 transition"
-                    >
-                      <RotateCcw className={`h-3 w-3 ${isLoadingYoutube ? 'animate-spin' : ''}`} />
-                    </button>
-                  )}
-                </div>
-                <div className="mt-2.5">
-                  {!youtubeRevenue || isLoadingYoutube ? (
-                    <span className="text-xs text-[#777777] font-mono">{isLoadingYoutube ? 'Loading…' : 'Checking connection…'}</span>
-                  ) : youtubeRevenue.connected ? (
-                    youtubeError ? (
-                      <span className="text-[10px] text-amber-400 font-mono leading-snug block">{youtubeError}</span>
-                    ) : (
-                      <>
-                        <span className="text-xl font-bold tracking-tight text-white block">
-                          ₹{Math.round(youtubeRevenue.revenue || 0).toLocaleString()}
-                        </span>
-                        <span className="text-[9px] text-[#aaaaaa] block mt-0.5 font-mono">
-                          Real • YouTube Analytics{youtubeRevenue.channelTitle ? ` • ${youtubeRevenue.channelTitle}` : ''}
-                        </span>
-                      </>
-                    )
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={onConnectYoutube}
-                      disabled={isConnectingYoutube}
-                      className="text-xs font-bold text-cyan-400 hover:text-cyan-300 disabled:opacity-40 transition"
-                    >
-                      {isConnectingYoutube ? 'Redirecting…' : 'Connect YouTube →'}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-            </div>
-
-            {/* Line Chart */}
-            <div className="h-60 w-full relative mb-1">
-              {mainChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={mainChartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
-                    <defs>
-                      <linearGradient id="glowSelect" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.15}/>
-                        <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <XAxis dataKey="date" stroke="#444" fontSize={9} tickLine={false} />
-                    <YAxis stroke="#444" fontSize={9} axisLine={false} tickLine={false} orientation="right" />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#111', border: '1px solid #272727', borderRadius: '8px' }}
-                      labelStyle={{ fontSize: 9, color: '#888' }}
-                      itemStyle={{ fontSize: 10, color: '#fff' }}
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey={selectedMetric} 
-                      stroke="#06b6d4" 
-                      strokeWidth={2} 
-                      fillOpacity={1} 
-                      fill="url(#glowSelect)"
-                      dot={<CustomDot />}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full w-full flex items-center justify-center text-xs font-mono text-[#aaaaaa]">
-                  No dynamic upload logs found in last 30 days. Link a YouTube channel.
-                </div>
-              )}
-            </div>
+      <section className="grid gap-5 xl:grid-cols-[1.2fr_.8fr]">
+        <div className="rounded-2xl border border-rose-950/50 bg-neutral-950/70 p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <div><div className="flex items-center gap-2 text-sm font-bold text-white"><Flame className="h-4 w-4 text-rose-400" /> Action queue</div><p className="mt-1 text-[11px] text-neutral-500">Ordered by consequence and deadline.</p></div>
+            <button onClick={() => onTabChange('pipeline')} className="flex items-center gap-1 font-mono text-[10px] text-rose-400 hover:text-rose-300">Open pipeline <ArrowUpRight className="h-3 w-3" /></button>
+          </div>
+          <div className="space-y-2.5">
+            {model.attention.length === 0 ? (
+              <div className="flex items-center gap-3 rounded-xl border border-emerald-900/30 bg-emerald-950/10 p-4"><ShieldCheck className="h-5 w-5 text-emerald-400" /><div><div className="text-sm font-semibold text-emerald-300">No urgent production risk</div><div className="text-[11px] text-neutral-500">Deadlines and blockers are currently controlled.</div></div></div>
+            ) : model.attention.slice(0, 6).map((topic, index) => {
+              const isBlocked = Boolean(topic.blockedReason);
+              const isOverdue = topic.dueDate && timeValue(topic.dueDate) < Date.now();
+              return (
+                <button key={topic.id} onClick={() => onTabChange('pipeline')} className="group flex w-full items-center gap-3 rounded-xl border border-neutral-850 bg-neutral-900/30 p-3 text-left transition hover:border-rose-900/60 hover:bg-rose-950/10">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-neutral-950 font-mono text-[10px] text-neutral-500">0{index + 1}</span>
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${isBlocked || isOverdue ? 'bg-rose-500 shadow-[0_0_9px_#f43f5e]' : 'bg-amber-400'}`} />
+                  <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-neutral-200">{topic.name}</span><span className="mt-0.5 block truncate text-[10px] text-neutral-500">{isBlocked ? topic.blockedReason : `${topic.channel} · ${topic.status}`}</span></span>
+                  <span className={`rounded-md px-2 py-1 font-mono text-[9px] ${isBlocked || isOverdue ? 'bg-rose-950/40 text-rose-400' : 'bg-amber-950/30 text-amber-300'}`}>{isBlocked ? 'BLOCKED' : deadlineText(topic.dueDate)}</span>
+                  <ArrowUpRight className="h-3.5 w-3.5 text-neutral-700 transition group-hover:text-rose-400" />
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Real-time Velocity Column */}
-        <div className="bg-[#161616]/60 backdrop-blur-xl border border-[#272727]/60 rounded-2xl p-5 shadow-lg flex flex-col justify-between">
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Realtime Telemetry</h2>
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-              </span>
+        <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5">
+          <div className="mb-5 flex items-center justify-between"><div><div className="flex items-center gap-2 text-sm font-bold text-white"><TrendingUp className="h-4 w-4 text-cyan-400" /> Production flow</div><p className="mt-1 text-[11px] text-neutral-500">Live density by completed stage.</p></div><span className="font-mono text-[9px] text-neutral-600">{topics.length} TOTAL</span></div>
+          <div className="space-y-3.5">
+            {model.stages.map(stage => (
+              <div key={stage.key} className="grid grid-cols-[74px_1fr_28px] items-center gap-3">
+                <span className="font-mono text-[10px] text-neutral-500">{stage.label}</span>
+                <div className="h-2 overflow-hidden rounded-full bg-neutral-900"><motion.div initial={{ width: 0 }} animate={{ width: `${stage.width}%` }} transition={{ duration: .6 }} className="h-full rounded-full" style={{ backgroundColor: stage.color, boxShadow: `0 0 10px ${stage.color}55` }} /></div>
+                <span className="text-right font-mono text-[10px] font-bold" style={{ color: stage.color }}>{stage.count}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-6 border-t border-neutral-900 pt-4">
+            <div className="mb-3 flex items-center justify-between"><span className="font-mono text-[9px] uppercase tracking-wider text-neutral-600">7-day action pulse</span><span className="font-mono text-[9px] text-cyan-500">{activities.length} logged</span></div>
+            <div className="flex h-20 items-end gap-2">
+              {model.activityDays.map(day => <div key={day.label} className="flex flex-1 flex-col items-center gap-1"><div className="w-full rounded-t bg-gradient-to-t from-cyan-900/50 to-cyan-400" style={{ height: `${Math.max(5, (day.count / model.maxActivity) * 58)}px` }} /><span className="font-mono text-[8px] text-neutral-600">{day.label}</span></div>)}
             </div>
+          </div>
+        </div>
+      </section>
 
-            <div>
-              <span className="text-3xl font-bold tracking-tight text-white font-sans">
-                {(() => {
-                  const learnDrivenSubs = parseInt(localStorage.getItem('yt_subscribers_LearnDriven') || '0');
-                  const decodeWorthySubs = parseInt(localStorage.getItem('yt_subscribers_DecodeWorthy') || '0');
-                  const total = learnDrivenSubs + decodeWorthySubs;
-                  return total > 0 ? total.toLocaleString() : 'Offline';
-                })()}
-              </span>
-              <span className="block text-[10px] text-[#aaaaaa] mt-0.5">Subscribers (Linked Channels)</span>
-            </div>
+      <section className="grid gap-5 xl:grid-cols-3">
+        <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5 xl:col-span-2">
+          <div className="mb-4 flex items-center justify-between"><div><div className="flex items-center gap-2 text-sm font-bold text-white"><Activity className="h-4 w-4 text-blue-400" /> Latest movement</div><p className="mt-1 text-[11px] text-neutral-500">Newest user actions across production.</p></div><button onClick={() => onTabChange('logs')} className="font-mono text-[10px] text-blue-400 hover:text-blue-300">View all →</button></div>
+          <div className="divide-y divide-neutral-900">
+            {model.recent.length ? model.recent.map(item => (
+              <div key={item.id} className="flex items-center gap-3 py-3"><CircleDot className={`h-4 w-4 shrink-0 ${item.channel === 'LearnDriven' ? 'text-blue-400' : 'text-emerald-400'}`} /><div className="min-w-0 flex-1"><div className="truncate text-xs text-neutral-300"><span className="font-semibold text-white">{item.topicName}</span> · {item.action}</div><div className="mt-1 font-mono text-[9px] uppercase text-neutral-600">{item.channel}</div></div><span className="shrink-0 font-mono text-[9px] text-neutral-600">{relativeTime(item.timestamp)}</span></div>
+            )) : <div className="py-12 text-center font-mono text-[10px] text-neutral-600">No content movement logged yet.</div>}
+          </div>
+        </div>
 
-            <div className="h-px bg-[#272727]/80" />
+        <div className="space-y-5">
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5">
+            <div className="mb-4 flex items-center gap-2 text-sm font-bold text-white"><Target className="h-4 w-4 text-purple-400" /> Channel balance</div>
+            <div className="space-y-4">{model.channels.map(channel => (
+              <div key={channel.channel}><div className="mb-2 flex items-center justify-between"><span className="text-xs font-semibold text-neutral-300">{channel.channel}</span><span className="font-mono text-[9px] text-neutral-600">{channel.active} active · {channel.done} done</span></div><div className="flex h-2 overflow-hidden rounded-full bg-neutral-900"><div className={channel.channel === 'LearnDriven' ? 'bg-blue-500' : 'bg-emerald-500'} style={{ width: `${channel.total ? (channel.done / channel.total) * 100 : 0}%` }} /><div className={channel.channel === 'LearnDriven' ? 'bg-blue-950' : 'bg-emerald-950'} style={{ flex: 1 }} /></div>{channel.atRisk > 0 && <div className="mt-1.5 font-mono text-[9px] text-rose-400">{channel.atRisk} need attention</div>}</div>
+            ))}</div>
+          </div>
 
-            <div>
-              <span className="text-xl font-bold text-white font-sans">
-                {display48hViews > 0 ? display48hViews.toLocaleString() : 'Calculating...'}
-              </span>
-              <span className="block text-[10px] text-[#aaaaaa] mt-0.5">Views • Latest 48 reported hours</span>
-              <span className={`block text-[8px] font-mono mt-1 ${liveRefreshError ? 'text-amber-400' : youtubeAccessToken ? 'text-cyan-400' : 'text-[#777777]'}`}>
-                {liveRefreshError
-                  ? 'YouTube API refresh failed'
-                  : youtubeAccessToken
-                    ? `YouTube API • refresh 1s${liveReportedThrough ? ` • through ${liveReportedThrough}` : ''}`
-                    : 'Connect YouTube for live API updates'}
-              </span>
-            </div>
-
-            {/* 48h mini Bar Chart */}
-            <div className="h-14 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={realtime48hData} barCategoryGap={1}>
-                  <Bar dataKey="views" fill="#00bcd4" radius={[1, 1, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex justify-between items-center text-[8px] text-[#aaaaaa] font-mono leading-none -mt-2">
-              <span>48h ago</span>
-              <span>Latest report</span>
-            </div>
-
-            <div className="h-px bg-[#272727]/80" />
-
-            {/* Top performing */}
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5">
+            <div className="mb-4 flex items-center gap-2 text-sm font-bold text-white"><ShieldCheck className="h-4 w-4 text-emerald-400" /> Safety signals</div>
             <div className="space-y-2">
-              <span className="text-xs font-bold text-white block">Active Videos</span>
-              {topVideos.map(v => (
-                <div key={v.id} className="flex justify-between items-center text-xs py-0.5">
-                  <span className="text-[#aaaaaa] truncate max-w-[150px]">{v.title}</span>
-                  <span className="font-bold text-white font-mono">{v.metrics?.lifetimeViews?.toLocaleString()}</span>
-                </div>
-              ))}
+              {[
+                { ok: model.blocked.length === 0, label: model.blocked.length ? `${model.blocked.length} blocked topics` : 'No blocked production' },
+                { ok: model.overdue.length === 0, label: model.overdue.length ? `${model.overdue.length} overdue deadlines` : 'Deadlines controlled' },
+                { ok: model.scheduled > 0, label: model.scheduled ? `${model.scheduled} releases scheduled` : 'No release scheduled' },
+                { ok: activities.length > 0, label: activities.length ? 'Audit trail active' : 'No activity history' }
+              ].map(signal => <div key={signal.label} className="flex items-center gap-2 rounded-lg bg-neutral-900/35 px-3 py-2"><span className={`h-1.5 w-1.5 rounded-full ${signal.ok ? 'bg-emerald-400' : 'bg-rose-500'}`} /><span className={`text-[10px] ${signal.ok ? 'text-neutral-400' : 'text-rose-300'}`}>{signal.label}</span></div>)}
             </div>
           </div>
         </div>
+      </section>
 
-      </div>
-
-      {/* Actionable UI directives bridge */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        
-        {/* Left Double Card: What to Do, What is Done, What to Chase, What to Maintain */}
-        <div className="xl:col-span-2 space-y-6">
-          
-          {/* Main Directives panel */}
-          <div className="bg-[#161616]/60 backdrop-blur-xl border border-[#272727]/60 rounded-2xl p-5 shadow-lg">
-            <div className="flex justify-between items-center mb-6">
-              <div className="flex items-center gap-2">
-                <Brain className="h-5 w-5 text-purple-400" />
-                <h2 className="text-base font-bold text-white tracking-tight">Algorithmic Directives Bridge</h2>
-              </div>
-              <span className="text-[9px] font-mono text-[#aaaaaa] bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 rounded-full uppercase">AI Co-Producer Engine</span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              
-              {/* WHAT TO DO */}
-              <div className="p-4 bg-[#0f0f0f]/80 border border-[#272727]/80 rounded-xl flex flex-col justify-between hover:border-cyan-500/30 transition-all duration-300">
-                <div>
-                  <div className="flex items-center gap-2 text-cyan-400 mb-2">
-                    <ActivitySquare className="h-4.5 w-4.5" />
-                    <span className="text-xs font-bold uppercase tracking-wider">What to Do</span>
-                  </div>
-                  {directives.whatToDo.map(item => (
-                    <div key={item.id} className="space-y-1 mt-2">
-                      <h4 className="text-xs font-bold text-white">{item.title}</h4>
-                      <p className="text-[11px] text-[#aaaaaa] leading-relaxed">{item.description}</p>
-                    </div>
-                  ))}
-                </div>
-                <button 
-                  onClick={() => handleActionClick(directives.whatToDo[0]?.actionLabel || '')}
-                  className="w-full mt-4 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/25 border border-cyan-500/20 text-cyan-400 text-xs font-semibold rounded-lg tracking-wide transition"
-                >
-                  {directives.whatToDo[0]?.actionLabel || 'Start script drafting'}
-                </button>
-              </div>
-
-              {/* WHAT TO CHASE */}
-              <div className="p-4 bg-[#0f0f0f]/80 border border-[#272727]/80 rounded-xl flex flex-col justify-between hover:border-amber-500/30 transition-all duration-300">
-                <div>
-                  <div className="flex items-center gap-2 text-amber-400 mb-2">
-                    <TrendingUp className="h-4.5 w-4.5" />
-                    <span className="text-xs font-bold uppercase tracking-wider">What to Chase</span>
-                  </div>
-                  {directives.whatToChase.map(item => (
-                    <div key={item.id} className="space-y-1 mt-2">
-                      <h4 className="text-xs font-bold text-white">{item.title}</h4>
-                      <p className="text-[11px] text-[#aaaaaa] leading-relaxed">{item.description}</p>
-                    </div>
-                  ))}
-                </div>
-                <button 
-                  onClick={() => handleActionClick(directives.whatToChase[0]?.actionLabel || '')}
-                  className="w-full mt-4 py-1.5 bg-amber-500/10 hover:bg-amber-500/25 border border-amber-500/20 text-amber-400 text-xs font-semibold rounded-lg tracking-wide transition"
-                >
-                  {directives.whatToChase[0]?.actionLabel || 'View Target Forecast'}
-                </button>
-              </div>
-
-              {/* WHAT TO MAINTAIN */}
-              <div className="p-4 bg-[#0f0f0f]/80 border border-[#272727]/80 rounded-xl flex flex-col justify-between hover:border-emerald-500/30 transition-all duration-300">
-                <div>
-                  <div className="flex items-center gap-2 text-emerald-400 mb-2">
-                    <Shield className="h-4.5 w-4.5" />
-                    <span className="text-xs font-bold uppercase tracking-wider">What to Maintain</span>
-                  </div>
-                  {directives.whatToMaintain.map(item => (
-                    <div key={item.id} className="space-y-1 mt-2">
-                      <h4 className="text-xs font-bold text-white">{item.title}</h4>
-                      <p className="text-[11px] text-[#aaaaaa] leading-relaxed">{item.description}</p>
-                    </div>
-                  ))}
-                </div>
-                <button 
-                  onClick={() => handleActionClick(directives.whatToMaintain[0]?.actionLabel || '')}
-                  className="w-full mt-4 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/20 text-emerald-400 text-xs font-semibold rounded-lg tracking-wide transition"
-                >
-                  {directives.whatToMaintain[0]?.actionLabel || 'Check pipeline'}
-                </button>
-              </div>
-
-              {/* WHAT IS DONE */}
-              <div className="p-4 bg-[#0f0f0f]/80 border border-[#272727]/80 rounded-xl flex flex-col justify-between hover:border-purple-500/30 transition-all duration-300">
-                <div>
-                  <div className="flex items-center gap-2 text-purple-400 mb-2">
-                    <CheckCircle className="h-4.5 w-4.5" />
-                    <span className="text-xs font-bold uppercase tracking-wider">What is Done</span>
-                  </div>
-                  {directives.whatIsDone.map(item => (
-                    <div key={item.id} className="space-y-1 mt-2">
-                      <h4 className="text-xs font-bold text-white">{item.title}</h4>
-                      <p className="text-[11px] text-[#aaaaaa] leading-relaxed">{item.description}</p>
-                    </div>
-                  ))}
-                </div>
-                <button 
-                  onClick={() => handleActionClick(directives.whatIsDone[0]?.actionLabel || '')}
-                  className="w-full mt-4 py-1.5 bg-purple-500/10 hover:bg-purple-500/25 border border-purple-500/20 text-purple-400 text-xs font-semibold rounded-lg tracking-wide transition"
-                >
-                  {directives.whatIsDone[0]?.actionLabel || 'View log milestones'}
-                </button>
-              </div>
-
-            </div>
-          </div>
-
-        </div>
-
-        {/* Right Column: How to Keep Up (Bio Sync and well-being correlations) */}
-        <div className="space-y-6">
-          
-          {/* Bio Performance Sync panel */}
-          <div className="bg-[#161616]/60 backdrop-blur-xl border border-[#272727]/60 rounded-2xl p-5 shadow-lg flex flex-col justify-between h-full">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 pb-1 border-b border-[#272727]/80">
-                <Activity className="h-5 w-5 text-red-400" />
-                <div>
-                  <h2 className="text-sm font-bold text-white tracking-tight">How to Keep Up</h2>
-                  <p className="text-[10px] text-[#aaaaaa]">Biometrics & Creative Capacity Analysis</p>
-                </div>
-              </div>
-
-              {/* Bio Scores summary */}
-              <div className="grid grid-cols-3 gap-2 py-2">
-                <div className="bg-[#0f0f0f] border border-[#272727] p-2.5 rounded-xl text-center">
-                  <span className="block text-lg font-bold text-white font-mono">{scorecard?.sleep || 8}/10</span>
-                  <span className="block text-[8px] text-[#aaaaaa] uppercase mt-0.5">Sleep</span>
-                </div>
-                <div className="bg-[#0f0f0f] border border-[#272727] p-2.5 rounded-xl text-center">
-                  <span className="block text-lg font-bold text-white font-mono">{scorecard?.stress || 3}/10</span>
-                  <span className="block text-[8px] text-[#aaaaaa] uppercase mt-0.5">Stress</span>
-                </div>
-                <div className="bg-[#0f0f0f] border border-[#272727] p-2.5 rounded-xl text-center">
-                  <span className="block text-lg font-bold text-white font-mono">{scorecard?.energy || 8}/10</span>
-                  <span className="block text-[8px] text-[#aaaaaa] uppercase mt-0.5">Energy</span>
-                </div>
-              </div>
-
-              {/* Directives */}
-              <div className="space-y-3 pt-2">
-                {directives.howToKeepUp.map(item => (
-                  <div key={item.id} className="p-3 bg-[#0f0f0f]/60 border border-[#272727]/80 rounded-xl space-y-1">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-red-400">
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                      <span>{item.title}</span>
-                    </div>
-                    <p className="text-[11px] text-[#aaaaaa] leading-relaxed pt-0.5">
-                      {item.description}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <button 
-              onClick={() => handleActionClick(directives.howToKeepUp[0]?.actionLabel || '')}
-              className="w-full mt-6 py-2 bg-red-500/10 hover:bg-red-500/25 border border-red-500/20 text-red-400 text-xs font-semibold rounded-lg tracking-wide transition"
-            >
-              {directives.howToKeepUp[0]?.actionLabel || 'Check bio scorecard'}
-            </button>
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* Latest Video Log Block (What is Done) */}
-      {latestVideo && (
-        <div className="bg-[#161616]/40 backdrop-blur-xl border border-[#272727]/60 p-5 rounded-2xl">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded bg-neutral-900 border border-[#272727] flex items-center justify-center shrink-0">
-                <Video className="h-5 w-5 text-cyan-400" />
-              </div>
-              <div>
-                <span className="text-[8px] font-mono text-cyan-400 bg-cyan-400/10 border border-cyan-400/20 px-2 py-0.5 rounded-full uppercase font-bold tracking-wider">Latest Upload</span>
-                <h3 className="text-sm font-bold text-white mt-1.5">{latestVideo.title}</h3>
-              </div>
-            </div>
-            <div className="flex items-center gap-6 text-xs font-mono">
-              <div>
-                <span className="text-[#aaaaaa] block text-[9px]">Lifetime Views</span>
-                <span className="text-white font-bold">{latestVideo.metrics?.lifetimeViews?.toLocaleString() || '0'}</span>
-              </div>
-              <div>
-                <span className="text-[#aaaaaa] block text-[9px]">CTR</span>
-                <span className="text-white font-bold">{latestVideo.metrics?.ctr ? `${latestVideo.metrics.ctr}%` : 'N/A'}</span>
-              </div>
-              <button 
-                onClick={() => {
-                  setSelectedVideoId(latestVideo.id);
-                  onTabChange('video-lab');
-                }}
-                className="px-4 py-1.5 bg-[#272727] hover:bg-[#3f3f3f] text-xs font-semibold rounded-full transition duration-200"
-              >
-                Inspect Video Analytics
-              </button>
-            </div>
-          </div>
-        </div>
+      {(warningInsights.length > 0 || activeExperiments.length > 0 || cycleGoals) && (
+        <section className="grid gap-5 lg:grid-cols-2">
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5"><div className="mb-4 flex items-center gap-2 text-sm font-bold text-white"><Zap className="h-4 w-4 text-amber-400" /> Strategic watchlist</div><div className="space-y-2.5">{warningInsights.length ? warningInsights.map(item => <div key={item.id} className="rounded-xl border border-neutral-900 bg-neutral-900/25 p-3"><div className="text-xs font-semibold text-neutral-200">{item.title}</div><div className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-neutral-500">{item.description}</div></div>) : <div className="text-[10px] text-neutral-600">No strategic warnings.</div>}</div></div>
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5"><div className="mb-4 flex items-center gap-2 text-sm font-bold text-white"><ListTodo className="h-4 w-4 text-purple-400" /> Active initiatives</div><div className="space-y-2.5">{cycleGoals && <div className="rounded-xl border border-purple-900/25 bg-purple-950/10 p-3"><div className="flex items-center justify-between"><span className="text-xs font-semibold text-neutral-200">{cycleGoals.monthName} publishing cycle</span><span className="font-mono text-[10px] text-purple-300">{cycleDelivered}/{cycleTarget || '—'}</span></div><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-neutral-900"><div className="h-full rounded-full bg-gradient-to-r from-purple-600 to-cyan-400" style={{ width: `${cycleProgress}%` }} /></div><div className="mt-1.5 font-mono text-[9px] text-neutral-600">{cycleProgress}% of target delivered</div></div>}{activeExperiments.map(item => <button key={item.id} onClick={() => onTabChange('experiments')} className="flex w-full items-center justify-between rounded-xl border border-neutral-900 bg-neutral-900/25 p-3 text-left hover:border-purple-900/50"><span><span className="block text-xs font-semibold text-neutral-200">{item.name}</span><span className="mt-1 block text-[10px] text-neutral-500">Testing {item.metricBeingTested}</span></span><ArrowUpRight className="h-3.5 w-3.5 text-purple-400" /></button>)}{activeExperiments.length === 0 && !cycleGoals && <div className="text-[10px] text-neutral-600">No experiments currently running.</div>}</div></div>
+        </section>
       )}
-
     </div>
   );
 }
