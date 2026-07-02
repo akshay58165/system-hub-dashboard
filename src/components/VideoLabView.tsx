@@ -581,6 +581,7 @@ export default function VideoLabView({
                   {weekDays.map(({ dateStr, dayNum, isCurrentMonth }) => {
                     const dayPosts = postsByDate[dateStr] || [];
                     const isSelected = selectedDay === dateStr;
+                    const weekdayName = new Date(dateStr).toLocaleDateString([], { weekday: 'short' });
 
                     return (
                       <div 
@@ -591,7 +592,9 @@ export default function VideoLabView({
                         className={`cursor-pointer transition-all duration-300 ${isCurrentMonth ? '' : 'opacity-25'}`}
                       >
                         <div className="flex justify-between items-center mb-1">
-                          <span className={`text-[9px] font-bold ${isSelected ? 'text-indigo-400 font-black' : 'text-zinc-500'}`}>{dayNum}</span>
+                          <span className={`text-[9px] font-bold ${isSelected ? 'text-indigo-400 font-black' : 'text-zinc-500'}`}>
+                            {dayNum} - {weekdayName}
+                          </span>
                           {dayPosts.length > 0 && (
                             <span className="text-[8px] bg-indigo-950 text-indigo-400 px-1 rounded-sm">{dayPosts.length}p</span>
                           )}
@@ -622,6 +625,7 @@ export default function VideoLabView({
                 {sequentialMonthDays.map(({ dateStr, dayNum }) => {
                   const dayPosts = postsByDate[dateStr] || [];
                   const isSelected = selectedDay === dateStr;
+                  const weekdayName = new Date(dateStr).toLocaleDateString([], { weekday: 'short' });
 
                   return (
                     <div 
@@ -640,7 +644,7 @@ export default function VideoLabView({
                           ? 'text-indigo-400 font-black scale-110' 
                           : dayPosts.length > 0 ? 'text-zinc-100' : 'text-zinc-600'
                       }`}>
-                        Day {dayNum}
+                        Day {dayNum} - {weekdayName}
                       </span>
                     </div>
                   );
@@ -849,7 +853,7 @@ export default function VideoLabView({
             className="z-50 bg-zinc-950/95 border border-zinc-800 p-3 rounded-lg shadow-2xl w-64 space-y-2 pointer-events-none font-mono text-[10px] backdrop-blur-md"
           >
             <div className="border-b border-zinc-900 pb-1.5 flex justify-between items-center text-zinc-500 font-bold uppercase">
-              <span>{new Date(hoveredDayData.dateStr).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+              <span>{new Date(hoveredDayData.dateStr).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}</span>
               <span className="bg-zinc-900 px-1 py-0.2 rounded text-zinc-400">{hoveredDayData.posts.length} Posts</span>
             </div>
             <div className="space-y-2 max-h-48 overflow-y-auto">
