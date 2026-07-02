@@ -420,7 +420,7 @@ export default function PipelineView({
       </div>
 
       {/* Kanban Board Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4 overflow-x-auto pb-4 no-scrollbar">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-2 overflow-x-auto pb-4 no-scrollbar">
         {STAGES.map(stage => {
           const items = filteredVideos.filter(v => v.pipelineStage === stage);
 
@@ -432,17 +432,17 @@ export default function PipelineView({
                 const videoId = e.dataTransfer.getData('text/plain');
                 handleMoveStage(videoId, stage);
               }}
-              className="min-w-[160px] bg-neutral-950/60 border border-neutral-850/60 rounded-xl p-3 flex flex-col gap-3 min-h-[450px]"
+              className="min-w-[150px] bg-neutral-950/45 border border-neutral-900/60 rounded-lg p-2.5 flex flex-col gap-2 min-h-[420px]"
             >
               
               {/* Stage Header */}
-              <div className="flex justify-between items-center pb-2 border-b border-neutral-900">
-                <span className="text-xs font-bold text-neutral-400 font-mono tracking-wide uppercase">{stage}</span>
-                <span className="px-2 py-0.5 bg-neutral-900 border border-neutral-850 text-neutral-400 rounded-full text-[9px] font-mono">{items.length}</span>
+              <div className="flex justify-between items-center pb-1.5 border-b border-neutral-900">
+                <span className="text-[10px] font-bold text-neutral-400 font-mono tracking-wider uppercase">{stage}</span>
+                <span className="px-1.5 py-0.2 bg-neutral-900 border border-neutral-850 text-neutral-400 rounded text-[8px] font-mono">{items.length}</span>
               </div>
 
               {/* Cards List */}
-              <div className="flex flex-col gap-2.5 overflow-y-auto flex-1 max-h-[550px] scrollbar-none">
+              <div className="flex flex-col gap-2 overflow-y-auto flex-1 max-h-[550px] scrollbar-none">
                 {items.map(video => {
                   const isLearnDriven = video.channelName === 'LearnDriven';
                   return (
@@ -456,53 +456,50 @@ export default function PipelineView({
                       onClick={() => handleOpenEdit(video)}
                       style={{ 
                         borderLeft: isLearnDriven 
-                          ? '2px solid rgba(168, 85, 247, 0.4)' 
-                          : '2px solid rgba(16, 185, 129, 0.4)' 
+                          ? '2px solid rgba(168, 85, 247, 0.5)' 
+                          : '2px solid rgba(16, 185, 129, 0.5)' 
                       }}
-                      className={`p-3 rounded-lg bg-zinc-900/35 border border-zinc-850/50 hover:border-zinc-700/60 hover:bg-zinc-850/30 relative overflow-hidden transition-all duration-200 group cursor-grab active:cursor-grabbing hover:shadow-[0_0_15px_rgba(139,92,246,0.04)] ${video.blockedReason ? 'border-red-950/40 bg-red-950/5' : ''}`}
+                      className={`p-2.5 rounded bg-zinc-900/25 border border-zinc-850/40 hover:border-zinc-750 hover:bg-zinc-850/20 relative overflow-hidden transition-all duration-150 group cursor-grab active:cursor-grabbing hover:shadow-[0_0_10px_rgba(139,92,246,0.03)] ${video.blockedReason ? 'border-red-950/30 bg-red-950/5' : ''}`}
                     >
-                      <div className="flex flex-col gap-1.5">
+                      <div className="flex flex-col gap-1">
                         {/* Tags / Badges */}
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase ${isLearnDriven ? 'text-purple-400 bg-purple-950/10 border-purple-900/20' : 'text-emerald-400 bg-emerald-950/10 border-emerald-900/20'}`}>
+                        <div className="flex flex-wrap items-center gap-1">
+                          <span className={`text-[7px] font-mono font-bold px-1 py-0.2 rounded border uppercase ${isLearnDriven ? 'text-purple-400 bg-purple-950/10 border-purple-900/10' : 'text-emerald-400 bg-emerald-950/10 border-emerald-900/10'}`}>
                             {video.channelName === 'LearnDriven' ? 'LD' : 'DW'}
                           </span>
-                          <span className="text-[8px] font-mono font-bold bg-zinc-900/60 text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-850">
+                          <span className="text-[7px] font-mono font-bold bg-zinc-900/50 text-zinc-400 px-1 py-0.2 rounded border border-zinc-850">
                             {video.format}
                           </span>
                           {video.blockedReason && (
-                            <span className="text-[8px] font-mono font-bold bg-red-950/30 text-red-400 px-1.5 py-0.5 rounded border border-red-900/40 animate-pulse">
+                            <span className="text-[7px] font-mono font-bold bg-red-950/20 text-red-450 px-1 py-0.2 rounded border border-red-900/20 animate-pulse">
                               BLOCKED
                             </span>
                           )}
                         </div>
 
                         {/* Title */}
-                        <h4 className="text-[11px] font-semibold text-zinc-100 leading-tight font-sans line-clamp-2">
+                        <h4 className="text-[10px] font-bold text-zinc-150 leading-snug font-sans line-clamp-2 pr-4">
                           {video.title}
                         </h4>
 
                         {/* Topic Label */}
-                        <span className="text-[9px] font-mono text-zinc-500 mt-1 flex items-center gap-1">
-                          <GitBranch className="h-3 w-3 shrink-0" />
+                        <span className="text-[8px] font-mono text-zinc-500 flex items-center gap-1 select-none">
+                          <GitBranch className="h-2.5 w-2.5 shrink-0 text-zinc-600" />
                           <span className="truncate">{video.topic}</span>
                         </span>
 
-                        {/* Drag indicator/Action hover overlay */}
+                        {/* Absolute positioned next button overlay (no layout shifting) */}
                         {stage !== 'Published' && (
-                          <div className="mt-2.5 pt-2.5 border-t border-neutral-900/60 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <span className="text-[8px] font-mono text-neutral-600">Drag or click edit</span>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAdvanceStage(video.id);
-                              }}
-                              className="text-[9px] font-mono text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 font-bold"
-                            >
-                              <span>Next</span>
-                              <Play className="h-2 w-2 fill-current" />
-                            </button>
-                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAdvanceStage(video.id);
+                            }}
+                            className="absolute bottom-2 right-2 p-1 bg-zinc-950 border border-zinc-800 rounded hover:border-zinc-700 text-indigo-400 hover:text-indigo-300 opacity-0 group-hover:opacity-100 transition-all duration-150 flex items-center justify-center shadow-md cursor-pointer"
+                            title="Move to next stage"
+                          >
+                            <Play className="h-2 w-2 fill-current" />
+                          </button>
                         )}
                       </div>
                     </motion.div>
@@ -510,8 +507,8 @@ export default function PipelineView({
                 })}
 
                 {items.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-8 text-neutral-700 text-[9px] font-mono select-none">
-                    Empty
+                  <div className="flex flex-col items-center justify-center py-6 text-neutral-800 text-[8px] font-mono select-none">
+                    empty
                   </div>
                 )}
               </div>
