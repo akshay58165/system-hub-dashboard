@@ -8,9 +8,14 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Plus, 
-  Trash2 
+  Trash2,
+  Flame,
+  Target,
+  Trophy,
+  CalendarCheck,
+  Activity
 } from 'lucide-react';
-import { VideoRecord, Topic } from '../types';
+import { VideoRecord, Topic, CycleGoal } from '../types';
 
 interface VideoLabProps {
   videos: VideoRecord[];
@@ -18,6 +23,7 @@ interface VideoLabProps {
   selectedVideoId: string | null;
   setSelectedVideoId: (id: string) => void;
   topics: Topic[];
+  cycleGoals: CycleGoal | null;
 }
 
 type ViewType = 'calendar' | 'weekly' | 'monthly' | 'yearly';
@@ -29,6 +35,7 @@ interface UnifiedPost {
   format: 'Short' | 'Long' | 'Members';
   dateStr: string;
   source: 'pipeline' | 'video';
+  state: 'published' | 'scheduled';
 }
 
 // Content types styling helper
@@ -58,11 +65,12 @@ export default function VideoLabView({
   setVideos, 
   selectedVideoId, 
   setSelectedVideoId,
-  topics
+  topics,
+  cycleGoals
 }: VideoLabProps) {
   const [viewMode, setViewMode] = useState<ViewType>('calendar');
-  const [selectedYear, setSelectedYear] = useState<number>(2026);
-  const [selectedMonth, setSelectedMonth] = useState<number>(6); // July (0-indexed: 6)
+  const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number>(() => new Date().getMonth());
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [selectedWeekIdx, setSelectedWeekIdx] = useState<number>(0);
   const [hoveredDayData, setHoveredDayData] = useState<{ x: number; y: number; dateStr: string; posts: UnifiedPost[] } | null>(null);
@@ -82,7 +90,7 @@ export default function VideoLabView({
   const [newTitle, setNewTitle] = useState('');
   const [newChannel, setNewChannel] = useState<'LearnDriven' | 'DecodeWorthy'>('LearnDriven');
   const [newFormat, setNewFormat] = useState<'Short' | 'Long' | 'Members'>('Short');
-  const [newDate, setNewDate] = useState('2026-07-04');
+  const [newDate, setNewDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   // Parse publish date safely from video
   const parseVideoDateStr = (v: VideoRecord): string => {
@@ -105,7 +113,8 @@ export default function VideoLabView({
           channelName: v.channelName,
           format: v.format,
           dateStr: dateStr,
-          source: 'video'
+          source: 'video',
+          state: 'published'
         });
       }
     });
@@ -119,7 +128,8 @@ export default function VideoLabView({
           channelName: t.channel,
           format: t.format || 'Long', // Default to Long if undefined
           dateStr: t.dueDate.split('T')[0],
-          source: 'pipeline'
+          source: 'pipeline',
+          state: t.status === 'posted' ? 'published' : 'scheduled'
         });
       }
     });
@@ -140,6 +150,78 @@ export default function VideoLabView({
     });
     return groups;
   }, [combinedPosts]);
+
+  const consistency = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dayKey = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    const shiftDay = (date: Date, amount: number) => {
+      const shifted = new Date(date);
+      shifted.setDate(shifted.getDate() + amount);
+      return shifted;
+    };
+    const published = combinedPosts
+      .filter(post => post.state === 'published' && post.dateStr <= dayKey(today))
+      .filter((post, index, list) => index === list.findIndex(candidate =>
+        candidate.channelName === post.channelName
+        && candidate.dateStr === post.dateStr
+        && candidate.title.trim().toLowerCase() === post.title.trim().toLowerCase()
+      ));
+    const publishedDays = new Set(published.map(post => post.dateStr));
+    const orderedDays = [...publishedDays].sort();
+    const yesterdayKey = dayKey(shiftDay(today, -1));
+    let streakCursor = publishedDays.has(dayKey(today)) ? today : publishedDays.has(yesterdayKey) ? shiftDay(today, -1) : null;
+    let currentStreak = 0;
+    while (streakCursor && publishedDays.has(dayKey(streakCursor))) {
+      currentStreak += 1;
+      streakCursor = shiftDay(streakCursor, -1);
+    }
+    let bestStreak = 0;
+    let runningStreak = 0;
+    let previousTime = 0;
+    orderedDays.forEach(dateStr => {
+      const time = new Date(`${dateStr}T00:00:00`).getTime();
+      runningStreak = previousTime && time - previousTime === 864e5 ? runningStreak + 1 : 1;
+      bestStreak = Math.max(bestStreak, runningStreak);
+      previousTime = time;
+    });
+    const countBetween = (start: Date, end: Date) => published.filter(post => {
+      const time = new Date(`${post.dateStr}T00:00:00`).getTime();
+      return time >= start.getTime() && time <= end.getTime();
+    }).length;
+    const last7 = countBetween(shiftDay(today, -6), today);
+    const previous7 = countBetween(shiftDay(today, -13), shiftDay(today, -7));
+    const active30 = [...publishedDays].filter(dateStr => dateStr >= dayKey(shiftDay(today, -29)) && dateStr <= dayKey(today)).length;
+    let longestGap30 = 0;
+    let runningGap = 0;
+    for (let offset = 29; offset >= 0; offset -= 1) {
+      if (publishedDays.has(dayKey(shiftDay(today, -offset)))) runningGap = 0;
+      else {
+        runningGap += 1;
+        longestGap30 = Math.max(longestGap30, runningGap);
+      }
+    }
+    const weekly = Array.from({ length: 8 }, (_, index) => {
+      const end = shiftDay(today, -(7 - index) * 7);
+      const start = shiftDay(end, -6);
+      return { label: `${start.getDate()}/${start.getMonth() + 1}`, count: countBetween(start, end) };
+    });
+    const goalTarget = cycleGoals ? [cycleGoals.learnDrivenShorts, cycleGoals.learnDrivenLong, cycleGoals.learnDrivenMembers, cycleGoals.decodeWorthyShorts].reduce<number>((sum, value) => sum + (value || 0), 0) : 0;
+    const goalStart = cycleGoals ? new Date(`${cycleGoals.startDate}T00:00:00`) : new Date(today.getFullYear(), today.getMonth(), 1);
+    const goalEnd = cycleGoals ? new Date(`${cycleGoals.endDate}T23:59:59`) : new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59);
+    const goalDone = countBetween(goalStart, new Date(Math.min(today.getTime(), goalEnd.getTime())));
+    const daysLeft = Math.max(0, Math.ceil((goalEnd.getTime() - today.getTime()) / 864e5));
+    const remaining = Math.max(0, goalTarget - goalDone);
+    const scheduledNext7 = combinedPosts.filter(post => post.state === 'scheduled' && post.dateStr >= dayKey(today) && post.dateStr <= dayKey(shiftDay(today, 6))).length;
+    const weeklyTarget = goalTarget > 0 ? Math.max(1, Math.ceil(goalTarget / Math.max(1, Math.ceil((goalEnd.getTime() - goalStart.getTime()) / (7 * 864e5))))) : 0;
+    const hitWeeks = weeklyTarget ? weekly.filter(week => week.count >= weeklyTarget).length : 0;
+    return { currentStreak, bestStreak, last7, previous7, active30, longestGap30, weekly, goalTarget, goalDone, daysLeft, remaining, scheduledNext7, weeklyTarget, hitWeeks };
+  }, [combinedPosts, cycleGoals]);
 
   // List of days in selected month
   const calendarDays = useMemo(() => {
@@ -212,7 +294,8 @@ export default function VideoLabView({
       thumbnailStatus: 'completed',
       scheduleStatus: 'completed',
       publishedStatus: 'completed',
-      productionEffortHours: 2
+      productionEffortHours: 2,
+      tags: []
     };
 
     setVideos(prev => [mockRecord, ...prev]);
@@ -295,10 +378,10 @@ export default function VideoLabView({
         <div className="space-y-1">
           <h2 className="text-base font-bold text-white uppercase tracking-tight flex items-center gap-2">
             <LayoutGrid className="h-5 w-5 text-indigo-500 animate-pulse" />
-            <span>Content Activity Matrix</span>
+            <span>Video Consistency Lab</span>
           </h2>
           <p className="text-[10px] text-zinc-500 uppercase">
-            Visual publication density grid mapped directly to pipeline pipeline updates & database records
+            Streaks, publishing cadence, goal pace, and release history from live production data
           </p>
         </div>
 
@@ -322,6 +405,52 @@ export default function VideoLabView({
           ))}
         </div>
       </div>
+
+      {/* Consistency and goal control surface */}
+      <section className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {[
+            { label: 'Current streak', value: `${consistency.currentStreak}d`, detail: 'consecutive publish days', icon: Flame, color: 'text-orange-400', border: 'border-orange-950/60' },
+            { label: 'Best streak', value: `${consistency.bestStreak}d`, detail: 'all-time consecutive record', icon: Trophy, color: 'text-amber-400', border: 'border-amber-950/60' },
+            { label: 'Published 7d', value: consistency.last7, detail: `${consistency.last7 - consistency.previous7 >= 0 ? '+' : ''}${consistency.last7 - consistency.previous7} vs previous 7d`, icon: Activity, color: 'text-cyan-400', border: 'border-cyan-950/60' },
+            { label: 'Active days 30d', value: consistency.active30, detail: `${consistency.longestGap30}d longest blank gap`, icon: CalendarCheck, color: 'text-emerald-400', border: 'border-emerald-950/60' },
+            { label: 'Scheduled 7d', value: consistency.scheduledNext7, detail: 'upcoming releases', icon: Clock, color: 'text-purple-400', border: 'border-purple-950/60' }
+          ].map(metric => (
+            <div key={metric.label} className={`rounded-xl border ${metric.border} bg-zinc-950/80 p-4`}>
+              <div className="flex items-center justify-between"><span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">{metric.label}</span><metric.icon className={`h-4 w-4 ${metric.color}`} /></div>
+              <div className="mt-3 text-2xl font-black text-white">{metric.value}</div>
+              <div className="mt-1 text-[9px] text-zinc-600">{metric.detail}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[1.1fr_.9fr]">
+          <div className="rounded-xl border border-zinc-900 bg-zinc-950/70 p-5">
+            <div className="mb-5 flex items-center justify-between">
+              <div><div className="flex items-center gap-2 text-sm font-bold text-white"><Target className="h-4 w-4 text-indigo-400" /> Publishing goal</div><div className="mt-1 text-[9px] uppercase text-zinc-600">{cycleGoals?.monthName || 'No active cycle configured'}</div></div>
+              <div className="text-right"><div className="text-lg font-black text-indigo-300">{consistency.goalDone}/{consistency.goalTarget || '-'}</div><div className="text-[8px] uppercase text-zinc-600">published / target</div></div>
+            </div>
+            <div className="h-2.5 overflow-hidden rounded-full bg-zinc-900"><motion.div initial={{ width: 0 }} animate={{ width: `${consistency.goalTarget ? Math.min(100, Math.round((consistency.goalDone / consistency.goalTarget) * 100)) : 0}%` }} className="h-full rounded-full bg-gradient-to-r from-indigo-600 via-violet-500 to-cyan-400" /></div>
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div><div className="text-lg font-bold text-white">{consistency.remaining}</div><div className="text-[8px] uppercase text-zinc-600">remaining</div></div>
+              <div><div className="text-lg font-bold text-white">{consistency.daysLeft}</div><div className="text-[8px] uppercase text-zinc-600">days left</div></div>
+              <div><div className="text-lg font-bold text-white">{consistency.daysLeft ? (consistency.remaining / consistency.daysLeft).toFixed(2) : consistency.remaining}</div><div className="text-[8px] uppercase text-zinc-600">needed / day</div></div>
+              <div><div className="text-lg font-bold text-white">{consistency.weeklyTarget || '-'}</div><div className="text-[8px] uppercase text-zinc-600">weekly target</div></div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-zinc-900 bg-zinc-950/70 p-5">
+            <div className="mb-4 flex items-center justify-between"><div><div className="text-sm font-bold text-white">8-week cadence</div><div className="mt-1 text-[9px] uppercase text-zinc-600">published videos per rolling week</div></div><div className="text-right"><div className="text-lg font-black text-cyan-300">{consistency.hitWeeks}/8</div><div className="text-[8px] uppercase text-zinc-600">goal-hit weeks</div></div></div>
+            <div className="flex h-24 items-end gap-2 border-b border-zinc-900 pb-2">
+              {consistency.weekly.map((week, index) => {
+                const max = Math.max(1, consistency.weeklyTarget, ...consistency.weekly.map(item => item.count));
+                const hit = consistency.weeklyTarget > 0 && week.count >= consistency.weeklyTarget;
+                return <div key={`${week.label}-${index}`} className="flex h-full flex-1 flex-col items-center justify-end gap-1"><span className="text-[8px] text-zinc-500">{week.count}</span><div className={`w-full rounded-t ${hit ? 'bg-emerald-500' : 'bg-indigo-500/70'}`} style={{ height: `${Math.max(4, (week.count / max) * 62)}px` }} /><span className="text-[7px] text-zinc-700">{week.label}</span></div>;
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Grid Display Area */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">

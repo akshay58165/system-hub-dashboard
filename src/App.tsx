@@ -1803,6 +1803,7 @@ export default function App() {
                 selectedVideoId={selectedVideoId}
                 setSelectedVideoId={setSelectedVideoId}
                 topics={topics}
+                cycleGoals={cycleGoals}
               />
             )}
 
