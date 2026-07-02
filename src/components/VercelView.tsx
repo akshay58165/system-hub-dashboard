@@ -15,7 +15,8 @@ import {
   Activity,
   Pencil,
   Trash2,
-  RotateCcw
+  RotateCcw,
+  Shield
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -220,9 +221,14 @@ export default function VercelView({
 
   const getWorkflowState = getTopicWorkflowState;
 
+  // Overdue tiers: a missed deadline shouldn't scream the same red countdown
+  // forever with no way out. 0-2 days overdue still reads as an urgent
+  // "breached" state (same as before); past that it becomes a "stuck" state
+  // that demands an explicit decision (reschedule / backlog / block / drop)
+  // instead of open-ended alarm fatigue.
   const getUrgencyInfo = (topic: Topic) => {
     const scheduleComplete = getWorkflowState(topic, 'schedule') === 'completed' || topic.status === 'scheduled' || topic.status === 'posted';
-    if (!topic.dueDate || scheduleComplete) return null;
+    if (!topic.dueDate || scheduleComplete || topic.blockedReason) return null;
 
     const differenceMs = new Date(topic.dueDate).getTime() - now.getTime();
     const absoluteSeconds = Math.max(0, Math.floor(Math.abs(differenceMs) / 1000));
@@ -237,13 +243,71 @@ export default function VercelView({
       ? `${days}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`
       : `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
+    const overdue = differenceMs <= 0;
+    const daysOverdue = overdue ? Math.floor(-differenceMs / 86400000) : 0;
+    const stuck = overdue && daysOverdue >= 2;
+
     return {
-      overdue: differenceMs <= 0,
+      overdue,
+      daysOverdue,
+      stuck,
       clock,
-      message: differenceMs <= 0
+      message: overdue
         ? 'DEADLINE BREACHED — COMPLETE THE REMAINING STAGES NOW'
         : 'CRITICAL WINDOW — UTMOST ACTION REQUIRED',
     };
+  };
+
+  const handleClearDeadline = (topic: Topic) => {
+    setTopics(prev => prev.map(t => t.id === topic.id ? { ...t, dueDate: null, lastUpdated: new Date().toISOString() } : t));
+    setActivities(prev => [{
+      id: `act-backlog-${Date.now()}`,
+      topicName: topic.name,
+      channel: topic.channel,
+      action: `Moved to backlog (deadline cleared, was overdue)`,
+      author: 'typeakshay',
+      timestamp: new Date().toISOString()
+    }, ...prev]);
+  };
+
+  const handleMarkBlocked = (topic: Topic) => {
+    const reason = window.prompt(`Why is "${topic.name}" stuck? (This clears the overdue alarm and shows the reason instead.)`, topic.blockedReason || '');
+    if (reason === null) return;
+    const trimmed = reason.trim();
+    if (!trimmed) return;
+    setTopics(prev => prev.map(t => t.id === topic.id ? { ...t, blockedReason: trimmed, lastUpdated: new Date().toISOString() } : t));
+    setActivities(prev => [{
+      id: `act-blocked-${Date.now()}`,
+      topicName: topic.name,
+      channel: topic.channel,
+      action: `Marked blocked: ${trimmed}`,
+      author: 'typeakshay',
+      timestamp: new Date().toISOString()
+    }, ...prev]);
+  };
+
+  const handleUnblock = (topic: Topic) => {
+    setTopics(prev => prev.map(t => t.id === topic.id ? { ...t, blockedReason: undefined, lastUpdated: new Date().toISOString() } : t));
+    setActivities(prev => [{
+      id: `act-unblocked-${Date.now()}`,
+      topicName: topic.name,
+      channel: topic.channel,
+      action: `Unblocked`,
+      author: 'typeakshay',
+      timestamp: new Date().toISOString()
+    }, ...prev]);
+  };
+
+  const handleLowerPriority = (topic: Topic) => {
+    setTopics(prev => prev.map(t => t.id === topic.id ? { ...t, priority: 5, lastUpdated: new Date().toISOString() } : t));
+    setActivities(prev => [{
+      id: `act-deprioritized-${Date.now()}`,
+      topicName: topic.name,
+      channel: topic.channel,
+      action: `Deprioritized (was overdue, lowered to priority 5)`,
+      author: 'typeakshay',
+      timestamp: new Date().toISOString()
+    }, ...prev]);
   };
 
   const handleTransitionToStage = (topic: Topic, targetStage: WorkflowStage, targetState: WorkflowState) => {
@@ -779,6 +843,22 @@ export default function VercelView({
               <span className="text-[10px] font-mono text-neutral-500">{filteredTopics.length} topics · quick click / hold 1s</span>
             </div>
 
+            {(() => {
+              const stuckCount = filteredTopics.filter(t => getUrgencyInfo(t)?.stuck).length;
+              const blockedCount = filteredTopics.filter(t => t.blockedReason).length;
+              if (stuckCount === 0 && blockedCount === 0) return null;
+              return (
+                <div className="flex flex-wrap items-center gap-2 bg-amber-950/15 border border-amber-900/30 rounded-lg px-3 py-2 text-[10px] font-mono">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                  <span className="text-amber-300">
+                    {stuckCount > 0 && <>{stuckCount} topic{stuckCount === 1 ? '' : 's'} overdue and need{stuckCount === 1 ? 's' : ''} a decision</>}
+                    {stuckCount > 0 && blockedCount > 0 && ' · '}
+                    {blockedCount > 0 && <>{blockedCount} topic{blockedCount === 1 ? '' : 's'} marked blocked</>}
+                  </span>
+                </div>
+              );
+            })()}
+
             <div className="space-y-2">
               {(() => {
                 const activeProgress = filteredTopics;
@@ -900,7 +980,25 @@ export default function VercelView({
                         </div>
                       </div>
 
-                      {urgency && (
+                      {topic.blockedReason && (
+                        <div className="flex items-center justify-between gap-2 rounded-md border border-neutral-700 bg-neutral-800/40 px-2 py-1">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <Shield className="h-3 w-3 text-neutral-400 shrink-0" />
+                            <span className="text-[9px] text-neutral-300 truncate" title={topic.blockedReason}>
+                              Blocked: {topic.blockedReason}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleUnblock(topic)}
+                            className="text-[8px] font-bold uppercase text-blue-400 hover:text-blue-300 shrink-0 cursor-pointer"
+                          >
+                            Unblock
+                          </button>
+                        </div>
+                      )}
+
+                      {urgency && !urgency.stuck && (
                         <div
                           className="emergency-countdown flex items-center justify-between gap-2 rounded-md border border-red-500/50 bg-red-950/20 px-2 py-1"
                           title="Warning remains active until scheduling is completed."
@@ -916,6 +1014,59 @@ export default function VercelView({
                           <span className="emergency-clock text-[10px] font-black tabular-nums tracking-wider text-red-300 shrink-0">
                             {urgency.clock}
                           </span>
+                        </div>
+                      )}
+
+                      {urgency && urgency.stuck && (
+                        <div className="rounded-md border border-amber-700/50 bg-amber-950/15 px-2 py-1.5 space-y-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <AlertTriangle className="h-3 w-3 text-amber-400 shrink-0" />
+                            <span className="text-[9px] font-bold text-amber-300">
+                              {urgency.daysOverdue}d overdue — decide what to do
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const defaultTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
+                                const initialTopic = { ...topic };
+                                if (!initialTopic.scheduledTime) initialTopic.scheduledTime = defaultTime;
+                                setEditingTopic(initialTopic);
+                              }}
+                              className="px-1.5 py-0.5 bg-neutral-950 border border-neutral-800 hover:border-blue-800 text-neutral-300 hover:text-blue-400 rounded text-[8px] font-bold uppercase transition cursor-pointer"
+                            >
+                              Reschedule
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleClearDeadline(topic)}
+                              className="px-1.5 py-0.5 bg-neutral-950 border border-neutral-800 hover:border-neutral-600 text-neutral-300 hover:text-white rounded text-[8px] font-bold uppercase transition cursor-pointer"
+                            >
+                              Move to Backlog
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleLowerPriority(topic)}
+                              className="px-1.5 py-0.5 bg-neutral-950 border border-neutral-800 hover:border-neutral-600 text-neutral-300 hover:text-white rounded text-[8px] font-bold uppercase transition cursor-pointer"
+                            >
+                              Deprioritize
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMarkBlocked(topic)}
+                              className="px-1.5 py-0.5 bg-neutral-950 border border-neutral-800 hover:border-amber-700 text-neutral-300 hover:text-amber-400 rounded text-[8px] font-bold uppercase transition cursor-pointer"
+                            >
+                              Mark Blocked
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteTopic(topic)}
+                              className="px-1.5 py-0.5 bg-neutral-950 border border-neutral-800 hover:border-rose-800 text-neutral-300 hover:text-rose-400 rounded text-[8px] font-bold uppercase transition cursor-pointer"
+                            >
+                              Drop
+                            </button>
+                          </div>
                         </div>
                       )}
 

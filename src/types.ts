@@ -159,6 +159,10 @@ export interface Topic {
   category?: string;
   isDemo?: boolean;
   workflowStatuses?: Partial<Record<'script' | 'shoot' | 'edit' | 'schedule' | 'post', 'pending' | 'in-progress' | 'completed'>>;
+  // Set when a topic is explicitly marked stuck (past due, work can't
+  // proceed for a known reason) rather than silently left to scream a
+  // missed-deadline countdown forever. Cleared via the Unblock action.
+  blockedReason?: string;
 }
 
 export interface TopicActivity {
