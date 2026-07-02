@@ -1,34 +1,15 @@
 import React, { useState, useMemo } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Clapperboard, 
-  ChevronDown, 
-  HelpCircle, 
-  Info, 
-  TrendingUp, 
-  Activity, 
-  DollarSign, 
-  Users, 
-  ArrowUpRight, 
-  AlertTriangle, 
-  CheckCircle2, 
-  Sparkles,
-  Award,
-  ChevronRight
+  Calendar as CalendarIcon, 
+  LayoutGrid, 
+  Layers, 
+  Clock, 
+  ChevronLeft, 
+  ChevronRight, 
+  Plus, 
+  Trash2 
 } from 'lucide-react';
-import { 
-  ResponsiveContainer, 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
-  BarChart, 
-  Bar, 
-  PieChart, 
-  Pie, 
-  Cell 
-} from 'recharts';
 import { VideoRecord } from '../types';
 
 interface VideoLabProps {
@@ -38,7 +19,29 @@ interface VideoLabProps {
   setSelectedVideoId: (id: string) => void;
 }
 
-const COLORS = ['#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
+type ViewType = 'calendar' | 'weekly' | 'monthly' | 'yearly';
+
+// Content types styling helper
+const getFormatColor = (channel: 'LearnDriven' | 'DecodeWorthy', format: 'Short' | 'Long' | 'Members'): string => {
+  if (channel === 'LearnDriven') {
+    switch (format) {
+      case 'Short': return '#10b981'; // Emerald
+      case 'Long': return '#047857'; // Forest Green
+      case 'Members': return '#0d9488'; // Teal
+    }
+  } else {
+    switch (format) {
+      case 'Short': return '#8b5cf6'; // Violet
+      case 'Long': return '#4f46e5'; // Indigo
+      case 'Members': return '#06b6d4'; // Cyan
+    }
+  }
+  return '#4b5563';
+};
+
+const getFormatLabel = (channel: 'LearnDriven' | 'DecodeWorthy', format: 'Short' | 'Long' | 'Members'): string => {
+  return `${channel} ${format}`;
+};
 
 export default function VideoLabView({ 
   videos, 
@@ -46,455 +49,655 @@ export default function VideoLabView({
   selectedVideoId, 
   setSelectedVideoId 
 }: VideoLabProps) {
-  const publishedVideos = useMemo(() => videos.filter(v => v.pipelineStage === 'Published'), [videos]);
-  const defaultVideoId = publishedVideos[0]?.id || '';
-  const currentVideoId = selectedVideoId || defaultVideoId;
+  const [viewMode, setViewMode] = useState<ViewType>('calendar');
+  const [selectedYear, setSelectedYear] = useState<number>(2026);
+  const [selectedMonth, setSelectedMonth] = useState<number>(6); // July (0-indexed: 6)
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
-  // Selected video
-  const video = useMemo(() => {
-    return videos.find(v => v.id === currentVideoId) || publishedVideos[0];
-  }, [videos, currentVideoId, publishedVideos]);
+  // Form states for adding new mock video
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newChannel, setNewChannel] = useState<'LearnDriven' | 'DecodeWorthy'>('LearnDriven');
+  const [newFormat, setNewFormat] = useState<'Short' | 'Long' | 'Members'>('Short');
+  const [newDate, setNewDate] = useState('2026-07-04');
 
-  // Edit Tag form states
-  const [editTags, setEditTags] = useState(false);
-  const [tagTopicType, setTagTopicType] = useState(video?.tags?.topicType || '');
-  const [tagHookType, setTagHookType] = useState(video?.tags?.hookType || '');
-  const [tagStructure, setTagStructure] = useState(video?.tags?.contentStructure || '');
-  const [tagEvergreen, setTagEvergreen] = useState(video?.tags?.evergreenPotential || 'Medium');
-  const [tagSubscribers, setTagSubscribers] = useState(video?.tags?.subscriberPotential || 'Medium');
-
-  // Trigger loading tags on selection change
-  React.useEffect(() => {
-    if (video) {
-      setTagTopicType(video.tags.topicType);
-      setTagHookType(video.tags.hookType);
-      setTagStructure(video.tags.contentStructure);
-      setTagEvergreen(video.tags.evergreenPotential);
-      setTagSubscribers(video.tags.subscriberPotential);
-    }
-  }, [video]);
-
-  const handleSaveTags = () => {
-    if (!video) return;
-    setVideos(prev => prev.map(v => {
-      if (v.id === video.id) {
-        return {
-          ...v,
-          tags: {
-            ...v.tags,
-            topicType: tagTopicType,
-            hookType: tagHookType,
-            contentStructure: tagStructure,
-            evergreenPotential: tagEvergreen,
-            subscriberPotential: tagSubscribers
-          }
-        };
-      }
-      return v;
-    }));
-    setEditTags(false);
+  // Parse publish date safely from video
+  const parseVideoDateStr = (v: VideoRecord): string => {
+    const rawDate = v.uploadDate || v.dueDate || v.publishTime || '';
+    if (!rawDate) return '';
+    return rawDate.split('T')[0];
   };
 
-  // 1. Diagnosis Engine
-  const diagnosis = useMemo(() => {
-    if (!video || !video.metrics) return null;
-    const { ctr, averagePercentageViewed, lifetimeViews, subscribersGainedPer1kViews, revenuePer1kViews } = video.metrics;
+  // Group videos by YYYY-MM-DD
+  const videosByDate = useMemo(() => {
+    const groups: { [dateStr: string]: VideoRecord[] } = {};
+    videos.forEach(v => {
+      const dateStr = parseVideoDateStr(v);
+      if (dateStr) {
+        if (!groups[dateStr]) {
+          groups[dateStr] = [];
+        }
+        groups[dateStr].push(v);
+      }
+    });
+    return groups;
+  }, [videos]);
+
+  // List of days in selected month
+  const calendarDays = useMemo(() => {
+    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+    const firstDayIndex = new Date(selectedYear, selectedMonth, 1).getDay(); // 0 is Sunday
     
-    // Baselines (mock average for comparisons)
-    const avgCTR = video.format === 'Short' ? 10.0 : 6.0;
-    const avgRetention = video.format === 'Short' ? 65.0 : 40.0;
+    const days: { dateStr: string; dayNum: number; isCurrentMonth: boolean }[] = [];
     
-    if (ctr && ctr < avgCTR && averagePercentageViewed && averagePercentageViewed >= avgRetention) {
-      return {
-        status: 'Needs Action',
-        label: 'Low CTR / High Retention',
-        color: 'text-amber-400 border-amber-900/50 bg-amber-950/20',
-        icon: AlertTriangle,
-        explanation: 'The video idea is highly engaging once people click, but the packaging (title or thumbnail) is weak.',
-        action: 'A/B test a new title with high-curiosity framing or change the thumbnail background color to increase click-through rate.'
-      };
+    // Previous month padding
+    const prevMonthDays = new Date(selectedYear, selectedMonth, 0).getDate();
+    for (let i = firstDayIndex - 1; i >= 0; i--) {
+      const d = prevMonthDays - i;
+      const m = selectedMonth === 0 ? 11 : selectedMonth - 1;
+      const y = selectedMonth === 0 ? selectedYear - 1 : selectedYear;
+      days.push({
+        dateStr: `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
+        dayNum: d,
+        isCurrentMonth: false
+      });
     }
 
-    if (ctr && ctr >= avgCTR && averagePercentageViewed && averagePercentageViewed < avgRetention) {
-      return {
-        status: 'Problem',
-        label: 'High CTR / Low Retention',
-        color: 'text-red-400 border-red-900/50 bg-red-950/20',
-        icon: AlertTriangle,
-        explanation: 'The packaging successfully attracted viewers, but the content failed to satisfy the click promise or hook them fast enough.',
-        action: 'Improve script pacing in the first 15 seconds. Ensure the hook directly matches the thumbnail promise.'
-      };
+    // Current month
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push({
+        dateStr: `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`,
+        dayNum: i,
+        isCurrentMonth: true
+      });
     }
 
-    if (lifetimeViews && lifetimeViews > 40000 && subscribersGainedPer1kViews && subscribersGainedPer1kViews < 8.0) {
-      return {
-        status: 'Watch',
-        label: 'High Reach / Low Subscriber Conversion',
-        color: 'text-blue-400 border-blue-900/50 bg-blue-950/20',
-        icon: Info,
-        explanation: 'The video reached a broad audience but did not build strong channel identity or include a compelling call to value.',
-        action: 'Add a pinned comment directing to a themed playlist, or integrate a logical end-screen call to action linking to similar topics.'
-      };
-    }
+    return days;
+  }, [selectedYear, selectedMonth]);
 
-    if (revenuePer1kViews && revenuePer1kViews > 300 && lifetimeViews && lifetimeViews < 10000) {
-      return {
-        status: 'Great',
-        label: 'High Monetization / Low Reach',
-        color: 'text-purple-400 border-purple-900/50 bg-purple-950/20',
-        icon: Sparkles,
-        explanation: 'This topic has strong advertiser value (CPM) but fell short of finding a broad audience.',
-        action: 'Create a follow-up video on this exact topic, but frame it with a broader, more accessible title to expand reach.'
-      };
-    }
+  // Months lists
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
 
-    return {
-      status: 'Good',
-      label: 'Stable Performance Profile',
-      color: 'text-emerald-400 border-emerald-900/50 bg-emerald-950/20',
-      icon: CheckCircle2,
-      explanation: 'CTR and retention are both performing on-baseline or better. The topic is healthy.',
-      action: 'Standardize this structure and repeatability score. Consider making a sequel next month.'
+  // Add mock video record helper
+  const handleAddVideo = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim()) return;
+
+    const mockRecord: VideoRecord = {
+      id: `mock-vid-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      channelName: newChannel,
+      title: newTitle.trim(),
+      format: newFormat,
+      contentType: 'Grid Simulated',
+      topic: newTitle.trim(),
+      pipelineStage: 'Published',
+      uploadDate: new Date(newDate).toISOString(),
+      scriptStatus: 'completed',
+      shootStatus: 'completed',
+      editStatus: 'completed',
+      thumbnailStatus: 'completed',
+      scheduleStatus: 'completed',
+      publishedStatus: 'completed',
+      productionEffortHours: 2
     };
-  }, [video]);
 
-  // Traffic Source chart data
-  const trafficData = useMemo(() => {
-    if (!video || !video.metrics?.ctrByTrafficSource) {
-      return [
-        { name: 'Browse Features', value: 45 },
-        { name: 'Suggested Videos', value: 30 },
-        { name: 'YouTube Search', value: 15 },
-        { name: 'Other', value: 10 }
-      ];
+    setVideos(prev => [mockRecord, ...prev]);
+    setNewTitle('');
+    setShowAddForm(false);
+  };
+
+  // Delete mock video
+  const handleDeleteVideo = (id: string) => {
+    setVideos(prev => prev.filter(v => v.id !== id));
+  };
+
+  // Render subdivided grid blocks inside a day square
+  const renderSubdividedBlock = (dateStr: string, sizeClass = 'h-full w-full') => {
+    const dayVids = videosByDate[dateStr] || [];
+    if (dayVids.length === 0) {
+      return (
+        <div className={`bg-neutral-900/60 border border-neutral-850/60 rounded-md transition duration-300 hover:border-neutral-700/80 ${sizeClass}`} />
+      );
     }
-    return Object.entries(video.metrics.ctrByTrafficSource).map(([key, val]) => ({
-      name: key,
-      value: val
-    }));
-  }, [video]);
 
-  // Mock views progression over time (based on age)
-  const viewsTimeline = useMemo(() => {
-    if (!video || !video.metrics) return [];
-    const m = video.metrics;
-    return [
-      { hour: '1h', views: m.views1h || 0 },
-      { hour: '3h', views: m.views3h || 0 },
-      { hour: '6h', views: m.views6h || 0 },
-      { hour: '12h', views: m.views12h || 0 },
-      { hour: '24h', views: m.views24h || 0 },
-      { hour: '48h', views: m.views48h || 0 },
-      { hour: '7d', views: m.views7d || 0 },
-      { hour: '28d', views: m.lifetimeViews || 0 }
-    ].filter(pt => pt.views > 0);
-  }, [video]);
+    // Grid layout based on count
+    const count = dayVids.length;
+    let gridStyle = {};
+    if (count === 1) {
+      gridStyle = { gridTemplateColumns: '1fr', gridTemplateRows: '1fr' };
+    } else if (count === 2) {
+      gridStyle = { gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr' };
+    } else if (count === 3) {
+      gridStyle = { gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' }; // 2x2 with 3 elements
+    } else {
+      gridStyle = { gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' };
+    }
 
-  if (!video) {
     return (
-      <div className="p-8 text-center border border-neutral-900 rounded-xl bg-neutral-950/20 text-neutral-500 font-mono text-xs">
-        No published videos found. Publish a video in the Pipeline or add demo data to activate the Video Lab.
+      <div 
+        style={gridStyle}
+        className={`grid gap-0.5 p-0.5 bg-neutral-900 border border-neutral-800 rounded-md overflow-hidden transition-all duration-300 hover:scale-[1.05] hover:shadow-[0_0_12px_rgba(139,92,246,0.15)] ${sizeClass}`}
+      >
+        {dayVids.slice(0, 4).map((vid, idx) => {
+          const color = getFormatColor(vid.channelName, vid.format);
+          return (
+            <div 
+              key={vid.id} 
+              style={{ backgroundColor: color }}
+              className="rounded-[2px] w-full h-full relative group/item"
+              title={`${vid.title} (${getFormatLabel(vid.channelName, vid.format)})`}
+            />
+          );
+        })}
+        {dayVids.length > 4 && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-[8px] font-mono text-white pointer-events-none">
+            +{dayVids.length - 4}
+          </div>
+        )}
       </div>
     );
-  }
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-mono text-zinc-300">
       
-      {/* Selector and Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-neutral-900 pb-5">
-        <div>
-          <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            <Clapperboard className="h-5 w-5 text-purple-400" />
-            Video Lab Analysis
+      {/* Top Banner Control Panel */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-950 border border-zinc-900 rounded-xl p-5 shadow-lg">
+        <div className="space-y-1">
+          <h2 className="text-base font-bold text-white uppercase tracking-tight flex items-center gap-2">
+            <LayoutGrid className="h-5 w-5 text-indigo-500 animate-pulse" />
+            <span>Content Activity Matrix</span>
           </h2>
-          <p className="text-xs text-neutral-500 font-mono mt-1">Deep analysis, derived metrics, and target packaging recommendations.</p>
+          <p className="text-[10px] text-zinc-500 uppercase">
+            Visual publication density grid for LearnDriven & DecodeWorthy channels
+          </p>
         </div>
 
-        {/* Video Selector Dropdown */}
-        <div className="relative w-full md:w-80 shrink-0 z-20">
-          <select 
-            value={video.id}
-            onChange={(e) => setSelectedVideoId(e.target.value)}
-            className="w-full bg-neutral-900 border border-neutral-850 outline-none text-xs rounded-lg px-3.5 py-2 text-white font-mono appearance-none cursor-pointer"
-          >
-            {publishedVideos.map(v => (
-              <option key={v.id} value={v.id}>{v.channelName} • {v.title}</option>
-            ))}
-          </select>
-          <ChevronDown className="h-4 w-4 text-neutral-400 absolute right-3 top-2.5 pointer-events-none" />
+        {/* View selection tabs */}
+        <div className="flex items-center gap-1.5 bg-zinc-900/60 p-1.5 rounded-lg border border-zinc-850">
+          {(['calendar', 'weekly', 'monthly', 'yearly'] as ViewType[]).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => {
+                setViewMode(mode);
+                setSelectedDay(null);
+              }}
+              className={`px-3 py-1 text-[10px] rounded uppercase font-bold transition-all duration-200 ${
+                viewMode === mode 
+                  ? 'bg-indigo-600 text-white shadow-md' 
+                  : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-850'
+              }`}
+            >
+              {mode}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Grid: Overview Details & Manual Tags Editor */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Grid Display Area */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         
-        {/* Left Column: Video Metadata & Visual Card */}
-        <div className="lg:col-span-2 p-5 rounded-xl bg-neutral-900 border border-neutral-850 space-y-4">
-          <div className="flex justify-between items-start">
-            <span className={`px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase tracking-widest ${video.channelName === 'LearnDriven' ? 'text-purple-400 bg-purple-950/40 border border-purple-900/30' : 'text-emerald-400 bg-emerald-950/40 border border-emerald-900/30'}`}>
-              {video.channelName}
-            </span>
-            <span className="text-[10px] font-mono text-neutral-500">Video ID: {video.videoId || video.id}</span>
-          </div>
-
-          <h3 className="text-base font-bold text-white font-sans leading-snug">{video.title}</h3>
+        {/* Left Side: Matrix Renderer (3 columns) */}
+        <div className="lg:col-span-3 space-y-6 bg-zinc-950/40 border border-zinc-900/80 rounded-xl p-6">
           
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2 font-mono text-[10px] text-neutral-400">
-            <div>
-              <span className="text-neutral-500 block mb-0.5">Format</span>
-              <span className="text-white font-semibold">{video.format}</span>
-            </div>
-            <div>
-              <span className="text-neutral-500 block mb-0.5">Content Intent</span>
-              <span className="text-white font-semibold">{video.contentIntent || 'General'}</span>
-            </div>
-            <div>
-              <span className="text-neutral-500 block mb-0.5">Effort Hours</span>
-              <span className="text-white font-semibold">{video.productionEffortHours} hrs</span>
-            </div>
-            <div>
-              <span className="text-neutral-500 block mb-0.5">Research Depth</span>
-              <span className="text-white font-semibold truncate block">{video.researchDepth || 'None'}</span>
-            </div>
-          </div>
-        </div>
+          {/* Matrix Header Navigation */}
+          <div className="flex items-center justify-between pb-4 border-b border-zinc-900">
+            <div className="flex items-center gap-3">
+              {viewMode === 'calendar' && (
+                <>
+                  <button 
+                    onClick={() => {
+                      if (selectedMonth === 0) {
+                        setSelectedMonth(11);
+                        setSelectedYear(y => y - 1);
+                      } else {
+                        setSelectedMonth(m => m - 1);
+                      }
+                    }}
+                    className="p-1 bg-zinc-900 hover:bg-zinc-800 rounded border border-zinc-800 transition"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    {monthNames[selectedMonth]} {selectedYear}
+                  </span>
+                  <button 
+                    onClick={() => {
+                      if (selectedMonth === 11) {
+                        setSelectedMonth(0);
+                        setSelectedYear(y => y + 1);
+                      } else {
+                        setSelectedMonth(m => m + 1);
+                      }
+                    }}
+                    className="p-1 bg-zinc-900 hover:bg-zinc-800 rounded border border-zinc-800 transition"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </>
+              )}
 
-        {/* Right Column: Dynamic Manual Tagging */}
-        <div className="p-5 rounded-xl bg-neutral-900 border border-neutral-850 flex flex-col justify-between">
-          <div className="space-y-4">
-            <div className="flex justify-between items-center border-b border-[#1e293b] pb-2">
-              <span className="text-xs font-bold uppercase tracking-widest text-neutral-300">Manual Tags</span>
-              <button 
-                onClick={() => setEditTags(!editTags)}
-                className="text-[10px] font-mono text-purple-400 hover:text-purple-300 underline"
+              {viewMode === 'weekly' && (
+                <span className="text-xs font-bold text-white uppercase tracking-wider">
+                  Weekly Feed Monitor (Current Month View)
+                </span>
+              )}
+
+              {viewMode === 'monthly' && (
+                <span className="text-xs font-bold text-white uppercase tracking-wider">
+                  Monthly Grid Overview ({selectedYear})
+                </span>
+              )}
+
+              {viewMode === 'yearly' && (
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setSelectedYear(y => y - 1)}
+                    className="p-1 bg-zinc-900 hover:bg-zinc-800 rounded border border-zinc-800 transition"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    Yearly Density Map: {selectedYear}
+                  </span>
+                  <button 
+                    onClick={() => setSelectedYear(y => y + 1)}
+                    className="p-1 bg-zinc-900 hover:bg-zinc-800 rounded border border-zinc-800 transition"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="bg-indigo-900/30 hover:bg-indigo-900/50 border border-indigo-800/40 text-indigo-400 text-[10px] px-3 py-1.5 rounded uppercase font-bold flex items-center gap-1.5 transition duration-300"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Simulate Upload</span>
+            </button>
+          </div>
+
+          {/* Quick Simulation Form Overlay */}
+          <AnimatePresence>
+            {showAddForm && (
+              <motion.form
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                onSubmit={handleAddVideo}
+                className="bg-zinc-950 border border-indigo-950 p-4 rounded-lg space-y-4 overflow-hidden"
               >
-                {editTags ? 'Close' : 'Edit Tags'}
-              </button>
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-zinc-400 uppercase font-bold">Video Title</label>
+                    <input 
+                      type="text" 
+                      value={newTitle}
+                      onChange={e => setNewTitle(e.target.value)}
+                      placeholder="Enter title..."
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-600"
+                      required
+                    />
+                  </div>
 
-            {editTags ? (
-              <div className="space-y-3 text-[10px] font-sans">
-                <div>
-                  <label className="block text-[9px] text-neutral-500 uppercase mb-1">Topic Type</label>
-                  <input 
-                    type="text" 
-                    value={tagTopicType} 
-                    onChange={(e) => setTagTopicType(e.target.value)} 
-                    className="w-full bg-neutral-900 border border-neutral-850 rounded px-2.5 py-1.5 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[9px] text-neutral-500 uppercase mb-1">Hook Type</label>
-                  <input 
-                    type="text" 
-                    value={tagHookType} 
-                    onChange={(e) => setTagHookType(e.target.value)} 
-                    className="w-full bg-neutral-900 border border-neutral-850 rounded px-2.5 py-1.5 text-white"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <label className="block text-[9px] text-neutral-500 uppercase mb-1">Evergreen</label>
-                    <select 
-                      value={tagEvergreen} 
-                      onChange={(e) => setTagEvergreen(e.target.value as any)}
-                      className="w-full bg-neutral-900 border border-neutral-850 rounded px-2 py-1 text-white"
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-zinc-400 uppercase font-bold">Channel</label>
+                    <select
+                      value={newChannel}
+                      onChange={e => setNewChannel(e.target.value as any)}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-600"
                     >
-                      <option value="High">High</option>
-                      <option value="Medium">Medium</option>
-                      <option value="Low">Low</option>
+                      <option value="LearnDriven">LearnDriven</option>
+                      <option value="DecodeWorthy">DecodeWorthy</option>
                     </select>
                   </div>
-                  <div className="flex-1">
-                    <label className="block text-[9px] text-neutral-500 uppercase mb-1">Subs Potential</label>
-                    <select 
-                      value={tagSubscribers} 
-                      onChange={(e) => setTagSubscribers(e.target.value as any)}
-                      className="w-full bg-neutral-900 border border-neutral-850 rounded px-2 py-1 text-white"
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-zinc-400 uppercase font-bold">Format Type</label>
+                    <select
+                      value={newFormat}
+                      onChange={e => setNewFormat(e.target.value as any)}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-600"
                     >
-                      <option value="High">High</option>
-                      <option value="Medium">Medium</option>
-                      <option value="Low">Low</option>
+                      <option value="Short">Short</option>
+                      <option value="Long">Long</option>
+                      <option value="Members">Members Only</option>
                     </select>
                   </div>
                 </div>
-                <button 
-                  onClick={handleSaveTags}
-                  className="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold font-mono rounded mt-2 text-xs"
-                >
-                  Save Tags
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3 text-[10px] font-mono text-neutral-400">
-                <div>
-                  <span className="text-neutral-500 block mb-0.5">Topic Type</span>
-                  <span className="text-white font-semibold">{video.tags.topicType || 'N/A'}</span>
+
+                <div className="flex items-center justify-between gap-4 pt-2 border-t border-zinc-900">
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-zinc-400 uppercase font-bold">Release Date</label>
+                    <input 
+                      type="date" 
+                      value={newDate}
+                      onChange={e => setNewDate(e.target.value)}
+                      className="bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-600 font-sans"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddForm(false)}
+                      className="px-3 py-1.5 text-[10px] uppercase font-bold text-zinc-500 hover:text-zinc-300"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] px-4 py-1.5 rounded uppercase"
+                    >
+                      Add to Grid
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-neutral-500 block mb-0.5">Hook Type</span>
-                  <span className="text-white font-semibold">{video.tags.hookType || 'N/A'}</span>
-                </div>
-                <div>
-                  <span className="text-neutral-500 block mb-0.5">Evergreen potential</span>
-                  <span className="text-white font-semibold">{video.tags.evergreenPotential || 'Medium'}</span>
-                </div>
-                <div>
-                  <span className="text-neutral-500 block mb-0.5">Audience Intent</span>
-                  <span className="text-white font-semibold">{video.tags.audienceIntent || 'N/A'}</span>
-                </div>
-              </div>
+              </motion.form>
             )}
-          </div>
-          
-          {!editTags && (
-            <p className="text-[9px] text-neutral-500 font-mono mt-4">
-              Tags are mapped to topic intelligence matrix to evaluate sequels.
-            </p>
+          </AnimatePresence>
+
+          {/* VIEW: CALENDAR */}
+          {viewMode === 'calendar' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+              </div>
+              <div className="grid grid-cols-7 gap-2.5">
+                {calendarDays.map(({ dateStr, dayNum, isCurrentMonth }) => {
+                  const dayVids = videosByDate[dateStr] || [];
+                  const isSelected = selectedDay === dateStr;
+
+                  return (
+                    <div 
+                      key={dateStr}
+                      onClick={() => setSelectedDay(isSelected ? null : dateStr)}
+                      className={`relative aspect-square cursor-pointer flex flex-col justify-between ${
+                        isCurrentMonth ? '' : 'opacity-30'
+                      }`}
+                    >
+                      {/* Subdivided blocks inside the cell */}
+                      {renderSubdividedBlock(dateStr, 'h-full w-full')}
+                      
+                      {/* Calendar Day Label overlay */}
+                      <span className={`absolute top-1.5 left-2 text-[9px] font-bold ${
+                        isSelected 
+                          ? 'text-indigo-400 font-black scale-110' 
+                          : dayVids.length > 0 ? 'text-zinc-100' : 'text-zinc-600'
+                      }`}>
+                        {dayNum}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
-        </div>
 
-      </div>
+          {/* VIEW: WEEKLY */}
+          {viewMode === 'weekly' && (
+            <div className="space-y-6">
+              {/* Show weeks in the current month */}
+              {Array.from({ length: 5 }).map((_, weekIdx) => {
+                const weekDays = calendarDays.slice(weekIdx * 7, (weekIdx + 1) * 7);
+                if (weekDays.length === 0) return null;
 
-      {/* Derived Metric Cards Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        
-        {/* Health Score */}
-        <div className="p-4 rounded-xl border border-neutral-900 bg-neutral-950 flex flex-col gap-1 items-center justify-center relative overflow-hidden group">
-          <Award className="h-5 w-5 text-purple-400 mb-1" />
-          <span className="text-[9px] font-mono text-neutral-500 uppercase tracking-widest">Health Score</span>
-          <span className="text-3xl font-bold text-white leading-none mt-1">
-            {video.metrics?.videoHealthScore || 0}%
-          </span>
-        </div>
+                return (
+                  <div key={weekIdx} className="space-y-2 border-b border-zinc-900/50 pb-4 last:border-b-0">
+                    <span className="text-[10px] text-zinc-500 uppercase font-bold">Week {weekIdx + 1}</span>
+                    <div className="grid grid-cols-7 gap-3">
+                      {weekDays.map(({ dateStr, dayNum, isCurrentMonth }) => {
+                        const dayVids = videosByDate[dateStr] || [];
+                        const isSelected = selectedDay === dateStr;
 
-        {/* View Velocity */}
-        <div className="p-4 rounded-xl border border-neutral-850 bg-neutral-950 flex flex-col gap-1 items-center justify-center relative overflow-hidden group">
-          <Activity className="h-5 w-5 text-emerald-400 mb-1" />
-          <span className="text-[9px] font-mono text-neutral-500 uppercase tracking-widest">Velocity</span>
-          <span className="text-3xl font-bold text-white leading-none mt-1">
-            {video.metrics?.viewVelocity || 0} <span className="text-[10px] font-mono text-neutral-500 uppercase font-normal">v/h</span>
-          </span>
-        </div>
-
-        {/* CTR */}
-        <div className="p-4 rounded-xl border border-neutral-850 bg-neutral-950 flex flex-col gap-1 items-center justify-center relative overflow-hidden group">
-          <TrendingUp className="h-5 w-5 text-blue-400 mb-1" />
-          <span className="text-[9px] font-mono text-neutral-500 uppercase tracking-widest">CTR</span>
-          <span className="text-3xl font-bold text-white leading-none mt-1">
-            {video.metrics?.ctr || 0}%
-          </span>
-        </div>
-
-        {/* Subscriber conversion */}
-        <div className="p-4 rounded-xl border border-neutral-850 bg-neutral-950 flex flex-col gap-1 items-center justify-center relative overflow-hidden group">
-          <Users className="h-5 w-5 text-purple-400 mb-1" />
-          <span className="text-[9px] font-mono text-neutral-500 uppercase tracking-widest">Sub Conversion</span>
-          <span className="text-3xl font-bold text-white leading-none mt-1">
-            {video.metrics?.subscribersGainedPer1kViews || 0} <span className="text-[10px] text-neutral-500 uppercase font-mono font-normal">/1k v</span>
-          </span>
-        </div>
-
-      </div>
-
-      {/* AI Packaging Diagnosis Card */}
-      {diagnosis && (
-        <div className={`p-5 rounded-xl border flex flex-col sm:flex-row gap-4 items-start ${diagnosis.color}`}>
-          <div className="p-2 rounded-lg bg-black/40 text-neutral-300">
-            <diagnosis.icon className="h-6 w-6 text-current shrink-0 animate-pulse" />
-          </div>
-          <div className="space-y-1.5 flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-bold font-mono uppercase text-white bg-black/30 px-2 py-0.5 rounded">Diagnosis</span>
-              <span className="text-xs font-bold font-sans text-white">{diagnosis.label}</span>
+                        return (
+                          <div 
+                            key={dateStr}
+                            onClick={() => setSelectedDay(isSelected ? null : dateStr)}
+                            className={`cursor-pointer transition-all duration-300 ${isCurrentMonth ? '' : 'opacity-25'}`}
+                          >
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-[9px] font-bold text-zinc-500">{dayNum}</span>
+                              {dayVids.length > 0 && (
+                                <span className="text-[8px] bg-indigo-950 text-indigo-400 px-1 rounded-sm">{dayVids.length}p</span>
+                              )}
+                            </div>
+                            <div className="aspect-square">
+                              {renderSubdividedBlock(dateStr, 'h-full w-full')}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <p className="text-xs text-neutral-200 font-sans leading-relaxed">{diagnosis.explanation}</p>
-            <p className="text-xs text-neutral-100 font-sans font-bold flex items-center gap-1.5 mt-2">
-              <ChevronRight className="h-4 w-4 shrink-0 text-current" />
-              <span>Recommended Action: {diagnosis.action}</span>
-            </p>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Grid: Charts (Views Timeline & Traffic Sources) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Left: Views progression timeline (Recharts) */}
-        <div className="lg:col-span-2 p-5 rounded-xl bg-neutral-900 border border-neutral-850 space-y-4">
-          <span className="text-xs font-bold uppercase tracking-widest text-neutral-400">Views Growth Curve</span>
-          <div className="h-64 w-full">
-            {viewsTimeline.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-xs text-neutral-600 font-mono">No metric timeline logs found.</div>
+          {/* VIEW: MONTHLY */}
+          {viewMode === 'monthly' && (
+            <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
+              {monthNames.map((name, idx) => {
+                // Get all videos in this month
+                const monthVids = videos.filter(v => {
+                  const dateStr = parseVideoDateStr(v);
+                  if (!dateStr) return false;
+                  const date = new Date(dateStr);
+                  return date.getFullYear() === selectedYear && date.getMonth() === idx;
+                });
+
+                // Generate subdivided blocks based on unique days or total videos
+                return (
+                  <div 
+                    key={name}
+                    className="bg-zinc-900/40 border border-zinc-900 hover:border-zinc-800 rounded-lg p-3 space-y-3 flex flex-col justify-between"
+                  >
+                    <div className="flex justify-between items-start">
+                      <span className="text-xs font-bold text-white uppercase">{name}</span>
+                      <span className="text-[9px] bg-zinc-950 border border-zinc-900 text-zinc-400 px-1.5 py-0.5 rounded font-mono font-bold">
+                        {monthVids.length} Posts
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-1 aspect-square bg-zinc-950/60 p-1.5 rounded border border-zinc-900">
+                      {Array.from({ length: 16 }).map((_, slotIdx) => {
+                        const vid = monthVids[slotIdx];
+                        if (!vid) return <div key={slotIdx} className="bg-zinc-900/20 rounded-[2px]" />;
+                        const color = getFormatColor(vid.channelName, vid.format);
+                        return (
+                          <div 
+                            key={slotIdx}
+                            style={{ backgroundColor: color }}
+                            className="rounded-[2px]"
+                            title={`${vid.title} (${getFormatLabel(vid.channelName, vid.format)})`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* VIEW: YEARLY */}
+          {viewMode === 'yearly' && (
+            <div className="space-y-4 overflow-x-auto select-none py-2">
+              <div className="flex gap-[3px] min-w-[700px]">
+                {/* Day of week labels */}
+                <div className="grid grid-rows-7 gap-[3px] text-[8px] text-zinc-600 font-bold pr-1 pt-4 select-none">
+                  <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
+                </div>
+
+                {/* 53 Columns of Weeks */}
+                {Array.from({ length: 53 }).map((_, weekIdx) => {
+                  return (
+                    <div key={weekIdx} className="grid grid-rows-7 gap-[3px] w-full">
+                      {Array.from({ length: 7 }).map((_, dayIdx) => {
+                        // Calculate specific date
+                        const startOfYear = new Date(selectedYear, 0, 1);
+                        const startDayOfWeek = startOfYear.getDay();
+                        const dayOffset = (weekIdx * 7) + dayIdx - startDayOfWeek;
+                        const date = new Date(selectedYear, 0, 1 + dayOffset);
+                        
+                        const isValidYear = date.getFullYear() === selectedYear;
+                        const dateStr = date.toISOString().split('T')[0];
+                        const dayVids = videosByDate[dateStr] || [];
+
+                        if (!isValidYear) {
+                          return <div key={dayIdx} className="w-[11px] h-[11px] bg-transparent" />;
+                        }
+
+                        return (
+                          <div
+                            key={dayIdx}
+                            onClick={() => setSelectedDay(selectedDay === dateStr ? null : dateStr)}
+                            className="relative cursor-pointer"
+                            title={`${date.toLocaleDateString()}: ${dayVids.length} videos`}
+                          >
+                            {renderSubdividedBlock(dateStr, 'w-[12px] h-[12px]')}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Month Markers below matrix */}
+              <div className="flex justify-between text-[8px] font-bold text-zinc-600 px-6 uppercase pt-1">
+                {monthNames.map(name => <span key={name}>{name.substring(0, 3)}</span>)}
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        {/* Right Side: Day Details & Interactive Feed Monitor (1 column) */}
+        <div className="space-y-6">
+          
+          {/* Day Feed panel */}
+          <div className="bg-zinc-950 border border-zinc-900 rounded-xl p-5 shadow-lg space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-900 pb-2">
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                <Clock className="h-4 w-4 text-indigo-400" />
+                <span>Selected Day Feed</span>
+              </h3>
+              {selectedDay && (
+                <span className="text-[9px] font-mono text-zinc-500 uppercase">{selectedDay}</span>
+              )}
+            </div>
+
+            {selectedDay ? (
+              <div className="space-y-4">
+                {(() => {
+                  const dayVids = videosByDate[selectedDay] || [];
+                  if (dayVids.length === 0) {
+                    return (
+                      <div className="text-center py-8 text-zinc-500 text-[10px] border border-dashed border-zinc-900 rounded-lg">
+                        No videos published on this day. Use "Simulate Upload" to add some!
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3">
+                      {dayVids.map(vid => {
+                        const color = getFormatColor(vid.channelName, vid.format);
+                        return (
+                          <div 
+                            key={vid.id}
+                            className="bg-zinc-900/30 border border-zinc-900 rounded-lg p-3 space-y-2 relative overflow-hidden"
+                          >
+                            {/* Color strip */}
+                            <div className="absolute top-0 left-0 bottom-0 w-1" style={{ backgroundColor: color }} />
+                            
+                            <div className="flex justify-between items-start pl-2">
+                              <span className="text-[10px] font-bold text-white tracking-tight line-clamp-2 pr-4">{vid.title}</span>
+                              <button 
+                                onClick={() => handleDeleteVideo(vid.id)}
+                                className="text-zinc-600 hover:text-red-400 p-0.5"
+                                title="Remove mock record"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+
+                            <div className="flex flex-wrap gap-1.5 pl-2">
+                              <span 
+                                style={{ borderColor: `${color}40`, color: color }}
+                                className="px-1.5 py-0.2 bg-zinc-950 border rounded text-[8px] font-bold"
+                              >
+                                {vid.channelName}
+                              </span>
+                              <span className="px-1.5 py-0.2 bg-zinc-900 text-zinc-400 border border-zinc-850 rounded text-[8px]">
+                                {vid.format}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={viewsTimeline}>
-                  <defs>
-                    <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#a855f7" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="hour" stroke="#4b5563" fontSize={9} tickLine={false} />
-                  <YAxis stroke="#4b5563" fontSize={9} axisLine={false} tickLine={false} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#0a0a0a', border: '1px solid #1f2937', borderRadius: '8px' }}
-                    labelStyle={{ color: '#9ca3af', fontFamily: 'monospace', fontSize: 10 }}
-                    itemStyle={{ color: '#ffffff', fontSize: 11 }}
-                  />
-                  <Area type="monotone" dataKey="views" stroke="#a855f7" fillOpacity={1} fill="url(#colorViews)" strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
+              <div className="text-center py-8 text-zinc-500 text-[10px] leading-normal uppercase">
+                Select any square grid block in the matrix to view the publications and metrics feed for that day.
+              </div>
             )}
           </div>
-        </div>
 
-        {/* Right: Traffic Sources CTR breakdown */}
-        <div className="p-5 rounded-xl bg-neutral-900 border border-neutral-850 space-y-4 flex flex-col">
-          <span className="text-xs font-bold uppercase tracking-widest text-neutral-400">CTR by Traffic Source</span>
-          
-          <div className="flex-1 h-44 w-full relative flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={trafficData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {trafficData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#0a0a0a', border: '1px solid #1f2937', borderRadius: '8px' }}
-                  itemStyle={{ fontSize: 11 }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            
-            {/* Center Callout */}
-            <div className="absolute flex flex-col items-center justify-center">
-              <span className="text-xs font-mono text-neutral-500 uppercase tracking-widest">Avg CTR</span>
-              <span className="text-2xl font-bold text-white font-sans">{video.metrics?.ctr || 0}%</span>
-            </div>
-          </div>
+          {/* Color Legend panel */}
+          <div className="bg-zinc-950 border border-zinc-900 rounded-xl p-5 shadow-lg space-y-4">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5 border-b border-zinc-900 pb-2">
+              <Layers className="h-4 w-4 text-emerald-400" />
+              <span>Matrix Legend</span>
+            </h3>
 
-          {/* Legend */}
-          <div className="flex flex-col gap-2 pt-2 border-t border-neutral-900 text-[10px] font-mono text-neutral-400">
-            {trafficData.map((d, idx) => (
-              <div key={d.name} className="flex justify-between items-center">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                  <span>{d.name}</span>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <span className="text-[9px] text-zinc-500 font-bold uppercase block tracking-wider">LearnDriven Channel</span>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-[2px]" style={{ backgroundColor: getFormatColor('LearnDriven', 'Short') }} />
+                    <span className="text-[9px] text-zinc-400">Short Video (#10b981)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-[2px]" style={{ backgroundColor: getFormatColor('LearnDriven', 'Long') }} />
+                    <span className="text-[9px] text-zinc-400">Long Video (#047857)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-[2px]" style={{ backgroundColor: getFormatColor('LearnDriven', 'Members') }} />
+                    <span className="text-[9px] text-zinc-400">Members Only (#0d9488)</span>
+                  </div>
                 </div>
-                <span className="text-white font-bold">{d.value}%</span>
               </div>
-            ))}
+
+              <div className="space-y-2 border-t border-zinc-900 pt-3">
+                <span className="text-[9px] text-zinc-500 font-bold uppercase block tracking-wider">DecodeWorthy Channel</span>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-[2px]" style={{ backgroundColor: getFormatColor('DecodeWorthy', 'Short') }} />
+                    <span className="text-[9px] text-zinc-400">Short Video (#8b5cf6)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-[2px]" style={{ backgroundColor: getFormatColor('DecodeWorthy', 'Long') }} />
+                    <span className="text-[9px] text-zinc-400">Long Video (#4f46e5)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-[2px]" style={{ backgroundColor: getFormatColor('DecodeWorthy', 'Members') }} />
+                    <span className="text-[9px] text-zinc-400">Members Only (#06b6d4)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
         </div>
