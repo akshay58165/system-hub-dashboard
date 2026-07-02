@@ -10,16 +10,26 @@ import {
   Plus, 
   Trash2 
 } from 'lucide-react';
-import { VideoRecord } from '../types';
+import { VideoRecord, Topic } from '../types';
 
 interface VideoLabProps {
   videos: VideoRecord[];
   setVideos: React.Dispatch<React.SetStateAction<VideoRecord[]>>;
   selectedVideoId: string | null;
   setSelectedVideoId: (id: string) => void;
+  topics: Topic[];
 }
 
 type ViewType = 'calendar' | 'weekly' | 'monthly' | 'yearly';
+
+interface UnifiedPost {
+  id: string;
+  title: string;
+  channelName: 'LearnDriven' | 'DecodeWorthy';
+  format: 'Short' | 'Long' | 'Members';
+  dateStr: string;
+  source: 'pipeline' | 'video';
+}
 
 // Content types styling helper
 const getFormatColor = (channel: 'LearnDriven' | 'DecodeWorthy', format: 'Short' | 'Long' | 'Members'): string => {
@@ -47,7 +57,8 @@ export default function VideoLabView({
   videos, 
   setVideos, 
   selectedVideoId, 
-  setSelectedVideoId 
+  setSelectedVideoId,
+  topics
 }: VideoLabProps) {
   const [viewMode, setViewMode] = useState<ViewType>('calendar');
   const [selectedYear, setSelectedYear] = useState<number>(2026);
@@ -68,20 +79,55 @@ export default function VideoLabView({
     return rawDate.split('T')[0];
   };
 
-  // Group videos by YYYY-MM-DD
-  const videosByDate = useMemo(() => {
-    const groups: { [dateStr: string]: VideoRecord[] } = {};
+  // Merge pipeline topics (scheduled or posted) and the videos array
+  const combinedPosts = useMemo(() => {
+    const posts: UnifiedPost[] = [];
+    
+    // Add history from videos
     videos.forEach(v => {
       const dateStr = parseVideoDateStr(v);
       if (dateStr) {
-        if (!groups[dateStr]) {
-          groups[dateStr] = [];
+        posts.push({
+          id: v.id,
+          title: v.title,
+          channelName: v.channelName,
+          format: v.format,
+          dateStr: dateStr,
+          source: 'video'
+        });
+      }
+    });
+
+    // Add active pipeline topics
+    topics.forEach(t => {
+      if (t.dueDate && (t.status === 'posted' || t.status === 'scheduled')) {
+        posts.push({
+          id: t.id,
+          title: t.name,
+          channelName: t.channel,
+          format: t.format || 'Long', // Default to Long if undefined
+          dateStr: t.dueDate.split('T')[0],
+          source: 'pipeline'
+        });
+      }
+    });
+
+    return posts;
+  }, [videos, topics]);
+
+  // Group combined posts by YYYY-MM-DD
+  const postsByDate = useMemo(() => {
+    const groups: { [dateStr: string]: UnifiedPost[] } = {};
+    combinedPosts.forEach(p => {
+      if (p.dateStr) {
+        if (!groups[p.dateStr]) {
+          groups[p.dateStr] = [];
         }
-        groups[dateStr].push(v);
+        groups[p.dateStr].push(p);
       }
     });
     return groups;
-  }, [videos]);
+  }, [combinedPosts]);
 
   // List of days in selected month
   const calendarDays = useMemo(() => {
@@ -112,6 +158,19 @@ export default function VideoLabView({
       });
     }
 
+    return days;
+  }, [selectedYear, selectedMonth]);
+
+  // Sequential days of the month (1-31 without weekday alignment padding)
+  const sequentialMonthDays = useMemo(() => {
+    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+    const days: { dateStr: string; dayNum: number }[] = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push({
+        dateStr: `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`,
+        dayNum: i
+      });
+    }
     return days;
   }, [selectedYear, selectedMonth]);
 
@@ -149,22 +208,26 @@ export default function VideoLabView({
     setShowAddForm(false);
   };
 
-  // Delete mock video
-  const handleDeleteVideo = (id: string) => {
-    setVideos(prev => prev.filter(v => v.id !== id));
+  // Delete video (if mock/video database item)
+  const handleDeletePost = (post: UnifiedPost) => {
+    if (post.source === 'pipeline') {
+      alert("This post comes from an active pipeline topic. Please update or delete it in the pipeline dashboard.");
+      return;
+    }
+    setVideos(prev => prev.filter(v => v.id !== post.id));
   };
 
   // Render subdivided grid blocks inside a day square
   const renderSubdividedBlock = (dateStr: string, sizeClass = 'h-full w-full') => {
-    const dayVids = videosByDate[dateStr] || [];
-    if (dayVids.length === 0) {
+    const dayPosts = postsByDate[dateStr] || [];
+    if (dayPosts.length === 0) {
       return (
         <div className={`bg-neutral-900/60 border border-neutral-850/60 rounded-md transition duration-300 hover:border-neutral-700/80 ${sizeClass}`} />
       );
     }
 
     // Grid layout based on count
-    const count = dayVids.length;
+    const count = dayPosts.length;
     let gridStyle = {};
     if (count === 1) {
       gridStyle = { gridTemplateColumns: '1fr', gridTemplateRows: '1fr' };
@@ -179,27 +242,30 @@ export default function VideoLabView({
     return (
       <div 
         style={gridStyle}
-        className={`grid gap-0.5 p-0.5 bg-neutral-900 border border-neutral-800 rounded-md overflow-hidden transition-all duration-300 hover:scale-[1.05] hover:shadow-[0_0_12px_rgba(139,92,246,0.15)] ${sizeClass}`}
+        className={`grid gap-0.5 p-0.5 bg-neutral-900 border border-neutral-805 rounded-md overflow-hidden transition-all duration-300 hover:scale-[1.05] hover:shadow-[0_0_12px_rgba(139,92,246,0.15)] ${sizeClass}`}
       >
-        {dayVids.slice(0, 4).map((vid, idx) => {
-          const color = getFormatColor(vid.channelName, vid.format);
+        {dayPosts.slice(0, 4).map((post) => {
+          const color = getFormatColor(post.channelName, post.format);
           return (
             <div 
-              key={vid.id} 
+              key={post.id} 
               style={{ backgroundColor: color }}
-              className="rounded-[2px] w-full h-full relative group/item"
-              title={`${vid.title} (${getFormatLabel(vid.channelName, vid.format)})`}
+              className="rounded-[2px] w-full h-full relative"
+              title={`${post.title} (${getFormatLabel(post.channelName, post.format)})`}
             />
           );
         })}
-        {dayVids.length > 4 && (
+        {dayPosts.length > 4 && (
           <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-[8px] font-mono text-white pointer-events-none">
-            +{dayVids.length - 4}
+            +{dayPosts.length - 4}
           </div>
         )}
       </div>
     );
   };
+
+  // Helper alias for map rendering callback
+  const p = { channelName: 'LearnDriven' as const, format: 'Short' as const };
 
   return (
     <div className="space-y-6 font-mono text-zinc-300">
@@ -212,7 +278,7 @@ export default function VideoLabView({
             <span>Content Activity Matrix</span>
           </h2>
           <p className="text-[10px] text-zinc-500 uppercase">
-            Visual publication density grid for LearnDriven & DecodeWorthy channels
+            Visual publication density grid mapped directly to pipeline pipeline updates & database records
           </p>
         </div>
 
@@ -231,7 +297,7 @@ export default function VideoLabView({
                   : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-850'
               }`}
             >
-              {mode}
+              {mode === 'monthly' ? 'Monthly (Single)' : mode}
             </button>
           ))}
         </div>
@@ -246,7 +312,7 @@ export default function VideoLabView({
           {/* Matrix Header Navigation */}
           <div className="flex items-center justify-between pb-4 border-b border-zinc-900">
             <div className="flex items-center gap-3">
-              {viewMode === 'calendar' && (
+              {(viewMode === 'calendar' || viewMode === 'monthly') && (
                 <>
                   <button 
                     onClick={() => {
@@ -283,12 +349,6 @@ export default function VideoLabView({
               {viewMode === 'weekly' && (
                 <span className="text-xs font-bold text-white uppercase tracking-wider">
                   Weekly Feed Monitor (Current Month View)
-                </span>
-              )}
-
-              {viewMode === 'monthly' && (
-                <span className="text-xs font-bold text-white uppercase tracking-wider">
-                  Monthly Grid Overview ({selectedYear})
                 </span>
               )}
 
@@ -410,7 +470,7 @@ export default function VideoLabView({
               </div>
               <div className="grid grid-cols-7 gap-2.5">
                 {calendarDays.map(({ dateStr, dayNum, isCurrentMonth }) => {
-                  const dayVids = videosByDate[dateStr] || [];
+                  const dayPosts = postsByDate[dateStr] || [];
                   const isSelected = selectedDay === dateStr;
 
                   return (
@@ -428,7 +488,7 @@ export default function VideoLabView({
                       <span className={`absolute top-1.5 left-2 text-[9px] font-bold ${
                         isSelected 
                           ? 'text-indigo-400 font-black scale-110' 
-                          : dayVids.length > 0 ? 'text-zinc-100' : 'text-zinc-600'
+                          : dayPosts.length > 0 ? 'text-zinc-100' : 'text-zinc-600'
                       }`}>
                         {dayNum}
                       </span>
@@ -452,7 +512,7 @@ export default function VideoLabView({
                     <span className="text-[10px] text-zinc-500 uppercase font-bold">Week {weekIdx + 1}</span>
                     <div className="grid grid-cols-7 gap-3">
                       {weekDays.map(({ dateStr, dayNum, isCurrentMonth }) => {
-                        const dayVids = videosByDate[dateStr] || [];
+                        const dayPosts = postsByDate[dateStr] || [];
                         const isSelected = selectedDay === dateStr;
 
                         return (
@@ -463,8 +523,8 @@ export default function VideoLabView({
                           >
                             <div className="flex justify-between items-center mb-1">
                               <span className="text-[9px] font-bold text-zinc-500">{dayNum}</span>
-                              {dayVids.length > 0 && (
-                                <span className="text-[8px] bg-indigo-950 text-indigo-400 px-1 rounded-sm">{dayVids.length}p</span>
+                              {dayPosts.length > 0 && (
+                                <span className="text-[8px] bg-indigo-950 text-indigo-400 px-1 rounded-sm">{dayPosts.length}p</span>
                               )}
                             </div>
                             <div className="aspect-square">
@@ -480,49 +540,43 @@ export default function VideoLabView({
             </div>
           )}
 
-          {/* VIEW: MONTHLY */}
+          {/* VIEW: MONTHLY (ELABORATED SINGLE MONTH 1-31 GRID MAP) */}
           {viewMode === 'monthly' && (
-            <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
-              {monthNames.map((name, idx) => {
-                // Get all videos in this month
-                const monthVids = videos.filter(v => {
-                  const dateStr = parseVideoDateStr(v);
-                  if (!dateStr) return false;
-                  const date = new Date(dateStr);
-                  return date.getFullYear() === selectedYear && date.getMonth() === idx;
-                });
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] text-zinc-500 uppercase font-bold">Sequential Monthly Grid Map</span>
+                <span className="text-[9px] text-zinc-400 font-mono">
+                  {monthNames[selectedMonth]} Total Publications: {
+                    sequentialMonthDays.reduce((acc, d) => acc + (postsByDate[d.dateStr]?.length || 0), 0)
+                  }
+                </span>
+              </div>
+              <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-7 gap-3">
+                {sequentialMonthDays.map(({ dateStr, dayNum }) => {
+                  const dayPosts = postsByDate[dateStr] || [];
+                  const isSelected = selectedDay === dateStr;
 
-                // Generate subdivided blocks based on unique days or total videos
-                return (
-                  <div 
-                    key={name}
-                    className="bg-zinc-900/40 border border-zinc-900 hover:border-zinc-800 rounded-lg p-3 space-y-3 flex flex-col justify-between"
-                  >
-                    <div className="flex justify-between items-start">
-                      <span className="text-xs font-bold text-white uppercase">{name}</span>
-                      <span className="text-[9px] bg-zinc-950 border border-zinc-900 text-zinc-400 px-1.5 py-0.5 rounded font-mono font-bold">
-                        {monthVids.length} Posts
+                  return (
+                    <div 
+                      key={dateStr}
+                      onClick={() => setSelectedDay(isSelected ? null : dateStr)}
+                      className="relative aspect-square cursor-pointer flex flex-col justify-between"
+                    >
+                      {/* Subdivided blocks inside the cell */}
+                      {renderSubdividedBlock(dateStr, 'h-full w-full')}
+                      
+                      {/* Calendar Day Label overlay */}
+                      <span className={`absolute top-1.5 left-2 text-[9px] font-bold ${
+                        isSelected 
+                          ? 'text-indigo-400 font-black scale-110' 
+                          : dayPosts.length > 0 ? 'text-zinc-100' : 'text-zinc-600'
+                      }`}>
+                        Day {dayNum}
                       </span>
                     </div>
-
-                    <div className="grid grid-cols-4 gap-1 aspect-square bg-zinc-950/60 p-1.5 rounded border border-zinc-900">
-                      {Array.from({ length: 16 }).map((_, slotIdx) => {
-                        const vid = monthVids[slotIdx];
-                        if (!vid) return <div key={slotIdx} className="bg-zinc-900/20 rounded-[2px]" />;
-                        const color = getFormatColor(vid.channelName, vid.format);
-                        return (
-                          <div 
-                            key={slotIdx}
-                            style={{ backgroundColor: color }}
-                            className="rounded-[2px]"
-                            title={`${vid.title} (${getFormatLabel(vid.channelName, vid.format)})`}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           )}
 
@@ -548,7 +602,7 @@ export default function VideoLabView({
                         
                         const isValidYear = date.getFullYear() === selectedYear;
                         const dateStr = date.toISOString().split('T')[0];
-                        const dayVids = videosByDate[dateStr] || [];
+                        const dayPosts = postsByDate[dateStr] || [];
 
                         if (!isValidYear) {
                           return <div key={dayIdx} className="w-[11px] h-[11px] bg-transparent" />;
@@ -559,7 +613,7 @@ export default function VideoLabView({
                             key={dayIdx}
                             onClick={() => setSelectedDay(selectedDay === dateStr ? null : dateStr)}
                             className="relative cursor-pointer"
-                            title={`${date.toLocaleDateString()}: ${dayVids.length} videos`}
+                            title={`${date.toLocaleDateString()}: ${dayPosts.length} videos`}
                           >
                             {renderSubdividedBlock(dateStr, 'w-[12px] h-[12px]')}
                           </div>
@@ -597,8 +651,8 @@ export default function VideoLabView({
             {selectedDay ? (
               <div className="space-y-4">
                 {(() => {
-                  const dayVids = videosByDate[selectedDay] || [];
-                  if (dayVids.length === 0) {
+                  const dayPosts = postsByDate[selectedDay] || [];
+                  if (dayPosts.length === 0) {
                     return (
                       <div className="text-center py-8 text-zinc-500 text-[10px] border border-dashed border-zinc-900 rounded-lg">
                         No videos published on this day. Use "Simulate Upload" to add some!
@@ -608,25 +662,29 @@ export default function VideoLabView({
 
                   return (
                     <div className="space-y-3">
-                      {dayVids.map(vid => {
-                        const color = getFormatColor(vid.channelName, vid.format);
+                      {dayPosts.map(post => {
+                        const color = getFormatColor(post.channelName, post.format);
                         return (
                           <div 
-                            key={vid.id}
+                            key={post.id}
                             className="bg-zinc-900/30 border border-zinc-900 rounded-lg p-3 space-y-2 relative overflow-hidden"
                           >
                             {/* Color strip */}
                             <div className="absolute top-0 left-0 bottom-0 w-1" style={{ backgroundColor: color }} />
                             
                             <div className="flex justify-between items-start pl-2">
-                              <span className="text-[10px] font-bold text-white tracking-tight line-clamp-2 pr-4">{vid.title}</span>
-                              <button 
-                                onClick={() => handleDeleteVideo(vid.id)}
-                                className="text-zinc-600 hover:text-red-400 p-0.5"
-                                title="Remove mock record"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </button>
+                              <span className="text-[10px] font-bold text-white tracking-tight line-clamp-2 pr-4">{post.title}</span>
+                              {post.source === 'video' ? (
+                                <button 
+                                  onClick={() => handleDeletePost(post)}
+                                  className="text-zinc-600 hover:text-red-400 p-0.5"
+                                  title="Remove mock record"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              ) : (
+                                <span className="text-[7px] bg-indigo-950 text-indigo-400 border border-indigo-900/40 px-1 py-0.2 rounded font-bold" title="Live Pipeline Item">Pipeline</span>
+                              )}
                             </div>
 
                             <div className="flex flex-wrap gap-1.5 pl-2">
@@ -634,10 +692,10 @@ export default function VideoLabView({
                                 style={{ borderColor: `${color}40`, color: color }}
                                 className="px-1.5 py-0.2 bg-zinc-950 border rounded text-[8px] font-bold"
                               >
-                                {vid.channelName}
+                                {post.channelName}
                               </span>
                               <span className="px-1.5 py-0.2 bg-zinc-900 text-zinc-400 border border-zinc-850 rounded text-[8px]">
-                                {vid.format}
+                                {post.format}
                               </span>
                             </div>
                           </div>

@@ -1506,6 +1506,7 @@ export default function App() {
                 setVideos={setVideos}
                 selectedVideoId={selectedVideoId}
                 setSelectedVideoId={setSelectedVideoId}
+                topics={topics}
               />
             )}
 
