@@ -138,6 +138,11 @@ export default function CommandCenterView({
   const cycleProgress = cycleTarget ? Math.min(100, Math.round((cycleDelivered / cycleTarget) * 100)) : 0;
   const systemTone = model.blocked.length || model.overdue.length ? 'ACTION REQUIRED' : model.dueSoon.length ? 'WATCH CLOSELY' : 'SYSTEM CLEAR';
   const systemColor = model.blocked.length || model.overdue.length ? 'rose' : model.dueSoon.length ? 'amber' : 'emerald';
+  const openActivity = (activity: TopicActivity) => {
+    const topic = activity.topicId ? topics.find(item => item.id === activity.topicId) : undefined;
+    if (topic) return onOpenTopicPipeline(topic.id, actionTargetForTopic(topic));
+    onTabChange(activity.targetTab || 'logs');
+  };
 
   return (
     <div className="space-y-5 pb-10">
@@ -152,30 +157,30 @@ export default function CommandCenterView({
             <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">Creator Command Center</h1>
             <p className="mt-2 max-w-2xl text-sm text-neutral-400">One screen for what needs action now, where production is accumulating, and what is safely moving forward.</p>
           </div>
-          <div className={`min-w-[250px] rounded-xl border p-4 ${systemColor === 'rose' ? 'border-rose-900/50 bg-rose-950/20' : systemColor === 'amber' ? 'border-amber-900/50 bg-amber-950/20' : 'border-emerald-900/50 bg-emerald-950/20'}`}>
+          <button type="button" onClick={() => onOpenTopicPipeline()} className={`group min-w-[250px] rounded-xl border p-4 text-left transition hover:-translate-y-0.5 ${systemColor === 'rose' ? 'border-rose-900/50 bg-rose-950/20 hover:border-rose-700' : systemColor === 'amber' ? 'border-amber-900/50 bg-amber-950/20 hover:border-amber-700' : 'border-emerald-900/50 bg-emerald-950/20 hover:border-emerald-700'}`}>
             <div className="flex items-center justify-between">
               <span className="font-mono text-[9px] uppercase tracking-widest text-neutral-500">Operational state</span>
               <span className={`h-2.5 w-2.5 rounded-full ${systemColor === 'rose' ? 'bg-rose-500 shadow-[0_0_12px_#f43f5e]' : systemColor === 'amber' ? 'bg-amber-400 shadow-[0_0_12px_#f59e0b]' : 'bg-emerald-400 shadow-[0_0_12px_#10b981]'}`} />
             </div>
             <div className={`mt-2 font-mono text-lg font-bold ${systemColor === 'rose' ? 'text-rose-400' : systemColor === 'amber' ? 'text-amber-300' : 'text-emerald-400'}`}>{systemTone}</div>
-            <div className="mt-1 text-xs text-neutral-500">{model.blocked.length} blocked · {model.overdue.length} overdue · {model.dueSoon.length} due soon</div>
-          </div>
+            <div className="mt-1 flex items-center justify-between gap-3 text-xs text-neutral-500"><span>{model.blocked.length} blocked - {model.overdue.length} overdue - {model.dueSoon.length} due soon</span><ArrowUpRight className="h-3.5 w-3.5 shrink-0 group-hover:text-white" /></div>
+          </button>
         </div>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {[
-          { label: 'Needs attention', value: model.attention.length, note: `${model.blocked.length} blocked`, icon: AlertTriangle, iconClass: 'text-rose-400' },
-          { label: 'In production', value: model.incomplete.length, note: `${model.scheduled} scheduled`, icon: Layers3, iconClass: 'text-amber-400' },
-          { label: 'Completion', value: `${model.completion}%`, note: `${model.posted} posted`, icon: Gauge, iconClass: 'text-emerald-400' },
-          { label: 'Actions today', value: model.actionsToday, note: 'live audit events', icon: Activity, iconClass: 'text-blue-400' },
-          { label: 'Experiments', value: activeExperiments.length, note: 'currently active', icon: Sparkles, iconClass: 'text-purple-400' }
+          { label: 'Needs attention', value: model.attention.length, note: `${model.blocked.length} blocked`, icon: AlertTriangle, iconClass: 'text-rose-400', action: () => onOpenTopicPipeline() },
+          { label: 'In production', value: model.incomplete.length, note: `${model.scheduled} scheduled`, icon: Layers3, iconClass: 'text-amber-400', action: () => onOpenTopicPipeline() },
+          { label: 'Completion', value: `${model.completion}%`, note: `${model.posted} posted`, icon: Gauge, iconClass: 'text-emerald-400', action: () => onOpenTopicPipeline() },
+          { label: 'Actions today', value: model.actionsToday, note: 'live audit events', icon: Activity, iconClass: 'text-blue-400', action: () => onTabChange('logs') },
+          { label: 'Experiments', value: activeExperiments.length, note: 'currently active', icon: Sparkles, iconClass: 'text-purple-400', action: () => onTabChange('experiments') }
         ].map(card => (
-          <div key={card.label} className="rounded-xl border border-neutral-850 bg-neutral-950/65 p-4 backdrop-blur transition hover:border-neutral-700">
-            <div className="flex items-center justify-between"><span className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">{card.label}</span><card.icon className={`h-4 w-4 ${card.iconClass}`} /></div>
+          <button type="button" onClick={card.action} key={card.label} className="group rounded-xl border border-neutral-850 bg-neutral-950/65 p-4 text-left backdrop-blur transition hover:-translate-y-0.5 hover:border-neutral-600 hover:bg-neutral-900/70">
+            <div className="flex items-center justify-between"><span className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">{card.label}</span><span className="flex items-center gap-2"><card.icon className={`h-4 w-4 ${card.iconClass}`} /><ArrowUpRight className="h-3 w-3 text-neutral-700 group-hover:text-neutral-300" /></span></div>
             <div className="mt-3 text-2xl font-bold text-neutral-100">{card.value}</div>
             <div className="mt-1 font-mono text-[9px] text-neutral-600">{card.note}</div>
-          </div>
+          </button>
         ))}
       </section>
 
@@ -210,19 +215,19 @@ export default function CommandCenterView({
           <div className="mb-5 flex items-center justify-between"><div><div className="flex items-center gap-2 text-sm font-bold text-white"><TrendingUp className="h-4 w-4 text-cyan-400" /> Production flow</div><p className="mt-1 text-[11px] text-neutral-500">Live density by completed stage.</p></div><span className="font-mono text-[9px] text-neutral-600">{topics.length} TOTAL</span></div>
           <div className="space-y-3.5">
             {model.stages.map(stage => (
-              <div key={stage.key} className="grid grid-cols-[74px_1fr_28px] items-center gap-3">
+              <button type="button" onClick={() => onOpenTopicPipeline()} key={stage.key} className="grid w-full grid-cols-[74px_1fr_28px] items-center gap-3 rounded-md text-left transition hover:bg-neutral-900/50 focus-visible:ring-1 focus-visible:ring-cyan-500">
                 <span className="font-mono text-[10px] text-neutral-500">{stage.label}</span>
                 <div className="h-2 overflow-hidden rounded-full bg-neutral-900"><motion.div initial={{ width: 0 }} animate={{ width: `${stage.width}%` }} transition={{ duration: .6 }} className="h-full rounded-full" style={{ backgroundColor: stage.color, boxShadow: `0 0 10px ${stage.color}55` }} /></div>
                 <span className="text-right font-mono text-[10px] font-bold" style={{ color: stage.color }}>{stage.count}</span>
-              </div>
+              </button>
             ))}
           </div>
-          <div className="mt-6 border-t border-neutral-900 pt-4">
+          <button type="button" onClick={() => onTabChange('logs')} className="mt-6 block w-full border-t border-neutral-900 pt-4 text-left transition hover:border-cyan-900">
             <div className="mb-3 flex items-center justify-between"><span className="font-mono text-[9px] uppercase tracking-wider text-neutral-600">7-day action pulse</span><span className="font-mono text-[9px] text-cyan-500">{activities.length} logged</span></div>
             <div className="flex h-20 items-end gap-2">
               {model.activityDays.map(day => <div key={day.label} className="flex flex-1 flex-col items-center gap-1"><div className="w-full rounded-t bg-gradient-to-t from-cyan-900/50 to-cyan-400" style={{ height: `${Math.max(5, (day.count / model.maxActivity) * 58)}px` }} /><span className="font-mono text-[8px] text-neutral-600">{day.label}</span></div>)}
             </div>
-          </div>
+          </button>
         </div>
       </section>
 
@@ -231,7 +236,7 @@ export default function CommandCenterView({
           <div className="mb-4 flex items-center justify-between"><div><div className="flex items-center gap-2 text-sm font-bold text-white"><Activity className="h-4 w-4 text-blue-400" /> Latest movement</div><p className="mt-1 text-[11px] text-neutral-500">Newest user actions across production.</p></div><button onClick={() => onTabChange('logs')} className="font-mono text-[10px] text-blue-400 hover:text-blue-300">View all →</button></div>
           <div className="divide-y divide-neutral-900">
             {model.recent.length ? model.recent.map(item => (
-              <div key={item.id} className="flex items-center gap-3 py-3"><CircleDot className={`h-4 w-4 shrink-0 ${item.channel === 'LearnDriven' ? 'text-blue-400' : 'text-emerald-400'}`} /><div className="min-w-0 flex-1"><div className="truncate text-xs text-neutral-300"><span className="font-semibold text-white">{item.topicName}</span> · {item.action}</div><div className="mt-1 font-mono text-[9px] uppercase text-neutral-600">{item.channel}</div></div><span className="shrink-0 font-mono text-[9px] text-neutral-600">{relativeTime(item.timestamp)}</span></div>
+              <button type="button" onClick={() => openActivity(item)} key={item.id} className="group flex w-full items-center gap-3 py-3 text-left transition hover:bg-blue-950/10 focus-visible:ring-1 focus-visible:ring-blue-500"><CircleDot className={`h-4 w-4 shrink-0 ${item.channel === 'LearnDriven' ? 'text-blue-400' : 'text-emerald-400'}`} /><div className="min-w-0 flex-1"><div className="truncate text-xs text-neutral-300"><span className="font-semibold text-white group-hover:text-blue-300">{item.topicName}</span> - {item.action}</div><div className="mt-1 font-mono text-[9px] uppercase text-neutral-600">{item.channel}</div></div><span className="shrink-0 font-mono text-[9px] text-neutral-600">{relativeTime(item.timestamp)}</span><ArrowUpRight className="h-3 w-3 shrink-0 text-neutral-700 group-hover:text-blue-400" /></button>
             )) : <div className="py-12 text-center font-mono text-[10px] text-neutral-600">No content movement logged yet.</div>}
           </div>
         </div>
@@ -240,7 +245,7 @@ export default function CommandCenterView({
           <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5">
             <div className="mb-4 flex items-center gap-2 text-sm font-bold text-white"><Target className="h-4 w-4 text-purple-400" /> Channel balance</div>
             <div className="space-y-4">{model.channels.map(channel => (
-              <div key={channel.channel}><div className="mb-2 flex items-center justify-between"><span className="text-xs font-semibold text-neutral-300">{channel.channel}</span><span className="font-mono text-[9px] text-neutral-600">{channel.active} active · {channel.done} done</span></div><div className="flex h-2 overflow-hidden rounded-full bg-neutral-900"><div className={channel.channel === 'LearnDriven' ? 'bg-blue-500' : 'bg-emerald-500'} style={{ width: `${channel.total ? (channel.done / channel.total) * 100 : 0}%` }} /><div className={channel.channel === 'LearnDriven' ? 'bg-blue-950' : 'bg-emerald-950'} style={{ flex: 1 }} /></div>{channel.atRisk > 0 && <div className="mt-1.5 font-mono text-[9px] text-rose-400">{channel.atRisk} need attention</div>}</div>
+              <button type="button" onClick={() => onOpenTopicPipeline()} key={channel.channel} className="group block w-full rounded-lg p-1 text-left transition hover:bg-neutral-900/50"><div className="mb-2 flex items-center justify-between"><span className="text-xs font-semibold text-neutral-300 group-hover:text-white">{channel.channel}</span><span className="font-mono text-[9px] text-neutral-600">{channel.active} active - {channel.done} done</span></div><div className="flex h-2 overflow-hidden rounded-full bg-neutral-900"><div className={channel.channel === 'LearnDriven' ? 'bg-blue-500' : 'bg-emerald-500'} style={{ width: `${channel.total ? (channel.done / channel.total) * 100 : 0}%` }} /><div className={channel.channel === 'LearnDriven' ? 'bg-blue-950' : 'bg-emerald-950'} style={{ flex: 1 }} /></div>{channel.atRisk > 0 && <div className="mt-1.5 font-mono text-[9px] text-rose-400">{channel.atRisk} need attention</div>}</button>
             ))}</div>
           </div>
 
@@ -248,11 +253,11 @@ export default function CommandCenterView({
             <div className="mb-4 flex items-center gap-2 text-sm font-bold text-white"><ShieldCheck className="h-4 w-4 text-emerald-400" /> Safety signals</div>
             <div className="space-y-2">
               {[
-                { ok: model.blocked.length === 0, label: model.blocked.length ? `${model.blocked.length} blocked topics` : 'No blocked production' },
-                { ok: model.overdue.length === 0, label: model.overdue.length ? `${model.overdue.length} overdue deadlines` : 'Deadlines controlled' },
-                { ok: model.scheduled > 0, label: model.scheduled ? `${model.scheduled} releases scheduled` : 'No release scheduled' },
-                { ok: activities.length > 0, label: activities.length ? 'Audit trail active' : 'No activity history' }
-              ].map(signal => <div key={signal.label} className="flex items-center gap-2 rounded-lg bg-neutral-900/35 px-3 py-2"><span className={`h-1.5 w-1.5 rounded-full ${signal.ok ? 'bg-emerald-400' : 'bg-rose-500'}`} /><span className={`text-[10px] ${signal.ok ? 'text-neutral-400' : 'text-rose-300'}`}>{signal.label}</span></div>)}
+                { ok: model.blocked.length === 0, label: model.blocked.length ? `${model.blocked.length} blocked topics` : 'No blocked production', action: () => onOpenTopicPipeline() },
+                { ok: model.overdue.length === 0, label: model.overdue.length ? `${model.overdue.length} overdue deadlines` : 'Deadlines controlled', action: () => onOpenTopicPipeline() },
+                { ok: model.scheduled > 0, label: model.scheduled ? `${model.scheduled} releases scheduled` : 'No release scheduled', action: () => onOpenTopicPipeline() },
+                { ok: activities.length > 0, label: activities.length ? 'Audit trail active' : 'No activity history', action: () => onTabChange('logs') }
+              ].map(signal => <button type="button" onClick={signal.action} key={signal.label} className="group flex w-full items-center gap-2 rounded-lg bg-neutral-900/35 px-3 py-2 text-left transition hover:bg-neutral-800/60"><span className={`h-1.5 w-1.5 rounded-full ${signal.ok ? 'bg-emerald-400' : 'bg-rose-500'}`} /><span className={`flex-1 text-[10px] ${signal.ok ? 'text-neutral-400' : 'text-rose-300'}`}>{signal.label}</span><ArrowUpRight className="h-3 w-3 text-neutral-700 group-hover:text-neutral-300" /></button>)}
             </div>
           </div>
         </div>
@@ -260,8 +265,8 @@ export default function CommandCenterView({
 
       {(warningInsights.length > 0 || activeExperiments.length > 0 || cycleGoals) && (
         <section className="grid gap-5 lg:grid-cols-2">
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5"><div className="mb-4 flex items-center gap-2 text-sm font-bold text-white"><Zap className="h-4 w-4 text-amber-400" /> Strategic watchlist</div><div className="space-y-2.5">{warningInsights.length ? warningInsights.map(item => <div key={item.id} className="rounded-xl border border-neutral-900 bg-neutral-900/25 p-3"><div className="text-xs font-semibold text-neutral-200">{item.title}</div><div className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-neutral-500">{item.description}</div></div>) : <div className="text-[10px] text-neutral-600">No strategic warnings.</div>}</div></div>
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5"><div className="mb-4 flex items-center gap-2 text-sm font-bold text-white"><ListTodo className="h-4 w-4 text-purple-400" /> Active initiatives</div><div className="space-y-2.5">{cycleGoals && <div className="rounded-xl border border-purple-900/25 bg-purple-950/10 p-3"><div className="flex items-center justify-between"><span className="text-xs font-semibold text-neutral-200">{cycleGoals.monthName} publishing cycle</span><span className="font-mono text-[10px] text-purple-300">{cycleDelivered}/{cycleTarget || '-'}</span></div><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-neutral-900"><div className="h-full rounded-full bg-gradient-to-r from-purple-600 to-cyan-400" style={{ width: `${cycleProgress}%` }} /></div><div className="mt-1.5 font-mono text-[9px] text-neutral-600">{cycleProgress}% of target delivered</div></div>}{activeExperiments.map(item => <button key={item.id} onClick={() => onTabChange('experiments')} className="flex w-full items-center justify-between rounded-xl border border-neutral-900 bg-neutral-900/25 p-3 text-left hover:border-purple-900/50"><span><span className="block text-xs font-semibold text-neutral-200">{item.name}</span><span className="mt-1 block text-[10px] text-neutral-500">Testing {item.metricBeingTested}</span></span><ArrowUpRight className="h-3.5 w-3.5 text-purple-400" /></button>)}{activeExperiments.length === 0 && !cycleGoals && <div className="text-[10px] text-neutral-600">No experiments currently running.</div>}</div></div>
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5"><button type="button" onClick={() => onTabChange('insights')} className="group mb-4 flex w-full items-center justify-between text-left text-sm font-bold text-white"><span className="flex items-center gap-2"><Zap className="h-4 w-4 text-amber-400" /> Strategic watchlist</span><ArrowUpRight className="h-3.5 w-3.5 text-neutral-700 group-hover:text-amber-400" /></button><div className="space-y-2.5">{warningInsights.length ? warningInsights.map(item => <button type="button" onClick={() => onTabChange('insights')} key={item.id} className="group block w-full rounded-xl border border-neutral-900 bg-neutral-900/25 p-3 text-left transition hover:border-amber-900/50"><div className="flex items-center justify-between gap-2 text-xs font-semibold text-neutral-200"><span>{item.title}</span><ArrowUpRight className="h-3 w-3 text-neutral-700 group-hover:text-amber-400" /></div><div className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-neutral-500">{item.description}</div></button>) : <div className="text-[10px] text-neutral-600">No strategic warnings.</div>}</div></div>
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5"><div className="mb-4 flex items-center gap-2 text-sm font-bold text-white"><ListTodo className="h-4 w-4 text-purple-400" /> Active initiatives</div><div className="space-y-2.5">{cycleGoals && <button type="button" onClick={() => onTabChange('actionhub')} className="group block w-full rounded-xl border border-purple-900/25 bg-purple-950/10 p-3 text-left transition hover:border-purple-700/60"><div className="flex items-center justify-between"><span className="text-xs font-semibold text-neutral-200">{cycleGoals.monthName} publishing cycle</span><span className="flex items-center gap-2 font-mono text-[10px] text-purple-300">{cycleDelivered}/{cycleTarget || '-'}<ArrowUpRight className="h-3 w-3" /></span></div><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-neutral-900"><div className="h-full rounded-full bg-gradient-to-r from-purple-600 to-cyan-400" style={{ width: `${cycleProgress}%` }} /></div><div className="mt-1.5 font-mono text-[9px] text-neutral-600">{cycleProgress}% of target delivered</div></button>}{activeExperiments.map(item => <button key={item.id} onClick={() => onTabChange('experiments')} className="flex w-full items-center justify-between rounded-xl border border-neutral-900 bg-neutral-900/25 p-3 text-left hover:border-purple-900/50"><span><span className="block text-xs font-semibold text-neutral-200">{item.name}</span><span className="mt-1 block text-[10px] text-neutral-500">Testing {item.metricBeingTested}</span></span><ArrowUpRight className="h-3.5 w-3.5 text-purple-400" /></button>)}{activeExperiments.length === 0 && !cycleGoals && <div className="text-[10px] text-neutral-600">No experiments currently running.</div>}</div></div>
         </section>
       )}
     </div>
