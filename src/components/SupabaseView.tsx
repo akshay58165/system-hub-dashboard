@@ -87,10 +87,7 @@ export default function SupabaseView({
   aiUsage,
   setAiUsage
 }: SupabaseViewProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'tables' | 'script' | 'goals'>('tables');
-
-  // Table Editor — read-only relation viewer (no insert/delete from here)
-  const [selectedTableName, setSelectedTableName] = useState<string>('topics');
+  const [activeSubTab, setActiveSubTab] = useState<'script' | 'goals'>('script');
 
   // Script Editor states
   const [selectedScriptTopicId, setSelectedScriptTopicId] = useState<string>(topics[0]?.id || '');
@@ -558,51 +555,6 @@ ${task}`;
     }
   });
 
-  // Active relations mock metadata definitions
-  const activeTables = useMemo(() => {
-    return [
-      {
-        name: 'topics',
-        rowCount: topics.length,
-        columns: [
-          { name: 'id', type: 'text' },
-          { name: 'name', type: 'text' },
-          { name: 'channel', type: 'text' },
-          { name: 'status', type: 'text' },
-          { name: 'priority', type: 'bigint' },
-          { name: 'dueDate', type: 'timestamp' }
-        ],
-        rows: topics
-      },
-      {
-        name: 'activities',
-        rowCount: activities.length,
-        columns: [
-          { name: 'id', type: 'text' },
-          { name: 'topicName', type: 'text' },
-          { name: 'channel', type: 'text' },
-          { name: 'action', type: 'text' },
-          { name: 'author', type: 'text' },
-          { name: 'timestamp', type: 'timestamp' }
-        ],
-        rows: activities
-      },
-      {
-        name: 'biometrics_logs',
-        rowCount: biometricsLogs.length,
-        columns: [
-          { name: 'id', type: 'text' },
-          { name: 'timestamp', type: 'timestamp' },
-          { name: 'parameter', type: 'text' },
-          { name: 'oldValue', type: 'text' },
-          { name: 'newValue', type: 'numeric' }
-        ],
-        rows: biometricsLogs
-      }
-    ];
-  }, [topics, activities, biometricsLogs]);
-
-  const selectedTable = activeTables.find(t => t.name === selectedTableName) || activeTables[0];
 
   return (
     <div className="space-y-6">
@@ -688,16 +640,6 @@ ${task}`;
       <div className="bg-neutral-950 border border-neutral-800 rounded-xl overflow-hidden flex flex-col min-h-[500px]">
         {/* Sub Navigation Tabs */}
         <div className="flex border-b border-neutral-800 bg-neutral-900/40">
-          <button 
-            onClick={() => setActiveSubTab('tables')}
-            className={`px-4 py-3 text-xs font-mono font-semibold border-r border-neutral-800 flex items-center gap-1.5 transition ${
-              activeSubTab === 'tables' ? 'bg-neutral-950 text-emerald-400 border-b-2 border-b-emerald-400' : 'text-neutral-400 hover:text-neutral-200'
-            }`}
-          >
-            <FileSpreadsheet className="h-3.5 w-3.5" />
-            <span>Table Editor</span>
-          </button>
-
           <button
             onClick={() => setActiveSubTab('script')}
             className={`px-4 py-3 text-xs font-mono font-semibold border-r border-neutral-800 flex items-center gap-1.5 transition ${
@@ -721,62 +663,6 @@ ${task}`;
 
         {/* Sub Content area */}
         <div className="p-5 flex-1 flex flex-col">
-          
-          {/* Sub Tab: Table Editor */}
-          {activeSubTab === 'tables' && (
-            <div className="space-y-4 flex-1 flex flex-col">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono text-neutral-400">Active Relation:</span>
-                  <div className="flex gap-1">
-                    {activeTables.map(t => (
-                      <button
-                        key={t.name}
-                        onClick={() => setSelectedTableName(t.name)}
-                        className={`px-2.5 py-1 border rounded text-[10px] font-mono transition ${
-                          selectedTableName === t.name
-                            ? 'bg-emerald-950 border-emerald-800 text-emerald-400'
-                            : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-neutral-200'
-                        }`}
-                      >
-                        {t.name} ({t.rowCount})
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <span className="text-[9px] font-mono uppercase tracking-wider text-neutral-600 border border-neutral-850 rounded px-2 py-1">
-                  Read-only — manage topics from Topic Repos
-                </span>
-              </div>
-
-              {/* Grid Table rendering — read-only view, no insert/delete from here */}
-              <div className="flex-1 overflow-x-auto border border-neutral-800 rounded-lg max-h-[360px]">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-neutral-900 border-b border-neutral-800 text-[10px] text-neutral-400 font-mono sticky top-0 z-10">
-                      {selectedTable.columns.map(col => (
-                        <th key={col.name} className="px-4 py-2.5 font-semibold bg-neutral-900">
-                          {col.name}
-                          <span className="text-[8px] text-neutral-500 font-normal block italic">{col.type}</span>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-850 font-mono text-[11px]">
-                    {selectedTable.rows.map((row: any, idx) => (
-                      <tr key={row.id || idx} className="hover:bg-neutral-900/40 text-neutral-300">
-                        {selectedTable.columns.map(col => (
-                          <td key={col.name} className="px-4 py-3 max-w-[200px] truncate">
-                            <span>{row[col.name] !== null && row[col.name] !== undefined ? String(row[col.name]) : <span className="text-neutral-600">NULL</span>}</span>
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
 
           {/* Sub Tab: Script Editor */}
           {activeSubTab === 'script' && (

@@ -57,6 +57,7 @@ const VercelView = lazy(() => import('./components/VercelView'));
 const SupabaseView = lazy(() => import('./components/SupabaseView'));
 const LogsView = lazy(() => import('./components/LogsView'));
 const ContentActivityView = lazy(() => import('./components/ContentActivityView'));
+const LogsTableEditor = lazy(() => import('./components/LogsTableEditor'));
 const ScoreView = lazy(() => import('./components/ScoreView'));
 const CommandCenterView = lazy(() => import('./components/CommandCenterView'));
 const PipelineView = lazy(() => import('./components/PipelineView'));
@@ -381,7 +382,7 @@ export default function App() {
     setLastDbUpdateTime(new Date());
   };
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
-  const [logsSubView, setLogsSubView] = useState<'content' | 'backlog'>('content');
+  const [logsSubView, setLogsSubView] = useState<'content' | 'backlog' | 'tables'>('content');
 
   // Supabase Auth and Real-time Gateway States
   const [user, setUser] = useState<any>(null);
@@ -1548,7 +1549,7 @@ export default function App() {
                 }`}
               >
                 <GitBranch className="h-3.5 w-3.5" />
-                <span>Topic Inventory</span>
+                <span>Topics</span>
               </button>
 
               <button
@@ -1757,19 +1758,56 @@ export default function App() {
             )}
 
             {activeTab === 'logs' && (
-              logsSubView === 'content' ? (
-                <ContentActivityView
-                  activities={activities}
-                  topics={topics}
-                  onShowBacklog={() => setLogsSubView('backlog')}
-                />
-              ) : (
-                <LogsView
-                  events={events}
-                  onClearEvents={() => { setEvents([]); localStorage.removeItem('unicorn_events'); }}
-                  onBack={() => setLogsSubView('content')}
-                />
-              )
+              <div className="space-y-4">
+                {/* Logs Sub Navigation Tabs */}
+                <div className="flex bg-neutral-900 border border-neutral-850 rounded-lg p-0.5 max-w-fit font-mono">
+                  <button 
+                    onClick={() => setLogsSubView('content')}
+                    className={`px-3 py-1 text-[10px] font-bold rounded transition ${logsSubView === 'content' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-neutral-200'}`}
+                  >
+                    Activity Feed
+                  </button>
+                  <button 
+                    onClick={() => setLogsSubView('backlog')}
+                    className={`px-3 py-1 text-[10px] font-bold rounded transition ${logsSubView === 'backlog' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-neutral-200'}`}
+                  >
+                    Telemetry Logs
+                  </button>
+                  <button 
+                    onClick={() => setLogsSubView('tables')}
+                    className={`px-3 py-1 text-[10px] font-bold rounded transition ${logsSubView === 'tables' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-neutral-200'}`}
+                  >
+                    Database Tables
+                  </button>
+                </div>
+
+                {/* Sub View Contents */}
+                {logsSubView === 'content' && (
+                  <ContentActivityView
+                    activities={activities}
+                    topics={topics}
+                    onShowBacklog={() => setLogsSubView('backlog')}
+                  />
+                )}
+                
+                {logsSubView === 'backlog' && (
+                  <LogsView
+                    events={events}
+                    onClearEvents={() => { setEvents([]); localStorage.removeItem('unicorn_events'); }}
+                    onBack={() => setLogsSubView('content')}
+                  />
+                )}
+
+                {logsSubView === 'tables' && (
+                  <LogsTableEditor
+                    topics={topics}
+                    setTopics={setTopics}
+                    activities={activities}
+                    setActivities={setActivities}
+                    onAddEvent={addEvent}
+                  />
+                )}
+              </div>
             )}
 
             {activeTab === 'score' && (
