@@ -379,6 +379,7 @@ export default function App() {
             format: t.format || 'Long',
             contentType: t.format === 'Short' ? 'News decode' : 'Deep explainer',
             topic: t.category || 'General',
+            dueDate: t.dueDate || undefined,
             pipelineStage: stage,
             scriptStatus: t.status !== 'topic' ? 'completed' : 'pending',
             shootStatus: (t.status === 'shot' || t.status === 'edited' || t.status === 'scheduled' || t.status === 'posted') ? 'completed' : 'pending',
@@ -417,6 +418,7 @@ export default function App() {
             v.channelName !== t.channel || 
             v.format !== (t.format || 'Long') || 
             v.pipelineStage !== stage ||
+            v.dueDate !== (t.dueDate || undefined) ||
             v.blockedReason !== t.blockedReason
           ) {
             const oldStage = v.pipelineStage;
@@ -424,6 +426,7 @@ export default function App() {
             v.channelName = t.channel;
             v.format = t.format || 'Long';
             v.pipelineStage = stage;
+            v.dueDate = t.dueDate || undefined;
             v.blockedReason = t.blockedReason;
             changed = true;
             addEvent({
@@ -468,7 +471,7 @@ export default function App() {
             channel: v.channelName,
             status: status,
             priority: 3,
-            dueDate: v.uploadDate || null,
+            dueDate: v.dueDate || v.uploadDate || null,
             createdDate: new Date().toISOString(),
             lastUpdated: new Date().toISOString(),
             format: v.format,
