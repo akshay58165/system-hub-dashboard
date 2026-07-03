@@ -308,8 +308,6 @@ export default function VercelView({
     const minutes = Math.floor((absoluteSeconds % 3600) / 60);
     const seconds = absoluteSeconds % 60;
 
-    if (calendarDaysLeft > 3) return null;
-
     const clock = days > 0
       ? `${days}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`
       : `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
@@ -324,6 +322,7 @@ export default function VercelView({
       stuck,
       calendarDaysLeft,
       fastBlink: differenceMs > 0 && differenceMs <= 24 * 60 * 60 * 1000,
+      greenBlink: calendarDaysLeft >= 4 && calendarDaysLeft < 7,
       clock,
       message: overdue
         ? 'DEADLINE BREACHED - COMPLETE THE REMAINING STAGES NOW'
@@ -398,6 +397,34 @@ export default function VercelView({
           ['--emergency-rgb' as string]: '249 115 22',
           ['--emergency-core' as string]: '#f97316',
           ['--emergency-soft' as string]: '249 115 22'
+        }
+      };
+    }
+
+    if (urgency.calendarDaysLeft >= 7) {
+      return {
+        borderClass: 'border-blue-500/50 bg-blue-950/20',
+        labelClass: 'text-blue-400',
+        clockClass: 'text-blue-300',
+        ledClass: 'text-blue-400',
+        style: {
+          ['--emergency-rgb' as string]: '59 130 246',
+          ['--emergency-core' as string]: '#3b82f6',
+          ['--emergency-soft' as string]: '59 130 246'
+        }
+      };
+    }
+
+    if (urgency.calendarDaysLeft >= 4) {
+      return {
+        borderClass: 'border-green-500/50 bg-green-950/20',
+        labelClass: 'text-green-400',
+        clockClass: 'text-green-300',
+        ledClass: 'text-green-400',
+        style: {
+          ['--emergency-rgb' as string]: '34 197 94',
+          ['--emergency-core' as string]: '#22c55e',
+          ['--emergency-soft' as string]: '34 197 94'
         }
       };
     }
@@ -1225,19 +1252,19 @@ export default function VercelView({
                         const urgencyPalette = getUrgencyPalette(urgency);
                         return (
                           <div
-                            className={`emergency-countdown flex items-center justify-between gap-2 rounded-md border px-2 py-1 ${urgencyPalette.borderClass}`}
+                            className={`emergency-countdown flex items-center justify-between gap-2 rounded-md border px-2 py-1 ${urgency.greenBlink ? 'emergency-countdown--blink' : ''} ${urgencyPalette.borderClass}`}
                             title="Warning remains active until scheduling is completed."
                             style={urgencyPalette.style as React.CSSProperties}
                           >
                             <div className="flex items-center gap-1.5 min-w-0">
                               <span className={`emergency-led-housing relative flex h-2.5 w-2.5 shrink-0 items-center justify-center rounded-full ${urgencyPalette.ledClass}`} aria-hidden="true">
-                                <span className={`emergency-led-lens relative block h-2 w-2 rounded-full ${urgency.fastBlink ? 'emergency-led-lens--fast' : ''}`} />
+                                <span className={`emergency-led-lens relative block h-2 w-2 rounded-full ${urgency.fastBlink ? 'emergency-led-lens--fast' : urgency.greenBlink ? 'emergency-led-lens--blink' : ''}`} />
                               </span>
                               <span className={`text-[8px] font-black uppercase tracking-wide truncate ${urgencyPalette.labelClass}`}>
-                                {urgency.overdue ? 'Overdue' : 'Critical window'}
+                                {urgency.overdue ? 'Overdue' : urgency.calendarDaysLeft >= 7 ? 'Upcoming' : urgency.greenBlink ? 'Advance warning' : 'Critical window'}
                               </span>
                             </div>
-                            <span className={`emergency-clock text-[10px] font-black tabular-nums tracking-wider shrink-0 ${urgency.fastBlink ? 'emergency-clock--fast' : ''} ${urgencyPalette.clockClass}`}>
+                            <span className={`emergency-clock text-[10px] font-black tabular-nums tracking-wider shrink-0 ${urgency.fastBlink ? 'emergency-clock--fast' : urgency.greenBlink ? 'emergency-clock--blink' : ''} ${urgencyPalette.clockClass}`}>
                               {urgency.clock}
                             </span>
                           </div>
@@ -1314,7 +1341,11 @@ export default function VercelView({
                             const diffTime = due.getTime() - today.getTime();
                             const daysLeft = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
-                            if (daysLeft === 3) {
+                            if (daysLeft >= 7) {
+                              blinkClass = 'steady-blue';
+                            } else if (daysLeft >= 4) {
+                              blinkClass = 'blink-green';
+                            } else if (daysLeft === 3) {
                               blinkClass = 'blink-yellow';
                             } else if (daysLeft === 2) {
                               blinkClass = 'blink-orange';
