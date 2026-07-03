@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Check, Clock3, Pause, Play, Plus, RotateCcw, Target, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, Clock3, Pause, Play, Plus, RotateCcw, Target, Trash2, X } from 'lucide-react';
 import type { Topic, WorkdaySession } from '../types';
 import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
 
@@ -35,6 +35,7 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
   const [goalTopicId, setGoalTopicId] = useState('');
   const [goalTarget, setGoalTarget] = useState<typeof goalStages[number]>('scripted');
   const [lastGoalAdded, setLastGoalAdded] = useState('');
+  const [topicPickerOpen, setTopicPickerOpen] = useState(false);
 
   useEffect(() => {
     if (!session || session.status === 'completed') return;
@@ -139,6 +140,41 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
     return Boolean(topic && stageOrder.indexOf(topic.status) >= stageOrder.indexOf(targetStatus));
   };
 
+  const topicGuidance = (topic: Topic) => {
+    const nextAction = ({ topic: 'Start scripting', scripted: 'Record the video', shot: 'Begin editing', edited: 'Set the release schedule', scheduled: 'Ready to publish', posted: 'Complete' } as const)[topic.status];
+    if (topic.blockedReason) return { label: 'Blocked now', detail: topic.blockedReason, action: `Unblock, then ${nextAction.toLowerCase()}`, tone: 'border-rose-800/60 bg-rose-950/25 text-rose-300', dot: 'bg-rose-400 animate-pulse' };
+    if (!topic.dueDate) return { label: 'No deadline', detail: `${workRemaining(topic)} stages remain`, action: nextAction, tone: 'border-neutral-800 bg-neutral-900/50 text-neutral-400', dot: 'bg-neutral-600' };
+    const datePart = topic.dueDate.split('T')[0];
+    const embeddedTime = topic.dueDate.includes('T') ? topic.dueDate.split('T')[1]?.slice(0, 5) : '';
+    const due = new Date(`${datePart}T${topic.scheduledTime || embeddedTime || '23:59'}:00`).getTime();
+    const hours = (due - now) / 36e5;
+    const timeLabel = hours <= 0 ? `${Math.max(1, Math.ceil(Math.abs(hours)))}h overdue` : hours < 1 ? `${Math.max(1, Math.ceil(hours * 60))}m left` : hours < 48 ? `${Math.ceil(hours)}h left` : `${Math.ceil(hours / 24)}d left`;
+    if (hours <= 8) return { label: timeLabel, detail: `${workRemaining(topic)} stages remain`, action: nextAction, tone: 'border-rose-800/60 bg-rose-950/25 text-rose-300', dot: 'bg-rose-400 animate-pulse' };
+    if (hours <= 24) return { label: timeLabel, detail: `${workRemaining(topic)} stages remain`, action: nextAction, tone: 'border-amber-800/60 bg-amber-950/20 text-amber-300', dot: 'bg-amber-400' };
+    return { label: timeLabel, detail: `${workRemaining(topic)} stages remain`, action: nextAction, tone: 'border-cyan-900/50 bg-cyan-950/15 text-cyan-300', dot: 'bg-cyan-500' };
+  };
+
+  function workRemaining(topic: Topic) {
+    return ({ topic: 5, scripted: 4, shot: 3, edited: 2, scheduled: 1, posted: 0 } as const)[topic.status];
+  }
+
+  const renderTopicPicker = () => (
+    <div className="relative mt-1">
+      <button type="button" onClick={() => setTopicPickerOpen(open => !open)} aria-expanded={topicPickerOpen} className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition ${topicPickerOpen ? 'border-purple-600 bg-purple-950/20 shadow-[0_0_18px_rgba(168,85,247,.12)]' : 'border-neutral-800 bg-neutral-950 hover:border-neutral-700'}`}>
+        {selectedTopic ? <span className="min-w-0"><span className="block truncate text-[10px] font-semibold text-white">{selectedTopic.name}</span><span className="mt-0.5 block text-[7px] uppercase text-neutral-500">{selectedTopic.channel} · current {selectedTopic.status}</span></span> : <span className="text-[10px] font-semibold text-neutral-400">Select a ranked topic</span>}
+        <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-purple-400 transition ${topicPickerOpen ? 'rotate-180' : ''}`} />
+      </button>
+      <AnimatePresence>{topicPickerOpen && <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="absolute inset-x-0 top-full z-[120] mt-1.5 max-h-72 space-y-1 overflow-y-auto rounded-xl border border-neutral-800 bg-neutral-950 p-1.5 shadow-[0_20px_60px_rgba(0,0,0,.75)] [scrollbar-color:#52525b_#09090b] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-track]:bg-neutral-950 [&::-webkit-scrollbar]:w-1.5">
+        {rankedTopics.map((topic, index) => { const guidance = topicGuidance(topic); return <button key={topic.id} type="button" onClick={() => { chooseTopic(topic.id); setTopicPickerOpen(false); }} className="group w-full rounded-lg border border-transparent bg-neutral-900/45 p-2.5 text-left transition hover:border-purple-800/60 hover:bg-purple-950/20">
+          <div className="flex items-start gap-2.5"><span className="mt-0.5 font-mono text-[8px] text-neutral-600">{String(index + 1).padStart(2, '0')}</span><span className={`mt-1 h-2 w-2 shrink-0 rounded-full shadow-[0_0_8px_currentColor] ${guidance.dot}`} /><span className="min-w-0 flex-1"><span className="block text-[10px] font-bold leading-snug text-neutral-100 group-hover:text-white">{topic.name}</span><span className="mt-1 flex flex-wrap gap-1"><span className="rounded border border-blue-900/40 bg-blue-950/20 px-1.5 py-0.5 text-[7px] uppercase text-blue-300">{topic.status}</span><span className="rounded border border-emerald-900/40 bg-emerald-950/20 px-1.5 py-0.5 text-[7px] uppercase text-emerald-300">{topic.revenueLevel || `P${topic.priority}`}</span><span className={`rounded border px-1.5 py-0.5 text-[7px] font-bold uppercase ${guidance.tone}`}>{guidance.label}</span></span><span className="mt-1.5 block text-[8px] text-neutral-500"><span className="text-purple-300">Next:</span> {guidance.action} · {guidance.detail}</span></span></div>
+        </button>; })}
+        {!rankedTopics.length && <div className="px-3 py-5 text-center text-[9px] text-neutral-600">No unfinished topics available.</div>}
+      </motion.div>}</AnimatePresence>
+    </div>
+  );
+
+  const renderMilestonePicker = () => <div className="mt-1 grid grid-cols-3 gap-1.5">{availableTargets.map(stage => <button key={stage} type="button" disabled={!selectedTopic} onClick={() => setGoalTarget(stage)} className={`rounded-md border px-2 py-1.5 text-[8px] font-bold capitalize transition disabled:opacity-30 ${goalTarget === stage ? 'border-purple-500 bg-purple-500/20 text-purple-200 shadow-[0_0_10px_rgba(168,85,247,.12)]' : 'border-neutral-800 bg-neutral-950 text-neutral-500 hover:border-neutral-700 hover:text-neutral-300'}`}>{stage}</button>)}</div>;
+
   return (
     <>
       {session ? (
@@ -171,9 +207,9 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
                 {draftGoals.length > 0 && <div className="mt-4 space-y-2">{draftGoals.map(goal => { const topic = topics.find(item => item.id === goal.topicId); return topic ? <div key={goal.id} className="flex items-center gap-2 rounded-lg border border-purple-900/30 bg-purple-950/15 px-3 py-2"><Target className="h-3.5 w-3.5 text-purple-400" /><span className="min-w-0 flex-1"><span className="block truncate text-[10px] font-semibold text-white">{topic.name}</span><span className="block text-[8px] uppercase text-neutral-500">Reach {goal.targetStatus}</span></span><button onClick={() => setDraftGoals(current => current.filter(item => item.id !== goal.id))} className="text-neutral-600 hover:text-rose-400"><Trash2 className="h-3.5 w-3.5" /></button></div> : null; })}</div>}
                 <div className="mt-4 space-y-3 rounded-xl border border-neutral-800 bg-neutral-900/30 p-3">
                   {lastGoalAdded && <div className="text-[9px] text-emerald-300"><Check className="mr-1 inline h-3 w-3" />{lastGoalAdded} added. You can add another.</div>}
-                  <label className="block text-[8px] font-bold uppercase text-neutral-500">Topic<select value={goalTopicId} onChange={event => chooseTopic(event.target.value)} className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-[10px] font-semibold text-white"><option value="">Select a ranked topic</option>{rankedTopics.map(topic => <option key={topic.id} value={topic.id}>P{topic.priority} - {topic.name} - {topic.status}{topic.dueDate ? ` - due ${new Date(topic.dueDate).toLocaleDateString()}` : ''}</option>)}</select></label>
+                  <div className="block text-[8px] font-bold uppercase text-neutral-500">Topic{renderTopicPicker()}</div>
                   {selectedTopic && <div className="rounded-lg bg-neutral-950 p-2.5"><div className="truncate text-[10px] font-semibold text-white">{selectedTopic.name}</div><div className="mt-1 text-[8px] uppercase text-cyan-300">Current {selectedTopic.status} · Priority {selectedTopic.priority}</div></div>}
-                  <label className="block text-[8px] font-bold uppercase text-neutral-500">Milestone to reach today<select disabled={!selectedTopic} value={goalTarget} onChange={event => setGoalTarget(event.target.value as typeof goalStages[number])} className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-[10px] font-semibold capitalize text-white disabled:opacity-40">{availableTargets.map(stage => <option key={stage} value={stage}>{stage}</option>)}</select></label>
+                  <div className="block text-[8px] font-bold uppercase text-neutral-500">Milestone to reach today{renderMilestonePicker()}</div>
                   <button disabled={!selectedTopic} onClick={addGoal} className="flex w-full items-center justify-center gap-1 rounded-lg border border-purple-700 bg-purple-950/40 py-2 text-[10px] font-bold text-purple-200 disabled:opacity-40"><Plus className="h-3 w-3" />Add goal</button>
                   {!rankedTopics.length && <div className="text-center text-[8px] text-neutral-600">No unfinished topics available.</div>}
                 </div>
@@ -202,9 +238,9 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
               <AnimatePresence initial={false}>
                 {showGoals && <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden"><div className="mt-3 space-y-3 border-t border-purple-900/30 pt-3">
                   {lastGoalAdded && <div className="flex items-center gap-2 rounded-lg border border-emerald-900/40 bg-emerald-950/20 px-2.5 py-2 text-[8px] text-emerald-300"><Check className="h-3.5 w-3.5 shrink-0" /><span className="min-w-0"><strong className="font-bold">{lastGoalAdded}</strong> added. Select another topic or close.</span></div>}
-                  <label className="block text-[7px] font-bold uppercase tracking-wider text-neutral-500">Topic<select value={goalTopicId} onChange={event => chooseTopic(event.target.value)} className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-950 px-2.5 py-2 text-[9px] font-semibold text-white"><option value="">Select a ranked topic</option>{rankedTopics.map(topic => <option key={topic.id} value={topic.id}>P{topic.priority} - {topic.name} - {topic.status}{topic.dueDate ? ` - due ${new Date(topic.dueDate).toLocaleDateString()}` : ''}</option>)}</select></label>
+                  <div className="block text-[7px] font-bold uppercase tracking-wider text-neutral-500">Topic{renderTopicPicker()}</div>
                   {selectedTopic && <div className="rounded-lg border border-neutral-900 bg-neutral-950/70 p-2.5"><div className="truncate text-[9px] font-semibold text-white">{selectedTopic.name}</div><div className="mt-1 flex flex-wrap gap-1 text-[7px] uppercase"><span className="rounded bg-blue-950/40 px-1.5 py-0.5 text-blue-300">Current {selectedTopic.status}</span><span className="rounded bg-cyan-950/40 px-1.5 py-0.5 text-cyan-300">Priority {selectedTopic.priority}</span>{selectedTopic.dueDate && <span className="rounded bg-rose-950/40 px-1.5 py-0.5 text-rose-300">Due {new Date(selectedTopic.dueDate).toLocaleDateString()}</span>}{selectedTopic.blockedReason && <span className="rounded bg-rose-950/50 px-1.5 py-0.5 text-rose-300">Blocked</span>}</div></div>}
-                  <label className="block text-[7px] font-bold uppercase tracking-wider text-neutral-500">Milestone to reach today<select disabled={!selectedTopic} value={goalTarget} onChange={event => setGoalTarget(event.target.value as typeof goalStages[number])} className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-950 px-2.5 py-2 text-[9px] font-semibold capitalize text-white disabled:opacity-40">{availableTargets.map(stage => <option key={stage} value={stage}>{stage}</option>)}</select></label>
+                  <div className="block text-[7px] font-bold uppercase tracking-wider text-neutral-500">Milestone to reach today{renderMilestonePicker()}</div>
                   <button disabled={!selectedTopic} onClick={addGoal} className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-purple-500 py-2 text-[9px] font-bold text-black hover:bg-purple-400 disabled:cursor-not-allowed disabled:opacity-40"><Plus className="h-3 w-3" />Add today&apos;s goal</button>
                   {!rankedTopics.length && <div className="text-center text-[8px] text-neutral-600">No unfinished topics available.</div>}
                 </div></motion.div>}
