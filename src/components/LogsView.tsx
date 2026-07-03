@@ -33,7 +33,7 @@ export default function LogsView({ events, onClearEvents, onBack }: LogsViewProp
   };
 
   const filteredEvents = useMemo(() => {
-    return events.filter(evt => {
+    const filtered = events.filter(evt => {
       // Search term filter
       const matchesSearch = evt.message.toLowerCase().includes(search.toLowerCase()) || 
                             evt.source.toLowerCase().includes(search.toLowerCase());
@@ -46,6 +46,9 @@ export default function LogsView({ events, onClearEvents, onBack }: LogsViewProp
 
       return matchesSearch && matchesSource && matchesType;
     });
+
+    // Sort newest timestamp first
+    return [...filtered].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }, [events, search, sourceFilter, typeFilter]);
 
   // Count distribution

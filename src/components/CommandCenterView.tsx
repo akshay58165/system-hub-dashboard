@@ -99,28 +99,34 @@ export default function CommandCenterView({
       const due = timeValue(topic.dueDate);
       return due >= now && due <= now + 24 * 36e5;
     });
-    const attention = [...incomplete]
-      .filter(topic => topic.blockedReason || overdue.includes(topic) || dueSoon.includes(topic))
-      .sort((a, b) => {
-        const risk = (topic: Topic) => topic.blockedReason ? 0 : overdue.includes(topic) ? 1 : 2;
-        return risk(a) - risk(b) || timeValue(a.dueDate) - timeValue(b.dueDate) || a.priority - b.priority;
-      });
 
-    // The queue always surfaces at least a few actionable topics — not only
-    // ones already at risk. After the genuine attention topics, fill up with
-    // remaining incomplete topics ranked by: today's-goal membership first,
-    // then in-progress, then higher priority, then nearest deadline. So an
-    // empty-risk day still shows what to actually work on next.
-    const attentionIds = new Set(attention.map(t => t.id));
-    const fillers = incomplete
-      .filter(topic => !attentionIds.has(topic.id))
-      .sort((a, b) => {
-        const goalRank = (t: Topic) => goalTopicIds.has(t.id) ? 0 : 1;
-        const progressRank = (t: Topic) => t.inProgress ? 0 : 1;
-        const dueRank = (t: Topic) => t.dueDate ? timeValue(t.dueDate) : Number.MAX_SAFE_INTEGER;
-        return goalRank(a) - goalRank(b) || progressRank(a) - progressRank(b) || b.priority - a.priority || dueRank(a) - dueRank(b);
-      });
-    const queue = [...attention, ...fillers].slice(0, 6);
+    // Score each topic for urgency — the higher the score, the higher in queue
+    const urgencyScore = (topic: Topic): number => {
+      let score = 0;
+      if (topic.blockedReason) score += 1000;
+      if (topic.dueDate && timeValue(topic.dueDate) < now) score += 500; // overdue
+      if (dueSoon.includes(topic)) score += 300; // due in 24h
+      if (goalTopicIds.has(topic.id)) score += 200; // in today's goals
+      if (topic.inProgress) score += 100;
+      score += (topic.priority || 1) * 20; // higher priority = higher rank
+      // Closer due date = more urgent (invert: smaller remaining = higher score)
+      if (topic.dueDate) {
+        const remaining = timeValue(topic.dueDate) - now;
+        // +150 if within 7 days, +80 if within 14 days
+        if (remaining < 7 * 864e5) score += 150;
+        else if (remaining < 14 * 864e5) score += 80;
+      }
+      return score;
+    };
+
+    // Sort ALL incomplete topics by urgency score descending, then show at least 5
+    const queue = [...incomplete]
+      .sort((a, b) => urgencyScore(b) - urgencyScore(a))
+      .slice(0, Math.max(5, Math.min(8, incomplete.length)));
+
+    // "attention" set remains for the stat tile (blocked + overdue + due soon)
+    const attention = incomplete.filter(t => t.blockedReason || overdue.includes(t) || dueSoon.includes(t));
+
     const posted = topics.filter(topic => topic.status === 'posted').length;
     const scheduled = topics.filter(topic => topic.status === 'scheduled').length;
     const completion = topics.length ? Math.round((posted / topics.length) * 100) : 0;
@@ -218,30 +224,57 @@ export default function CommandCenterView({
             ) : model.queue.map((topic, index) => {
               const isBlocked = Boolean(topic.blockedReason);
               const isOverdue = Boolean(topic.dueDate && timeValue(topic.dueDate) < Date.now());
+              const isDueSoon = Boolean(topic.dueDate && !isOverdue && timeValue(topic.dueDate) <= Date.now() + 24 * 36e5);
               const isRisk = isBlocked || isOverdue;
               const isGoal = goalTopicIds.has(topic.id);
               const nextAction = nextActionForTopic(topic);
               const actionTarget = actionTargetForTopic(topic);
-              const priority = ({ 1: 'Neutral', 2: 'Attention', 3: 'Hot', 4: 'Important', 5: 'Automatic' } as const)[topic.priority];
+              const priorityLabel = ({ 1: 'Neutral', 2: 'Attention', 3: 'Hot', 4: 'Important', 5: 'Automatic' } as const)[topic.priority as 1|2|3|4|5] ?? 'Normal';
+              const eligibilityTags = [
+                topic.neutral && 'Neutral',
+                topic.productTag && 'Product Tag',
+                topic.viral && 'Viral',
+                topic.pinnedPromo && 'Pinned Promo',
+                topic.below8Min && '<8 min',
+              ].filter(Boolean) as string[];
               return (
-                <button key={topic.id} onClick={() => onOpenTopicPipeline(topic.id, actionTarget)} className={`group flex w-full items-start gap-3 rounded-xl border p-3 text-left transition ${isRisk ? 'border-rose-950/50 bg-rose-950/5 hover:border-rose-900/60 hover:bg-rose-950/10' : 'border-neutral-850 bg-neutral-900/30 hover:border-neutral-700 hover:bg-neutral-900/50'}`}>
+                <button key={topic.id} onClick={() => onOpenTopicPipeline(topic.id, actionTarget)} className={`group flex w-full items-start gap-3 rounded-xl border p-3.5 text-left transition ${isRisk ? 'border-rose-950/50 bg-rose-950/5 hover:border-rose-900/60 hover:bg-rose-950/10' : isDueSoon ? 'border-amber-950/40 bg-amber-950/5 hover:border-amber-900/50 hover:bg-amber-950/10' : 'border-neutral-850 bg-neutral-900/30 hover:border-neutral-700 hover:bg-neutral-900/50'}`}>
                   <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-neutral-950 font-mono text-[10px] text-neutral-500">0{index + 1}</span>
-                  <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${isRisk ? 'bg-rose-500 shadow-[0_0_9px_#f43f5e]' : isGoal ? 'bg-purple-400' : 'bg-amber-400'}`} />
+                  <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${isBlocked ? 'bg-rose-500 shadow-[0_0_9px_#f43f5e]' : isOverdue ? 'bg-rose-400' : isDueSoon ? 'bg-amber-400 shadow-[0_0_9px_#f59e0b]' : isGoal ? 'bg-purple-400' : 'bg-neutral-500'}`} />
                   <span className="min-w-0 flex-1">
+                    {/* Title + urgent/goal badges */}
                     <span className="flex flex-wrap items-center gap-1.5">
                       <span className="truncate text-xs font-semibold text-neutral-200">{topic.name}</span>
+                      {isOverdue && <span className="rounded bg-rose-950/60 px-1.5 py-0.5 font-mono text-[7px] font-bold uppercase text-rose-300 border border-rose-900/40">Overdue</span>}
+                      {isDueSoon && !isOverdue && <span className="rounded bg-amber-950/40 px-1.5 py-0.5 font-mono text-[7px] font-bold uppercase text-amber-300 border border-amber-900/30">Due Soon</span>}
                       {isGoal && <span className="rounded bg-purple-950/40 px-1.5 py-0.5 font-mono text-[7px] font-bold uppercase text-purple-300 border border-purple-900/40">Today Goal</span>}
+                      {isBlocked && <span className="rounded bg-rose-950/60 px-1.5 py-0.5 font-mono text-[7px] font-bold uppercase text-rose-400 border border-rose-900/40">Blocked</span>}
                     </span>
-                    <span className="mt-1 flex flex-wrap items-center gap-1.5 font-mono text-[8px] uppercase">
+                    {/* Metadata chips row 1: channel, status, priority, lane */}
+                    <span className="mt-1.5 flex flex-wrap items-center gap-1.5 font-mono text-[8px] uppercase">
                       <span className="rounded bg-neutral-950 px-1.5 py-0.5 text-neutral-500 border border-neutral-800">{topic.channel}</span>
                       <span className="rounded bg-blue-950/30 px-1.5 py-0.5 text-blue-300 border border-blue-900/30">{topic.status}</span>
-                      <span className="rounded bg-neutral-950 px-1.5 py-0.5 text-neutral-400 border border-neutral-800">P{topic.priority} · {priority}</span>
+                      <span className={`rounded px-1.5 py-0.5 border ${topic.priority >= 4 ? 'bg-rose-950/20 text-rose-300 border-rose-900/30' : topic.priority === 3 ? 'bg-amber-950/20 text-amber-300 border-amber-900/30' : 'bg-neutral-950 text-neutral-400 border-neutral-800'}`}>P{topic.priority} · {priorityLabel}</span>
+                      {topic.lane && <span className="rounded bg-indigo-950/20 px-1.5 py-0.5 text-indigo-300 border border-indigo-900/30">{topic.lane}</span>}
                       {topic.revenueLevel && <span className="rounded bg-emerald-950/20 px-1.5 py-0.5 text-emerald-400 border border-emerald-900/30">{topic.revenueLevel}</span>}
                     </span>
-                    <span className={`mt-1.5 block text-[10px] font-medium ${isRisk ? 'text-rose-300' : 'text-amber-200'}`}><span className="mr-1 font-mono text-[8px] uppercase tracking-wider text-neutral-600">Next</span>{nextAction}</span>
+                    {/* Eligibility tags if any */}
+                    {eligibilityTags.length > 0 && (
+                      <span className="mt-1.5 flex flex-wrap items-center gap-1 font-mono text-[7px]">
+                        {eligibilityTags.map(tag => (
+                          <span key={tag} className="rounded bg-cyan-950/20 px-1.5 py-0.5 text-cyan-400 border border-cyan-900/20">{tag}</span>
+                        ))}
+                      </span>
+                    )}
+                    {/* Next action hint */}
+                    <span className={`mt-1.5 block text-[10px] font-medium ${isRisk ? 'text-rose-300' : isDueSoon ? 'text-amber-200' : 'text-neutral-400'}`}>
+                      <span className="mr-1 font-mono text-[8px] uppercase tracking-wider text-neutral-600">Next</span>{nextAction}
+                    </span>
                   </span>
-                  <span className={`mt-0.5 shrink-0 rounded-md px-2 py-1 font-mono text-[9px] ${isBlocked ? 'bg-rose-950/40 text-rose-400' : isOverdue ? 'bg-rose-950/40 text-rose-400' : topic.dueDate ? 'bg-amber-950/30 text-amber-300' : 'bg-neutral-900 text-neutral-500'}`}>{isBlocked ? 'BLOCKED' : deadlineText(topic.dueDate)}</span>
-                  <ArrowUpRight className="mt-1 h-3.5 w-3.5 shrink-0 text-neutral-700 transition group-hover:text-rose-400" />
+                  <div className="flex flex-col items-end gap-1.5 shrink-0 ml-1">
+                    <span className={`rounded-md px-2 py-1 font-mono text-[9px] ${isBlocked ? 'bg-rose-950/40 text-rose-400' : isOverdue ? 'bg-rose-950/40 text-rose-400' : topic.dueDate ? 'bg-amber-950/30 text-amber-300' : 'bg-neutral-900 text-neutral-500'}`}>{isBlocked ? 'BLOCKED' : deadlineText(topic.dueDate)}</span>
+                    <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 text-neutral-700 transition group-hover:text-rose-400" />
+                  </div>
                 </button>
               );
             })}
