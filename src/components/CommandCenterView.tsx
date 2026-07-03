@@ -5,7 +5,7 @@ import {
   CircleDot, Clock3, Flame, Gauge, Layers3, ListTodo, Radio,
   ShieldCheck, Sparkles, Target, TrendingUp, Zap
 } from 'lucide-react';
-import type { CycleGoal, Experiment, CreatorInsight, Topic, TopicActivity, VideoRecord, SessionRecord } from '../types';
+import type { CycleGoal, Experiment, CreatorInsight, Topic, TopicActivity, VideoRecord, SessionRecord, WorkdaySession } from '../types';
 import { getTopicCurrentWorkflow } from '../services/topicWorkflow';
 
 interface CommandCenterViewProps {
@@ -13,6 +13,7 @@ interface CommandCenterViewProps {
   videos: VideoRecord[];
   experiments: Experiment[];
   sessions: SessionRecord[];
+  workdaySession: WorkdaySession | null;
   insights: CreatorInsight[];
   cycleGoals: CycleGoal | null;
   scorecard: any;
@@ -82,8 +83,13 @@ const actionTargetForTopic = (topic: Topic): 'script' | 'shoot' | 'edit' | 'sche
 };
 
 export default function CommandCenterView({
-  topics, videos, experiments, sessions, insights, cycleGoals, activities, onTabChange, onOpenTopicPipeline
+  topics, videos, experiments, sessions, workdaySession, insights, cycleGoals, activities, onTabChange, onOpenTopicPipeline
 }: CommandCenterViewProps) {
+  const goalTopicIds = useMemo(
+    () => new Set((workdaySession?.goals || []).map(goal => goal.topicId)),
+    [workdaySession]
+  );
+
   const model = useMemo(() => {
     const now = Date.now();
     const incomplete = topics.filter(topic => topic.status !== 'posted');
@@ -99,6 +105,22 @@ export default function CommandCenterView({
         const risk = (topic: Topic) => topic.blockedReason ? 0 : overdue.includes(topic) ? 1 : 2;
         return risk(a) - risk(b) || timeValue(a.dueDate) - timeValue(b.dueDate) || a.priority - b.priority;
       });
+
+    // The queue always surfaces at least a few actionable topics — not only
+    // ones already at risk. After the genuine attention topics, fill up with
+    // remaining incomplete topics ranked by: today's-goal membership first,
+    // then in-progress, then higher priority, then nearest deadline. So an
+    // empty-risk day still shows what to actually work on next.
+    const attentionIds = new Set(attention.map(t => t.id));
+    const fillers = incomplete
+      .filter(topic => !attentionIds.has(topic.id))
+      .sort((a, b) => {
+        const goalRank = (t: Topic) => goalTopicIds.has(t.id) ? 0 : 1;
+        const progressRank = (t: Topic) => t.inProgress ? 0 : 1;
+        const dueRank = (t: Topic) => t.dueDate ? timeValue(t.dueDate) : Number.MAX_SAFE_INTEGER;
+        return goalRank(a) - goalRank(b) || progressRank(a) - progressRank(b) || b.priority - a.priority || dueRank(a) - dueRank(b);
+      });
+    const queue = [...attention, ...fillers].slice(0, 6);
     const posted = topics.filter(topic => topic.status === 'posted').length;
     const scheduled = topics.filter(topic => topic.status === 'scheduled').length;
     const completion = topics.length ? Math.round((posted / topics.length) * 100) : 0;
@@ -124,10 +146,10 @@ export default function CommandCenterView({
     });
     const maxActivity = Math.max(1, ...activityDays.map(day => day.count));
     return {
-      incomplete, blocked, overdue, dueSoon, attention, posted, scheduled,
+      incomplete, blocked, overdue, dueSoon, attention, queue, posted, scheduled,
       completion, actionsToday, recent, stages, channels, activityDays, maxActivity
     };
-  }, [topics, activities]);
+  }, [topics, activities, goalTopicIds]);
 
   const warningInsights = insights.filter(item => item.type === 'warning' || item.type === 'recommendation').slice(0, 3);
   const cycleTarget = cycleGoals ? [
@@ -191,20 +213,35 @@ export default function CommandCenterView({
             <button onClick={() => onOpenTopicPipeline()} className="flex items-center gap-1 font-mono text-[10px] text-rose-400 hover:text-rose-300">Open pipeline <ArrowUpRight className="h-3 w-3" /></button>
           </div>
           <div className="space-y-2.5">
-            {model.attention.length === 0 ? (
-              <div className="flex items-center gap-3 rounded-xl border border-emerald-900/30 bg-emerald-950/10 p-4"><ShieldCheck className="h-5 w-5 text-emerald-400" /><div><div className="text-sm font-semibold text-emerald-300">No urgent production risk</div><div className="text-[11px] text-neutral-500">Deadlines and blockers are currently controlled.</div></div></div>
-            ) : model.attention.slice(0, 6).map((topic, index) => {
+            {model.queue.length === 0 ? (
+              <div className="flex items-center gap-3 rounded-xl border border-emerald-900/30 bg-emerald-950/10 p-4"><ShieldCheck className="h-5 w-5 text-emerald-400" /><div><div className="text-sm font-semibold text-emerald-300">No open topics</div><div className="text-[11px] text-neutral-500">Everything is published. Add a topic to start the next cycle.</div></div></div>
+            ) : model.queue.map((topic, index) => {
               const isBlocked = Boolean(topic.blockedReason);
-              const isOverdue = topic.dueDate && timeValue(topic.dueDate) < Date.now();
+              const isOverdue = Boolean(topic.dueDate && timeValue(topic.dueDate) < Date.now());
+              const isRisk = isBlocked || isOverdue;
+              const isGoal = goalTopicIds.has(topic.id);
               const nextAction = nextActionForTopic(topic);
               const actionTarget = actionTargetForTopic(topic);
+              const priority = ({ 1: 'Neutral', 2: 'Attention', 3: 'Hot', 4: 'Important', 5: 'Automatic' } as const)[topic.priority];
               return (
-                <button key={topic.id} onClick={() => onOpenTopicPipeline(topic.id, actionTarget)} className="group flex w-full items-center gap-3 rounded-xl border border-neutral-850 bg-neutral-900/30 p-3 text-left transition hover:border-rose-900/60 hover:bg-rose-950/10">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-neutral-950 font-mono text-[10px] text-neutral-500">0{index + 1}</span>
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${isBlocked || isOverdue ? 'bg-rose-500 shadow-[0_0_9px_#f43f5e]' : 'bg-amber-400'}`} />
-                  <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><span className="truncate text-xs font-semibold text-neutral-200">{topic.name}</span><span className="font-mono text-[8px] uppercase text-neutral-600">{topic.channel} · {topic.status}</span></span><span className={`mt-1 block text-[10px] font-medium ${isBlocked || isOverdue ? 'text-rose-300' : 'text-amber-200'}`}><span className="mr-1 font-mono text-[8px] uppercase tracking-wider text-neutral-600">Next</span>{nextAction}</span></span>
-                  <span className={`rounded-md px-2 py-1 font-mono text-[9px] ${isBlocked || isOverdue ? 'bg-rose-950/40 text-rose-400' : 'bg-amber-950/30 text-amber-300'}`}>{isBlocked ? 'BLOCKED' : deadlineText(topic.dueDate)}</span>
-                  <ArrowUpRight className="h-3.5 w-3.5 text-neutral-700 transition group-hover:text-rose-400" />
+                <button key={topic.id} onClick={() => onOpenTopicPipeline(topic.id, actionTarget)} className={`group flex w-full items-start gap-3 rounded-xl border p-3 text-left transition ${isRisk ? 'border-rose-950/50 bg-rose-950/5 hover:border-rose-900/60 hover:bg-rose-950/10' : 'border-neutral-850 bg-neutral-900/30 hover:border-neutral-700 hover:bg-neutral-900/50'}`}>
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-neutral-950 font-mono text-[10px] text-neutral-500">0{index + 1}</span>
+                  <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${isRisk ? 'bg-rose-500 shadow-[0_0_9px_#f43f5e]' : isGoal ? 'bg-purple-400' : 'bg-amber-400'}`} />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      <span className="truncate text-xs font-semibold text-neutral-200">{topic.name}</span>
+                      {isGoal && <span className="rounded bg-purple-950/40 px-1.5 py-0.5 font-mono text-[7px] font-bold uppercase text-purple-300 border border-purple-900/40">Today Goal</span>}
+                    </span>
+                    <span className="mt-1 flex flex-wrap items-center gap-1.5 font-mono text-[8px] uppercase">
+                      <span className="rounded bg-neutral-950 px-1.5 py-0.5 text-neutral-500 border border-neutral-800">{topic.channel}</span>
+                      <span className="rounded bg-blue-950/30 px-1.5 py-0.5 text-blue-300 border border-blue-900/30">{topic.status}</span>
+                      <span className="rounded bg-neutral-950 px-1.5 py-0.5 text-neutral-400 border border-neutral-800">P{topic.priority} · {priority}</span>
+                      {topic.revenueLevel && <span className="rounded bg-emerald-950/20 px-1.5 py-0.5 text-emerald-400 border border-emerald-900/30">{topic.revenueLevel}</span>}
+                    </span>
+                    <span className={`mt-1.5 block text-[10px] font-medium ${isRisk ? 'text-rose-300' : 'text-amber-200'}`}><span className="mr-1 font-mono text-[8px] uppercase tracking-wider text-neutral-600">Next</span>{nextAction}</span>
+                  </span>
+                  <span className={`mt-0.5 shrink-0 rounded-md px-2 py-1 font-mono text-[9px] ${isBlocked ? 'bg-rose-950/40 text-rose-400' : isOverdue ? 'bg-rose-950/40 text-rose-400' : topic.dueDate ? 'bg-amber-950/30 text-amber-300' : 'bg-neutral-900 text-neutral-500'}`}>{isBlocked ? 'BLOCKED' : deadlineText(topic.dueDate)}</span>
+                  <ArrowUpRight className="mt-1 h-3.5 w-3.5 shrink-0 text-neutral-700 transition group-hover:text-rose-400" />
                 </button>
               );
             })}
