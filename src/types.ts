@@ -188,6 +188,18 @@ export interface CycleGoal {
   decodeWorthyShorts: number | null;
 }
 
+export interface WorkdaySession {
+  dateKey: string;
+  targetMinutes: number;
+  startedAt: string;
+  activeSince: string | null;
+  pausedAt: string | null;
+  accumulatedActiveMs: number;
+  accumulatedPausedMs: number;
+  status: 'running' | 'paused' | 'completed';
+  updatedAt: string;
+}
+
 export interface VideoRecord {
   id: string;
   channelName: 'LearnDriven' | 'DecodeWorthy';

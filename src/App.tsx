@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import { supabase } from './services/supabase';
 
-import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, VideoRecord, Experiment, CreatorInsight, ScorecardState, AiRulePreset, AiUsageStats, YoutubeRevenueData } from './types';
+import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, WorkdaySession, VideoRecord, Experiment, CreatorInsight, ScorecardState, AiRulePreset, AiUsageStats, YoutubeRevenueData } from './types';
 import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, normalizeCommittedTombstones, prepareLocalTopicMutation, topicCollectionsEqual, visibleCreatorTopics } from './lib/topicSync';
 import { normalizeScorecard, rolloverScorecard } from './services/scorecardStorage';
 import { fetchYoutubeRevenue, startYoutubeAuth, disconnectYoutube } from './services/youtube';
@@ -51,6 +51,7 @@ import {
 } from './data';
 
 import CommandPalette from './components/CommandPalette';
+import WorkdayTimer from './components/WorkdayTimer';
 
 const GithubView = lazy(() => import('./components/GithubView'));
 const VercelView = lazy(() => import('./components/VercelView'));
@@ -132,6 +133,7 @@ export default function App() {
   const [pipelineSubView, setPipelineSubView] = useState<'videos' | 'topics'>('videos');
 
   const [cycleGoals, setCycleGoals] = useState<CycleGoal | null>(null);
+  const [workdaySession, setWorkdaySession] = useState<WorkdaySession | null>(null);
 
   const [scorecard, setScorecard] = useState<ScorecardState>(() => normalizeScorecard(null));
 
@@ -587,6 +589,7 @@ export default function App() {
                 topics: [],
                 activities: [],
                 cycleGoals: null,
+                workdaySession: null,
                 scorecard: normalizeScorecard(null),
                 videos: [],
                 experiments: [],
@@ -782,6 +785,7 @@ export default function App() {
           }
           if (remoteState.activities) setActivities(remoteState.activities);
           if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
+          if ('workdaySession' in remoteState) setWorkdaySession(remoteState.workdaySession || null);
           if (remoteState.scorecard) setScorecard(normalizeScorecard(remoteState.scorecard));
           if (remoteState.videos) setVideos(remoteState.videos);
           if (remoteState.experiments) setExperiments(remoteState.experiments);
@@ -820,6 +824,7 @@ export default function App() {
               topics,
               activities,
               cycleGoals,
+              workdaySession,
               scorecard,
               videos,
               experiments,
@@ -885,6 +890,7 @@ export default function App() {
                 }
                 if (remoteState.activities) setActivities(remoteState.activities);
                 if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
+                if ('workdaySession' in remoteState) setWorkdaySession(remoteState.workdaySession || null);
                 if (remoteState.scorecard) setScorecard(normalizeScorecard(remoteState.scorecard));
                 if (remoteState.videos) setVideos(remoteState.videos);
                 if (remoteState.experiments) setExperiments(remoteState.experiments);
@@ -969,6 +975,7 @@ export default function App() {
 
   const saveConflictSafeState = async (
     newTopics: Topic[], newActs: TopicActivity[], newGoals: CycleGoal | null,
+    newWorkdaySession: WorkdaySession | null,
     newScorecard: any, newVideos: VideoRecord[], newExperiments: Experiment[], newInsights: CreatorInsight[],
     newPresets: AiRulePreset[], newUsage: AiUsageStats
   ) => {
@@ -992,7 +999,7 @@ export default function App() {
       const nextState = {
         ...remoteState, topics: mergedTopics, deletedTopicIds,
         activities: Array.from(mergedActivities.values()).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
-        cycleGoals: newGoals, scorecard: newScorecard, videos: newVideos,
+        cycleGoals: newGoals, workdaySession: newWorkdaySession, scorecard: newScorecard, videos: newVideos,
         experiments: newExperiments, insights: newInsights, aiPresets: newPresets, aiUsage: newUsage
       };
       const nextVersion = (current?.version || 0) + 1;
@@ -1032,6 +1039,7 @@ export default function App() {
     newTopics: Topic[],
     newActs: TopicActivity[],
     newGoals: CycleGoal | null,
+    newWorkdaySession: WorkdaySession | null,
     newScorecard: any,
     newVideos: VideoRecord[],
     newExperiments: Experiment[],
@@ -1046,7 +1054,7 @@ export default function App() {
     // of the session with no automatic recovery.
     if (!supabase || !user || syncFatal) return;
     try {
-      await saveConflictSafeState(newTopics, newActs, newGoals, newScorecard, newVideos, newExperiments, newInsights, newPresets, newUsage);
+      await saveConflictSafeState(newTopics, newActs, newGoals, newWorkdaySession, newScorecard, newVideos, newExperiments, newInsights, newPresets, newUsage);
       setSyncError(null);
       return;
       const { error } = await supabase
@@ -1057,6 +1065,7 @@ export default function App() {
             topics: newTopics,
             activities: newActs,
             cycleGoals: newGoals,
+            workdaySession: newWorkdaySession,
             scorecard: newScorecard,
             videos: newVideos,
             experiments: newExperiments,
@@ -1104,7 +1113,7 @@ export default function App() {
     const nextBackup = {
       updatedAt: new Date().toISOString(),
       sessionId: currentSessionId,
-      state: { topics: durableTopics, deletedTopicIds: durableTombstones, activities, cycleGoals, scorecard, videos, experiments, insights, aiPresets, aiUsage }
+      state: { topics: durableTopics, deletedTopicIds: durableTombstones, activities, cycleGoals, workdaySession, scorecard, videos, experiments, insights, aiPresets, aiUsage }
     };
 
     try {
@@ -1120,7 +1129,7 @@ export default function App() {
     } catch { /* A malformed old backup must not block the current snapshot. */ }
 
     localStorage.setItem(backupKey, JSON.stringify(nextBackup));
-  }, [topics, activities, cycleGoals, scorecard, videos, experiments, insights, aiPresets, aiUsage, user, authLoading, isStateLoaded, hydratedUserId]);
+  }, [topics, activities, cycleGoals, workdaySession, scorecard, videos, experiments, insights, aiPresets, aiUsage, user, authLoading, isStateLoaded, hydratedUserId]);
 
   // Realtime is the fast path; versioned reconciliation is the reliability path.
   // It keeps devices converged even when postgres_changes delivery is delayed,
@@ -1164,6 +1173,7 @@ export default function App() {
         });
         if (remoteState.activities) setActivities(remoteState.activities);
         if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
+        if ('workdaySession' in remoteState) setWorkdaySession(remoteState.workdaySession || null);
         if (remoteState.scorecard) setScorecard(normalizeScorecard(remoteState.scorecard));
         if (remoteState.videos) setVideos(remoteState.videos);
         if (remoteState.experiments) setExperiments(remoteState.experiments);
@@ -1200,11 +1210,11 @@ export default function App() {
     const timer = setTimeout(() => {
       saveQueueRef.current = saveQueueRef.current
         .catch(() => undefined)
-        .then(() => saveStateToSupabase(topics, activities, cycleGoals, scorecard, videos, experiments, insights, aiPresets, aiUsage));
+        .then(() => saveStateToSupabase(topics, activities, cycleGoals, workdaySession, scorecard, videos, experiments, insights, aiPresets, aiUsage));
     }, 75);
 
     return () => clearTimeout(timer);
-  }, [topics, activities, cycleGoals, scorecard, videos, experiments, insights, aiPresets, aiUsage, user, authLoading, isStateLoaded, hydratedUserId]);
+  }, [topics, activities, cycleGoals, workdaySession, scorecard, videos, experiments, insights, aiPresets, aiUsage, user, authLoading, isStateLoaded, hydratedUserId]);
 
   // Update clock
   useEffect(() => {
@@ -1702,6 +1712,8 @@ export default function App() {
                 <span>Well-Being</span>
               </button>
             </div>
+
+            <WorkdayTimer session={workdaySession} setSession={setWorkdaySession} />
 
             <motion.button
               whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(59, 130, 246, 0.6)' }}
