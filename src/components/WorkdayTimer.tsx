@@ -31,6 +31,7 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
   const [showGoals, setShowGoals] = useState(false);
   const [goalTopicId, setGoalTopicId] = useState('');
   const [goalTarget, setGoalTarget] = useState<typeof goalStages[number]>('scripted');
+  const [lastGoalAdded, setLastGoalAdded] = useState('');
 
   useEffect(() => {
     if (!session || session.status === 'completed') return;
@@ -76,7 +77,7 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
   };
 
   const rankedTopics = useMemo(() => [...topics]
-    .filter(topic => topic.status !== 'posted' && !(session?.goals || []).some(goal => goal.topicId === topic.id))
+    .filter(topic => topic.status !== 'posted' && topic.status !== 'scheduled' && !(session?.goals || []).some(goal => goal.topicId === topic.id))
     .sort((a, b) => {
       const nowTime = Date.now();
       const urgency = (topic: Topic) => topic.blockedReason ? 0 : topic.dueDate && new Date(topic.dueDate).getTime() < nowTime ? 1 : topic.dueDate ? 2 : 3;
@@ -87,6 +88,7 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
   const selectedTopic = rankedTopics.find(topic => topic.id === goalTopicId);
   const availableTargets = selectedTopic ? goalStages.filter(stage => stageOrder.indexOf(stage) > stageOrder.indexOf(selectedTopic.status)) : goalStages;
   const chooseTopic = (topicId: string) => {
+    setLastGoalAdded('');
     setGoalTopicId(topicId);
     const topic = rankedTopics.find(item => item.id === topicId);
     const nextTarget = topic ? goalStages.find(stage => stageOrder.indexOf(stage) > stageOrder.indexOf(topic.status)) : undefined;
@@ -96,8 +98,8 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
     if (!selectedTopic || !availableTargets.includes(goalTarget)) return;
     const stamp = new Date().toISOString();
     setSession(current => current ? { ...current, goals: [...(current.goals || []), { id: `goal-${Date.now()}`, topicId: selectedTopic.id, topicName: selectedTopic.name, targetStatus: goalTarget, addedAt: stamp }], updatedAt: stamp } : current);
+    setLastGoalAdded(selectedTopic.name);
     setGoalTopicId('');
-    setShowGoals(false);
   };
   const removeGoal = (goalId: string) => setSession(current => current ? { ...current, goals: (current.goals || []).filter(goal => goal.id !== goalId), updatedAt: new Date().toISOString() } : current);
   const goalComplete = (topicId: string, targetStatus: typeof goalStages[number]) => {
@@ -151,6 +153,7 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
               })}</div> : <div className="mt-2 text-[8px] text-neutral-600">Optional - no topic goal set.</div>}
               <AnimatePresence initial={false}>
                 {showGoals && <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden"><div className="mt-3 space-y-3 border-t border-purple-900/30 pt-3">
+                  {lastGoalAdded && <div className="flex items-center gap-2 rounded-lg border border-emerald-900/40 bg-emerald-950/20 px-2.5 py-2 text-[8px] text-emerald-300"><Check className="h-3.5 w-3.5 shrink-0" /><span className="min-w-0"><strong className="font-bold">{lastGoalAdded}</strong> added. Select another topic or close.</span></div>}
                   <label className="block text-[7px] font-bold uppercase tracking-wider text-neutral-500">Topic<select value={goalTopicId} onChange={event => chooseTopic(event.target.value)} className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-950 px-2.5 py-2 text-[9px] font-semibold text-white"><option value="">Select a ranked topic</option>{rankedTopics.map(topic => <option key={topic.id} value={topic.id}>P{topic.priority} - {topic.name} - {topic.status}{topic.dueDate ? ` - due ${new Date(topic.dueDate).toLocaleDateString()}` : ''}</option>)}</select></label>
                   {selectedTopic && <div className="rounded-lg border border-neutral-900 bg-neutral-950/70 p-2.5"><div className="truncate text-[9px] font-semibold text-white">{selectedTopic.name}</div><div className="mt-1 flex flex-wrap gap-1 text-[7px] uppercase"><span className="rounded bg-blue-950/40 px-1.5 py-0.5 text-blue-300">Current {selectedTopic.status}</span><span className="rounded bg-cyan-950/40 px-1.5 py-0.5 text-cyan-300">Priority {selectedTopic.priority}</span>{selectedTopic.dueDate && <span className="rounded bg-rose-950/40 px-1.5 py-0.5 text-rose-300">Due {new Date(selectedTopic.dueDate).toLocaleDateString()}</span>}{selectedTopic.blockedReason && <span className="rounded bg-rose-950/50 px-1.5 py-0.5 text-rose-300">Blocked</span>}</div></div>}
                   <label className="block text-[7px] font-bold uppercase tracking-wider text-neutral-500">Milestone to reach today<select disabled={!selectedTopic} value={goalTarget} onChange={event => setGoalTarget(event.target.value as typeof goalStages[number])} className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-950 px-2.5 py-2 text-[9px] font-semibold capitalize text-white disabled:opacity-40">{availableTargets.map(stage => <option key={stage} value={stage}>{stage}</option>)}</select></label>
