@@ -297,13 +297,18 @@ export default function VercelView({
     if (!topic.dueDate || scheduleComplete || topic.blockedReason) return null;
 
     const differenceMs = new Date(topic.dueDate).getTime() - now.getTime();
+    const dueDay = new Date(topic.dueDate);
+    dueDay.setHours(0, 0, 0, 0);
+    const currentDay = new Date(now);
+    currentDay.setHours(0, 0, 0, 0);
+    const calendarDaysLeft = Math.round((dueDay.getTime() - currentDay.getTime()) / 86400000);
     const absoluteSeconds = Math.max(0, Math.floor(Math.abs(differenceMs) / 1000));
     const days = Math.floor(absoluteSeconds / 86400);
     const hours = Math.floor((absoluteSeconds % 86400) / 3600);
     const minutes = Math.floor((absoluteSeconds % 3600) / 60);
     const seconds = absoluteSeconds % 60;
 
-    if (differenceMs > 72 * 60 * 60 * 1000) return null;
+    if (calendarDaysLeft > 3) return null;
 
     const clock = days > 0
       ? `${days}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`
@@ -317,7 +322,7 @@ export default function VercelView({
       overdue,
       daysOverdue,
       stuck,
-      remainingMs: differenceMs,
+      calendarDaysLeft,
       fastBlink: differenceMs > 0 && differenceMs <= 24 * 60 * 60 * 1000,
       clock,
       message: overdue
@@ -369,7 +374,7 @@ export default function VercelView({
       };
     }
 
-    if (urgency.remainingMs <= 24 * 60 * 60 * 1000) {
+    if (urgency.calendarDaysLeft <= 1) {
       return {
         borderClass: 'border-red-500/55 bg-red-950/20',
         labelClass: 'text-red-400',
@@ -383,7 +388,7 @@ export default function VercelView({
       };
     }
 
-    if (urgency.remainingMs <= 48 * 60 * 60 * 1000) {
+    if (urgency.calendarDaysLeft === 2) {
       return {
         borderClass: 'border-orange-500/55 bg-orange-950/20',
         labelClass: 'text-orange-400',
@@ -1309,11 +1314,11 @@ export default function VercelView({
                             const diffTime = due.getTime() - today.getTime();
                             const daysLeft = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
-                            if (daysLeft === 2) {
+                            if (daysLeft === 3) {
                               blinkClass = 'blink-yellow';
-                            } else if (daysLeft === 1) {
+                            } else if (daysLeft === 2) {
                               blinkClass = 'blink-orange';
-                            } else if (daysLeft <= 0) {
+                            } else if (daysLeft <= 1) {
                               blinkClass = 'blink-red';
                             }
                           }
