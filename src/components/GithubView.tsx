@@ -23,7 +23,8 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Trash2
+  Trash2,
+  Pencil
 } from 'lucide-react';
 import { GitHubRepo, SystemEvent, Topic, TopicActivity } from '../types';
 import { getTopicCurrentWorkflow, getTopicWorkflowState } from '../services/topicWorkflow';
@@ -155,6 +156,7 @@ export default function GithubView({
   const isAddFormOpen = isAddFormOpenProp !== undefined ? isAddFormOpenProp : localIsAddFormOpen;
   const setIsAddFormOpen = setIsAddFormOpenProp !== undefined ? setIsAddFormOpenProp : setLocalIsAddFormOpen;
 
+  const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
   const [newTopicName, setNewTopicName] = useState('');
   const [newTopicDesc, setNewTopicDesc] = useState('');
   const [newTopicChannel, setNewTopicChannel] = useState<'LearnDriven' | 'DecodeWorthy' | null>(null);
@@ -287,43 +289,99 @@ export default function GithubView({
       }
     }
 
-    const newTopic: Topic = {
-      id: `t-manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name: newTopicName,
-      description: newTopicDesc,
-      channel: newTopicChannel,
-      status: newTopicStatus,
-      priority: newTopicPriority,
-      dueDate: finalDueDate,
-      scheduledTime: finalSchedTime,
-      createdDate: new Date().toISOString(),
-      lastUpdated: new Date().toISOString(),
-      revenueLevel: revLvl || undefined,
-      inProgress,
-      workflowStatuses: newTopicStatus !== 'topic' ? workflowStatuses : undefined
-    };
+    if (editingTopicId) {
+      const original = topics.find(t => t.id === editingTopicId);
+      const updatedTopic: Topic = {
+        ...(original as Topic),
+        name: newTopicName,
+        description: newTopicDesc,
+        channel: newTopicChannel,
+        status: newTopicStatus,
+        priority: newTopicPriority,
+        dueDate: finalDueDate,
+        scheduledTime: finalSchedTime,
+        lastUpdated: new Date().toISOString(),
+        // A blank result here just means no eligibility box was touched this
+        // time, not "clear the revenue level" — keep whatever was already set.
+        revenueLevel: revLvl || original?.revenueLevel,
+        inProgress: inProgress || original?.inProgress,
+        workflowStatuses: newTopicStatus !== 'topic' ? workflowStatuses : original?.workflowStatuses
+      };
 
-    setTopics(prev => [newTopic, ...prev]);
+      setTopics(prev => prev.map(t => t.id === editingTopicId ? updatedTopic : t));
 
-    // Add activity log
-    const newActivity: TopicActivity = {
-      id: `act-manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      topicName: newTopicName,
-      channel: newTopicChannel,
-      action: `Created new topic in ${newTopicStatus} stage` + (revLvl ? ` with ${revLvl}` : ''),
-      author: 'typeakshay',
-      timestamp: new Date().toISOString()
-    };
-    setActivities(prev => [newActivity, ...prev]);
+      const changedFields: string[] = [];
+      if (original) {
+        if (original.name !== newTopicName) changedFields.push('name');
+        if (original.description !== newTopicDesc) changedFields.push('description');
+        if (original.channel !== newTopicChannel) changedFields.push('channel');
+        if (original.status !== newTopicStatus) changedFields.push('status');
+        if (original.priority !== newTopicPriority) changedFields.push('priority');
+        if (original.dueDate !== finalDueDate) changedFields.push('due date');
+      }
+      setActivities(prev => [{
+        id: `act-edit-${Date.now()}`,
+        topicName: newTopicName,
+        channel: newTopicChannel,
+        action: changedFields.length > 0 ? `Edited topic (${changedFields.join(', ')})` : 'Edited topic',
+        author: 'typeakshay',
+        timestamp: new Date().toISOString()
+      }, ...prev]);
 
-    // Trigger system notification
-    onAddEvent({
-      id: `evt-topic-created-${Date.now()}`,
-      source: 'github',
-      type: 'success',
-      message: `Topic Engine: Added topic "${newTopicName}" under ${newTopicChannel}` + (revLvl ? ` (${revLvl})` : ''),
-      timestamp: new Date().toISOString()
-    });
+      onAddEvent({
+        id: `evt-topic-edited-${Date.now()}`,
+        source: 'github',
+        type: 'info',
+        message: `Topic Engine: Updated topic "${newTopicName}".`,
+        timestamp: new Date().toISOString()
+      });
+
+      setEditingTopicId(null);
+    } else {
+      const newTopic: Topic = {
+        id: `t-manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        name: newTopicName,
+        description: newTopicDesc,
+        channel: newTopicChannel,
+        status: newTopicStatus,
+        priority: newTopicPriority,
+        dueDate: finalDueDate,
+        scheduledTime: finalSchedTime,
+        createdDate: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+        revenueLevel: revLvl || undefined,
+        inProgress,
+        workflowStatuses: newTopicStatus !== 'topic' ? workflowStatuses : undefined
+      };
+
+      setTopics(prev => [newTopic, ...prev]);
+
+      // Add activity log
+      const newActivity: TopicActivity = {
+        id: `act-manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        topicName: newTopicName,
+        channel: newTopicChannel,
+        action: `Created new topic in ${newTopicStatus} stage` + (revLvl ? ` with ${revLvl}` : ''),
+        author: 'typeakshay',
+        timestamp: new Date().toISOString()
+      };
+      setActivities(prev => [newActivity, ...prev]);
+
+      // Trigger system notification
+      onAddEvent({
+        id: `evt-topic-created-${Date.now()}`,
+        source: 'github',
+        type: 'success',
+        message: `Topic Engine: Added topic "${newTopicName}" under ${newTopicChannel}` + (revLvl ? ` (${revLvl})` : ''),
+        timestamp: new Date().toISOString()
+      });
+
+      // Auto redirection to pipeline if the created topic is already in production
+      if (inProgress) {
+        if (setPipelineSubView) setPipelineSubView('topics');
+        if (setActiveTab) setActiveTab('pipeline');
+      }
+    }
 
     // Reset fields
     setNewTopicName('');
@@ -332,12 +390,6 @@ export default function GithubView({
     setNewTopicSchedTime('');
     setNewTopicChannel(null);
     setNewTopicLane(null);
-
-    // Auto redirection to pipeline if the created topic is already in production
-    if (inProgress) {
-      if (setPipelineSubView) setPipelineSubView('topics');
-      if (setActiveTab) setActiveTab('pipeline');
-    }
     setEligibility({
       neutral: false,
       productTag: false,
@@ -353,6 +405,38 @@ export default function GithubView({
     setNewTopicStatus('topic');
     setNewTopicPriority(1);
     setIsAddFormOpen(false);
+  };
+
+  // Opens the same Add Topic form pre-filled with an existing topic's
+  // values, so editing has access to every field creation does — instead of
+  // the previous edit-nothing-but-delete-and-recreate workflow.
+  const startEditTopic = (topic: Topic) => {
+    setEditingTopicId(topic.id);
+    setNewTopicName(topic.name);
+    setNewTopicDesc(topic.description);
+    setNewTopicChannel(topic.channel);
+    setNewTopicStatus(topic.status === 'posted' ? 'scheduled' : topic.status);
+    setNewTopicPriority(topic.priority);
+    setNewTopicDueDate(topic.dueDate ? topic.dueDate.split('T')[0] : '');
+    setNewTopicSchedTime(topic.scheduledTime || '');
+    setNewTopicLane(topic.format === 'Short' ? 'Shorts' : topic.format === 'Members' ? 'Members-Only' : 'Long');
+    // Eligibility checkboxes are the inputs that produced revenueLevel, not
+    // something stored on the topic itself, so they can't be reconstructed
+    // exactly — left blank here. The topic's existing revenueLevel is
+    // preserved on save unless the user actively re-picks eligibility.
+    setEligibility({
+      neutral: false,
+      productTag: false,
+      viral: false,
+      pinnedPromo: false,
+      below8Min: false,
+      exceed8Min: false,
+      strongReach: false,
+      brandCollab: false,
+      productLinks: false,
+      membersOnly: false
+    });
+    setIsAddFormOpen(true);
   };
 
   // Filter topics based on channel filter & search query
@@ -758,6 +842,17 @@ export default function GithubView({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            startEditTopic(topic);
+                          }}
+                          className="p-1 rounded text-neutral-600 hover:text-blue-400 hover:bg-blue-950/20 transition cursor-pointer"
+                          title="Edit topic"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if (!window.confirm(`Delete "${topic.name}"? This removes the topic permanently.`)) return;
                             setTopics(prev => prev.filter(t => t.id !== topic.id));
                             setActivities(prev => [{
@@ -795,13 +890,18 @@ export default function GithubView({
           {/* Add / Edit Topic Card (repurposed from Pull Requests) */}
           <div className="bg-neutral-900/70 border border-neutral-800/80 rounded-xl p-5 shadow-[0_10px_30px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.025)] hover:border-neutral-700/80 transition duration-300">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-neutral-200">Topic Management</h3>
-              <button 
-                onClick={() => setIsAddFormOpen(!isAddFormOpen)}
+              <h3 className="text-sm font-semibold text-neutral-200">{editingTopicId ? 'Edit Topic' : 'Topic Management'}</h3>
+              <button
+                onClick={() => {
+                  if (isAddFormOpen) {
+                    setEditingTopicId(null);
+                  }
+                  setIsAddFormOpen(!isAddFormOpen);
+                }}
                 className="p-1.5 bg-rose-950/20 hover:bg-rose-900/30 text-rose-400 rounded border border-rose-500/40 hover:border-rose-400 transition animate-pulse cursor-pointer shadow-[0_0_10px_rgba(244,63,94,0.15)]"
-                title="Create a New Topic"
+                title={editingTopicId ? 'Cancel edit' : 'Create a New Topic'}
               >
-                <Plus className="h-5 w-5" />
+                <Plus className={`h-5 w-5 transition-transform ${isAddFormOpen ? 'rotate-45' : ''}`} />
               </button>
             </div>
 
@@ -1277,18 +1377,18 @@ export default function GithubView({
                 </div>
 
                 <div className="flex justify-end gap-2 text-[10px] pt-1.5 border-t border-neutral-900/60">
-                  <button 
-                    type="button" 
-                    onClick={() => setIsAddFormOpen(false)}
+                  <button
+                    type="button"
+                    onClick={() => { setIsAddFormOpen(false); setEditingTopicId(null); }}
                     className="px-2.5 py-1 text-neutral-500 hover:text-neutral-300 cursor-pointer"
                   >
                     Cancel
                   </button>
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     className="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white font-semibold rounded transition-colors cursor-pointer"
                   >
-                    Save Topic
+                    {editingTopicId ? 'Save Changes' : 'Save Topic'}
                   </button>
                 </div>
               </motion.form>
