@@ -5,6 +5,7 @@ import {
   Globe, 
   Clock, 
   Calendar,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   GitBranch, 
@@ -202,6 +203,12 @@ export default function VercelView({
 }: VercelViewProps) {
   const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy'>('All');
   const [topicSortOrder, setTopicSortOrder] = useState<TopicSortMode>('due-date');
+  const [isTopicSortOpen, setIsTopicSortOpen] = useState(false);
+  const topicSortRef = useDismissOnOutsideClick<HTMLDivElement>(
+    isTopicSortOpen,
+    true,
+    () => setIsTopicSortOpen(false)
+  );
   const [schedulingTopicId, setSchedulingTopicId] = useState<string | null>(null);
   const [schedDate, setSchedDate] = useState('');
   const [schedTime, setSchedTime] = useState('');
@@ -911,13 +918,53 @@ export default function VercelView({
               </h3>
               <div className="flex flex-wrap items-center justify-end gap-2">
                 <span className="text-[10px] font-mono text-neutral-500">{filteredTopics.length} topics · quick click / hold 1s</span>
-                <label className="relative flex items-center">
-                  <ArrowUpDown className="pointer-events-none absolute left-2 h-3 w-3 text-rose-400" />
-                  <select value={topicSortOrder} onChange={event => setTopicSortOrder(event.target.value as TopicSortMode)} className="appearance-none rounded border border-neutral-800 bg-neutral-900/70 py-1 pl-6 pr-6 text-[9px] font-mono text-neutral-300 outline-none transition hover:border-neutral-700 focus:border-rose-800" title="Sort topic controls">
-                    {(Object.entries(topicSortLabels) as Array<[TopicSortMode, string]>).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                  </select>
-                  <span className="pointer-events-none absolute right-2 text-[7px] text-neutral-600">▼</span>
-                </label>
+                <div ref={topicSortRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsTopicSortOpen(open => !open)}
+                    className="flex items-center gap-1.5 rounded border border-neutral-800 bg-neutral-900/70 py-1 pl-2 pr-1.5 text-[9px] font-mono text-neutral-300 outline-none transition hover:border-neutral-700 hover:text-white focus:border-rose-800"
+                    title="Sort topic controls"
+                    aria-haspopup="listbox"
+                    aria-expanded={isTopicSortOpen}
+                  >
+                    <ArrowUpDown className="h-3 w-3 text-rose-400" />
+                    <span>{topicSortLabels[topicSortOrder]}</span>
+                    <ChevronDown className={`h-3 w-3 text-neutral-600 transition-transform ${isTopicSortOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  <AnimatePresence>
+                    {isTopicSortOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.12 }}
+                        className="absolute right-0 top-[calc(100%+4px)] z-50 min-w-full overflow-hidden rounded border border-neutral-800 bg-neutral-950 p-1 shadow-2xl shadow-black/70"
+                        role="listbox"
+                        aria-label="Sort topic controls"
+                      >
+                        {(Object.entries(topicSortLabels) as Array<[TopicSortMode, string]>).map(([value, label]) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => {
+                              setTopicSortOrder(value);
+                              setIsTopicSortOpen(false);
+                            }}
+                            className={`block w-full whitespace-nowrap rounded px-3 py-2 text-left text-[10px] font-mono transition-colors ${
+                              value === topicSortOrder
+                                ? 'bg-rose-500/15 text-rose-300'
+                                : 'text-neutral-400 hover:bg-neutral-900 hover:text-white'
+                            }`}
+                            role="option"
+                            aria-selected={value === topicSortOrder}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             </div>
 
