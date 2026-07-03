@@ -62,6 +62,12 @@ function formatTimeAgo(dateStr: string) {
   return `${days}d ago`;
 }
 
+function localDateKey(offsetDays = 0) {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 // Blinking logic helper (Due date within 2 days gap)
 function shouldBlink(dueDateStr: string | null, now: Date = new Date()) {
   try {
@@ -166,6 +172,8 @@ export default function GithubView({
   const [newTopicStatus, setNewTopicStatus] = useState<'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled'>('topic');
   const [newTopicPriority, setNewTopicPriority] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [newTopicDueDate, setNewTopicDueDate] = useState('');
+  const todayDateKey = localDateKey();
+  const tomorrowDateKey = localDateKey(1);
   const [newTopicSchedTime, setNewTopicSchedTime] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerDate, setPickerDate] = useState(() => {
@@ -1462,22 +1470,17 @@ export default function GithubView({
                     <div className="flex gap-1.5 mt-1.5">
                       <button
                         type="button"
-                        onClick={() => {
-                          const d = new Date();
-                          setNewTopicDueDate(d.toISOString().split('T')[0]);
-                        }}
-                        className="px-2 py-0.5 bg-neutral-950 border border-neutral-900 text-[8px] text-neutral-400 hover:text-neutral-200 hover:border-neutral-800 rounded transition cursor-pointer select-none"
+                        onClick={() => setNewTopicDueDate(todayDateKey)}
+                        aria-pressed={newTopicDueDate === todayDateKey}
+                        className={`px-2 py-0.5 border text-[8px] rounded transition cursor-pointer select-none ${newTopicDueDate === todayDateKey ? 'border-cyan-500 bg-cyan-500/20 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,.25)]' : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-800 hover:text-neutral-200'}`}
                       >
                         Today
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          const d = new Date();
-                          d.setDate(d.getDate() + 1);
-                          setNewTopicDueDate(d.toISOString().split('T')[0]);
-                        }}
-                        className="px-2 py-0.5 bg-neutral-950 border border-neutral-900 text-[8px] text-neutral-400 hover:text-neutral-200 hover:border-neutral-800 rounded transition cursor-pointer select-none"
+                        onClick={() => setNewTopicDueDate(tomorrowDateKey)}
+                        aria-pressed={newTopicDueDate === tomorrowDateKey}
+                        className={`px-2 py-0.5 border text-[8px] rounded transition cursor-pointer select-none ${newTopicDueDate === tomorrowDateKey ? 'border-violet-500 bg-violet-500/20 text-violet-200 shadow-[0_0_12px_rgba(139,92,246,.25)]' : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-800 hover:text-neutral-200'}`}
                       >
                         Tomorrow
                       </button>
