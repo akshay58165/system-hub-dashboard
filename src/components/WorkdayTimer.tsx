@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Check, ChevronDown, Clock3, Pause, Play, Plus, RotateCcw, Target, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, Clock3, Pause, Pencil, Play, Plus, RotateCcw, Target, Trash2, X } from 'lucide-react';
 import type { Topic, WorkdaySession } from '../types';
 import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
 
@@ -36,6 +36,7 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
   const [goalTarget, setGoalTarget] = useState<typeof goalStages[number]>('scripted');
   const [lastGoalAdded, setLastGoalAdded] = useState('');
   const [topicPickerOpen, setTopicPickerOpen] = useState(false);
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session || session.status === 'completed') return;
@@ -116,7 +117,7 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
       return urgency(a) - urgency(b) || due(a) - due(b) || a.priority - b.priority;
     }), [topics, assignedGoals]);
 
-  const selectedTopic = rankedTopics.find(topic => topic.id === goalTopicId);
+  const selectedTopic = topics.find(topic => topic.id === goalTopicId);
   const availableTargets = selectedTopic ? goalStages.filter(stage => stageOrder.indexOf(stage) > stageOrder.indexOf(selectedTopic.status)) : goalStages;
   const chooseTopic = (topicId: string) => {
     setLastGoalAdded('');
@@ -129,12 +130,25 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
     if (!selectedTopic || !availableTargets.includes(goalTarget)) return;
     const stamp = new Date().toISOString();
     const goal = { id: `goal-${Date.now()}`, topicId: selectedTopic.id, targetStatus: goalTarget, addedAt: stamp };
-    if (session) setSession(current => current ? { ...current, goals: [...(current.goals || []), goal], updatedAt: stamp } : current);
+    if (session) setSession(current => current ? { ...current, goals: editingGoalId
+      ? (current.goals || []).map(existing => existing.id === editingGoalId ? { ...existing, topicId: goal.topicId, targetStatus: goal.targetStatus } : existing)
+      : [...(current.goals || []), goal], updatedAt: stamp } : current);
     else setDraftGoals(current => [...current, goal]);
     setLastGoalAdded(selectedTopic.name);
     setGoalTopicId('');
+    setEditingGoalId(null);
   };
-  const removeGoal = (goalId: string) => setSession(current => current ? { ...current, goals: (current.goals || []).filter(goal => goal.id !== goalId), updatedAt: new Date().toISOString() } : current);
+  const removeGoal = (goalId: string) => {
+    setSession(current => current ? { ...current, goals: (current.goals || []).filter(goal => goal.id !== goalId), updatedAt: new Date().toISOString() } : current);
+    if (editingGoalId === goalId) { setEditingGoalId(null); setGoalTopicId(''); }
+  };
+  const editGoal = (goal: NonNullable<WorkdaySession['goals']>[number]) => {
+    setEditingGoalId(goal.id);
+    setGoalTopicId(goal.topicId);
+    setGoalTarget(goal.targetStatus);
+    setLastGoalAdded('');
+    setShowGoals(true);
+  };
   const goalComplete = (topicId: string, targetStatus: typeof goalStages[number]) => {
     const topic = topics.find(item => item.id === topicId);
     return Boolean(topic && stageOrder.indexOf(topic.status) >= stageOrder.indexOf(targetStatus));
@@ -157,6 +171,14 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
   function workRemaining(topic: Topic) {
     return ({ topic: 5, scripted: 4, shot: 3, edited: 2, scheduled: 1, posted: 0 } as const)[topic.status];
   }
+
+  const priorityDetails = (priority: Topic['priority']) => ({
+    1: { label: 'Neutral', style: 'border-neutral-700 bg-neutral-900 text-neutral-300' },
+    2: { label: 'Attention', style: 'border-yellow-800/60 bg-yellow-950/30 text-yellow-300' },
+    3: { label: 'Hot topic', style: 'border-orange-800/60 bg-orange-950/30 text-orange-300' },
+    4: { label: 'Important', style: 'border-blue-800/60 bg-blue-950/30 text-blue-300' },
+    5: { label: 'Automatic', style: 'border-purple-800/60 bg-purple-950/30 text-purple-300' }
+  } as const)[priority];
 
   const renderTopicPicker = () => (
     <div className="relative mt-1">
@@ -233,7 +255,9 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
                 const topic = topics.find(t => t.id === goal.topicId);
                 if (!topic) return null;
                 const complete = goalComplete(goal.topicId, goal.targetStatus);
-                return <div key={goal.id} className="flex items-center gap-2 rounded-lg bg-neutral-950/70 px-2.5 py-2"><span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${complete ? 'border-emerald-500 bg-emerald-500 text-black' : 'border-neutral-700 text-transparent'}`}><Check className="h-3 w-3" /></span><span className="min-w-0 flex-1"><span className={`block truncate text-[9px] font-semibold ${complete ? 'text-neutral-500 line-through' : 'text-neutral-200'}`}>{topic.name}</span><span className="block text-[7px] uppercase text-neutral-600">Reach {goal.targetStatus}</span></span><button onClick={() => removeGoal(goal.id)} className="text-neutral-700 hover:text-rose-400" aria-label={`Remove goal for ${topic.name}`}><Trash2 className="h-3 w-3" /></button></div>;
+                const priority = priorityDetails(topic.priority);
+                const guidance = topicGuidance(topic);
+                return <div key={goal.id} className={`rounded-lg border p-2.5 ${editingGoalId === goal.id ? 'border-purple-600 bg-purple-950/15 shadow-[0_0_16px_rgba(168,85,247,.12)]' : 'border-neutral-900 bg-neutral-950/70'}`}><div className="flex items-start gap-2"><span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${complete ? 'border-emerald-500 bg-emerald-500 text-black' : 'border-neutral-700 text-transparent'}`}><Check className="h-3 w-3" /></span><span className="min-w-0 flex-1"><span className={`block text-[9px] font-semibold ${complete ? 'text-neutral-500 line-through' : 'text-neutral-100'}`}>{topic.name}</span><span className="mt-1 flex flex-wrap items-center gap-1"><span className="rounded border border-cyan-900/50 bg-cyan-950/20 px-1.5 py-0.5 text-[7px] font-bold uppercase text-cyan-300">{topic.status} → {goal.targetStatus}</span><span className={`rounded border px-1.5 py-0.5 text-[7px] font-bold uppercase ${priority.style}`}>P{topic.priority} · {priority.label}</span><span className={`rounded border px-1.5 py-0.5 text-[7px] font-bold uppercase ${guidance.tone}`}>{guidance.label}</span></span><span className="mt-1.5 block text-[7px] text-neutral-500">Goal: move from <strong className="text-neutral-300">{topic.status}</strong> to <strong className="text-purple-300">{goal.targetStatus}</strong> · {guidance.detail}</span></span><span className="flex shrink-0 gap-1"><button onClick={() => editGoal(goal)} className="rounded border border-neutral-800 p-1 text-neutral-500 hover:border-purple-700 hover:text-purple-300" aria-label={`Edit goal for ${topic.name}`}><Pencil className="h-3 w-3" /></button><button onClick={() => removeGoal(goal.id)} className="rounded border border-neutral-800 p-1 text-neutral-600 hover:border-rose-800 hover:text-rose-400" aria-label={`Remove goal for ${topic.name}`}><Trash2 className="h-3 w-3" /></button></span></div></div>;
               })}</div> : <div className="mt-2 text-[8px] text-neutral-600">Optional - no topic goal set.</div>}
               <AnimatePresence initial={false}>
                 {showGoals && <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden"><div className="mt-3 space-y-3 border-t border-purple-900/30 pt-3">
@@ -241,7 +265,8 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
                   <div className="block text-[7px] font-bold uppercase tracking-wider text-neutral-500">Topic{renderTopicPicker()}</div>
                   {selectedTopic && <div className="rounded-lg border border-neutral-900 bg-neutral-950/70 p-2.5"><div className="truncate text-[9px] font-semibold text-white">{selectedTopic.name}</div><div className="mt-1 flex flex-wrap gap-1 text-[7px] uppercase"><span className="rounded bg-blue-950/40 px-1.5 py-0.5 text-blue-300">Current {selectedTopic.status}</span><span className="rounded bg-cyan-950/40 px-1.5 py-0.5 text-cyan-300">Priority {selectedTopic.priority}</span>{selectedTopic.dueDate && <span className="rounded bg-rose-950/40 px-1.5 py-0.5 text-rose-300">Due {new Date(selectedTopic.dueDate).toLocaleDateString()}</span>}{selectedTopic.blockedReason && <span className="rounded bg-rose-950/50 px-1.5 py-0.5 text-rose-300">Blocked</span>}</div></div>}
                   <div className="block text-[7px] font-bold uppercase tracking-wider text-neutral-500">Milestone to reach today{renderMilestonePicker()}</div>
-                  <button disabled={!selectedTopic} onClick={addGoal} className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-purple-500 py-2 text-[9px] font-bold text-black hover:bg-purple-400 disabled:cursor-not-allowed disabled:opacity-40"><Plus className="h-3 w-3" />Add today&apos;s goal</button>
+                  <button disabled={!selectedTopic} onClick={addGoal} className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-purple-500 py-2 text-[9px] font-bold text-black hover:bg-purple-400 disabled:cursor-not-allowed disabled:opacity-40">{editingGoalId ? <Pencil className="h-3 w-3" /> : <Plus className="h-3 w-3" />}{editingGoalId ? 'Save goal changes' : 'Add today\'s goal'}</button>
+                  {editingGoalId && <button onClick={() => { setEditingGoalId(null); setGoalTopicId(''); }} className="w-full text-center text-[8px] text-neutral-500 hover:text-white">Cancel editing</button>}
                   {!rankedTopics.length && <div className="text-center text-[8px] text-neutral-600">No unfinished topics available.</div>}
                 </div></motion.div>}
               </AnimatePresence>
