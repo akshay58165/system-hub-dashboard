@@ -11,9 +11,11 @@ import {
   Calendar,
   XCircle,
   FileText,
-  Bookmark
+  Bookmark,
+  X
 } from 'lucide-react';
 import { Experiment, VideoRecord } from '../types';
+import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
 
 interface ExperimentTrackerProps {
   experiments: Experiment[];
@@ -40,6 +42,19 @@ export default function ExperimentTrackerView({
   const [resResult, setResResult] = useState('');
   const [resDecision, setResDecision] = useState('');
   const [resLearning, setResLearning] = useState('');
+
+  const createExperimentHasInput = Boolean(newName.trim() || newHypothesis.trim() || newMetric.trim() || selectedVideos.length > 0);
+  const createExperimentModalRef = useDismissOnOutsideClick<HTMLDivElement>(
+    isCreateOpen,
+    !createExperimentHasInput,
+    () => setIsCreateOpen(false)
+  );
+  const resolveExperimentHasInput = Boolean(resResult.trim() || resDecision.trim() || resLearning.trim());
+  const resolveExperimentModalRef = useDismissOnOutsideClick<HTMLDivElement>(
+    Boolean(resolvingExpId),
+    !resolveExperimentHasInput,
+    () => setResolvingExpId(null)
+  );
 
   const handleCreateExperiment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -229,14 +244,25 @@ export default function ExperimentTrackerView({
         {resolvingExpId && (
           <div className="fixed inset-0 z-50 bg-neutral-950/80 backdrop-blur-sm flex items-center justify-center p-4">
             <motion.div
+              ref={resolveExperimentModalRef}
               initial={{ scale: 0.97, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.97, opacity: 0 }}
               className="bg-neutral-900 border border-neutral-850 rounded-xl max-w-md w-full p-6 shadow-2xl"
             >
-              <h3 className="text-sm font-bold text-white font-sans tracking-tight mb-4 border-b border-neutral-850 pb-3">
-                Conclude Test Runs
-              </h3>
+              <div className="flex items-center justify-between mb-4 border-b border-neutral-850 pb-3">
+                <h3 className="text-sm font-bold text-white font-sans tracking-tight">
+                  Conclude Test Runs
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setResolvingExpId(null)}
+                  className="p-1 rounded text-neutral-500 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
+                  title="Close"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
 
               <div className="space-y-4">
                 {/* Result */}
@@ -304,14 +330,25 @@ export default function ExperimentTrackerView({
         {isCreateOpen && (
           <div className="fixed inset-0 z-50 bg-neutral-950/80 backdrop-blur-sm flex items-center justify-center p-4">
             <motion.div
+              ref={createExperimentModalRef}
               initial={{ scale: 0.97, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.97, opacity: 0 }}
               className="bg-neutral-900 border border-neutral-850 rounded-xl max-w-md w-full p-6 shadow-2xl"
             >
-              <h3 className="text-sm font-bold text-white font-sans tracking-tight mb-4 border-b border-neutral-850 pb-3">
-                Setup New Experiment
-              </h3>
+              <div className="flex items-center justify-between mb-4 border-b border-neutral-850 pb-3">
+                <h3 className="text-sm font-bold text-white font-sans tracking-tight">
+                  Setup New Experiment
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsCreateOpen(false)}
+                  className="p-1 rounded text-neutral-500 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
+                  title="Close"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
 
               <form onSubmit={handleCreateExperiment} className="space-y-4">
                 {/* Name */}

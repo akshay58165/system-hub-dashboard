@@ -15,10 +15,12 @@ import {
   Play,
   RotateCcw,
   Sparkles,
-  Info
+  Info,
+  X
 } from 'lucide-react';
 import { VideoRecord, Topic, TopicActivity, CycleGoal } from '../types';
 import VercelView from './VercelView';
+import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
 
 interface PipelineViewProps {
   videos: VideoRecord[];
@@ -68,6 +70,29 @@ export default function PipelineView({
   const [newChannel, setNewChannel] = useState<'LearnDriven' | 'DecodeWorthy'>('LearnDriven');
   const [newFormat, setNewFormat] = useState<'Short' | 'Long' | 'Members'>('Short');
   const [newTopic, setNewTopic] = useState('');
+
+  // Outside-click dismissal: the edit modal always starts pre-filled with a
+  // real video's data, so it only auto-closes while nothing has actually
+  // changed yet; the create modal auto-closes only while every field is
+  // still at its untouched default.
+  const editingVideoForDismissCheck = editingVideoId ? videos.find(v => v.id === editingVideoId) : null;
+  const editVideoIsUnchanged = editingVideoForDismissCheck
+    ? editStage === editingVideoForDismissCheck.pipelineStage &&
+      editNotes === (editingVideoForDismissCheck.notes || '') &&
+      editBlocked === (editingVideoForDismissCheck.blockedReason || '') &&
+      editNextAction === (editingVideoForDismissCheck.nextAction || '')
+    : true;
+  const editVideoModalRef = useDismissOnOutsideClick<HTMLDivElement>(
+    Boolean(editingVideoId),
+    editVideoIsUnchanged,
+    () => setEditingVideoId(null)
+  );
+  const createVideoHasInput = Boolean(newTitle.trim() || newTopic.trim() || newChannel !== 'LearnDriven' || newFormat !== 'Short');
+  const createVideoModalRef = useDismissOnOutsideClick<HTMLDivElement>(
+    isCreateOpen,
+    !createVideoHasInput,
+    () => setIsCreateOpen(false)
+  );
 
   // Handle advancing a video stage
   const handleAdvanceStage = (videoId: string) => {
@@ -548,6 +573,7 @@ export default function PipelineView({
           return (
             <div className="fixed inset-0 z-50 bg-neutral-950/80 backdrop-blur-sm flex items-center justify-center p-4">
               <motion.div
+                ref={editVideoModalRef}
                 initial={{ scale: 0.97, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.97, opacity: 0 }}
@@ -558,9 +584,19 @@ export default function PipelineView({
                     <h3 className="text-sm font-bold text-white font-sans tracking-tight">Edit Production Item</h3>
                     <p className="text-[10px] text-neutral-500 font-mono mt-0.5">{video.title}</p>
                   </div>
-                  <span className={`px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase tracking-widest ${video.channelName === 'LearnDriven' ? 'text-purple-400 bg-purple-950/40 border border-purple-900/30' : 'text-emerald-400 bg-emerald-950/40 border border-emerald-900/30'}`}>
-                    {video.channelName}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase tracking-widest ${video.channelName === 'LearnDriven' ? 'text-purple-400 bg-purple-950/40 border border-purple-900/30' : 'text-emerald-400 bg-emerald-950/40 border border-emerald-900/30'}`}>
+                      {video.channelName}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setEditingVideoId(null)}
+                      className="p-1 rounded text-neutral-500 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
+                      title="Close"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-4">
@@ -658,14 +694,25 @@ export default function PipelineView({
         {isCreateOpen && (
           <div className="fixed inset-0 z-50 bg-neutral-950/80 backdrop-blur-sm flex items-center justify-center p-4">
             <motion.div
+              ref={createVideoModalRef}
               initial={{ scale: 0.97, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.97, opacity: 0 }}
               className="bg-neutral-950 border border-neutral-900 rounded-xl max-w-md w-full p-6 shadow-2xl"
             >
-              <h3 className="text-sm font-bold text-white font-sans tracking-tight mb-4 border-b border-neutral-900 pb-3">
-                Create New Content Pipeline Topic
-              </h3>
+              <div className="flex items-center justify-between mb-4 border-b border-neutral-900 pb-3">
+                <h3 className="text-sm font-bold text-white font-sans tracking-tight">
+                  Create New Content Pipeline Topic
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsCreateOpen(false)}
+                  className="p-1 rounded text-neutral-500 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
+                  title="Close"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
 
               <form onSubmit={handleCreateVideo} className="space-y-4">
                 {/* Title */}

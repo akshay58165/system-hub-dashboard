@@ -16,7 +16,8 @@ import {
   Pencil,
   Trash2,
   RotateCcw,
-  Shield
+  Shield,
+  X
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -29,6 +30,7 @@ import {
 } from 'recharts';
 import { Topic, TopicActivity, SystemEvent, CycleGoal } from '../types';
 import { getTopicCurrentWorkflow, getTopicWorkflowState } from '../services/topicWorkflow';
+import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
 
 interface VercelViewProps {
   projects: any[]; // Kept for interface compatibility in App.tsx
@@ -162,6 +164,17 @@ export default function VercelView({
   const [schedDate, setSchedDate] = useState('');
   const [schedTime, setSchedTime] = useState('');
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null);
+  // Outside-click only dismisses this modal while it still exactly matches
+  // the real topic (i.e. nothing has actually been edited yet) — the
+  // instant a field changes, only the explicit X/Cancel controls can close it.
+  const editingTopicIsUnchanged = editingTopic
+    ? JSON.stringify(editingTopic) === JSON.stringify(topics.find(t => t.id === editingTopic.id))
+    : true;
+  const editTopicModalRef = useDismissOnOutsideClick<HTMLFormElement>(
+    Boolean(editingTopic),
+    editingTopicIsUnchanged,
+    () => setEditingTopic(null)
+  );
 
   const [now, setNow] = useState(new Date());
 
@@ -1495,6 +1508,7 @@ export default function VercelView({
         {editingTopic && (
           <div className="fixed inset-0 z-50 bg-neutral-950/85 backdrop-blur-sm flex items-center justify-center p-4">
             <motion.form
+              ref={editTopicModalRef}
               initial={{ opacity: 0, scale: 0.97, y: 8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.97, y: 8 }}
@@ -1506,7 +1520,17 @@ export default function VercelView({
                   <h3 className="text-sm font-bold text-white">Edit Topic</h3>
                   <p className="text-[10px] text-neutral-500 mt-1">Changes sync everywhere this topic appears.</p>
                 </div>
-                <span className="text-[9px] uppercase text-blue-400 border border-blue-900/40 bg-blue-950/20 rounded px-2 py-1">{editingTopic.status}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[9px] uppercase text-blue-400 border border-blue-900/40 bg-blue-950/20 rounded px-2 py-1">{editingTopic.status}</span>
+                  <button
+                    type="button"
+                    onClick={() => setEditingTopic(null)}
+                    className="p-1 rounded text-neutral-500 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
+                    title="Close"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
 
               <label className="block text-[9px] uppercase text-neutral-500 font-mono">

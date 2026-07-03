@@ -21,6 +21,7 @@ import {
 import { SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, AiRulePreset, AiUsageStats, AiUsageCall } from '../types';
 import { callOpenAI, getChannelSystemPrompt, findScriptSources, fetchRealAccountUsage, RealAccountUsage } from '../services/openai';
 import { getTopicCurrentWorkflow, getTopicWorkflowState } from '../services/topicWorkflow';
+import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
 
 // Splits AI source-search output on raw URLs and renders them as real
 // clickable links that open in a new tab, while preserving line breaks.
@@ -111,6 +112,16 @@ export default function SupabaseView({
     productLinks: false,
     membersOnly: false
   });
+  const createScriptTopicHasInput = Boolean(
+    newTopicName.trim() || newTopicDesc.trim() || newTopicChannel || newTopicLane ||
+    newTopicDueDate || newTopicStatus !== 'topic' || newTopicPriority !== 1 ||
+    Object.values(topicEligibility).some(Boolean)
+  );
+  const createScriptTopicFormRef = useDismissOnOutsideClick<HTMLFormElement>(
+    isTopicFormOpen,
+    !createScriptTopicHasInput,
+    () => setIsTopicFormOpen(false)
+  );
   const [scriptText, setScriptText] = useState<string>(() => {
     try {
       const stored = localStorage.getItem('unicorn_video_scripts');
@@ -129,6 +140,11 @@ export default function SupabaseView({
   const [selectedPresetId, setSelectedPresetId] = useState<string>('');
   const [isSavingPreset, setIsSavingPreset] = useState(false);
   const [presetNameDraft, setPresetNameDraft] = useState('');
+  const savePresetFormRef = useDismissOnOutsideClick<HTMLDivElement>(
+    isSavingPreset,
+    !presetNameDraft.trim(),
+    () => setIsSavingPreset(false)
+  );
   const [isPresetDropdownOpen, setIsPresetDropdownOpen] = useState(false);
   const [findSourcesMode, setFindSourcesMode] = useState(false);
   const [budgetDraft, setBudgetDraft] = useState<string>(aiUsage.budgetUSD !== null ? String(aiUsage.budgetUSD) : '');
@@ -703,6 +719,7 @@ ${task}`;
               <AnimatePresence initial={false}>
                 {isTopicFormOpen && (
                   <motion.form
+                    ref={createScriptTopicFormRef}
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
@@ -715,7 +732,14 @@ ${task}`;
                           <h4 className="text-xs font-bold text-emerald-400">Create Topic</h4>
                           <p className="text-[9px] text-neutral-500 mt-0.5">Uses the Topic Inventory fields and selects the new topic for scripting.</p>
                         </div>
-                        <button type="button" onClick={() => setIsTopicFormOpen(false)} className="text-neutral-500 hover:text-white text-lg leading-none">×</button>
+                        <button
+                          type="button"
+                          onClick={() => setIsTopicFormOpen(false)}
+                          className="p-1 rounded text-neutral-500 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
+                          title="Close"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
                       </div>
 
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -1034,7 +1058,7 @@ ${task}`;
 
                   {/* Inline "Save New Preset" name form */}
                   {isSavingPreset && (
-                    <div className="flex items-center gap-2 bg-neutral-950 border border-emerald-900/40 rounded px-2.5 py-1.5">
+                    <div ref={savePresetFormRef} className="flex items-center gap-2 bg-neutral-950 border border-emerald-900/40 rounded px-2.5 py-1.5">
                       <span className="text-[10px] text-emerald-500 font-mono uppercase shrink-0">Preset Name:</span>
                       <input
                         type="text"

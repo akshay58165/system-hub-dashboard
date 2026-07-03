@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Check, Clock3, Pause, Play, Plus, RotateCcw, Target, Trash2, X } from 'lucide-react';
 import type { Topic, WorkdaySession } from '../types';
+import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
 
 interface WorkdayTimerProps {
   session: WorkdaySession | null;
@@ -56,6 +57,24 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
     setShowSetup(false);
     setShowPanel(true);
   };
+
+  // Clicking anywhere outside the setup card dismisses it — unless the user
+  // is actively typing a custom hour value, in which case only the visible
+  // X button (already rendered above) can close it.
+  const setupCardRef = useDismissOnOutsideClick<HTMLDivElement>(
+    showSetup,
+    selectedHours !== 'custom',
+    () => setShowSetup(false)
+  );
+
+  // The workday panel itself holds no editable input, but its nested "Set
+  // goal" sub-form does once a topic is picked — block outside-dismiss only
+  // while that's in progress.
+  const panelRef = useDismissOnOutsideClick<HTMLDivElement>(
+    showPanel,
+    !(showGoals && goalTopicId),
+    () => setShowPanel(false)
+  );
 
   const pause = () => setSession(current => {
     if (!current || current.status !== 'running' || !current.activeSince) return current;
@@ -129,7 +148,7 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
       <AnimatePresence>
         {showSetup && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .96 }} className="w-full max-w-md rounded-2xl border border-cyan-900/50 bg-neutral-950 p-5 shadow-[0_0_50px_rgba(6,182,212,.12)]">
+            <motion.div ref={setupCardRef} initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .96 }} className="w-full max-w-md rounded-2xl border border-cyan-900/50 bg-neutral-950 p-5 shadow-[0_0_50px_rgba(6,182,212,.12)]">
               <div className="flex items-center justify-between"><div><h2 className="text-base font-bold text-white">Start the day</h2><p className="mt-1 text-[10px] text-neutral-500">Set today&apos;s active work quota.</p></div><button onClick={() => setShowSetup(false)} className="p-1 text-neutral-500 hover:text-white"><X className="h-4 w-4" /></button></div>
               <div className="mt-5 grid grid-cols-4 gap-2">{([5, 8, 10, 'custom'] as const).map(value => <button key={value} onClick={() => setSelectedHours(value)} className={`rounded-lg border px-2 py-3 font-mono text-[10px] font-bold uppercase ${selectedHours === value ? 'border-cyan-500 bg-cyan-950/40 text-cyan-300' : 'border-neutral-800 bg-neutral-900/50 text-neutral-500'}`}>{value === 'custom' ? 'Custom' : `${value}h`}</button>)}</div>
               {selectedHours === 'custom' && <label className="mt-4 block text-[9px] uppercase text-neutral-500">Hours<input type="number" min="0.25" max="24" step="0.25" value={customHours} onChange={event => setCustomHours(event.target.value)} className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white" /></label>}
@@ -139,7 +158,7 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
         )}
 
         {session && showPanel && (
-          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="fixed right-4 top-28 z-[90] max-h-[calc(100vh-8rem)] w-[min(380px,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-neutral-800 bg-neutral-950/98 p-4 shadow-2xl backdrop-blur-xl">
+          <motion.div ref={panelRef} initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="fixed right-4 top-28 z-[90] max-h-[calc(100vh-8rem)] w-[min(380px,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-neutral-800 bg-neutral-950/98 p-4 shadow-2xl backdrop-blur-xl">
             <div className="flex items-start justify-between"><div><div className="flex items-center gap-2 text-sm font-bold text-white"><span className={`h-2 w-2 rounded-full ${session.status === 'paused' ? 'bg-amber-400' : 'animate-pulse bg-emerald-400'}`} />Workday timer</div><div className="mt-1 text-[9px] uppercase text-neutral-600">Started {new Date(session.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div></div><button onClick={() => setShowPanel(false)} className="text-neutral-600 hover:text-white"><X className="h-4 w-4" /></button></div>
             <div className="mt-4 text-center font-mono text-3xl font-black text-white">{formatDuration(metrics.active)}</div>
             <div className="mt-1 text-center text-[9px] uppercase text-neutral-500">active work recorded</div>

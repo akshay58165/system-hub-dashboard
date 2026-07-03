@@ -24,10 +24,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Trash2,
-  Pencil
+  Pencil,
+  X
 } from 'lucide-react';
 import { GitHubRepo, SystemEvent, Topic, TopicActivity } from '../types';
 import { getTopicCurrentWorkflow, getTopicWorkflowState } from '../services/topicWorkflow';
+import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
 
 interface GithubViewProps {
   repos: GitHubRepo[];
@@ -195,6 +197,27 @@ export default function GithubView({
     productLinks: false,
     membersOnly: false
   });
+
+  // Outside-click dismisses the Add Topic panel only when nothing has been
+  // entered yet. Editing an existing topic always requires the explicit
+  // close/cancel control, since the form starts pre-filled with real data.
+  const hasUnsavedTopicInput = Boolean(
+    editingTopicId ||
+    newTopicName.trim() ||
+    newTopicDesc.trim() ||
+    newTopicChannel ||
+    newTopicDueDate ||
+    newTopicSchedTime ||
+    newTopicLane ||
+    newTopicStatus !== 'topic' ||
+    newTopicPriority !== 1 ||
+    Object.values(eligibility).some(Boolean)
+  );
+  const addTopicFormRef = useDismissOnOutsideClick<HTMLFormElement>(
+    isAddFormOpen,
+    !hasUnsavedTopicInput,
+    () => { setIsAddFormOpen(false); setEditingTopicId(null); }
+  );
 
   const getAutomaticRevenueLevel = () => {
     // Check if any eligibility is selected
@@ -905,16 +928,21 @@ export default function GithubView({
                   }
                   setIsAddFormOpen(!isAddFormOpen);
                 }}
-                className="p-1.5 bg-rose-950/20 hover:bg-rose-900/30 text-rose-400 rounded border border-rose-500/40 hover:border-rose-400 transition animate-pulse cursor-pointer shadow-[0_0_10px_rgba(244,63,94,0.15)]"
-                title={editingTopicId ? 'Cancel edit' : 'Create a New Topic'}
+                className={`p-1.5 rounded border transition cursor-pointer ${
+                  isAddFormOpen
+                    ? 'bg-neutral-800/60 hover:bg-neutral-700/60 text-neutral-300 hover:text-white border-neutral-600'
+                    : 'bg-rose-950/20 hover:bg-rose-900/30 text-rose-400 border-rose-500/40 hover:border-rose-400 animate-pulse shadow-[0_0_10px_rgba(244,63,94,0.15)]'
+                }`}
+                title={isAddFormOpen ? (editingTopicId ? 'Cancel edit' : 'Close') : 'Create a New Topic'}
               >
-                <Plus className={`h-5 w-5 transition-transform ${isAddFormOpen ? 'rotate-45' : ''}`} />
+                {isAddFormOpen ? <X className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
               </button>
             </div>
 
             {/* Form to Add Topic */}
             {isAddFormOpen ? (
-              <motion.form 
+              <motion.form
+                ref={addTopicFormRef}
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
                 onSubmit={handleAddTopic}
