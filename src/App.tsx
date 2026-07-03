@@ -600,6 +600,16 @@ export default function App() {
         // Clear states dynamically at specific progress milestones
         if (percent >= 30 && percent < 60) {
           setTopics([]);
+          // Every one of these must be cleared locally in lockstep with the
+          // Supabase upsert below — leaving any of them untouched here means
+          // the live browser state still shows old values until a reload,
+          // and worse, the very next debounced autosave (fired by the
+          // setTopics([]) change above) would re-upload that stale value
+          // and silently undo the reset that was just written to Supabase.
+          setScorecard(normalizeScorecard(null));
+          setVideos([]);
+          setExperiments([]);
+          setInsights([]);
           localStorage.setItem('unicorn_database_reset', 'true');
           
           // Purge recovery backups
@@ -646,6 +656,10 @@ export default function App() {
           localStorage.removeItem('unicorn_scorecard_stress');
           localStorage.removeItem('unicorn_scorecard_history');
           localStorage.removeItem('unicorn_scorecard_db_logs');
+          // Real user content (draft video scripts keyed by topic id) — once
+          // topics are gone these would otherwise sit around unreachable
+          // but never actually wiped, same integrity gap as everything else here.
+          localStorage.removeItem('unicorn_video_scripts');
         } else if (percent >= 60 && percent < 85) {
           setActivities([]);
           setAiPresets([]);
