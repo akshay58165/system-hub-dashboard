@@ -70,11 +70,22 @@ export default function WorkdayTimer({ session, setSession }: WorkdayTimerProps)
 
   return (
     <>
-      <button type="button" onClick={() => session ? setShowPanel(value => !value) : setShowSetup(true)} className={`relative flex shrink-0 items-center gap-2 rounded-lg border px-3 py-1.5 font-mono text-[10px] font-bold transition ${session ? session.status === 'paused' ? 'border-amber-800/60 bg-amber-950/25 text-amber-300' : 'border-emerald-800/60 bg-emerald-950/25 text-emerald-300' : 'border-cyan-900/60 bg-cyan-950/20 text-cyan-300 hover:border-cyan-700'}`}>
-        {session?.status === 'paused' ? <Pause className="h-3.5 w-3.5" /> : <Clock3 className="h-3.5 w-3.5" />}
-        <span>{session ? `${formatDuration(metrics.active)} / ${Math.round(session.targetMinutes / 60 * 10) / 10}h` : 'Start the day'}</span>
-        {session && <span className="absolute inset-x-1 bottom-0 h-0.5 overflow-hidden rounded-full bg-neutral-900"><span className="block h-full bg-emerald-400" style={{ width: `${metrics.progress}%` }} /></span>}
-      </button>
+      {session ? (
+        <div className={`relative flex shrink-0 items-stretch overflow-hidden rounded-lg border font-mono text-[10px] font-bold transition ${session.status === 'paused' ? 'border-amber-800/60 bg-amber-950/25 text-amber-300' : 'border-emerald-800/60 bg-emerald-950/25 text-emerald-300'}`}>
+          <button type="button" onClick={() => setShowPanel(value => !value)} className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/5" title="Open workday details">
+            <Clock3 className="h-3.5 w-3.5" />
+            <span>{formatDuration(metrics.active)} / {Math.round(session.targetMinutes / 60 * 10) / 10}h</span>
+          </button>
+          <button type="button" onClick={session.status === 'paused' ? resume : pause} className={`flex min-w-9 items-center justify-center border-l transition ${session.status === 'paused' ? 'border-amber-800/60 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25' : 'border-emerald-800/60 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'}`} title={session.status === 'paused' ? 'Resume work' : 'Pause work'} aria-label={session.status === 'paused' ? 'Resume workday timer' : 'Pause workday timer'}>
+            {session.status === 'paused' ? <Play className="h-3.5 w-3.5 fill-current" /> : <Pause className="h-3.5 w-3.5 fill-current" />}
+          </button>
+          <span className="pointer-events-none absolute inset-x-1 bottom-0 h-0.5 overflow-hidden rounded-full bg-neutral-900"><span className="block h-full bg-emerald-400" style={{ width: `${metrics.progress}%` }} /></span>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setShowSetup(true)} className="flex shrink-0 items-center gap-2 rounded-lg border border-cyan-900/60 bg-cyan-950/20 px-3 py-1.5 font-mono text-[10px] font-bold text-cyan-300 transition hover:border-cyan-700">
+          <Clock3 className="h-3.5 w-3.5" /><span>Start the day</span>
+        </button>
+      )}
 
       <AnimatePresence>
         {showSetup && (
