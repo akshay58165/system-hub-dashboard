@@ -145,8 +145,9 @@ export default function GithubView({
   // 1. Selected channel filter: 'All' | 'LearnDriven' | 'DecodeWorthy'
   const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy'>('All');
 
-  // 2. Sorting by priority
-  const [sortOrder, setSortOrder] = useState<'high-to-low' | 'low-to-high'>('high-to-low');
+  // 2. Operational sorting
+  type TopicSortMode = 'due-date' | 'last-created' | 'level' | 'progress-most' | 'progress-least' | 'workload';
+  const [sortOrder, setSortOrder] = useState<TopicSortMode>('due-date');
 
   // 3. Search filter
   const [searchQuery, setSearchQuery] = useState('');
@@ -469,6 +470,38 @@ export default function GithubView({
     setIsAddFormOpen(true);
   };
 
+  const topicDueTime = (topic: Topic) => {
+    if (!topic.dueDate) return Number.MAX_SAFE_INTEGER;
+    const hasTime = topic.dueDate.includes('T');
+    const datePart = topic.dueDate.split('T')[0];
+    const embeddedTime = hasTime ? topic.dueDate.split('T')[1]?.slice(0, 5) : '';
+    const timePart = topic.scheduledTime || embeddedTime || '23:59';
+    const parsed = new Date(`${datePart}T${timePart}:00`).getTime();
+    return Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER;
+  };
+  const topicLevel = (topic: Topic) => {
+    const parsed = Number.parseFloat((topic.revenueLevel || '').replace(/[^\d.]/g, ''));
+    return Number.isFinite(parsed) ? parsed : -1;
+  };
+  const workRemaining = (topic: Topic) => ({ topic: 5, scripted: 4, shot: 3, edited: 2, scheduled: 1, posted: 0 } as const)[topic.status];
+  const workloadScore = (topic: Topic) => {
+    const due = topicDueTime(topic);
+    const remaining = workRemaining(topic);
+    if (due === Number.MAX_SAFE_INTEGER) return remaining;
+    const hours = (due - Date.now()) / 36e5;
+    if (hours <= 0) return 1_000_000 + remaining * 10_000 + Math.min(9_999, Math.abs(hours));
+    return (remaining * 100_000) / Math.max(1, hours);
+  };
+
+  const sortLabels: Record<TopicSortMode, string> = {
+    'due-date': 'Due date / time',
+    'last-created': 'Last created',
+    level: 'Level: H to L',
+    'progress-most': 'Most work left',
+    'progress-least': 'Least work left',
+    workload: 'Workload priority'
+  };
+
   // Filter topics based on channel filter & search query
   const filteredTopics = useMemo(() => {
     return topics
@@ -479,11 +512,12 @@ export default function GithubView({
         return matchesChannel && matchesSearch;
       })
       .sort((a, b) => {
-        if (sortOrder === 'high-to-low') {
-          return b.priority - a.priority;
-        } else {
-          return a.priority - b.priority;
-        }
+        if (sortOrder === 'due-date') return topicDueTime(a) - topicDueTime(b) || new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
+        if (sortOrder === 'last-created') return new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
+        if (sortOrder === 'level') return topicLevel(b) - topicLevel(a) || topicDueTime(a) - topicDueTime(b);
+        if (sortOrder === 'progress-most') return workRemaining(b) - workRemaining(a) || topicDueTime(a) - topicDueTime(b);
+        if (sortOrder === 'progress-least') return workRemaining(a) - workRemaining(b) || topicDueTime(a) - topicDueTime(b);
+        return workloadScore(b) - workloadScore(a) || topicDueTime(a) - topicDueTime(b);
       });
   }, [topics, selectedChannel, searchQuery, sortOrder]);
 
@@ -709,15 +743,19 @@ export default function GithubView({
                   className="bg-neutral-900/50 text-xs border border-neutral-900 rounded px-2.5 py-1 outline-none text-neutral-300 font-mono w-full sm:w-36 focus:border-neutral-800 transition-colors"
                 />
 
-                {/* Priority Sorter Button */}
-                <button 
-                  onClick={() => setSortOrder(prev => prev === 'high-to-low' ? 'low-to-high' : 'high-to-low')}
-                  className="px-2.5 py-1 bg-neutral-900/50 border border-neutral-900 hover:border-neutral-850 text-neutral-300 hover:text-white rounded text-xs font-mono flex items-center gap-1.5 shrink-0 transition"
-                  title="Sort by Priority Level"
-                >
-                  <ArrowUpDown className="h-3 w-3 text-rose-400" />
-                  <span>{sortOrder === 'high-to-low' ? 'Priority: H→L' : 'Priority: L→H'}</span>
-                </button>
+                {/* Operational Sorter */}
+                <label className="relative flex shrink-0 items-center">
+                  <ArrowUpDown className="pointer-events-none absolute left-2.5 h-3 w-3 text-rose-400" />
+                  <select
+                    value={sortOrder}
+                    onChange={event => setSortOrder(event.target.value as TopicSortMode)}
+                    className="appearance-none rounded border border-neutral-900 bg-neutral-900/50 py-1 pl-7 pr-7 text-xs font-mono text-neutral-300 outline-none transition hover:border-neutral-850 hover:text-white focus:border-neutral-700"
+                    title="Sort topics"
+                  >
+                    {(Object.entries(sortLabels) as Array<[TopicSortMode, string]>).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                  <span className="pointer-events-none absolute right-2 text-[8px] text-neutral-600">▼</span>
+                </label>
               </div>
             </div>
 
