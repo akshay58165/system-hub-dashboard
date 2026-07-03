@@ -388,17 +388,6 @@ export default function PipelineView({
       <div className="flex items-center gap-2 border-b border-neutral-900 pb-2">
         <button
           type="button"
-          onClick={() => setActiveSubView('videos')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition ${
-            activeSubView === 'videos'
-              ? 'bg-neutral-900 border border-neutral-850 text-white'
-              : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
-          }`}
-        >
-          <span>Video Pipeline (Kanban)</span>
-        </button>
-        <button
-          type="button"
           onClick={() => setActiveSubView('topics')}
           className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition ${
             activeSubView === 'topics'
@@ -407,6 +396,17 @@ export default function PipelineView({
           }`}
         >
           <span>Topic Workflow</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSubView('videos')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition ${
+            activeSubView === 'videos'
+              ? 'bg-neutral-900 border border-neutral-850 text-white'
+              : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
+          }`}
+        >
+          <span>Video Pipeline (Kanban)</span>
         </button>
       </div>
 
