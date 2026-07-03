@@ -535,6 +535,43 @@ export default function GithubView({
       });
   }, [topics, selectedChannel, searchQuery, sortOrder]);
 
+  const criticalTopics = topics.filter(topic => {
+    if (selectedChannel !== 'All' && topic.channel !== selectedChannel) return false;
+    if (!topic.dueDate || getTopicWorkflowState(topic, 'schedule') === 'completed') return false;
+    const hours = (topicDueTime(topic) - now.getTime()) / 36e5;
+    return hours <= 24;
+  });
+  const highlightCriticalTopics = () => {
+    setSearchQuery('');
+    window.setTimeout(() => {
+      document.querySelectorAll('.command-action-target').forEach(element => element.classList.remove('command-action-target'));
+      const targets = criticalTopics
+        .map(topic => document.getElementById(`topic-inventory-${topic.id}`))
+        .filter((element): element is HTMLElement => Boolean(element));
+      targets.forEach(target => {
+        target.classList.add('command-action-target');
+        window.setTimeout(() => {
+          const acknowledge = () => {
+            target.classList.remove('command-action-target');
+            target.removeEventListener('pointerenter', acknowledge);
+            target.removeEventListener('pointermove', acknowledge);
+            target.removeEventListener('pointerdown', acknowledge);
+            target.removeEventListener('touchstart', acknowledge);
+            target.removeEventListener('click', acknowledge);
+            target.removeEventListener('keydown', acknowledge);
+          };
+          target.addEventListener('pointerenter', acknowledge);
+          target.addEventListener('pointermove', acknowledge);
+          target.addEventListener('pointerdown', acknowledge);
+          target.addEventListener('touchstart', acknowledge, { passive: true });
+          target.addEventListener('click', acknowledge);
+          target.addEventListener('keydown', acknowledge);
+        }, 500);
+      });
+      targets[0]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  };
+
   // Compute aggregate stats based on channel
   const stats = useMemo(() => {
     const subset = topics.filter(t => selectedChannel === 'All' || t.channel === selectedChannel);
@@ -798,6 +835,7 @@ export default function GithubView({
                   return (
                     <div 
                       key={topic.id} 
+                      id={`topic-inventory-${topic.id}`}
                       className={`p-3.5 bg-neutral-950/30 hover:bg-neutral-900/20 border rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-3 font-mono text-[11px] transition-all duration-300 hover:translate-x-0.5 ${
                         isDueSoon 
                           ? 'border-red-950/40 hover:border-red-900/40 bg-red-950/5 shadow-[0_0_12px_rgba(239,68,68,0.03)]' 
@@ -1487,8 +1525,8 @@ export default function GithubView({
                 </div>
 
                 {/* Blinking Critical Alert Block */}
-                {topics.filter(t => (selectedChannel === 'All' || t.channel === selectedChannel) && shouldBlink(t.dueDate, now)).length > 0 ? (
-                  <div className="p-3 bg-red-950/10 border border-red-900/40 text-red-400 rounded-lg flex items-start gap-2 shadow-[0_0_12px_rgba(239,68,68,0.02)]">
+                {criticalTopics.length > 0 ? (
+                  <button type="button" onClick={highlightCriticalTopics} className="group w-full p-3 bg-red-950/10 hover:bg-red-950/20 border border-red-900/40 hover:border-red-600/60 text-red-400 rounded-lg flex items-start gap-2 text-left shadow-[0_0_12px_rgba(239,68,68,0.02)] transition cursor-pointer" title="Show and highlight the affected topics">
                     <span className="relative flex h-2 w-2 mt-1">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
@@ -1496,10 +1534,11 @@ export default function GithubView({
                     <div className="space-y-0.5">
                       <span className="font-bold">CRITICAL FOCUS REQUIRED</span>
                       <p className="text-[9px] text-neutral-400 font-sans leading-normal">
-                        You have {topics.filter(t => (selectedChannel === 'All' || t.channel === selectedChannel) && shouldBlink(t.dueDate, now)).length} topics due within 24 hours. Consider moving them to edited/scheduled.
+                        You have {criticalTopics.length} topics due within 24 hours or overdue. Click to highlight them.
                       </p>
                     </div>
-                  </div>
+                    <span className="ml-auto text-red-700 transition group-hover:text-red-300">↗</span>
+                  </button>
                 ) : (
                   <div className="p-3 bg-emerald-950/10 border border-emerald-900/40 text-emerald-400 rounded-lg flex items-start gap-2">
                     <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5" />
