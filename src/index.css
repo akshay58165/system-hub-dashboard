@@ -97,10 +97,15 @@
 .topic-led--green .topic-led__lens {
   animation: topic-led-hard-switch var(--topic-led-speed) linear infinite;
 }
-.topic-led--safe .topic-led__lens,
-.topic-led--blue .topic-led__lens {
+.topic-led--safe .topic-led__lens {
   filter: brightness(.52) saturate(.8);
   box-shadow: inset 0 -2px 3px rgba(0,0,0,.8), 0 0 3px rgba(var(--topic-led-rgb), .22);
+}
+.topic-led--blue .topic-led__lens {
+  background: radial-gradient(circle at 38% 30%, #dbeafe 0 5%, #60a5fa 22%, #2563eb 58%, #172554 100%);
+  border-color: rgba(96, 165, 250, .72);
+  filter: brightness(.9) saturate(1.25);
+  box-shadow: inset 0 -2px 3px rgba(3, 7, 18, .88), 0 0 5px rgba(59, 130, 246, .5), 0 0 11px rgba(37, 99, 235, .22);
 }
 @keyframes topic-led-hard-switch {
   0%, 38%, 100% {
