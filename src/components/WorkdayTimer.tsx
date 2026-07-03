@@ -9,9 +9,12 @@ interface WorkdayTimerProps {
   setSession: React.Dispatch<React.SetStateAction<WorkdaySession | null>>;
   topics: Topic[];
   onEndSession: () => void;
+  onExternalPause?: () => void;
+  onExternalResume?: () => void;
 }
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+const PRODUCTIVITY_PROMPT_THRESHOLD_MS = 10 * 60 * 1000;
 
 const formatDuration = (milliseconds: number) => {
   const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
@@ -26,7 +29,7 @@ const todayKey = () => new Date().toLocaleDateString('en-CA');
 const goalStages = ['scripted', 'shot', 'edited', 'scheduled', 'posted'] as const;
 const stageOrder = ['topic', ...goalStages] as const;
 
-export default function WorkdayTimer({ session, setSession, topics, onEndSession }: WorkdayTimerProps) {
+export default function WorkdayTimer({ session, setSession, topics, onEndSession, onExternalPause, onExternalResume }: WorkdayTimerProps) {
   const [now, setNow] = useState(Date.now());
   const [showSetup, setShowSetup] = useState(false);
   const [showPanel, setShowPanel] = useState(false);
@@ -40,6 +43,7 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
   const [lastGoalAdded, setLastGoalAdded] = useState('');
   const [topicPickerOpen, setTopicPickerOpen] = useState(false);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+  const [showProductivityPrompt, setShowProductivityPrompt] = useState(false);
 
   useEffect(() => {
     if (!session || session.status === 'completed') return;
@@ -48,11 +52,13 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
   }, [session?.status]);
 
   const metrics = useMemo(() => {
-    if (!session) return { active: 0, paused: 0, target: 0, remaining: 0, progress: 0 };
-    const active = session.accumulatedActiveMs + (session.status === 'running' && session.activeSince ? Math.max(0, now - new Date(session.activeSince).getTime()) : 0);
+    if (!session) return { active: 0, productive: 0, productivePercent: 100, paused: 0, target: 0, remaining: 0, progress: 0 };
+    const currentSegment = session.status === 'running' && session.activeSince ? Math.max(0, now - new Date(session.activeSince).getTime()) : 0;
+    const active = session.accumulatedActiveMs + currentSegment;
+    const productive = (session.productiveActiveMs ?? session.accumulatedActiveMs) + currentSegment;
     const paused = session.accumulatedPausedMs + (session.status === 'paused' && session.pausedAt ? Math.max(0, now - new Date(session.pausedAt).getTime()) : 0);
     const target = session.targetMinutes * 60_000;
-    return { active, paused, target, remaining: Math.max(0, target - active), progress: target ? Math.min(100, (active / target) * 100) : 0 };
+    return { active, productive, productivePercent: active ? Math.min(100, (productive / active) * 100) : 100, paused, target, remaining: Math.max(0, target - active), progress: target ? Math.min(100, (active / target) * 100) : 0 };
   }, [session, now]);
 
   const openSetup = () => {
@@ -67,7 +73,7 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
     const hours = selectedHours === 'custom' ? Number(customHours) : selectedHours;
     if (!Number.isFinite(hours) || hours <= 0 || hours > 24) return;
     const stamp = new Date().toISOString();
-    setSession({ dateKey: todayKey(), targetMinutes: Math.round(hours * 60), startedAt: stamp, activeSince: stamp, pausedAt: null, accumulatedActiveMs: 0, accumulatedPausedMs: 0, status: 'running', updatedAt: stamp, goals });
+    setSession({ dateKey: todayKey(), targetMinutes: Math.round(hours * 60), startedAt: stamp, activeSince: stamp, pausedAt: null, accumulatedActiveMs: 0, productiveActiveMs: 0, productivityRatings: [], accumulatedPausedMs: 0, status: 'running', updatedAt: stamp, goals });
     setNow(Date.now());
     setShowSetup(false);
     setShowPanel(true);
@@ -91,25 +97,46 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
     () => setShowPanel(false)
   );
 
-  const pause = () => setSession(current => {
-    if (!current || current.status !== 'running' || !current.activeSince) return current;
-    const stamp = new Date();
-    return {
-      ...current,
-      accumulatedActiveMs: current.accumulatedActiveMs + Math.max(0, stamp.getTime() - new Date(current.activeSince).getTime()),
-      activeSince: null,
-      pausedAt: stamp.toISOString(),
-      status: 'paused',
-      updatedAt: stamp.toISOString(),
-      breaksCount: (current.breaksCount || 0) + 1
-    };
-  });
+  const commitPause = (productivityScore: number) => {
+    setSession(current => {
+      if (!current || current.status !== 'running' || !current.activeSince) return current;
+      const stamp = new Date();
+      const segmentActiveMs = Math.max(0, stamp.getTime() - new Date(current.activeSince).getTime());
+      return {
+        ...current,
+        accumulatedActiveMs: current.accumulatedActiveMs + segmentActiveMs,
+        productiveActiveMs: (current.productiveActiveMs ?? current.accumulatedActiveMs) + segmentActiveMs * (productivityScore / 10),
+        productivityRatings: segmentActiveMs > PRODUCTIVITY_PROMPT_THRESHOLD_MS
+          ? [...(current.productivityRatings || []), { recordedAt: stamp.toISOString(), segmentActiveMs, score: productivityScore }]
+          : current.productivityRatings,
+        activeSince: null,
+        pausedAt: stamp.toISOString(),
+        status: 'paused',
+        updatedAt: stamp.toISOString(),
+        breaksCount: (current.breaksCount || 0) + 1
+      };
+    });
+    onExternalPause?.();
+  };
 
-  const resume = () => setSession(current => {
-    if (!current || current.status !== 'paused') return current;
-    const stamp = new Date();
-    return { ...current, accumulatedPausedMs: current.accumulatedPausedMs + (current.pausedAt ? Math.max(0, stamp.getTime() - new Date(current.pausedAt).getTime()) : 0), activeSince: stamp.toISOString(), pausedAt: null, status: 'running', updatedAt: stamp.toISOString() };
-  });
+  const pause = () => {
+    if (!session || session.status !== 'running' || !session.activeSince) return;
+    const segmentActiveMs = Math.max(0, Date.now() - new Date(session.activeSince).getTime());
+    if (segmentActiveMs > PRODUCTIVITY_PROMPT_THRESHOLD_MS) {
+      setShowProductivityPrompt(true);
+      return;
+    }
+    commitPause(10);
+  };
+
+  const resume = () => {
+    if (onExternalResume) { onExternalResume(); return; }
+    setSession(current => {
+      if (!current || current.status !== 'paused') return current;
+      const stamp = new Date();
+      return { ...current, accumulatedPausedMs: current.accumulatedPausedMs + (current.pausedAt ? Math.max(0, stamp.getTime() - new Date(current.pausedAt).getTime()) : 0), activeSince: stamp.toISOString(), pausedAt: null, status: 'running', updatedAt: stamp.toISOString() };
+    });
+  };
 
   const endSession = () => {
     if (window.confirm('End today\'s work session? It will be saved to Sessions with everything achieved, dropped, or still open.')) {
@@ -282,7 +309,7 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
             <div className="mt-4 text-center font-mono text-3xl font-black text-white">{formatDuration(metrics.active)}</div>
             <div className="mt-1 text-center text-[9px] uppercase text-neutral-500">active work recorded</div>
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-neutral-900"><div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all" style={{ width: `${metrics.progress}%` }} /></div>
-            <div className="mt-3 grid grid-cols-3 gap-2 text-center"><div className="rounded-lg bg-neutral-900/60 p-2"><div className="text-xs font-bold text-emerald-300">{metrics.progress.toFixed(1)}%</div><div className="mt-1 text-[7px] uppercase text-neutral-600">quota filled</div></div><div className="rounded-lg bg-neutral-900/60 p-2"><div className="text-xs font-bold text-cyan-300">{formatDuration(metrics.remaining)}</div><div className="mt-1 text-[7px] uppercase text-neutral-600">remaining</div></div><div className="rounded-lg bg-neutral-900/60 p-2"><div className="text-xs font-bold text-amber-300">{formatDuration(metrics.paused)}</div><div className="mt-1 text-[7px] uppercase text-neutral-600">paused</div></div></div>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-center sm:grid-cols-4"><div className="rounded-lg bg-neutral-900/60 p-2"><div className="text-xs font-bold text-emerald-300">{metrics.progress.toFixed(1)}%</div><div className="mt-1 text-[7px] uppercase text-neutral-600">quota filled</div></div><div className="rounded-lg bg-neutral-900/60 p-2"><div className="text-xs font-bold text-cyan-300">{formatDuration(metrics.remaining)}</div><div className="mt-1 text-[7px] uppercase text-neutral-600">remaining</div></div><div className="rounded-lg bg-neutral-900/60 p-2"><div className="text-xs font-bold text-purple-300">{metrics.productivePercent.toFixed(0)}%</div><div className="mt-1 text-[7px] uppercase text-neutral-600">productive</div></div><div className="rounded-lg bg-neutral-900/60 p-2"><div className="text-xs font-bold text-amber-300">{formatDuration(metrics.paused)}</div><div className="mt-1 text-[7px] uppercase text-neutral-600">paused</div></div></div>
             <div className="mt-4 rounded-xl border border-neutral-900 bg-neutral-900/25 p-3">
               <div className="flex items-center justify-between"><div className="flex items-center gap-2 text-[10px] font-bold text-neutral-300"><Target className="h-3.5 w-3.5 text-purple-400" />Today&apos;s topic goals</div><button onClick={() => setShowGoals(value => !value)} className="flex items-center gap-1 rounded-md border border-purple-900/50 bg-purple-950/25 px-2 py-1 text-[8px] font-bold text-purple-300 hover:border-purple-700">{showGoals ? <X className="h-3 w-3" /> : <Plus className="h-3 w-3" />}{showGoals ? 'Close' : 'Set goal'}</button></div>
               {(session.goals || []).filter(goal => topics.some(t => t.id === goal.topicId)).length ? <div className="mt-2 space-y-2">{(session.goals || []).map(goal => {
@@ -319,6 +346,24 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
             )}
             <div className="mt-4 flex gap-2"><button onClick={session.status === 'paused' ? resume : pause} className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-[10px] font-bold ${session.status === 'paused' ? 'bg-emerald-500 text-black' : 'bg-amber-500 text-black'}`}>{session.status === 'paused' ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}{session.status === 'paused' ? 'Resume work' : 'Pause work'}</button><button onClick={endSession} title="End session" className="rounded-lg border border-neutral-800 px-3 text-neutral-500 hover:border-rose-900 hover:text-rose-400"><RotateCcw className="h-4 w-4" /></button></div>
           </motion.div>
+        )}
+
+        {session && showProductivityPrompt && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .96 }} className="w-full max-w-md rounded-2xl border border-purple-800/60 bg-neutral-950 p-5 shadow-[0_0_50px_rgba(168,85,247,.16)]">
+              <h2 className="text-base font-bold text-white">How productive was this session?</h2>
+              <p className="mt-1 text-[10px] text-neutral-500">Choose once to record this work segment and pause the timer.</p>
+              <div className="mt-5 grid grid-cols-5 gap-2 sm:grid-cols-10">
+                {Array.from({ length: 10 }, (_, index) => index + 1).map(score => (
+                  <button key={score} type="button" onClick={() => { setShowProductivityPrompt(false); commitPause(score); }} className="flex aspect-square items-center justify-center rounded-lg border border-purple-800/60 bg-purple-950/25 font-mono text-sm font-black text-purple-200 transition hover:border-purple-400 hover:bg-purple-500 hover:text-black" title={`${score * 10}% productive`}>
+                    {score}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 flex justify-between font-mono text-[8px] uppercase text-neutral-600"><span>1 = 10%</span><span>10 = 100%</span></div>
+              <button type="button" onClick={() => setShowProductivityPrompt(false)} className="mt-4 w-full text-center text-[9px] text-neutral-500 hover:text-white">Keep timer running</button>
+            </motion.div>
+          </div>
         )}
 
       </AnimatePresence>

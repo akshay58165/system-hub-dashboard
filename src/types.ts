@@ -196,6 +196,8 @@ export interface WorkdaySession {
   activeSince: string | null;
   pausedAt: string | null;
   accumulatedActiveMs: number;
+  productiveActiveMs?: number;
+  productivityRatings?: Array<{ recordedAt: string; segmentActiveMs: number; score: number }>;
   accumulatedPausedMs: number;
   status: 'running' | 'paused' | 'completed';
   updatedAt: string;
@@ -247,6 +249,8 @@ export interface SessionRecord {
   targetMinutes: number;
   extensionMinutes: number;
   accumulatedActiveMs: number;
+  productiveActiveMs?: number;
+  productivityPercent?: number;
   accumulatedPausedMs: number;
   breaksCount: number;
   achievedGoals: SessionGoalOutcome[];

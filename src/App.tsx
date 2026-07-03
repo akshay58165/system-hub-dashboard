@@ -297,6 +297,8 @@ export default function App() {
       const now = new Date();
       const finalActiveMs = current.accumulatedActiveMs + (current.status === 'running' && current.activeSince
         ? Math.max(0, now.getTime() - new Date(current.activeSince).getTime()) : 0);
+      const finalProductiveMs = (current.productiveActiveMs ?? current.accumulatedActiveMs) + (current.status === 'running' && current.activeSince
+        ? Math.max(0, now.getTime() - new Date(current.activeSince).getTime()) : 0);
       const finalPausedMs = current.accumulatedPausedMs + (current.status === 'paused' && current.pausedAt
         ? Math.max(0, now.getTime() - new Date(current.pausedAt).getTime()) : 0);
 
@@ -308,6 +310,8 @@ export default function App() {
         targetMinutes: current.targetMinutes,
         extensionMinutes: current.extensionMinutes || 0,
         accumulatedActiveMs: finalActiveMs,
+        productiveActiveMs: finalProductiveMs,
+        productivityPercent: finalActiveMs ? Math.min(100, (finalProductiveMs / finalActiveMs) * 100) : 100,
         accumulatedPausedMs: finalPausedMs,
         breaksCount: current.breaksCount || 0,
         achievedGoals, droppedGoals, pendingGoals
