@@ -324,6 +324,62 @@ export default function VercelView({
     };
   };
 
+  const getUrgencyPalette = (urgency: ReturnType<typeof getUrgencyInfo>) => {
+    if (!urgency) {
+      return {
+        borderClass: 'border-neutral-800/70 bg-neutral-950/50',
+        labelClass: 'text-neutral-400',
+        clockClass: 'text-neutral-300',
+        ledClass: 'text-neutral-500',
+        style: {
+          ['--emergency-rgb' as string]: '115 115 115',
+          ['--emergency-core' as string]: '#737373',
+          ['--emergency-soft' as string]: '115 115 115'
+        }
+      };
+    }
+
+    if (urgency.stuck) {
+      return {
+        borderClass: 'border-amber-700/50 bg-amber-950/15',
+        labelClass: 'text-amber-300',
+        clockClass: 'text-amber-200',
+        ledClass: 'text-amber-400',
+        style: {
+          ['--emergency-rgb' as string]: '245 158 11',
+          ['--emergency-core' as string]: '#f59e0b',
+          ['--emergency-soft' as string]: '245 158 11'
+        }
+      };
+    }
+
+    if (urgency.overdue) {
+      return {
+        borderClass: 'border-rose-500/50 bg-rose-950/20',
+        labelClass: 'text-rose-400',
+        clockClass: 'text-rose-300',
+        ledClass: 'text-rose-400',
+        style: {
+          ['--emergency-rgb' as string]: '244 63 94',
+          ['--emergency-core' as string]: '#f43f5e',
+          ['--emergency-soft' as string]: '244 63 94'
+        }
+      };
+    }
+
+    return {
+      borderClass: 'border-amber-500/50 bg-amber-950/20',
+      labelClass: 'text-amber-400',
+      clockClass: 'text-amber-300',
+      ledClass: 'text-amber-400',
+      style: {
+        ['--emergency-rgb' as string]: '245 158 11',
+        ['--emergency-core' as string]: '#f59e0b',
+        ['--emergency-soft' as string]: '245 158 11'
+      }
+    };
+  };
+
   const handleClearDeadline = (topic: Topic) => {
     setTopics(prev => prev.map(t => t.id === topic.id ? { ...t, dueDate: null, lastUpdated: new Date().toISOString() } : t));
     setActivities(prev => [{
@@ -1130,24 +1186,28 @@ export default function VercelView({
                         </div>
                       )}
 
-                      {urgency && !urgency.stuck && (
-                        <div
-                          className="emergency-countdown flex items-center justify-between gap-2 rounded-md border border-red-500/50 bg-red-950/20 px-2 py-1"
-                          title="Warning remains active until scheduling is completed."
-                        >
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="emergency-led-housing relative flex h-2.5 w-2.5 shrink-0 items-center justify-center rounded-full" aria-hidden="true">
-                              <span className="emergency-led-lens relative block h-2 w-2 rounded-full" />
-                            </span>
-                            <span className="text-[8px] font-black uppercase tracking-wide text-red-400 truncate">
-                              {urgency.overdue ? 'Overdue' : 'Critical window'}
+                      {urgency && !urgency.stuck && (() => {
+                        const urgencyPalette = getUrgencyPalette(urgency);
+                        return (
+                          <div
+                            className={`emergency-countdown flex items-center justify-between gap-2 rounded-md border px-2 py-1 ${urgencyPalette.borderClass}`}
+                            title="Warning remains active until scheduling is completed."
+                            style={urgencyPalette.style as React.CSSProperties}
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className={`emergency-led-housing relative flex h-2.5 w-2.5 shrink-0 items-center justify-center rounded-full ${urgencyPalette.ledClass}`} aria-hidden="true">
+                                <span className="emergency-led-lens relative block h-2 w-2 rounded-full" />
+                              </span>
+                              <span className={`text-[8px] font-black uppercase tracking-wide truncate ${urgencyPalette.labelClass}`}>
+                                {urgency.overdue ? 'Overdue' : 'Critical window'}
+                              </span>
+                            </div>
+                            <span className={`emergency-clock text-[10px] font-black tabular-nums tracking-wider shrink-0 ${urgencyPalette.clockClass}`}>
+                              {urgency.clock}
                             </span>
                           </div>
-                          <span className="emergency-clock text-[10px] font-black tabular-nums tracking-wider text-red-300 shrink-0">
-                            {urgency.clock}
-                          </span>
-                        </div>
-                      )}
+                        );
+                      })()}
 
                       {urgency && urgency.stuck && (
                         <div className="rounded-md border border-amber-700/50 bg-amber-950/15 px-2 py-1.5 space-y-1.5">
