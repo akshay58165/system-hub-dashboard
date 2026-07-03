@@ -296,8 +296,9 @@ export default function VercelView({
     const scheduleComplete = getWorkflowState(topic, 'schedule') === 'completed' || topic.status === 'scheduled' || topic.status === 'posted';
     if (!topic.dueDate || scheduleComplete || topic.blockedReason) return null;
 
-    const differenceMs = new Date(topic.dueDate).getTime() - now.getTime();
-    const dueDay = new Date(topic.dueDate);
+    const dueTime = topicDueTime(topic);
+    const differenceMs = dueTime - now.getTime();
+    const dueDay = new Date(dueTime);
     dueDay.setHours(0, 0, 0, 0);
     const currentDay = new Date(now);
     currentDay.setHours(0, 0, 0, 0);
@@ -315,6 +316,26 @@ export default function VercelView({
     const overdue = differenceMs <= 0;
     const daysOverdue = overdue ? Math.floor(-differenceMs / 86400000) : 0;
     const stuck = overdue && daysOverdue >= 2;
+    const remaining = workRemaining(topic);
+    const loadBoost = remaining >= 4 ? 0.82 : remaining >= 2 ? 0.92 : 1;
+    const ledTone = overdue || calendarDaysLeft <= 1
+      ? 'critical'
+      : calendarDaysLeft === 2
+        ? 'danger'
+        : calendarDaysLeft === 3
+          ? 'watch'
+          : calendarDaysLeft < 7
+            ? 'green'
+            : 'blue';
+    const ledSpeed = overdue || calendarDaysLeft <= 1
+      ? `${Math.max(.38, .58 * loadBoost)}s`
+      : calendarDaysLeft === 2
+        ? `${.82 * loadBoost}s`
+        : calendarDaysLeft === 3
+          ? `${1.18 * loadBoost}s`
+          : calendarDaysLeft < 7
+            ? `${1.65 * loadBoost}s`
+            : '0s';
 
     return {
       overdue,
@@ -323,6 +344,8 @@ export default function VercelView({
       calendarDaysLeft,
       fastBlink: differenceMs > 0 && differenceMs <= 24 * 60 * 60 * 1000,
       greenBlink: calendarDaysLeft >= 4 && calendarDaysLeft < 7,
+      ledTone,
+      ledSpeed,
       clock,
       message: overdue
         ? 'DEADLINE BREACHED - COMPLETE THE REMAINING STAGES NOW'
@@ -347,7 +370,7 @@ export default function VercelView({
 
     if (urgency.stuck) {
       return {
-        borderClass: 'border-amber-700/50 bg-amber-950/15',
+        borderClass: 'border-neutral-800/70 bg-neutral-950/50',
         labelClass: 'text-amber-300',
         clockClass: 'text-amber-200',
         ledClass: 'text-amber-400',
@@ -361,7 +384,7 @@ export default function VercelView({
 
     if (urgency.overdue) {
       return {
-        borderClass: 'border-rose-500/50 bg-rose-950/20',
+        borderClass: 'border-neutral-800/70 bg-neutral-950/50',
         labelClass: 'text-rose-400',
         clockClass: 'text-rose-300',
         ledClass: 'text-rose-400',
@@ -375,7 +398,7 @@ export default function VercelView({
 
     if (urgency.calendarDaysLeft <= 1) {
       return {
-        borderClass: 'border-red-500/55 bg-red-950/20',
+        borderClass: 'border-neutral-800/70 bg-neutral-950/50',
         labelClass: 'text-red-400',
         clockClass: 'text-red-300',
         ledClass: 'text-red-400',
@@ -389,7 +412,7 @@ export default function VercelView({
 
     if (urgency.calendarDaysLeft === 2) {
       return {
-        borderClass: 'border-orange-500/55 bg-orange-950/20',
+        borderClass: 'border-neutral-800/70 bg-neutral-950/50',
         labelClass: 'text-orange-400',
         clockClass: 'text-orange-300',
         ledClass: 'text-orange-400',
@@ -403,7 +426,7 @@ export default function VercelView({
 
     if (urgency.calendarDaysLeft >= 7) {
       return {
-        borderClass: 'border-blue-500/50 bg-blue-950/20',
+        borderClass: 'border-neutral-800/70 bg-neutral-950/50',
         labelClass: 'text-blue-400',
         clockClass: 'text-blue-300',
         ledClass: 'text-blue-400',
@@ -417,7 +440,7 @@ export default function VercelView({
 
     if (urgency.calendarDaysLeft >= 4) {
       return {
-        borderClass: 'border-green-500/50 bg-green-950/20',
+        borderClass: 'border-neutral-800/70 bg-neutral-950/50',
         labelClass: 'text-green-400',
         clockClass: 'text-green-300',
         ledClass: 'text-green-400',
@@ -430,7 +453,7 @@ export default function VercelView({
     }
 
     return {
-      borderClass: 'border-yellow-500/50 bg-yellow-950/20',
+      borderClass: 'border-neutral-800/70 bg-neutral-950/50',
       labelClass: 'text-yellow-400',
       clockClass: 'text-yellow-300',
       ledClass: 'text-yellow-400',
@@ -1252,19 +1275,19 @@ export default function VercelView({
                         const urgencyPalette = getUrgencyPalette(urgency);
                         return (
                           <div
-                            className={`emergency-countdown flex items-center justify-between gap-2 rounded-md border px-2 py-1 ${urgency.greenBlink ? 'emergency-countdown--blink' : ''} ${urgencyPalette.borderClass}`}
+                            className={`emergency-countdown flex items-center justify-between gap-2 rounded-md border px-2 py-1 ${urgencyPalette.borderClass}`}
                             title="Warning remains active until scheduling is completed."
                             style={urgencyPalette.style as React.CSSProperties}
                           >
                             <div className="flex items-center gap-1.5 min-w-0">
-                              <span className={`emergency-led-housing relative flex h-2.5 w-2.5 shrink-0 items-center justify-center rounded-full ${urgencyPalette.ledClass}`} aria-hidden="true">
-                                <span className={`emergency-led-lens relative block h-2 w-2 rounded-full ${urgency.fastBlink ? 'emergency-led-lens--fast' : urgency.greenBlink ? 'emergency-led-lens--blink' : ''}`} />
+                              <span className={`topic-led topic-led--${urgency.ledTone} shrink-0`} title={urgency.message} style={{ '--topic-led-speed': urgency.ledSpeed } as React.CSSProperties} aria-hidden="true">
+                                <span className="topic-led__bezel"><span className="topic-led__lens"><span className="topic-led__glint" /></span></span>
                               </span>
                               <span className={`text-[8px] font-black uppercase tracking-wide truncate ${urgencyPalette.labelClass}`}>
                                 {urgency.overdue ? 'Overdue' : urgency.calendarDaysLeft >= 7 ? 'Upcoming' : urgency.greenBlink ? 'Advance warning' : 'Critical window'}
                               </span>
                             </div>
-                            <span className={`emergency-clock text-[10px] font-black tabular-nums tracking-wider shrink-0 ${urgency.fastBlink ? 'emergency-clock--fast' : urgency.greenBlink ? 'emergency-clock--blink' : ''} ${urgencyPalette.clockClass}`}>
+                            <span className={`emergency-clock text-[10px] font-black tabular-nums tracking-wider shrink-0 ${urgencyPalette.clockClass}`}>
                               {urgency.clock}
                             </span>
                           </div>
@@ -1330,29 +1353,6 @@ export default function VercelView({
                           const state = getWorkflowState(topic, stage);
                           let labelOverride = undefined;
                           let isDisabled = false;
-                          let blinkClass = undefined;
-
-                          const scheduleComplete = getWorkflowState(topic, 'schedule') === 'completed' || topic.status === 'scheduled' || topic.status === 'posted';
-                          if (state !== 'completed' && !scheduleComplete && topic.dueDate) {
-                            const due = new Date(topic.dueDate);
-                            due.setHours(0, 0, 0, 0);
-                            const today = new Date();
-                            today.setHours(0, 0, 0, 0);
-                            const diffTime = due.getTime() - today.getTime();
-                            const daysLeft = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-                            if (daysLeft >= 7) {
-                              blinkClass = 'steady-blue';
-                            } else if (daysLeft >= 4) {
-                              blinkClass = 'blink-green';
-                            } else if (daysLeft === 3) {
-                              blinkClass = 'blink-yellow';
-                            } else if (daysLeft === 2) {
-                              blinkClass = 'blink-orange';
-                            } else if (daysLeft <= 1) {
-                              blinkClass = 'blink-red';
-                            }
-                          }
 
                           const stagesOrder: WorkflowStage[] = ['script', 'shoot', 'edit', 'schedule', 'post'];
                           const goalStageForControl: Record<WorkflowStage, NonNullable<WorkdaySession['goals']>[number]['targetStatus']> = { script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted' };
@@ -1405,7 +1405,6 @@ export default function VercelView({
                                 state={state}
                                 disabled={isDisabled}
                                 labelOverride={labelOverride}
-                                blinkClass={blinkClass}
                                 onQuickPress={() => {
                                   if (stage === 'schedule') {
                                     const defaultTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
