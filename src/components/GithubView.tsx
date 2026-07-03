@@ -492,6 +492,20 @@ export default function GithubView({
     if (hours <= 0) return 1_000_000 + remaining * 10_000 + Math.min(9_999, Math.abs(hours));
     return (remaining * 100_000) / Math.max(1, hours);
   };
+  const topicLedState = (topic: Topic) => {
+    const due = topicDueTime(topic);
+    const remaining = workRemaining(topic);
+    if (topic.blockedReason) return { tone: 'blocked', speed: '0.42s', active: true, label: `Blocked - ${topic.blockedReason}` };
+    if (due === Number.MAX_SAFE_INTEGER) return { tone: 'idle', speed: '0s', active: false, label: `No deadline - ${remaining} stages remaining` };
+    const hours = (due - now.getTime()) / 36e5;
+    const loadBoost = remaining >= 4 ? 0.82 : remaining >= 2 ? 0.92 : 1;
+    if (hours <= 0) return { tone: 'critical', speed: `${Math.max(.38, .58 * loadBoost)}s`, active: true, label: `Overdue - ${remaining} stages remaining` };
+    if (hours <= 2) return { tone: 'critical', speed: `${Math.max(.42, .64 * loadBoost)}s`, active: true, label: `Critical - due in ${Math.ceil(hours * 60)} minutes` };
+    if (hours <= 8) return { tone: 'danger', speed: `${.82 * loadBoost}s`, active: true, label: `Urgent - due in ${Math.ceil(hours)} hours` };
+    if (hours <= 24) return { tone: 'warning', speed: `${1.18 * loadBoost}s`, active: true, label: `High attention - due in ${Math.ceil(hours)} hours` };
+    if (hours <= 48) return { tone: 'watch', speed: `${1.65 * loadBoost}s`, active: true, label: `Watch - due in ${Math.ceil(hours)} hours` };
+    return { tone: 'safe', speed: '0s', active: false, label: `On track - due in ${Math.ceil(hours / 24)} days` };
+  };
 
   const sortLabels: Record<TopicSortMode, string> = {
     'due-date': 'Due date / time',
@@ -769,7 +783,8 @@ export default function GithubView({
                 filteredTopics.map(topic => {
                   const prio = getPriorityDetails(topic.priority);
                   const workflow = getTopicCurrentWorkflow(topic);
-                  const isDueSoon = getTopicWorkflowState(topic, 'schedule') !== 'completed' && shouldBlink(topic.dueDate, now);
+                  const led = topicLedState(topic);
+                  const isDueSoon = getTopicWorkflowState(topic, 'schedule') !== 'completed' && led.active;
 
                   // Colors for statuses
                   const statusColors = {
@@ -790,17 +805,10 @@ export default function GithubView({
                       }`}
                     >
                       <div className="flex items-start gap-3 flex-1 min-w-0">
-                        {/* Red LED blinking dot if due date is within 1 day gap */}
-                        {isDueSoon ? (
-                          <div className="mt-1 shrink-0" title={getDueDateWarningText(topic.dueDate, now)}>
-                            <span className="relative flex h-2.5 w-2.5">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="w-2 h-2 rounded-full bg-neutral-800 mt-1.5 shrink-0 animate-pulse" />
-                        )}
+                        {/* Physical urgency LED: color and switching rate follow deadline pressure and remaining work. */}
+                        <div className={`topic-led topic-led--${led.tone} mt-0.5 shrink-0`} title={led.label} style={{ '--topic-led-speed': led.speed } as React.CSSProperties}>
+                          <span className="topic-led__bezel"><span className="topic-led__lens"><span className="topic-led__glint" /></span></span>
+                        </div>
 
                         <div className="min-w-0 flex-1 space-y-1">
                           <div className="flex items-center flex-wrap gap-2">

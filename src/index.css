@@ -37,6 +37,81 @@
   }
 }
 
+/* Tactile topic urgency LEDs with a true electrical off/on cycle. */
+.topic-led {
+  --topic-led-rgb: 82, 82, 91;
+  --topic-led-core: #52525b;
+  --topic-led-speed: 0s;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.topic-led__bezel {
+  width: 18px;
+  height: 18px;
+  padding: 3px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 42% 34%, #52525b 0 8%, #27272a 28%, #09090b 67%, #000 100%);
+  border: 1px solid rgba(255,255,255,.13);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,.22), inset 0 -2px 3px #000, 0 1px 3px rgba(0,0,0,.95);
+}
+.topic-led__lens {
+  position: relative;
+  display: block;
+  width: 10px;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--topic-led-rgb), .34);
+  background: radial-gradient(circle at 38% 30%, rgba(255,255,255,.35) 0 5%, var(--topic-led-core) 22%, rgba(var(--topic-led-rgb), .52) 54%, rgba(var(--topic-led-rgb), .12) 100%);
+  filter: brightness(.28) saturate(.55);
+  box-shadow: inset 0 -2px 3px rgba(0,0,0,.9);
+}
+.topic-led__glint {
+  position: absolute;
+  left: 2px;
+  top: 1px;
+  width: 3px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.72);
+  filter: blur(.25px);
+  opacity: .25;
+}
+.topic-led--blocked { --topic-led-rgb: 255, 20, 147; --topic-led-core: #ff1493; }
+.topic-led--critical { --topic-led-rgb: 255, 35, 55; --topic-led-core: #ff2337; }
+.topic-led--danger { --topic-led-rgb: 255, 92, 28; --topic-led-core: #ff5c1c; }
+.topic-led--warning { --topic-led-rgb: 255, 178, 20; --topic-led-core: #ffb214; }
+.topic-led--watch { --topic-led-rgb: 250, 220, 45; --topic-led-core: #fadc2d; }
+.topic-led--safe { --topic-led-rgb: 30, 190, 120; --topic-led-core: #1ebe78; }
+.topic-led--idle { --topic-led-rgb: 82, 82, 91; --topic-led-core: #52525b; }
+.topic-led--blocked .topic-led__lens,
+.topic-led--critical .topic-led__lens,
+.topic-led--danger .topic-led__lens,
+.topic-led--warning .topic-led__lens,
+.topic-led--watch .topic-led__lens {
+  animation: topic-led-hard-switch var(--topic-led-speed) linear infinite;
+}
+.topic-led--safe .topic-led__lens {
+  filter: brightness(.52) saturate(.8);
+  box-shadow: inset 0 -2px 3px rgba(0,0,0,.8), 0 0 3px rgba(var(--topic-led-rgb), .22);
+}
+@keyframes topic-led-hard-switch {
+  0%, 38%, 100% {
+    filter: brightness(.13) saturate(.35);
+    box-shadow: inset 0 -2px 4px rgba(0,0,0,1), 0 0 0 rgba(var(--topic-led-rgb), 0);
+  }
+  48%, 80% {
+    filter: brightness(1.75) saturate(1.45);
+    box-shadow: inset 0 -1px 2px rgba(0,0,0,.35), 0 0 6px rgba(var(--topic-led-rgb), 1), 0 0 15px rgba(var(--topic-led-rgb), .82), 0 0 28px rgba(var(--topic-led-rgb), .38);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .topic-led__lens { animation: none !important; filter: brightness(1.15) saturate(1.15); }
+}
+
 /* Set dark color scheme globally to prevent native light-themed scrollbars */
 html {
   color-scheme: dark;
