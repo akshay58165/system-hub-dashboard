@@ -85,16 +85,20 @@
 .topic-led--danger { --topic-led-rgb: 255, 92, 28; --topic-led-core: #ff5c1c; }
 .topic-led--warning { --topic-led-rgb: 255, 178, 20; --topic-led-core: #ffb214; }
 .topic-led--watch { --topic-led-rgb: 250, 220, 45; --topic-led-core: #fadc2d; }
+.topic-led--green { --topic-led-rgb: 34, 197, 94; --topic-led-core: #22c55e; }
+.topic-led--blue { --topic-led-rgb: 59, 130, 246; --topic-led-core: #3b82f6; }
 .topic-led--safe { --topic-led-rgb: 30, 190, 120; --topic-led-core: #1ebe78; }
 .topic-led--idle { --topic-led-rgb: 82, 82, 91; --topic-led-core: #52525b; }
 .topic-led--blocked .topic-led__lens,
 .topic-led--critical .topic-led__lens,
 .topic-led--danger .topic-led__lens,
 .topic-led--warning .topic-led__lens,
-.topic-led--watch .topic-led__lens {
+.topic-led--watch .topic-led__lens,
+.topic-led--green .topic-led__lens {
   animation: topic-led-hard-switch var(--topic-led-speed) linear infinite;
 }
-.topic-led--safe .topic-led__lens {
+.topic-led--safe .topic-led__lens,
+.topic-led--blue .topic-led__lens {
   filter: brightness(.52) saturate(.8);
   box-shadow: inset 0 -2px 3px rgba(0,0,0,.8), 0 0 3px rgba(var(--topic-led-rgb), .22);
 }

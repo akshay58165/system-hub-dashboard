@@ -38,6 +38,25 @@ interface PipelineViewProps {
 
 const STAGES = ['Topic', 'Script', 'Shoot', 'Edit', 'Thumbnail', 'Schedule', 'Published'] as const;
 
+function deadlineLedState(dueDate?: string, blockedReason?: string) {
+  if (blockedReason) return { tone: 'blocked', speed: '0.42s', label: `Blocked - ${blockedReason}` };
+  if (!dueDate) return { tone: 'idle', speed: '0s', label: 'No due date' };
+  const due = new Date(dueDate);
+  if (Number.isNaN(due.getTime())) return { tone: 'idle', speed: '0s', label: 'Invalid due date' };
+  const now = new Date();
+  const hours = (due.getTime() - now.getTime()) / 36e5;
+  const dueDay = new Date(due);
+  dueDay.setHours(0, 0, 0, 0);
+  const currentDay = new Date(now);
+  currentDay.setHours(0, 0, 0, 0);
+  const daysLeft = Math.round((dueDay.getTime() - currentDay.getTime()) / 86400000);
+  if (hours <= 0 || daysLeft <= 1) return { tone: 'critical', speed: '0.58s', label: hours <= 0 ? 'Overdue' : 'Due within one day' };
+  if (daysLeft === 2) return { tone: 'danger', speed: '0.82s', label: 'Due in 2 days' };
+  if (daysLeft === 3) return { tone: 'watch', speed: '1.18s', label: 'Due in 3 days' };
+  if (daysLeft < 7) return { tone: 'green', speed: '1.65s', label: `Due in ${daysLeft} days` };
+  return { tone: 'blue', speed: '0s', label: `Due in ${daysLeft} days` };
+}
+
 export default function PipelineView({ 
   videos, 
   setVideos, 
@@ -494,6 +513,7 @@ export default function PipelineView({
               <div className="flex flex-col gap-2 overflow-y-auto flex-1 max-h-[550px] scrollbar-none">
                 {items.map(video => {
                   const isLearnDriven = video.channelName === 'LearnDriven';
+                  const led = deadlineLedState(video.dueDate, video.blockedReason);
                   return (
                     <motion.div
                       layout
@@ -509,9 +529,14 @@ export default function PipelineView({
                           ? '2px solid rgba(168, 85, 247, 0.3)' 
                           : '2px solid rgba(16, 185, 129, 0.3)' 
                       }}
-                      className={`p-2.5 rounded bg-zinc-900/10 border border-zinc-900/20 hover:border-zinc-800/40 hover:bg-zinc-850/15 relative overflow-hidden transition-all duration-150 group cursor-grab active:cursor-grabbing hover:shadow-[0_0_8px_rgba(139,92,246,0.015)] ${video.blockedReason ? 'border-red-950/20 bg-red-950/3' : ''}`}
+                      className={`p-3 rounded-lg bg-neutral-950/30 border border-neutral-900 hover:border-neutral-800/80 hover:bg-neutral-900/20 relative overflow-hidden transition-all duration-150 group cursor-grab active:cursor-grabbing ${video.blockedReason ? 'border-red-950/40 bg-red-950/5' : ''}`}
                     >
-                      <div className="flex flex-col gap-1">
+                      <div className="flex items-start gap-2.5">
+                        <div className={`topic-led topic-led--${led.tone} mt-0.5 shrink-0`} title={led.label} style={{ '--topic-led-speed': led.speed } as React.CSSProperties}>
+                          <span className="topic-led__bezel"><span className="topic-led__lens"><span className="topic-led__glint" /></span></span>
+                        </div>
+
+                        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                         {/* Tags / Badges */}
                         <div className="flex flex-wrap items-center gap-1">
                           <span className={`text-[7px] font-mono font-bold px-1 py-0.2 rounded border uppercase ${isLearnDriven ? 'text-purple-400/80 bg-purple-950/5 border-purple-900/10' : 'text-emerald-400/80 bg-emerald-950/5 border-emerald-900/10'}`}>
@@ -519,6 +544,9 @@ export default function PipelineView({
                           </span>
                           <span className="text-[7px] font-mono font-bold bg-zinc-900/30 text-zinc-500 px-1 py-0.2 rounded border border-zinc-900/30">
                             {video.format}
+                          </span>
+                          <span className="text-[7px] font-mono font-bold bg-blue-950/20 text-blue-400 px-1 py-0.2 rounded border border-blue-900/30 uppercase">
+                            {video.pipelineStage}
                           </span>
                           {video.blockedReason && (
                             <span className="text-[7px] font-mono font-bold bg-red-950/10 text-red-400/80 px-1 py-0.2 rounded border border-red-900/15 animate-pulse">
@@ -538,6 +566,17 @@ export default function PipelineView({
                           <span className="truncate">{video.topic}</span>
                         </span>
 
+                        <div className="flex flex-wrap gap-x-2 gap-y-1 text-[7px] font-mono text-neutral-500">
+                          {video.dueDate && <span className="flex items-center gap-1"><Clock className="h-2.5 w-2.5" />Due {new Date(video.dueDate).toLocaleDateString()}</span>}
+                          <span>{video.productionEffortHours}h effort</span>
+                          {video.difficultyLevel && <span className="capitalize">{video.difficultyLevel}</span>}
+                          {video.contentType && <span className="truncate">{video.contentType}</span>}
+                        </div>
+
+                        {video.nextAction && <p className="text-[8px] leading-snug text-cyan-400/80"><span className="text-neutral-600">Next:</span> {video.nextAction}</p>}
+                        {video.notes && <p className="line-clamp-2 text-[8px] leading-snug text-neutral-500">{video.notes}</p>}
+                        {video.blockedReason && <p className="text-[8px] leading-snug text-red-400/80">{video.blockedReason}</p>}
+
                         {/* Absolute positioned next button overlay (no layout shifting) */}
                         {stage !== 'Published' && (
                           <button
@@ -545,12 +584,13 @@ export default function PipelineView({
                               e.stopPropagation();
                               handleAdvanceStage(video.id);
                             }}
-                            className="absolute bottom-2 right-2 p-1 bg-zinc-950 border border-zinc-850 rounded hover:border-zinc-800 text-indigo-400 hover:text-indigo-300 opacity-0 group-hover:opacity-100 transition-all duration-150 flex items-center justify-center shadow-md cursor-pointer"
+                            className="self-end p-1 bg-zinc-950 border border-zinc-850 rounded hover:border-zinc-800 text-indigo-400 hover:text-indigo-300 transition-all duration-150 flex items-center justify-center shadow-md cursor-pointer"
                             title="Move to next stage"
                           >
                             <Play className="h-2 w-2 fill-current" />
                           </button>
                         )}
+                        </div>
                       </div>
                     </motion.div>
                   );

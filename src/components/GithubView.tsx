@@ -530,11 +530,16 @@ export default function GithubView({
     const hours = (due - now.getTime()) / 36e5;
     const loadBoost = remaining >= 4 ? 0.82 : remaining >= 2 ? 0.92 : 1;
     if (hours <= 0) return { tone: 'critical', speed: `${Math.max(.38, .58 * loadBoost)}s`, active: true, label: `Overdue - ${remaining} stages remaining` };
-    if (hours <= 2) return { tone: 'critical', speed: `${Math.max(.42, .64 * loadBoost)}s`, active: true, label: `Critical - due in ${Math.ceil(hours * 60)} minutes` };
-    if (hours <= 8) return { tone: 'danger', speed: `${.82 * loadBoost}s`, active: true, label: `Urgent - due in ${Math.ceil(hours)} hours` };
-    if (hours <= 24) return { tone: 'warning', speed: `${1.18 * loadBoost}s`, active: true, label: `High attention - due in ${Math.ceil(hours)} hours` };
-    if (hours <= 48) return { tone: 'watch', speed: `${1.65 * loadBoost}s`, active: true, label: `Watch - due in ${Math.ceil(hours)} hours` };
-    return { tone: 'safe', speed: '0s', active: false, label: `On track - due in ${Math.ceil(hours / 24)} days` };
+    const dueDay = new Date(due);
+    dueDay.setHours(0, 0, 0, 0);
+    const currentDay = new Date(now);
+    currentDay.setHours(0, 0, 0, 0);
+    const daysLeft = Math.round((dueDay.getTime() - currentDay.getTime()) / 86400000);
+    if (daysLeft <= 1) return { tone: 'critical', speed: `${Math.max(.38, .58 * loadBoost)}s`, active: true, label: `Critical - due in ${Math.ceil(hours)} hours` };
+    if (daysLeft === 2) return { tone: 'danger', speed: `${.82 * loadBoost}s`, active: true, label: `Urgent - due in 2 days` };
+    if (daysLeft === 3) return { tone: 'watch', speed: `${1.18 * loadBoost}s`, active: true, label: 'Attention - due in 3 days' };
+    if (daysLeft < 7) return { tone: 'green', speed: `${1.65 * loadBoost}s`, active: true, label: `Advance warning - due in ${daysLeft} days` };
+    return { tone: 'blue', speed: '0s', active: false, label: `On track - due in ${daysLeft} days` };
   };
 
   const sortLabels: Record<TopicSortMode, string> = {
