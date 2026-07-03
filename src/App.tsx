@@ -1816,6 +1816,7 @@ export default function App() {
                 experiments={experiments}
                 insights={insights}
                 cycleGoals={cycleGoals}
+                workdaySession={workdaySession}
                 onTabChange={(tab) => {
                   setActiveTab(tab);
                   window.setTimeout(() => {

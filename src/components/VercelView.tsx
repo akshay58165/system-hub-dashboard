@@ -32,7 +32,7 @@ import {
   Tooltip, 
   CartesianGrid 
 } from 'recharts';
-import { Topic, TopicActivity, SystemEvent, CycleGoal } from '../types';
+import { Topic, TopicActivity, SystemEvent, CycleGoal, WorkdaySession } from '../types';
 import { getTopicCurrentWorkflow, getTopicWorkflowState } from '../services/topicWorkflow';
 import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
 
@@ -46,6 +46,7 @@ interface VercelViewProps {
   setActivities: React.Dispatch<React.SetStateAction<TopicActivity[]>>;
   setActiveTab?: (tab: 'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score') => void;
   cycleGoals: CycleGoal | null;
+  workdaySession: WorkdaySession | null;
 }
 
 type TopicSortMode = 'due-date' | 'last-created' | 'level' | 'progress-most' | 'progress-least' | 'workload';
@@ -196,7 +197,8 @@ export default function VercelView({
   activities,
   setActivities,
   setActiveTab,
-  cycleGoals
+  cycleGoals,
+  workdaySession
 }: VercelViewProps) {
   const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy'>('All');
   const [topicSortOrder, setTopicSortOrder] = useState<TopicSortMode>('due-date');
@@ -950,6 +952,7 @@ export default function VercelView({
                   const isSchedulingThis = schedulingTopicId === topic.id;
                   const urgency = getUrgencyInfo(topic);
                   const currentWorkflow = getTopicCurrentWorkflow(topic);
+                  const topicGoal = workdaySession?.goals?.find(goal => goal.topicId === topic.id);
                   return (
                     <div
                       key={topic.id}
@@ -960,6 +963,7 @@ export default function VercelView({
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-xs font-bold text-neutral-200">{topic.name}</span>
+                            {topicGoal && <span className="rounded border border-purple-700/60 bg-purple-950/35 px-1.5 py-0.5 text-[8px] font-bold text-purple-200 shadow-[0_0_10px_rgba(168,85,247,.18)]" title={`Today's goal: reach ${topicGoal.targetStatus}`}>🎯 Today&apos;s aim</span>}
                             <span className="px-1.5 py-0.2 bg-neutral-950 text-neutral-500 border border-neutral-900 rounded text-[8px]">
                               {topic.channel}
                             </span>
@@ -1178,6 +1182,8 @@ export default function VercelView({
                           }
 
                           const stagesOrder: WorkflowStage[] = ['script', 'shoot', 'edit', 'schedule', 'post'];
+                          const goalStageForControl: Record<WorkflowStage, NonNullable<WorkdaySession['goals']>[number]['targetStatus']> = { script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted' };
+                          const isGoalTarget = topicGoal?.targetStatus === goalStageForControl[stage];
                           const stageIndex = stagesOrder.indexOf(stage);
                           const previousStage = stageIndex > 0 ? stagesOrder[stageIndex - 1] : null;
                           if (stage !== 'post' && state === 'pending' && previousStage && getWorkflowState(topic, previousStage) !== 'completed') {
@@ -1218,7 +1224,8 @@ export default function VercelView({
                           }
 
                           return (
-                            <React.Fragment key={stage}>
+                            <div key={stage} className="flex flex-col items-start gap-1">
+                              {isGoalTarget && <motion.div animate={{ rotate: [0, -3, 3, -1, 0], skewY: [0, -2, 2, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }} className="flex origin-bottom-left items-end" title={`Finish line: reach ${topicGoal.targetStatus}`}><span className="h-5 w-0.5 rounded-full bg-neutral-300" /><span className="goal-checkered-flag relative mb-1 flex min-h-5 items-center overflow-hidden rounded-r-sm border border-white/50 px-1.5 py-0.5 shadow-[0_0_10px_rgba(255,255,255,.2)]"><span className="relative rounded-sm bg-black/90 px-1 py-0.5 text-[7px] font-black uppercase tracking-wide text-white">Finish: {topicGoal.targetStatus}</span></span></motion.div>}
                               <WorkflowStatusButton
                                 controlId={`topic-action-${topic.id}-${stage}`}
                                 stage={stage}
@@ -1246,7 +1253,7 @@ export default function VercelView({
                                 }}
                                 onReset={() => resetWorkflowStage(topic, stage)}
                               />
-                            </React.Fragment>
+                            </div>
                           );
                         })}
                       </div>

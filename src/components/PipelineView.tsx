@@ -18,7 +18,7 @@ import {
   Info,
   X
 } from 'lucide-react';
-import { VideoRecord, Topic, TopicActivity, CycleGoal } from '../types';
+import { VideoRecord, Topic, TopicActivity, CycleGoal, WorkdaySession } from '../types';
 import VercelView from './VercelView';
 import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
 
@@ -31,6 +31,7 @@ interface PipelineViewProps {
   activities: TopicActivity[];
   setActivities: React.Dispatch<React.SetStateAction<TopicActivity[]>>;
   cycleGoals: CycleGoal | null;
+  workdaySession: WorkdaySession | null;
   activeSubView?: 'videos' | 'topics';
   setActiveSubView?: (subView: 'videos' | 'topics') => void;
 }
@@ -46,6 +47,7 @@ export default function PipelineView({
   activities,
   setActivities,
   cycleGoals,
+  workdaySession,
   activeSubView: propActiveSubView,
   setActiveSubView: propSetActiveSubView
 }: PipelineViewProps) {
@@ -814,6 +816,7 @@ export default function PipelineView({
           activities={activities}
           setActivities={setActivities}
           cycleGoals={cycleGoals}
+          workdaySession={workdaySession}
         />
       )}
 
