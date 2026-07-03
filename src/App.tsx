@@ -660,6 +660,11 @@ export default function App() {
           // topics are gone these would otherwise sit around unreachable
           // but never actually wiped, same integrity gap as everything else here.
           localStorage.removeItem('unicorn_video_scripts');
+          // Cached Well-Being insight text generated from the (now-cleared)
+          // biometric parameters — gated by date+completeness so it's inert
+          // most of the time, but stays a stale leftover of prior input
+          // until explicitly purged here.
+          localStorage.removeItem('unicorn_wellbeing_last_insight_v2');
         } else if (percent >= 60 && percent < 85) {
           setActivities([]);
           setAiPresets([]);
