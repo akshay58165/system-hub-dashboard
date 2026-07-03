@@ -16,6 +16,7 @@ import {
   Pencil,
   Trash2,
   RotateCcw,
+  ArrowUpDown,
   Shield,
   X
 } from 'lucide-react';
@@ -43,6 +44,41 @@ interface VercelViewProps {
   setActiveTab?: (tab: 'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score') => void;
   cycleGoals: CycleGoal | null;
 }
+
+type TopicSortMode = 'due-date' | 'last-created' | 'level' | 'progress-most' | 'progress-least' | 'workload';
+
+const topicSortLabels: Record<TopicSortMode, string> = {
+  'due-date': 'Due date / time',
+  'last-created': 'Last created',
+  level: 'Level: H to L',
+  'progress-most': 'Most work left',
+  'progress-least': 'Least work left',
+  workload: 'Workload priority'
+};
+
+const topicDueTime = (topic: Topic) => {
+  if (!topic.dueDate) return Number.MAX_SAFE_INTEGER;
+  const datePart = topic.dueDate.split('T')[0];
+  const embeddedTime = topic.dueDate.includes('T') ? topic.dueDate.split('T')[1]?.slice(0, 5) : '';
+  const parsed = new Date(`${datePart}T${topic.scheduledTime || embeddedTime || '23:59'}:00`).getTime();
+  return Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER;
+};
+
+const topicLevel = (topic: Topic) => {
+  const parsed = Number.parseFloat((topic.revenueLevel || '').replace(/[^\d.]/g, ''));
+  return Number.isFinite(parsed) ? parsed : -1;
+};
+
+const workRemaining = (topic: Topic) => ({ topic: 5, scripted: 4, shot: 3, edited: 2, scheduled: 1, posted: 0 } as const)[topic.status];
+
+const workloadScore = (topic: Topic) => {
+  const due = topicDueTime(topic);
+  const remaining = workRemaining(topic);
+  if (due === Number.MAX_SAFE_INTEGER) return remaining;
+  const hours = (due - Date.now()) / 36e5;
+  if (hours <= 0) return 1_000_000 + remaining * 10_000 + Math.min(9_999, Math.abs(hours));
+  return (remaining * 100_000) / Math.max(1, hours);
+};
 
 type WorkflowStage = 'script' | 'shoot' | 'edit' | 'schedule' | 'post';
 type WorkflowState = 'pending' | 'in-progress' | 'completed';
@@ -160,6 +196,7 @@ export default function VercelView({
   cycleGoals
 }: VercelViewProps) {
   const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy'>('All');
+  const [topicSortOrder, setTopicSortOrder] = useState<TopicSortMode>('due-date');
   const [schedulingTopicId, setSchedulingTopicId] = useState<string | null>(null);
   const [schedDate, setSchedDate] = useState('');
   const [schedTime, setSchedTime] = useState('');
@@ -517,8 +554,17 @@ export default function VercelView({
 
   // Filtered topics
   const filteredTopics = useMemo(() => {
-    return topics.filter(t => selectedChannel === 'All' || t.channel === selectedChannel);
-  }, [topics, selectedChannel]);
+    return topics
+      .filter(t => selectedChannel === 'All' || t.channel === selectedChannel)
+      .sort((a, b) => {
+        if (topicSortOrder === 'due-date') return topicDueTime(a) - topicDueTime(b) || new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
+        if (topicSortOrder === 'last-created') return new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
+        if (topicSortOrder === 'level') return topicLevel(b) - topicLevel(a) || topicDueTime(a) - topicDueTime(b);
+        if (topicSortOrder === 'progress-most') return workRemaining(b) - workRemaining(a) || topicDueTime(a) - topicDueTime(b);
+        if (topicSortOrder === 'progress-least') return workRemaining(a) - workRemaining(b) || topicDueTime(a) - topicDueTime(b);
+        return workloadScore(b) - workloadScore(a) || topicDueTime(a) - topicDueTime(b);
+      });
+  }, [topics, selectedChannel, topicSortOrder]);
 
   // Next upload topic details (nearest future scheduled video)
   const nextUpload = useMemo(() => {
@@ -851,12 +897,21 @@ export default function VercelView({
 
           {/* Active Production Pipeline Card */}
           <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-neutral-900 pb-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-900 pb-2">
               <h3 className="text-sm font-bold font-mono text-white tracking-tight flex items-center gap-2">
                 <Youtube className="h-4 w-4 text-red-500 animate-pulse" />
                 <span>All Topic Controls</span>
               </h3>
-              <span className="text-[10px] font-mono text-neutral-500">{filteredTopics.length} topics · quick click / hold 1s</span>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <span className="text-[10px] font-mono text-neutral-500">{filteredTopics.length} topics · quick click / hold 1s</span>
+                <label className="relative flex items-center">
+                  <ArrowUpDown className="pointer-events-none absolute left-2 h-3 w-3 text-rose-400" />
+                  <select value={topicSortOrder} onChange={event => setTopicSortOrder(event.target.value as TopicSortMode)} className="appearance-none rounded border border-neutral-800 bg-neutral-900/70 py-1 pl-6 pr-6 text-[9px] font-mono text-neutral-300 outline-none transition hover:border-neutral-700 focus:border-rose-800" title="Sort topic controls">
+                    {(Object.entries(topicSortLabels) as Array<[TopicSortMode, string]>).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                  <span className="pointer-events-none absolute right-2 text-[7px] text-neutral-600">▼</span>
+                </label>
+              </div>
             </div>
 
             {(() => {
