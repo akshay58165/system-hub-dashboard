@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   GitBranch, 
@@ -166,6 +166,12 @@ export default function GithubView({
   const setIsAddFormOpen = setIsAddFormOpenProp !== undefined ? setIsAddFormOpenProp : setLocalIsAddFormOpen;
 
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
+  // Distinguishes "opened for a fresh Add Topic" from "opened via
+  // startEditTopic" — both just flip the same isAddFormOpen boolean (which
+  // can also be toggled externally, from App.tsx's header button), so
+  // without this flag the form would keep showing whatever topic was last
+  // edited instead of a blank slate.
+  const openedForEditRef = useRef(false);
   const [newTopicName, setNewTopicName] = useState('');
   const [newTopicDesc, setNewTopicDesc] = useState('');
   const [newTopicChannel, setNewTopicChannel] = useState<'LearnDriven' | 'DecodeWorthy' | null>(null);
@@ -280,6 +286,41 @@ export default function GithubView({
 
     return '';
   };
+
+  const resetTopicForm = () => {
+    setNewTopicName('');
+    setNewTopicDesc('');
+    setNewTopicDueDate('');
+    setNewTopicSchedTime('');
+    setNewTopicChannel(null);
+    setNewTopicLane(null);
+    setEligibility({
+      neutral: false,
+      productTag: false,
+      viral: false,
+      pinnedPromo: false,
+      below8Min: false,
+      exceed8Min: false,
+      strongReach: false,
+      brandCollab: false,
+      productLinks: false,
+      membersOnly: false
+    });
+    setNewTopicStatus('topic');
+    setNewTopicPriority(1);
+    setEditingTopicId(null);
+  };
+
+  // Whenever the form opens and it WASN'T startEditTopic that opened it,
+  // start from a clean slate — covers every way the form can be opened
+  // (this view's own header toggle, or App.tsx's top-level "Add Topic"
+  // button controlling the same prop from outside).
+  useEffect(() => {
+    if (isAddFormOpen && !openedForEditRef.current) {
+      resetTopicForm();
+    }
+    openedForEditRef.current = false;
+  }, [isAddFormOpen]);
 
   // Handle adding a new Topic
   const handleAddTopic = (e: React.FormEvent) => {
@@ -422,27 +463,7 @@ export default function GithubView({
       }
     }
 
-    // Reset fields
-    setNewTopicName('');
-    setNewTopicDesc('');
-    setNewTopicDueDate('');
-    setNewTopicSchedTime('');
-    setNewTopicChannel(null);
-    setNewTopicLane(null);
-    setEligibility({
-      neutral: false,
-      productTag: false,
-      viral: false,
-      pinnedPromo: false,
-      below8Min: false,
-      exceed8Min: false,
-      strongReach: false,
-      brandCollab: false,
-      productLinks: false,
-      membersOnly: false
-    });
-    setNewTopicStatus('topic');
-    setNewTopicPriority(1);
+    resetTopicForm();
     setIsAddFormOpen(false);
   };
 
@@ -450,6 +471,7 @@ export default function GithubView({
   // values, so editing has access to every field creation does — instead of
   // the previous edit-nothing-but-delete-and-recreate workflow.
   const startEditTopic = (topic: Topic) => {
+    openedForEditRef.current = true;
     setEditingTopicId(topic.id);
     setNewTopicName(topic.name);
     setNewTopicDesc(topic.description);
