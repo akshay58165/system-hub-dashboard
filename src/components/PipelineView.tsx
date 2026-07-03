@@ -38,22 +38,25 @@ interface PipelineViewProps {
 
 const STAGES = ['Topic', 'Script', 'Shoot', 'Edit', 'Thumbnail', 'Schedule', 'Published'] as const;
 
-function deadlineLedState(dueDate?: string, blockedReason?: string) {
+function deadlineLedState(dueDate?: string, blockedReason?: string, scheduledTime?: string, remaining = 5) {
   if (blockedReason) return { tone: 'blocked', speed: '0.42s', label: `Blocked - ${blockedReason}` };
   if (!dueDate) return { tone: 'idle', speed: '0s', label: 'No due date' };
-  const due = new Date(dueDate);
+  const datePart = dueDate.split('T')[0];
+  const embeddedTime = dueDate.includes('T') ? dueDate.split('T')[1]?.slice(0, 5) : '';
+  const due = new Date(`${datePart}T${scheduledTime || embeddedTime || '23:59'}:00`);
   if (Number.isNaN(due.getTime())) return { tone: 'idle', speed: '0s', label: 'Invalid due date' };
   const now = new Date();
   const hours = (due.getTime() - now.getTime()) / 36e5;
+  const loadBoost = remaining >= 4 ? 0.82 : remaining >= 2 ? 0.92 : 1;
   const dueDay = new Date(due);
   dueDay.setHours(0, 0, 0, 0);
   const currentDay = new Date(now);
   currentDay.setHours(0, 0, 0, 0);
   const daysLeft = Math.round((dueDay.getTime() - currentDay.getTime()) / 86400000);
-  if (hours <= 0 || daysLeft <= 1) return { tone: 'critical', speed: '0.58s', label: hours <= 0 ? 'Overdue' : 'Due within one day' };
-  if (daysLeft === 2) return { tone: 'danger', speed: '0.82s', label: 'Due in 2 days' };
-  if (daysLeft === 3) return { tone: 'watch', speed: '1.18s', label: 'Due in 3 days' };
-  if (daysLeft < 7) return { tone: 'green', speed: '1.65s', label: `Due in ${daysLeft} days` };
+  if (hours <= 0 || daysLeft <= 1) return { tone: 'critical', speed: `${Math.max(.38, .58 * loadBoost)}s`, label: hours <= 0 ? 'Overdue' : 'Due within one day' };
+  if (daysLeft === 2) return { tone: 'danger', speed: `${.82 * loadBoost}s`, label: 'Due in 2 days' };
+  if (daysLeft === 3) return { tone: 'watch', speed: `${1.18 * loadBoost}s`, label: 'Due in 3 days' };
+  if (daysLeft < 7) return { tone: 'green', speed: `${1.65 * loadBoost}s`, label: `Due in ${daysLeft} days` };
   return { tone: 'blue', speed: '0s', label: `Due in ${daysLeft} days` };
 }
 
@@ -513,7 +516,16 @@ export default function PipelineView({
               <div className="flex flex-col gap-2 overflow-y-auto flex-1 max-h-[550px] scrollbar-none">
                 {items.map(video => {
                   const isLearnDriven = video.channelName === 'LearnDriven';
-                  const led = deadlineLedState(video.dueDate, video.blockedReason);
+                  const sourceTopic = topics.find(topic => topic.id === video.id);
+                  const remaining = sourceTopic
+                    ? ({ topic: 5, scripted: 4, shot: 3, edited: 2, scheduled: 1, posted: 0 } as const)[sourceTopic.status]
+                    : 5;
+                  const led = deadlineLedState(
+                    sourceTopic?.dueDate || video.dueDate,
+                    sourceTopic?.blockedReason || video.blockedReason,
+                    sourceTopic?.scheduledTime,
+                    remaining
+                  );
                   return (
                     <motion.div
                       layout
