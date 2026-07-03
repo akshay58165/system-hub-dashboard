@@ -4,6 +4,9 @@ import {
   Layers, 
   Globe, 
   Clock, 
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
   GitBranch, 
   Server, 
   AlertTriangle, 
@@ -201,6 +204,8 @@ export default function VercelView({
   const [schedDate, setSchedDate] = useState('');
   const [schedTime, setSchedTime] = useState('');
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null);
+  const [editCalendarOpen, setEditCalendarOpen] = useState(false);
+  const [editCalendarMonth, setEditCalendarMonth] = useState(() => ({ month: new Date().getMonth(), year: new Date().getFullYear() }));
   // Outside-click only dismisses this modal while it still exactly matches
   // the real topic (i.e. nothing has actually been edited yet) — the
   // instant a field changes, only the explicit X/Cancel controls can close it.
@@ -980,6 +985,9 @@ export default function VercelView({
                               if (!initialTopic.scheduledTime) {
                                 initialTopic.scheduledTime = defaultTime;
                               }
+                              const initialDate = initialTopic.dueDate ? new Date(initialTopic.dueDate) : new Date();
+                              setEditCalendarMonth({ month: initialDate.getMonth(), year: initialDate.getFullYear() });
+                              setEditCalendarOpen(false);
                               setEditingTopic(initialTopic);
                             }}
                             className="p-1 rounded border border-neutral-800 text-neutral-400 hover:text-blue-300 hover:border-blue-800 transition"
@@ -1568,7 +1576,7 @@ export default function VercelView({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.97, y: 8 }}
               onSubmit={saveEditedTopic}
-              className="w-full max-w-lg rounded-xl border border-neutral-800 bg-neutral-950 p-5 shadow-2xl space-y-4"
+              className="max-h-[calc(100vh-2rem)] w-full max-w-lg space-y-4 overflow-y-auto rounded-xl border border-neutral-800 bg-neutral-950 p-5 shadow-2xl [scrollbar-color:#3f3f46_#0a0a0a] [scrollbar-width:thin]"
             >
               <div className="flex items-start justify-between border-b border-neutral-900 pb-3">
                 <div>
@@ -1646,19 +1654,12 @@ export default function VercelView({
                     {[1, 2, 3, 4, 5].map(priority => <option key={priority} value={priority}>{priority}</option>)}
                   </select>
                 </label>
-                <label className="block text-[9px] uppercase text-neutral-500 font-mono">
+                <div className="block text-[9px] uppercase text-neutral-500 font-mono">
                   Due date
-                  <input
-                    type="date"
-                    value={editingTopic.dueDate?.split('T')[0] || ''}
-                    onChange={event => {
-                      const defaultTime = editingTopic.channel === 'LearnDriven' ? '21:09' : '19:07';
-                      const timePart = editingTopic.scheduledTime || defaultTime;
-                      setEditingTopic({ ...editingTopic, dueDate: event.target.value ? new Date(`${event.target.value}T${timePart}:00`).toISOString() : null });
-                    }}
-                    className="mt-1 w-full rounded border border-neutral-800 bg-neutral-900 px-2 py-2 text-xs normal-case text-white outline-none"
-                  />
-                </label>
+                  <button type="button" onClick={() => setEditCalendarOpen(open => !open)} className={`mt-1 flex w-full items-center justify-between rounded border px-2 py-2 text-xs normal-case outline-none transition ${editCalendarOpen ? 'border-blue-600 bg-blue-950/20 text-blue-100' : 'border-neutral-800 bg-neutral-900 text-white hover:border-neutral-700'}`}>
+                    <span>{editingTopic.dueDate?.split('T')[0] || 'Select date'}</span><Calendar className="h-3.5 w-3.5 text-blue-400" />
+                  </button>
+                </div>
                 <label className="block text-[9px] uppercase text-neutral-500 font-mono">
                   Sched Time
                   <input
@@ -1678,6 +1679,35 @@ export default function VercelView({
                   />
                 </label>
               </div>
+
+              <AnimatePresence initial={false}>
+                {editCalendarOpen && <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden"><div className="rounded-xl border border-blue-900/40 bg-neutral-900/45 p-3 font-mono shadow-[0_0_28px_rgba(59,130,246,.08)]">
+                  <div className="mb-3 flex items-center justify-between">
+                    <button type="button" onClick={() => setEditCalendarMonth(current => current.month === 0 ? { month: 11, year: current.year - 1 } : { ...current, month: current.month - 1 })} className="rounded-md border border-neutral-800 bg-neutral-950 p-1.5 text-neutral-400 hover:border-blue-800 hover:text-blue-300"><ChevronLeft className="h-3.5 w-3.5" /></button>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-200">{new Date(editCalendarMonth.year, editCalendarMonth.month).toLocaleDateString([], { month: 'long', year: 'numeric' })}</div>
+                    <button type="button" onClick={() => setEditCalendarMonth(current => current.month === 11 ? { month: 0, year: current.year + 1 } : { ...current, month: current.month + 1 })} className="rounded-md border border-neutral-800 bg-neutral-950 p-1.5 text-neutral-400 hover:border-blue-800 hover:text-blue-300"><ChevronRight className="h-3.5 w-3.5" /></button>
+                  </div>
+                  <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[7px] font-bold uppercase text-neutral-600">{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => <span key={day}>{day}</span>)}</div>
+                  <div className="grid grid-cols-7 gap-1">{(() => {
+                    const cells: React.ReactNode[] = [];
+                    const firstDay = new Date(editCalendarMonth.year, editCalendarMonth.month, 1).getDay();
+                    const days = new Date(editCalendarMonth.year, editCalendarMonth.month + 1, 0).getDate();
+                    for (let blank = 0; blank < firstDay; blank++) cells.push(<span key={`blank-${blank}`} />);
+                    for (let day = 1; day <= days; day++) {
+                      const dateKey = `${editCalendarMonth.year}-${String(editCalendarMonth.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                      const scheduled = topics.filter(topic => topic.dueDate?.split('T')[0] === dateKey);
+                      const selected = editingTopic.dueDate?.split('T')[0] === dateKey;
+                      const hasLearnDriven = scheduled.some(topic => topic.channel === 'LearnDriven');
+                      const hasDecodeWorthy = scheduled.some(topic => topic.channel === 'DecodeWorthy');
+                      cells.push(<button key={dateKey} type="button" title={scheduled.length ? `${scheduled.length} topic${scheduled.length === 1 ? '' : 's'} on this date` : 'No topics on this date'} onClick={() => { const defaultTime = editingTopic.channel === 'LearnDriven' ? '21:09' : '19:07'; const timePart = editingTopic.scheduledTime || defaultTime; setEditingTopic({ ...editingTopic, dueDate: new Date(`${dateKey}T${timePart}:00`).toISOString() }); setEditCalendarOpen(false); }} className={`relative min-h-10 rounded-lg border p-1 text-left transition ${selected ? 'border-blue-400 bg-blue-500/25 text-white shadow-[0_0_14px_rgba(59,130,246,.22)]' : scheduled.length ? 'border-neutral-700 bg-neutral-950 text-neutral-200 hover:border-blue-700' : 'border-neutral-900 bg-neutral-950/50 text-neutral-600 hover:border-neutral-700 hover:text-neutral-300'}`}>
+                        <span className="text-[8px] font-bold">{day}</span>{scheduled.length > 0 && <span className="absolute right-1 top-1 rounded bg-neutral-800 px-1 text-[7px] font-black text-white">{scheduled.length}</span>}<span className="absolute bottom-1 left-1 flex gap-0.5">{hasLearnDriven && <span className="h-1.5 w-1.5 rounded-full bg-blue-400 shadow-[0_0_5px_#60a5fa]" />}{hasDecodeWorthy && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_5px_#34d399]" />}</span>
+                      </button>);
+                    }
+                    return cells;
+                  })()}</div>
+                  <div className="mt-3 flex items-center justify-between border-t border-neutral-800 pt-2 text-[8px]"><div className="flex gap-3 text-neutral-500"><span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-blue-400" />LearnDriven</span><span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />DecodeWorthy</span></div><button type="button" onClick={() => { setEditingTopic({ ...editingTopic, dueDate: null }); setEditCalendarOpen(false); }} className="text-neutral-500 hover:text-rose-300">Clear date</button></div>
+                </div></motion.div>}
+              </AnimatePresence>
 
               <div className="flex justify-end gap-2 border-t border-neutral-900 pt-3 text-[10px] font-mono">
                 <button type="button" onClick={() => setEditingTopic(null)} className="px-3 py-1.5 text-neutral-400 hover:text-white">Cancel</button>
