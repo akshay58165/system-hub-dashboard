@@ -25,6 +25,7 @@ import {
   ChevronRight,
   Trash2,
   Pencil,
+  Bookmark,
   X
 } from 'lucide-react';
 import { GitHubRepo, SystemEvent, Topic, TopicActivity } from '../types';
@@ -149,7 +150,7 @@ export default function GithubView({
   }, []);
 
   // 1. Selected channel filter: 'All' | 'LearnDriven' | 'DecodeWorthy'
-  const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy'>('All');
+  const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy' | 'Later'>('All');
 
   // 2. Operational sorting
   type TopicSortMode = 'due-date' | 'last-created' | 'level' | 'progress-most' | 'progress-least' | 'workload';
@@ -555,7 +556,9 @@ export default function GithubView({
   const filteredTopics = useMemo(() => {
     return topics
       .filter(t => {
-        const matchesChannel = selectedChannel === 'All' || t.channel === selectedChannel;
+        const matchesChannel = selectedChannel === 'Later'
+          ? Boolean(t.savedForLater)
+          : !t.savedForLater && (selectedChannel === 'All' || t.channel === selectedChannel);
         const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                               t.description.toLowerCase().includes(searchQuery.toLowerCase());
         return matchesChannel && matchesSearch;
@@ -609,7 +612,9 @@ export default function GithubView({
 
   // Compute aggregate stats based on channel
   const stats = useMemo(() => {
-    const subset = topics.filter(t => selectedChannel === 'All' || t.channel === selectedChannel);
+    const subset = topics.filter(t => selectedChannel === 'Later'
+      ? Boolean(t.savedForLater)
+      : !t.savedForLater && (selectedChannel === 'All' || t.channel === selectedChannel));
     const topicCount = subset.filter(t => getTopicWorkflowState(t, 'script') === 'pending').length;
     const scripted = subset.filter(t => getTopicWorkflowState(t, 'script') === 'completed').length;
     const shot = subset.filter(t => getTopicWorkflowState(t, 'shoot') === 'completed').length;
@@ -706,7 +711,7 @@ export default function GithubView({
 
           {/* Channel Filter Buttons */}
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-            {(['All', 'LearnDriven', 'DecodeWorthy'] as const).map(channel => (
+            {(['All', 'LearnDriven', 'DecodeWorthy', 'Later'] as const).map(channel => (
               <button
                 key={channel}
                 onClick={() => setSelectedChannel(channel)}
@@ -987,6 +992,31 @@ export default function GithubView({
                         <span className={`px-2 py-0.5 rounded border text-[9px] font-bold ${prio.style}`}>
                           {prio.text}
                         </span>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const savedForLater = !topic.savedForLater;
+                            setTopics(prev => prev.map(item => item.id === topic.id ? {
+                              ...item,
+                              savedForLater,
+                              lastUpdated: new Date().toISOString()
+                            } : item));
+                            setActivities(prev => [{
+                              id: `act-later-${topic.id}-${Date.now()}`,
+                              topicName: topic.name,
+                              channel: topic.channel,
+                              action: savedForLater ? 'Saved topic for later' : 'Restored topic from Later',
+                              author: 'typeakshay',
+                              timestamp: new Date().toISOString()
+                            }, ...prev]);
+                          }}
+                          className={`p-1 rounded transition cursor-pointer ${topic.savedForLater ? 'text-blue-400 bg-blue-950/20' : 'text-neutral-600 hover:text-blue-400 hover:bg-blue-950/20'}`}
+                          title={topic.savedForLater ? 'Restore from Later' : 'Save for later'}
+                          aria-label={topic.savedForLater ? 'Restore from Later' : 'Save for later'}
+                        >
+                          <Bookmark className={`h-3.5 w-3.5 ${topic.savedForLater ? 'fill-current' : ''}`} />
+                        </button>
 
                         <button
                           onClick={(e) => {

@@ -347,6 +347,8 @@ export default function PipelineView({
   // Filter videos
   const filteredVideos = useMemo(() => {
     return videos.filter(v => {
+      const sourceTopic = topics.find(topic => topic.id === v.id);
+      if (sourceTopic?.savedForLater) return false;
       const matchChannel = selectedChannel === 'All' || v.channelName === selectedChannel;
       const matchFormat = selectedFormat === 'All' || v.format === selectedFormat;
       const matchStatus = selectedStatus === 'All' || 
@@ -354,7 +356,7 @@ export default function PipelineView({
                           (selectedStatus === 'Safe' && !v.blockedReason);
       return matchChannel && matchFormat && matchStatus;
     });
-  }, [videos, selectedChannel, selectedFormat, selectedStatus]);
+  }, [videos, topics, selectedChannel, selectedFormat, selectedStatus]);
 
   // Buffer and Pipeline risk logic
   const pipelineRisk = useMemo(() => {

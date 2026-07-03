@@ -152,6 +152,7 @@ export interface Topic {
   lastUpdated: string;
   revenueLevel?: string;
   inProgress?: boolean;
+  savedForLater?: boolean;
   scheduledTime?: string;
   postedAt?: string;
   autoPostPaused?: boolean;

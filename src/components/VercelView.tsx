@@ -22,6 +22,7 @@ import {
   RotateCcw,
   ArrowUpDown,
   Shield,
+  Bookmark,
   X
 } from 'lucide-react';
 import { 
@@ -201,7 +202,7 @@ export default function VercelView({
   cycleGoals,
   workdaySession
 }: VercelViewProps) {
-  const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy'>('All');
+  const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy' | 'Later'>('All');
   const [topicSortOrder, setTopicSortOrder] = useState<TopicSortMode>('due-date');
   const [isTopicSortOpen, setIsTopicSortOpen] = useState(false);
   const topicSortRef = useDismissOnOutsideClick<HTMLDivElement>(
@@ -685,6 +686,23 @@ export default function VercelView({
     }, ...prev]);
   };
 
+  const toggleSavedForLater = (topic: Topic) => {
+    const savedForLater = !topic.savedForLater;
+    setTopics(prev => prev.map(item => item.id === topic.id ? {
+      ...item,
+      savedForLater,
+      lastUpdated: new Date().toISOString()
+    } : item));
+    setActivities(prev => [{
+      id: `act-later-${topic.id}-${Date.now()}`,
+      topicName: topic.name,
+      channel: topic.channel,
+      action: savedForLater ? 'Saved topic for later' : 'Restored topic from Later',
+      author: 'typeakshay',
+      timestamp: new Date().toISOString()
+    }, ...prev]);
+  };
+
   const resetTopicWorkflow = (topic: Topic) => {
     setTopics(prev => prev.map(item => item.id === topic.id ? {
       ...item,
@@ -710,7 +728,9 @@ export default function VercelView({
   // Filtered topics
   const filteredTopics = useMemo(() => {
     return topics
-      .filter(t => selectedChannel === 'All' || t.channel === selectedChannel)
+      .filter(t => selectedChannel === 'Later'
+        ? Boolean(t.savedForLater)
+        : !t.savedForLater && (selectedChannel === 'All' || t.channel === selectedChannel))
       .sort((a, b) => {
         if (topicSortOrder === 'due-date') return topicDueTime(a) - topicDueTime(b) || new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
         if (topicSortOrder === 'last-created') return new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
@@ -975,7 +995,7 @@ export default function VercelView({
           </div>
 
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-            {(['All', 'LearnDriven', 'DecodeWorthy'] as const).map(channel => (
+            {(['All', 'LearnDriven', 'DecodeWorthy', 'Later'] as const).map(channel => (
               <button
                 key={channel}
                 onClick={() => setSelectedChannel(channel)}
@@ -1187,52 +1207,15 @@ export default function VercelView({
                           >
                             <Pencil className="h-3 w-3" />
                           </button>
-                          {topic.status !== 'posted' && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (!window.confirm(`Manually archive "${topic.name}" as Posted?`)) return;
-                                setTopics(prev => prev.map(t => t.id === topic.id ? {
-                                  ...t,
-                                  status: 'posted',
-                                  inProgress: true,
-                                  workflowStatuses: {
-                                    ...t.workflowStatuses,
-                                    script: 'completed',
-                                    shoot: 'completed',
-                                    edit: 'completed',
-                                    schedule: 'completed',
-                                    post: 'completed'
-                                  },
-                                  postedAt: new Date().toISOString(),
-                                  autoPostPaused: false,
-                                  lastUpdated: new Date().toISOString()
-                                } : t));
-
-                                onAddEvent({
-                                  id: `evt-manual-archive-${topic.id}-${Date.now()}`,
-                                  source: 'system',
-                                  type: 'success',
-                                  message: `Workflow Engine: "${topic.name}" manually archived as Posted.`,
-                                  timestamp: new Date().toISOString()
-                                });
-
-                                setActivities(prev => [{
-                                  id: `act-manual-archive-${topic.id}-${Date.now()}`,
-                                  topicName: topic.name,
-                                  channel: topic.channel,
-                                  action: `Manually Archived: Mark "${topic.name}" as Posted`,
-                                  author: 'typeakshay',
-                                  timestamp: new Date().toISOString()
-                                }, ...prev]);
-                              }}
-                              className="p-1 rounded border border-neutral-800 text-neutral-400 hover:text-emerald-400 hover:border-emerald-900 transition flex items-center gap-0.5 cursor-pointer"
-                              title="Manually archive as Posted"
-                            >
-                              <CheckCircle className="h-3 w-3 text-emerald-500" />
-                              <span className="text-[8px] font-mono px-0.5 text-emerald-400">Archive</span>
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => toggleSavedForLater(topic)}
+                            className={`p-1 rounded border transition cursor-pointer ${topic.savedForLater ? 'border-blue-900 text-blue-400' : 'border-neutral-800 text-neutral-400 hover:text-blue-400 hover:border-blue-900'}`}
+                            title={topic.savedForLater ? 'Restore from Later' : 'Save for later'}
+                            aria-label={topic.savedForLater ? 'Restore from Later' : 'Save for later'}
+                          >
+                            <Bookmark className={`h-3 w-3 ${topic.savedForLater ? 'fill-current' : ''}`} />
+                          </button>
                           <button
                             type="button"
                             onClick={() => resetTopicWorkflow(topic)}
