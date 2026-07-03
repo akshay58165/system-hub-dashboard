@@ -255,6 +255,10 @@ export default function GithubView({
     if (!newTopicChannel || !newTopicName.trim()) return;
 
     const revLvl = getAutomaticRevenueLevel();
+    // Content Lane must always be reflected as the topic's real stored
+    // format everywhere else in the app reads it — never just used to
+    // compute the revenue level and then discarded.
+    const finalFormat: Topic['format'] = newTopicLane === 'Shorts' ? 'Short' : newTopicLane === 'Members-Only' ? 'Members' : 'Long';
 
     let inProgress = false;
     const defaultTime = newTopicChannel === 'LearnDriven' ? '21:09' : '19:07';
@@ -300,6 +304,7 @@ export default function GithubView({
         priority: newTopicPriority,
         dueDate: finalDueDate,
         scheduledTime: finalSchedTime,
+        format: finalFormat,
         lastUpdated: new Date().toISOString(),
         // A blank result here just means no eligibility box was touched this
         // time, not "clear the revenue level" — keep whatever was already set.
@@ -318,6 +323,7 @@ export default function GithubView({
         if (original.status !== newTopicStatus) changedFields.push('status');
         if (original.priority !== newTopicPriority) changedFields.push('priority');
         if (original.dueDate !== finalDueDate) changedFields.push('due date');
+        if (original.format !== finalFormat) changedFields.push('content lane');
       }
       setActivities(prev => [{
         id: `act-edit-${Date.now()}`,
@@ -347,6 +353,7 @@ export default function GithubView({
         priority: newTopicPriority,
         dueDate: finalDueDate,
         scheduledTime: finalSchedTime,
+        format: finalFormat,
         createdDate: new Date().toISOString(),
         lastUpdated: new Date().toISOString(),
         revenueLevel: revLvl || undefined,
