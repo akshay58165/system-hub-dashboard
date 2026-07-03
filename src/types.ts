@@ -198,6 +198,13 @@ export interface WorkdaySession {
   accumulatedPausedMs: number;
   status: 'running' | 'paused' | 'completed';
   updatedAt: string;
+  goals?: Array<{
+    id: string;
+    topicId: string;
+    topicName: string;
+    targetStatus: 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted';
+    addedAt: string;
+  }>;
 }
 
 export interface VideoRecord {

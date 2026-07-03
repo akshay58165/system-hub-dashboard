@@ -1713,7 +1713,7 @@ export default function App() {
               </button>
             </div>
 
-            <WorkdayTimer session={workdaySession} setSession={setWorkdaySession} />
+            <WorkdayTimer session={workdaySession} setSession={setWorkdaySession} topics={topics} />
 
             <motion.button
               whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(59, 130, 246, 0.6)' }}

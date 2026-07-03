@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Clock3, Pause, Play, RotateCcw, X } from 'lucide-react';
-import type { WorkdaySession } from '../types';
+import { Check, Clock3, Pause, Play, Plus, RotateCcw, Target, Trash2, X } from 'lucide-react';
+import type { Topic, WorkdaySession } from '../types';
 
 interface WorkdayTimerProps {
   session: WorkdaySession | null;
   setSession: React.Dispatch<React.SetStateAction<WorkdaySession | null>>;
+  topics: Topic[];
 }
 
 const formatDuration = (milliseconds: number) => {
@@ -18,12 +19,18 @@ const formatDuration = (milliseconds: number) => {
 
 const todayKey = () => new Date().toLocaleDateString('en-CA');
 
-export default function WorkdayTimer({ session, setSession }: WorkdayTimerProps) {
+const goalStages = ['scripted', 'shot', 'edited', 'scheduled', 'posted'] as const;
+const stageOrder = ['topic', ...goalStages] as const;
+
+export default function WorkdayTimer({ session, setSession, topics }: WorkdayTimerProps) {
   const [now, setNow] = useState(Date.now());
   const [showSetup, setShowSetup] = useState(false);
   const [showPanel, setShowPanel] = useState(false);
   const [selectedHours, setSelectedHours] = useState<number | 'custom'>(5);
   const [customHours, setCustomHours] = useState('6');
+  const [showGoals, setShowGoals] = useState(false);
+  const [goalTopicId, setGoalTopicId] = useState('');
+  const [goalTarget, setGoalTarget] = useState<typeof goalStages[number]>('scripted');
 
   useEffect(() => {
     if (!session || session.status === 'completed') return;
@@ -43,7 +50,7 @@ export default function WorkdayTimer({ session, setSession }: WorkdayTimerProps)
     const hours = selectedHours === 'custom' ? Number(customHours) : selectedHours;
     if (!Number.isFinite(hours) || hours <= 0 || hours > 24) return;
     const stamp = new Date().toISOString();
-    setSession({ dateKey: todayKey(), targetMinutes: Math.round(hours * 60), startedAt: stamp, activeSince: stamp, pausedAt: null, accumulatedActiveMs: 0, accumulatedPausedMs: 0, status: 'running', updatedAt: stamp });
+    setSession({ dateKey: todayKey(), targetMinutes: Math.round(hours * 60), startedAt: stamp, activeSince: stamp, pausedAt: null, accumulatedActiveMs: 0, accumulatedPausedMs: 0, status: 'running', updatedAt: stamp, goals: [] });
     setNow(Date.now());
     setShowSetup(false);
     setShowPanel(true);
@@ -66,6 +73,36 @@ export default function WorkdayTimer({ session, setSession }: WorkdayTimerProps)
       setSession(null);
       setShowPanel(false);
     }
+  };
+
+  const rankedTopics = useMemo(() => [...topics]
+    .filter(topic => topic.status !== 'posted' && !(session?.goals || []).some(goal => goal.topicId === topic.id))
+    .sort((a, b) => {
+      const nowTime = Date.now();
+      const urgency = (topic: Topic) => topic.blockedReason ? 0 : topic.dueDate && new Date(topic.dueDate).getTime() < nowTime ? 1 : topic.dueDate ? 2 : 3;
+      const due = (topic: Topic) => topic.dueDate ? new Date(topic.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+      return urgency(a) - urgency(b) || due(a) - due(b) || a.priority - b.priority;
+    }), [topics, session?.goals]);
+
+  const selectedTopic = rankedTopics.find(topic => topic.id === goalTopicId);
+  const availableTargets = selectedTopic ? goalStages.filter(stage => stageOrder.indexOf(stage) > stageOrder.indexOf(selectedTopic.status)) : goalStages;
+  const chooseTopic = (topicId: string) => {
+    setGoalTopicId(topicId);
+    const topic = rankedTopics.find(item => item.id === topicId);
+    const nextTarget = topic ? goalStages.find(stage => stageOrder.indexOf(stage) > stageOrder.indexOf(topic.status)) : undefined;
+    if (nextTarget) setGoalTarget(nextTarget);
+  };
+  const addGoal = () => {
+    if (!selectedTopic || !availableTargets.includes(goalTarget)) return;
+    const stamp = new Date().toISOString();
+    setSession(current => current ? { ...current, goals: [...(current.goals || []), { id: `goal-${Date.now()}`, topicId: selectedTopic.id, topicName: selectedTopic.name, targetStatus: goalTarget, addedAt: stamp }], updatedAt: stamp } : current);
+    setGoalTopicId('');
+    setShowGoals(false);
+  };
+  const removeGoal = (goalId: string) => setSession(current => current ? { ...current, goals: (current.goals || []).filter(goal => goal.id !== goalId), updatedAt: new Date().toISOString() } : current);
+  const goalComplete = (topicId: string, targetStatus: typeof goalStages[number]) => {
+    const topic = topics.find(item => item.id === topicId);
+    return Boolean(topic && stageOrder.indexOf(topic.status) >= stageOrder.indexOf(targetStatus));
   };
 
   return (
@@ -100,14 +137,34 @@ export default function WorkdayTimer({ session, setSession }: WorkdayTimerProps)
         )}
 
         {session && showPanel && (
-          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="fixed right-4 top-28 z-[90] w-[min(380px,calc(100vw-2rem))] rounded-2xl border border-neutral-800 bg-neutral-950/98 p-4 shadow-2xl backdrop-blur-xl">
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="fixed right-4 top-28 z-[90] max-h-[calc(100vh-8rem)] w-[min(380px,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-neutral-800 bg-neutral-950/98 p-4 shadow-2xl backdrop-blur-xl">
             <div className="flex items-start justify-between"><div><div className="flex items-center gap-2 text-sm font-bold text-white"><span className={`h-2 w-2 rounded-full ${session.status === 'paused' ? 'bg-amber-400' : 'animate-pulse bg-emerald-400'}`} />Workday timer</div><div className="mt-1 text-[9px] uppercase text-neutral-600">Started {new Date(session.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div></div><button onClick={() => setShowPanel(false)} className="text-neutral-600 hover:text-white"><X className="h-4 w-4" /></button></div>
             <div className="mt-4 text-center font-mono text-3xl font-black text-white">{formatDuration(metrics.active)}</div>
             <div className="mt-1 text-center text-[9px] uppercase text-neutral-500">active work recorded</div>
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-neutral-900"><div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all" style={{ width: `${metrics.progress}%` }} /></div>
             <div className="mt-3 grid grid-cols-3 gap-2 text-center"><div className="rounded-lg bg-neutral-900/60 p-2"><div className="text-xs font-bold text-emerald-300">{metrics.progress.toFixed(1)}%</div><div className="mt-1 text-[7px] uppercase text-neutral-600">quota filled</div></div><div className="rounded-lg bg-neutral-900/60 p-2"><div className="text-xs font-bold text-cyan-300">{formatDuration(metrics.remaining)}</div><div className="mt-1 text-[7px] uppercase text-neutral-600">remaining</div></div><div className="rounded-lg bg-neutral-900/60 p-2"><div className="text-xs font-bold text-amber-300">{formatDuration(metrics.paused)}</div><div className="mt-1 text-[7px] uppercase text-neutral-600">paused</div></div></div>
+            <div className="mt-4 rounded-xl border border-neutral-900 bg-neutral-900/25 p-3">
+              <div className="flex items-center justify-between"><div className="flex items-center gap-2 text-[10px] font-bold text-neutral-300"><Target className="h-3.5 w-3.5 text-purple-400" />Today&apos;s topic goals</div><button onClick={() => setShowGoals(true)} className="flex items-center gap-1 rounded-md border border-purple-900/50 bg-purple-950/25 px-2 py-1 text-[8px] font-bold text-purple-300 hover:border-purple-700"><Plus className="h-3 w-3" />Set goal</button></div>
+              {(session.goals || []).length ? <div className="mt-2 space-y-2">{(session.goals || []).map(goal => {
+                const complete = goalComplete(goal.topicId, goal.targetStatus);
+                return <div key={goal.id} className="flex items-center gap-2 rounded-lg bg-neutral-950/70 px-2.5 py-2"><span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${complete ? 'border-emerald-500 bg-emerald-500 text-black' : 'border-neutral-700 text-transparent'}`}><Check className="h-3 w-3" /></span><span className="min-w-0 flex-1"><span className={`block truncate text-[9px] font-semibold ${complete ? 'text-neutral-500 line-through' : 'text-neutral-200'}`}>{goal.topicName}</span><span className="block text-[7px] uppercase text-neutral-600">Reach {goal.targetStatus}</span></span><button onClick={() => removeGoal(goal.id)} className="text-neutral-700 hover:text-rose-400" aria-label={`Remove goal for ${goal.topicName}`}><Trash2 className="h-3 w-3" /></button></div>;
+              })}</div> : <div className="mt-2 text-[8px] text-neutral-600">Optional - no topic goal set.</div>}
+            </div>
             <div className="mt-4 flex gap-2"><button onClick={session.status === 'paused' ? resume : pause} className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-[10px] font-bold ${session.status === 'paused' ? 'bg-emerald-500 text-black' : 'bg-amber-500 text-black'}`}>{session.status === 'paused' ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}{session.status === 'paused' ? 'Resume work' : 'Pause work'}</button><button onClick={reset} title="Reset day" className="rounded-lg border border-neutral-800 px-3 text-neutral-500 hover:border-rose-900 hover:text-rose-400"><RotateCcw className="h-4 w-4" /></button></div>
           </motion.div>
+        )}
+
+        {session && showGoals && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: .97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .97 }} className="w-full max-w-xl rounded-2xl border border-purple-900/50 bg-neutral-950 p-5 shadow-[0_0_60px_rgba(168,85,247,.12)]">
+              <div className="flex items-start justify-between"><div><h2 className="flex items-center gap-2 text-base font-bold text-white"><Target className="h-4 w-4 text-purple-400" />Set today&apos;s topic goal</h2><p className="mt-1 text-[9px] text-neutral-500">Ranked by blocked or overdue attention, due date, then priority.</p></div><button onClick={() => setShowGoals(false)} className="text-neutral-600 hover:text-white"><X className="h-4 w-4" /></button></div>
+              <div className="mt-4 max-h-72 space-y-2 overflow-y-auto pr-1">{rankedTopics.length ? rankedTopics.map(topic => {
+                const overdue = topic.dueDate && new Date(topic.dueDate).getTime() < Date.now();
+                return <button key={topic.id} onClick={() => chooseTopic(topic.id)} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${goalTopicId === topic.id ? 'border-purple-500 bg-purple-950/30' : 'border-neutral-900 bg-neutral-900/30 hover:border-neutral-700'}`}><span className={`h-2 w-2 shrink-0 rounded-full ${topic.blockedReason || overdue ? 'bg-rose-500 shadow-[0_0_8px_#f43f5e]' : 'bg-emerald-500'}`} /><span className="min-w-0 flex-1"><span className="block truncate text-[10px] font-semibold text-white">{topic.name}</span><span className="mt-1 block text-[7px] uppercase text-neutral-600">{topic.channel} - current: {topic.status}{topic.dueDate ? ` - due ${new Date(topic.dueDate).toLocaleDateString()}` : ''}</span></span><span className="rounded bg-neutral-950 px-2 py-1 text-[7px] font-bold text-cyan-400">P{topic.priority}</span></button>;
+              }) : <div className="rounded-xl border border-dashed border-neutral-800 py-8 text-center text-[9px] text-neutral-600">No unfinished topics available.</div>}</div>
+              {selectedTopic && <div className="mt-4 flex flex-col gap-3 border-t border-neutral-900 pt-4 sm:flex-row sm:items-end"><label className="flex-1 text-[8px] font-bold uppercase text-neutral-500">Milestone to reach today<select value={goalTarget} onChange={event => setGoalTarget(event.target.value as typeof goalStages[number])} className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-[10px] font-semibold capitalize text-white">{availableTargets.map(stage => <option key={stage} value={stage}>{stage}</option>)}</select></label><button onClick={addGoal} className="rounded-lg bg-purple-500 px-5 py-2.5 text-[10px] font-bold text-black hover:bg-purple-400">Add goal</button></div>}
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </>
