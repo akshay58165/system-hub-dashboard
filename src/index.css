@@ -329,14 +329,14 @@ select.bg-neutral-900 option {
     color-mix(in srgb, var(--emergency-core) 35%, black) 86%
   );
   border: 1px solid rgb(var(--emergency-rgb) / 0.42);
-  animation: emergency-led-pulse 0.9s ease-in-out infinite;
 }
+.emergency-led-lens--fast { animation: emergency-led-pulse 0.42s linear infinite; }
 .emergency-led-specular {
   background: rgba(255, 255, 255, 0.82);
   filter: blur(0.3px);
   transform: rotate(-18deg);
 }
-.emergency-clock { animation: emergency-clock-pulse 1s ease-in-out infinite; }
+.emergency-clock--fast { animation: emergency-clock-pulse 0.42s linear infinite; }
 .emergency-shimmer {
   background: linear-gradient(
     115deg,

@@ -317,6 +317,8 @@ export default function VercelView({
       overdue,
       daysOverdue,
       stuck,
+      remainingMs: differenceMs,
+      fastBlink: differenceMs > 0 && differenceMs <= 24 * 60 * 60 * 1000,
       clock,
       message: overdue
         ? 'DEADLINE BREACHED - COMPLETE THE REMAINING STAGES NOW'
@@ -367,15 +369,43 @@ export default function VercelView({
       };
     }
 
+    if (urgency.remainingMs <= 24 * 60 * 60 * 1000) {
+      return {
+        borderClass: 'border-red-500/55 bg-red-950/20',
+        labelClass: 'text-red-400',
+        clockClass: 'text-red-300',
+        ledClass: 'text-red-400',
+        style: {
+          ['--emergency-rgb' as string]: '239 68 68',
+          ['--emergency-core' as string]: '#ef4444',
+          ['--emergency-soft' as string]: '239 68 68'
+        }
+      };
+    }
+
+    if (urgency.remainingMs <= 48 * 60 * 60 * 1000) {
+      return {
+        borderClass: 'border-orange-500/55 bg-orange-950/20',
+        labelClass: 'text-orange-400',
+        clockClass: 'text-orange-300',
+        ledClass: 'text-orange-400',
+        style: {
+          ['--emergency-rgb' as string]: '249 115 22',
+          ['--emergency-core' as string]: '#f97316',
+          ['--emergency-soft' as string]: '249 115 22'
+        }
+      };
+    }
+
     return {
-      borderClass: 'border-amber-500/50 bg-amber-950/20',
-      labelClass: 'text-amber-400',
-      clockClass: 'text-amber-300',
-      ledClass: 'text-amber-400',
+      borderClass: 'border-yellow-500/50 bg-yellow-950/20',
+      labelClass: 'text-yellow-400',
+      clockClass: 'text-yellow-300',
+      ledClass: 'text-yellow-400',
       style: {
-        ['--emergency-rgb' as string]: '245 158 11',
-        ['--emergency-core' as string]: '#f59e0b',
-        ['--emergency-soft' as string]: '245 158 11'
+        ['--emergency-rgb' as string]: '234 179 8',
+        ['--emergency-core' as string]: '#eab308',
+        ['--emergency-soft' as string]: '234 179 8'
       }
     };
   };
@@ -1196,13 +1226,13 @@ export default function VercelView({
                           >
                             <div className="flex items-center gap-1.5 min-w-0">
                               <span className={`emergency-led-housing relative flex h-2.5 w-2.5 shrink-0 items-center justify-center rounded-full ${urgencyPalette.ledClass}`} aria-hidden="true">
-                                <span className="emergency-led-lens relative block h-2 w-2 rounded-full" />
+                                <span className={`emergency-led-lens relative block h-2 w-2 rounded-full ${urgency.fastBlink ? 'emergency-led-lens--fast' : ''}`} />
                               </span>
                               <span className={`text-[8px] font-black uppercase tracking-wide truncate ${urgencyPalette.labelClass}`}>
                                 {urgency.overdue ? 'Overdue' : 'Critical window'}
                               </span>
                             </div>
-                            <span className={`emergency-clock text-[10px] font-black tabular-nums tracking-wider shrink-0 ${urgencyPalette.clockClass}`}>
+                            <span className={`emergency-clock text-[10px] font-black tabular-nums tracking-wider shrink-0 ${urgency.fastBlink ? 'emergency-clock--fast' : ''} ${urgencyPalette.clockClass}`}>
                               {urgency.clock}
                             </span>
                           </div>
