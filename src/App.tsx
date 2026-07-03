@@ -24,7 +24,6 @@ import {
   LogOut,
   User as UserIcon,
   AlertCircle,
-  Brain,
   Bookmark,
   Clapperboard,
   Sparkles,
@@ -63,7 +62,7 @@ const ScoreView = lazy(() => import('./components/ScoreView'));
 const CommandCenterView = lazy(() => import('./components/CommandCenterView'));
 const PipelineView = lazy(() => import('./components/PipelineView'));
 const VideoLabView = lazy(() => import('./components/VideoLabView'));
-const TopicIntelligenceView = lazy(() => import('./components/TopicIntelligenceView'));
+const TodayGoalsView = lazy(() => import('./components/TodayGoalsView'));
 const ForecastingView = lazy(() => import('./components/ForecastingView'));
 const ExperimentTrackerView = lazy(() => import('./components/ExperimentTrackerView'));
 const InsightsView = lazy(() => import('./components/InsightsView'));
@@ -1624,8 +1623,8 @@ export default function App() {
                     : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
                 }`}
               >
-                <Brain className="h-3.5 w-3.5 text-purple-400" />
-                <span>Topic Intel</span>
+                <ListChecks className="h-3.5 w-3.5 text-purple-400" />
+                <span>Today&apos;s Goals</span>
               </button>
 
               <button
@@ -1820,8 +1819,10 @@ export default function App() {
             )}
 
             {activeTab === 'topicintel' && (
-              <TopicIntelligenceView
-                videos={videos}
+              <TodayGoalsView
+                topics={topics}
+                session={workdaySession}
+                setSession={setWorkdaySession}
               />
             )}
 
