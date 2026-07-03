@@ -256,6 +256,22 @@ export default function App() {
       return next;
     });
   };
+
+  // Referential integrity: a workday goal only ever references a topic by
+  // id (see WorkdaySession in types.ts) and is never a valid goal once that
+  // topic no longer exists — regardless of where/how the topic was removed
+  // (manual delete, demo cleanup, or a full DB reset). This keeps that
+  // invariant true continuously instead of leaving orphaned goals visible
+  // until the next full reload happens to overwrite them.
+  useEffect(() => {
+    if (!workdaySession?.goals?.length) return;
+    const liveTopicIds = new Set(topics.map(t => t.id));
+    const prunedGoals = workdaySession.goals.filter(goal => liveTopicIds.has(goal.topicId));
+    if (prunedGoals.length !== workdaySession.goals.length) {
+      setWorkdaySession(prev => prev ? { ...prev, goals: prunedGoals, updatedAt: new Date().toISOString() } : prev);
+    }
+  }, [topics, workdaySession]);
+
   const [aiPresets, setAiPresets] = useState<AiRulePreset[]>([]);
   const [aiUsage, setAiUsage] = useState<AiUsageStats>(() => createEmptyAiUsageStats());
 
@@ -326,7 +342,19 @@ export default function App() {
             scheduleStatus: (t.status === 'scheduled' || t.status === 'posted') ? 'completed' : 'pending',
             publishedStatus: t.status === 'posted' ? 'completed' : 'pending',
             productionEffortHours: 2,
-            blockedReason: t.blockedReason
+            blockedReason: t.blockedReason,
+            tags: {
+              topicType: '',
+              hookType: '',
+              contentStructure: '',
+              productionStyle: '',
+              audienceIntent: '',
+              difficulty: '',
+              evergreenPotential: 'Medium',
+              revenuePotential: 'Medium',
+              subscriberPotential: 'Medium',
+              repeatability: 'Medium'
+            }
           };
           filteredVideos.push(newVideo);
           changed = true;
@@ -622,6 +650,8 @@ export default function App() {
           setActivities([]);
           setAiPresets([]);
           setAiUsage(createEmptyAiUsageStats());
+          setCycleGoals(null);
+          setWorkdaySession(null);
           setEvents([]);
           localStorage.removeItem('unicorn_events');
         }

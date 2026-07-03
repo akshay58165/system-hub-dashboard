@@ -198,10 +198,13 @@ export interface WorkdaySession {
   accumulatedPausedMs: number;
   status: 'running' | 'paused' | 'completed';
   updatedAt: string;
+  // Deliberately does NOT store a topicName snapshot — topicId is the only
+  // reference. The topic's current name/status/priority must always be read
+  // live from the topics array; a goal whose topicId no longer resolves to a
+  // real topic is not a valid goal (see App.tsx's cascading prune effect).
   goals?: Array<{
     id: string;
     topicId: string;
-    topicName: string;
     targetStatus: 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted';
     addedAt: string;
   }>;
