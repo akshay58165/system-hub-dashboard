@@ -8,7 +8,10 @@ interface WorkdayTimerProps {
   session: WorkdaySession | null;
   setSession: React.Dispatch<React.SetStateAction<WorkdaySession | null>>;
   topics: Topic[];
+  onEndSession: () => void;
 }
+
+const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 
 const formatDuration = (milliseconds: number) => {
   const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
@@ -23,7 +26,7 @@ const todayKey = () => new Date().toLocaleDateString('en-CA');
 const goalStages = ['scripted', 'shot', 'edited', 'scheduled', 'posted'] as const;
 const stageOrder = ['topic', ...goalStages] as const;
 
-export default function WorkdayTimer({ session, setSession, topics }: WorkdayTimerProps) {
+export default function WorkdayTimer({ session, setSession, topics, onEndSession }: WorkdayTimerProps) {
   const [now, setNow] = useState(Date.now());
   const [showSetup, setShowSetup] = useState(false);
   const [showPanel, setShowPanel] = useState(false);
@@ -91,7 +94,15 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
   const pause = () => setSession(current => {
     if (!current || current.status !== 'running' || !current.activeSince) return current;
     const stamp = new Date();
-    return { ...current, accumulatedActiveMs: current.accumulatedActiveMs + Math.max(0, stamp.getTime() - new Date(current.activeSince).getTime()), activeSince: null, pausedAt: stamp.toISOString(), status: 'paused', updatedAt: stamp.toISOString() };
+    return {
+      ...current,
+      accumulatedActiveMs: current.accumulatedActiveMs + Math.max(0, stamp.getTime() - new Date(current.activeSince).getTime()),
+      activeSince: null,
+      pausedAt: stamp.toISOString(),
+      status: 'paused',
+      updatedAt: stamp.toISOString(),
+      breaksCount: (current.breaksCount || 0) + 1
+    };
   });
 
   const resume = () => setSession(current => {
@@ -100,11 +111,20 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
     return { ...current, accumulatedPausedMs: current.accumulatedPausedMs + (current.pausedAt ? Math.max(0, stamp.getTime() - new Date(current.pausedAt).getTime()) : 0), activeSince: stamp.toISOString(), pausedAt: null, status: 'running', updatedAt: stamp.toISOString() };
   });
 
-  const reset = () => {
-    if (window.confirm('Reset today\'s work timer and clear its recorded time?')) {
-      setSession(null);
+  const endSession = () => {
+    if (window.confirm('End today\'s work session? It will be saved to Sessions with everything achieved, dropped, or still open.')) {
+      onEndSession();
       setShowPanel(false);
     }
+  };
+
+  const extendSession = (minutes: number) => {
+    setSession(current => current ? {
+      ...current,
+      targetMinutes: current.targetMinutes + minutes,
+      extensionMinutes: (current.extensionMinutes || 0) + minutes,
+      updatedAt: new Date().toISOString()
+    } : current);
   };
 
   const assignedGoals = session?.goals || draftGoals;
@@ -139,7 +159,21 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
     setEditingGoalId(null);
   };
   const removeGoal = (goalId: string) => {
-    setSession(current => current ? { ...current, goals: (current.goals || []).filter(goal => goal.id !== goalId), updatedAt: new Date().toISOString() } : current);
+    setSession(current => {
+      if (!current) return current;
+      const goal = (current.goals || []).find(g => g.id === goalId);
+      const topic = goal ? topics.find(t => t.id === goal.topicId) : undefined;
+      const droppedEntry = goal && topic ? [{
+        id: goal.id, topicId: goal.topicId, topicName: topic.name,
+        targetStatus: goal.targetStatus, droppedAt: new Date().toISOString()
+      }] : [];
+      return {
+        ...current,
+        goals: (current.goals || []).filter(g => g.id !== goalId),
+        droppedGoals: [...(current.droppedGoals || []), ...droppedEntry],
+        updatedAt: new Date().toISOString()
+      };
+    });
     if (editingGoalId === goalId) { setEditingGoalId(null); setGoalTopicId(''); }
   };
   const editGoal = (goal: NonNullable<WorkdaySession['goals']>[number]) => {
@@ -271,7 +305,19 @@ export default function WorkdayTimer({ session, setSession, topics }: WorkdayTim
                 </div></motion.div>}
               </AnimatePresence>
             </div>
-            <div className="mt-4 flex gap-2"><button onClick={session.status === 'paused' ? resume : pause} className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-[10px] font-bold ${session.status === 'paused' ? 'bg-emerald-500 text-black' : 'bg-amber-500 text-black'}`}>{session.status === 'paused' ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}{session.status === 'paused' ? 'Resume work' : 'Pause work'}</button><button onClick={reset} title="Reset day" className="rounded-lg border border-neutral-800 px-3 text-neutral-500 hover:border-rose-900 hover:text-rose-400"><RotateCcw className="h-4 w-4" /></button></div>
+            {metrics.remaining > 0 && metrics.remaining < TWO_HOURS_MS && (
+              <div className="mt-3 rounded-lg border border-amber-800/50 bg-amber-950/15 p-2.5">
+                <div className="text-[8px] font-bold uppercase text-amber-300">Less than 2h left — extend the session?</div>
+                <div className="mt-2 flex gap-1.5">
+                  {[30, 60, 120].map(minutes => (
+                    <button key={minutes} onClick={() => extendSession(minutes)} className="flex-1 rounded-md border border-amber-700/60 bg-amber-500/10 py-1.5 text-[9px] font-bold text-amber-200 hover:bg-amber-500/20">
+                      +{minutes < 60 ? `${minutes}m` : `${minutes / 60}h`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="mt-4 flex gap-2"><button onClick={session.status === 'paused' ? resume : pause} className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-[10px] font-bold ${session.status === 'paused' ? 'bg-emerald-500 text-black' : 'bg-amber-500 text-black'}`}>{session.status === 'paused' ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}{session.status === 'paused' ? 'Resume work' : 'Pause work'}</button><button onClick={endSession} title="End session" className="rounded-lg border border-neutral-800 px-3 text-neutral-500 hover:border-rose-900 hover:text-rose-400"><RotateCcw className="h-4 w-4" /></button></div>
           </motion.div>
         )}
 

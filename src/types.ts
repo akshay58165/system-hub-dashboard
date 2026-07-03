@@ -198,6 +198,12 @@ export interface WorkdaySession {
   accumulatedPausedMs: number;
   status: 'running' | 'paused' | 'completed';
   updatedAt: string;
+  // Real, counted every time work is actually paused — not derived, so the
+  // session record can honestly report how many breaks were taken.
+  breaksCount?: number;
+  // Total extra minutes added via the "extend" control, on top of the
+  // original targetMinutes chosen when the day started.
+  extensionMinutes?: number;
   // Deliberately does NOT store a topicName snapshot — topicId is the only
   // reference. The topic's current name/status/priority must always be read
   // live from the topics array; a goal whose topicId no longer resolves to a
@@ -208,6 +214,43 @@ export interface WorkdaySession {
     targetStatus: 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted';
     addedAt: string;
   }>;
+  // Goals explicitly removed by the user before completion (or whose topic
+  // was deleted out from under them) — a live goal is gone the instant this
+  // happens, per the topic-instance integrity rule, but the fact that it was
+  // dropped is real history worth keeping for the session record. Snapshots
+  // topicName/targetStatus at the moment of drop since this is a log entry,
+  // not a live reference (same reasoning as TopicActivity.topicName).
+  droppedGoals?: Array<{
+    id: string;
+    topicId: string;
+    topicName: string;
+    targetStatus: 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted';
+    droppedAt: string;
+  }>;
+}
+
+export interface SessionGoalOutcome {
+  topicId: string;
+  topicName: string;
+  targetStatus: 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted';
+}
+
+// A permanent, archived record of one completed workday session — written
+// once, when the session ends, and never mutated again. Every number here
+// is the session's real final tally, not a live/derived value.
+export interface SessionRecord {
+  id: string;
+  dateKey: string;
+  startedAt: string;
+  endedAt: string;
+  targetMinutes: number;
+  extensionMinutes: number;
+  accumulatedActiveMs: number;
+  accumulatedPausedMs: number;
+  breaksCount: number;
+  achievedGoals: SessionGoalOutcome[];
+  droppedGoals: SessionGoalOutcome[];
+  pendingGoals: SessionGoalOutcome[];
 }
 
 export interface VideoRecord {

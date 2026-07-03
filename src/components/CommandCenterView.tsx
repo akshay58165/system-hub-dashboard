@@ -5,13 +5,14 @@ import {
   CircleDot, Clock3, Flame, Gauge, Layers3, ListTodo, Radio,
   ShieldCheck, Sparkles, Target, TrendingUp, Zap
 } from 'lucide-react';
-import type { CycleGoal, Experiment, CreatorInsight, Topic, TopicActivity, VideoRecord } from '../types';
+import type { CycleGoal, Experiment, CreatorInsight, Topic, TopicActivity, VideoRecord, SessionRecord } from '../types';
 import { getTopicCurrentWorkflow } from '../services/topicWorkflow';
 
 interface CommandCenterViewProps {
   topics: Topic[];
   videos: VideoRecord[];
   experiments: Experiment[];
+  sessions: SessionRecord[];
   insights: CreatorInsight[];
   cycleGoals: CycleGoal | null;
   scorecard: any;
@@ -81,7 +82,7 @@ const actionTargetForTopic = (topic: Topic): 'script' | 'shoot' | 'edit' | 'sche
 };
 
 export default function CommandCenterView({
-  topics, videos, experiments, insights, cycleGoals, activities, onTabChange, onOpenTopicPipeline
+  topics, videos, experiments, sessions, insights, cycleGoals, activities, onTabChange, onOpenTopicPipeline
 }: CommandCenterViewProps) {
   const model = useMemo(() => {
     const now = Date.now();
@@ -128,7 +129,6 @@ export default function CommandCenterView({
     };
   }, [topics, activities]);
 
-  const activeExperiments = experiments.filter(item => item.status === 'active');
   const warningInsights = insights.filter(item => item.type === 'warning' || item.type === 'recommendation').slice(0, 3);
   const cycleTarget = cycleGoals ? [
     cycleGoals.learnDrivenShorts, cycleGoals.learnDrivenLong,
@@ -174,7 +174,7 @@ export default function CommandCenterView({
           { label: 'In production', value: model.incomplete.length, note: `${model.scheduled} scheduled`, icon: Layers3, iconClass: 'text-amber-400', action: () => onOpenTopicPipeline() },
           { label: 'Completion', value: `${model.completion}%`, note: `${model.posted} posted`, icon: Gauge, iconClass: 'text-emerald-400', action: () => onOpenTopicPipeline() },
           { label: 'Actions today', value: model.actionsToday, note: 'live audit events', icon: Activity, iconClass: 'text-blue-400', action: () => onTabChange('logs') },
-          { label: 'Experiments', value: activeExperiments.length, note: 'currently active', icon: Sparkles, iconClass: 'text-purple-400', action: () => onTabChange('experiments') }
+          { label: 'Sessions', value: sessions.length, note: 'completed', icon: Sparkles, iconClass: 'text-purple-400', action: () => onTabChange('sessions') }
         ].map(card => (
           <button type="button" onClick={card.action} key={card.label} className="group rounded-xl border border-neutral-850 bg-neutral-950/65 p-4 text-left backdrop-blur transition hover:-translate-y-0.5 hover:border-neutral-600 hover:bg-neutral-900/70">
             <div className="flex items-center justify-between"><span className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">{card.label}</span><span className="flex items-center gap-2"><card.icon className={`h-4 w-4 ${card.iconClass}`} /><ArrowUpRight className="h-3 w-3 text-neutral-700 group-hover:text-neutral-300" /></span></div>
@@ -263,10 +263,14 @@ export default function CommandCenterView({
         </div>
       </section>
 
-      {(warningInsights.length > 0 || activeExperiments.length > 0 || cycleGoals) && (
+      {(warningInsights.length > 0 || sessions.length > 0 || cycleGoals) && (
         <section className="grid gap-5 lg:grid-cols-2">
           <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5"><button type="button" onClick={() => onTabChange('insights')} className="group mb-4 flex w-full items-center justify-between text-left text-sm font-bold text-white"><span className="flex items-center gap-2"><Zap className="h-4 w-4 text-amber-400" /> Strategic watchlist</span><ArrowUpRight className="h-3.5 w-3.5 text-neutral-700 group-hover:text-amber-400" /></button><div className="space-y-2.5">{warningInsights.length ? warningInsights.map(item => <button type="button" onClick={() => onTabChange('insights')} key={item.id} className="group block w-full rounded-xl border border-neutral-900 bg-neutral-900/25 p-3 text-left transition hover:border-amber-900/50"><div className="flex items-center justify-between gap-2 text-xs font-semibold text-neutral-200"><span>{item.title}</span><ArrowUpRight className="h-3 w-3 text-neutral-700 group-hover:text-amber-400" /></div><div className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-neutral-500">{item.description}</div></button>) : <div className="text-[10px] text-neutral-600">No strategic warnings.</div>}</div></div>
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5"><div className="mb-4 flex items-center gap-2 text-sm font-bold text-white"><ListTodo className="h-4 w-4 text-purple-400" /> Active initiatives</div><div className="space-y-2.5">{cycleGoals && <button type="button" onClick={() => onTabChange('actionhub')} className="group block w-full rounded-xl border border-purple-900/25 bg-purple-950/10 p-3 text-left transition hover:border-purple-700/60"><div className="flex items-center justify-between"><span className="text-xs font-semibold text-neutral-200">{cycleGoals.monthName} publishing cycle</span><span className="flex items-center gap-2 font-mono text-[10px] text-purple-300">{cycleDelivered}/{cycleTarget || '-'}<ArrowUpRight className="h-3 w-3" /></span></div><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-neutral-900"><div className="h-full rounded-full bg-gradient-to-r from-purple-600 to-cyan-400" style={{ width: `${cycleProgress}%` }} /></div><div className="mt-1.5 font-mono text-[9px] text-neutral-600">{cycleProgress}% of target delivered</div></button>}{activeExperiments.map(item => <button key={item.id} onClick={() => onTabChange('experiments')} className="flex w-full items-center justify-between rounded-xl border border-neutral-900 bg-neutral-900/25 p-3 text-left hover:border-purple-900/50"><span><span className="block text-xs font-semibold text-neutral-200">{item.name}</span><span className="mt-1 block text-[10px] text-neutral-500">Testing {item.metricBeingTested}</span></span><ArrowUpRight className="h-3.5 w-3.5 text-purple-400" /></button>)}{activeExperiments.length === 0 && !cycleGoals && <div className="text-[10px] text-neutral-600">No experiments currently running.</div>}</div></div>
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5"><button type="button" onClick={() => onTabChange('sessions')} className="group mb-4 flex w-full items-center justify-between text-left text-sm font-bold text-white"><span className="flex items-center gap-2"><ListTodo className="h-4 w-4 text-purple-400" /> Active initiatives</span><ArrowUpRight className="h-3.5 w-3.5 text-neutral-700 group-hover:text-purple-400" /></button><div className="space-y-2.5">{cycleGoals && <button type="button" onClick={() => onTabChange('actionhub')} className="group block w-full rounded-xl border border-purple-900/25 bg-purple-950/10 p-3 text-left transition hover:border-purple-700/60"><div className="flex items-center justify-between"><span className="text-xs font-semibold text-neutral-200">{cycleGoals.monthName} publishing cycle</span><span className="flex items-center gap-2 font-mono text-[10px] text-purple-300">{cycleDelivered}/{cycleTarget || '-'}<ArrowUpRight className="h-3 w-3" /></span></div><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-neutral-900"><div className="h-full rounded-full bg-gradient-to-r from-purple-600 to-cyan-400" style={{ width: `${cycleProgress}%` }} /></div><div className="mt-1.5 font-mono text-[9px] text-neutral-600">{cycleProgress}% of target delivered</div></button>}{sessions.length > 0 && (() => {
+            const latest = [...sessions].sort((a, b) => new Date(b.endedAt).getTime() - new Date(a.endedAt).getTime())[0];
+            const totalGoals = latest.achievedGoals.length + latest.droppedGoals.length + latest.pendingGoals.length;
+            return <button type="button" onClick={() => onTabChange('sessions')} className="flex w-full items-center justify-between rounded-xl border border-neutral-900 bg-neutral-900/25 p-3 text-left hover:border-purple-900/50"><span><span className="block text-xs font-semibold text-neutral-200">Last session · {new Date(latest.endedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span><span className="mt-1 block text-[10px] text-neutral-500">{latest.achievedGoals.length}/{totalGoals || 0} goals achieved</span></span><ArrowUpRight className="h-3.5 w-3.5 text-purple-400" /></button>;
+          })()}{sessions.length === 0 && !cycleGoals && <div className="text-[10px] text-neutral-600">No sessions recorded yet.</div>}</div></div>
         </section>
       )}
     </div>

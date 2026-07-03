@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import { supabase } from './services/supabase';
 
-import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, WorkdaySession, VideoRecord, Experiment, CreatorInsight, ScorecardState, AiRulePreset, AiUsageStats, YoutubeRevenueData } from './types';
+import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, WorkdaySession, SessionRecord, SessionGoalOutcome, VideoRecord, Experiment, CreatorInsight, ScorecardState, AiRulePreset, AiUsageStats, YoutubeRevenueData } from './types';
 import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, normalizeCommittedTombstones, prepareLocalTopicMutation, topicCollectionsEqual, visibleCreatorTopics } from './lib/topicSync';
 import { normalizeScorecard, rolloverScorecard } from './services/scorecardStorage';
 import { fetchYoutubeRevenue, startYoutubeAuth, disconnectYoutube } from './services/youtube';
@@ -64,7 +64,7 @@ const PipelineView = lazy(() => import('./components/PipelineView'));
 const VideoLabView = lazy(() => import('./components/VideoLabView'));
 const TodayGoalsView = lazy(() => import('./components/TodayGoalsView'));
 const ForecastingView = lazy(() => import('./components/ForecastingView'));
-const ExperimentTrackerView = lazy(() => import('./components/ExperimentTrackerView'));
+const SessionsView = lazy(() => import('./components/SessionsView'));
 const InsightsView = lazy(() => import('./components/InsightsView'));
 
 // Get or create session ID for the current tab session
@@ -125,7 +125,7 @@ export default function App() {
     localStorage.removeItem('unicorn_openai_api_key');
   }, []);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score' | 'pipeline' | 'videolab' | 'topicintel' | 'forecasting' | 'experiments' | 'insights'>(() => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score' | 'pipeline' | 'videolab' | 'topicintel' | 'forecasting' | 'experiments' | 'sessions' | 'insights'>(() => {
     return (localStorage.getItem('unicorn_active_tab') as any) || 'overview';
   });
 
@@ -133,6 +133,7 @@ export default function App() {
 
   const [cycleGoals, setCycleGoals] = useState<CycleGoal | null>(null);
   const [workdaySession, setWorkdaySession] = useState<WorkdaySession | null>(null);
+  const [sessions, setSessions] = useState<SessionRecord[]>([]);
 
   const [scorecard, setScorecard] = useState<ScorecardState>(() => normalizeScorecard(null));
 
@@ -271,6 +272,50 @@ export default function App() {
       setWorkdaySession(prev => prev ? { ...prev, goals: prunedGoals, updatedAt: new Date().toISOString() } : prev);
     }
   }, [topics, workdaySession]);
+
+  // Ends the live workday session by turning it into a permanent
+  // SessionRecord — every session becomes a real history entry, regardless
+  // of how it ends (ran out of time, manually ended, etc.), instead of
+  // silently discarding the day's record the way "reset" used to.
+  const endWorkdaySession = () => {
+    setWorkdaySession(current => {
+      if (!current) return current;
+      const stageOrder: Topic['status'][] = ['topic', 'scripted', 'shot', 'edited', 'scheduled', 'posted'];
+      const achievedGoals: SessionGoalOutcome[] = [];
+      const pendingGoals: SessionGoalOutcome[] = [];
+      (current.goals || []).forEach(goal => {
+        const topic = topics.find(t => t.id === goal.topicId);
+        if (!topic) return;
+        const outcome: SessionGoalOutcome = { topicId: topic.id, topicName: topic.name, targetStatus: goal.targetStatus };
+        const isDone = stageOrder.indexOf(topic.status) >= stageOrder.indexOf(goal.targetStatus);
+        (isDone ? achievedGoals : pendingGoals).push(outcome);
+      });
+      const droppedGoals: SessionGoalOutcome[] = (current.droppedGoals || []).map(d => ({
+        topicId: d.topicId, topicName: d.topicName, targetStatus: d.targetStatus
+      }));
+
+      const now = new Date();
+      const finalActiveMs = current.accumulatedActiveMs + (current.status === 'running' && current.activeSince
+        ? Math.max(0, now.getTime() - new Date(current.activeSince).getTime()) : 0);
+      const finalPausedMs = current.accumulatedPausedMs + (current.status === 'paused' && current.pausedAt
+        ? Math.max(0, now.getTime() - new Date(current.pausedAt).getTime()) : 0);
+
+      const record: SessionRecord = {
+        id: `session-${Date.now()}`,
+        dateKey: current.dateKey,
+        startedAt: current.startedAt,
+        endedAt: now.toISOString(),
+        targetMinutes: current.targetMinutes,
+        extensionMinutes: current.extensionMinutes || 0,
+        accumulatedActiveMs: finalActiveMs,
+        accumulatedPausedMs: finalPausedMs,
+        breaksCount: current.breaksCount || 0,
+        achievedGoals, droppedGoals, pendingGoals
+      };
+      setSessions(prev => [record, ...prev]);
+      return null;
+    });
+  };
 
   const [aiPresets, setAiPresets] = useState<AiRulePreset[]>([]);
   const [aiUsage, setAiUsage] = useState<AiUsageStats>(() => createEmptyAiUsageStats());
@@ -627,6 +672,7 @@ export default function App() {
                 activities: [],
                 cycleGoals: null,
                 workdaySession: null,
+                sessions: [],
                 scorecard: normalizeScorecard(null),
                 videos: [],
                 experiments: [],
@@ -671,6 +717,7 @@ export default function App() {
           setAiUsage(createEmptyAiUsageStats());
           setCycleGoals(null);
           setWorkdaySession(null);
+          setSessions([]);
           setEvents([]);
           localStorage.removeItem('unicorn_events');
         }
@@ -834,6 +881,7 @@ export default function App() {
           if (remoteState.activities) setActivities(remoteState.activities);
           if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
           if ('workdaySession' in remoteState) setWorkdaySession(remoteState.workdaySession || null);
+          if (remoteState.sessions) setSessions(remoteState.sessions);
           if (remoteState.scorecard) setScorecard(normalizeScorecard(remoteState.scorecard));
           if (remoteState.videos) setVideos(remoteState.videos);
           if (remoteState.experiments) setExperiments(remoteState.experiments);
@@ -873,6 +921,7 @@ export default function App() {
               activities,
               cycleGoals,
               workdaySession,
+              sessions,
               scorecard,
               videos,
               experiments,
@@ -939,6 +988,7 @@ export default function App() {
                 if (remoteState.activities) setActivities(remoteState.activities);
                 if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
                 if ('workdaySession' in remoteState) setWorkdaySession(remoteState.workdaySession || null);
+                if (remoteState.sessions) setSessions(remoteState.sessions);
                 if (remoteState.scorecard) setScorecard(normalizeScorecard(remoteState.scorecard));
                 if (remoteState.videos) setVideos(remoteState.videos);
                 if (remoteState.experiments) setExperiments(remoteState.experiments);
@@ -1023,7 +1073,7 @@ export default function App() {
 
   const saveConflictSafeState = async (
     newTopics: Topic[], newActs: TopicActivity[], newGoals: CycleGoal | null,
-    newWorkdaySession: WorkdaySession | null,
+    newWorkdaySession: WorkdaySession | null, newSessions: SessionRecord[],
     newScorecard: any, newVideos: VideoRecord[], newExperiments: Experiment[], newInsights: CreatorInsight[],
     newPresets: AiRulePreset[], newUsage: AiUsageStats
   ) => {
@@ -1047,7 +1097,7 @@ export default function App() {
       const nextState = {
         ...remoteState, topics: mergedTopics, deletedTopicIds,
         activities: Array.from(mergedActivities.values()).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
-        cycleGoals: newGoals, workdaySession: newWorkdaySession, scorecard: newScorecard, videos: newVideos,
+        cycleGoals: newGoals, workdaySession: newWorkdaySession, sessions: newSessions, scorecard: newScorecard, videos: newVideos,
         experiments: newExperiments, insights: newInsights, aiPresets: newPresets, aiUsage: newUsage
       };
       const nextVersion = (current?.version || 0) + 1;
@@ -1088,6 +1138,7 @@ export default function App() {
     newActs: TopicActivity[],
     newGoals: CycleGoal | null,
     newWorkdaySession: WorkdaySession | null,
+    newSessions: SessionRecord[],
     newScorecard: any,
     newVideos: VideoRecord[],
     newExperiments: Experiment[],
@@ -1102,7 +1153,7 @@ export default function App() {
     // of the session with no automatic recovery.
     if (!supabase || !user || syncFatal) return;
     try {
-      await saveConflictSafeState(newTopics, newActs, newGoals, newWorkdaySession, newScorecard, newVideos, newExperiments, newInsights, newPresets, newUsage);
+      await saveConflictSafeState(newTopics, newActs, newGoals, newWorkdaySession, newSessions, newScorecard, newVideos, newExperiments, newInsights, newPresets, newUsage);
       setSyncError(null);
       return;
       const { error } = await supabase
@@ -1161,7 +1212,7 @@ export default function App() {
     const nextBackup = {
       updatedAt: new Date().toISOString(),
       sessionId: currentSessionId,
-      state: { topics: durableTopics, deletedTopicIds: durableTombstones, activities, cycleGoals, workdaySession, scorecard, videos, experiments, insights, aiPresets, aiUsage }
+      state: { topics: durableTopics, deletedTopicIds: durableTombstones, activities, cycleGoals, workdaySession, sessions, scorecard, videos, experiments, insights, aiPresets, aiUsage }
     };
 
     try {
@@ -1177,7 +1228,7 @@ export default function App() {
     } catch { /* A malformed old backup must not block the current snapshot. */ }
 
     localStorage.setItem(backupKey, JSON.stringify(nextBackup));
-  }, [topics, activities, cycleGoals, workdaySession, scorecard, videos, experiments, insights, aiPresets, aiUsage, user, authLoading, isStateLoaded, hydratedUserId]);
+  }, [topics, activities, cycleGoals, workdaySession, sessions, scorecard, videos, experiments, insights, aiPresets, aiUsage, user, authLoading, isStateLoaded, hydratedUserId]);
 
   // Realtime is the fast path; versioned reconciliation is the reliability path.
   // It keeps devices converged even when postgres_changes delivery is delayed,
@@ -1222,6 +1273,7 @@ export default function App() {
         if (remoteState.activities) setActivities(remoteState.activities);
         if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
         if ('workdaySession' in remoteState) setWorkdaySession(remoteState.workdaySession || null);
+        if (remoteState.sessions) setSessions(remoteState.sessions);
         if (remoteState.scorecard) setScorecard(normalizeScorecard(remoteState.scorecard));
         if (remoteState.videos) setVideos(remoteState.videos);
         if (remoteState.experiments) setExperiments(remoteState.experiments);
@@ -1258,11 +1310,11 @@ export default function App() {
     const timer = setTimeout(() => {
       saveQueueRef.current = saveQueueRef.current
         .catch(() => undefined)
-        .then(() => saveStateToSupabase(topics, activities, cycleGoals, workdaySession, scorecard, videos, experiments, insights, aiPresets, aiUsage));
+        .then(() => saveStateToSupabase(topics, activities, cycleGoals, workdaySession, sessions, scorecard, videos, experiments, insights, aiPresets, aiUsage));
     }, 75);
 
     return () => clearTimeout(timer);
-  }, [topics, activities, cycleGoals, workdaySession, scorecard, videos, experiments, insights, aiPresets, aiUsage, user, authLoading, isStateLoaded, hydratedUserId]);
+  }, [topics, activities, cycleGoals, workdaySession, sessions, scorecard, videos, experiments, insights, aiPresets, aiUsage, user, authLoading, isStateLoaded, hydratedUserId]);
 
   // Update clock
   useEffect(() => {
@@ -1689,15 +1741,15 @@ export default function App() {
               </button>
 
               <button
-                onClick={() => setActiveTab('experiments')}
+                onClick={() => setActiveTab('sessions')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
-                  activeTab === 'experiments'
+                  activeTab === 'sessions'
                     ? 'bg-neutral-900 border border-neutral-850 text-amber-500'
                     : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
                 }`}
               >
                 <Bookmark className="h-3.5 w-3.5 text-amber-500" />
-                <span>Experiments</span>
+                <span>Sessions</span>
               </button>
 
               <button
@@ -1761,7 +1813,7 @@ export default function App() {
               </button>
             </div>
 
-            <WorkdayTimer session={workdaySession} setSession={setWorkdaySession} topics={topics} />
+            <WorkdayTimer session={workdaySession} setSession={setWorkdaySession} topics={topics} onEndSession={endWorkdaySession} />
 
             <motion.button
               whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(59, 130, 246, 0.6)' }}
@@ -1814,6 +1866,7 @@ export default function App() {
                 topics={topics}
                 videos={videos}
                 experiments={experiments}
+                sessions={sessions}
                 insights={insights}
                 cycleGoals={cycleGoals}
                 workdaySession={workdaySession}
@@ -1873,6 +1926,7 @@ export default function App() {
                 topics={topics}
                 session={workdaySession}
                 setSession={setWorkdaySession}
+                onEndSession={endWorkdaySession}
               />
             )}
 
@@ -1883,13 +1937,8 @@ export default function App() {
               />
             )}
 
-            {activeTab === 'experiments' && (
-              <ExperimentTrackerView
-                experiments={experiments}
-                setExperiments={setExperiments}
-                videos={videos}
-                onAddEvent={addEvent}
-              />
+            {activeTab === 'sessions' && (
+              <SessionsView sessions={sessions} />
             )}
 
             {activeTab === 'insights' && (
