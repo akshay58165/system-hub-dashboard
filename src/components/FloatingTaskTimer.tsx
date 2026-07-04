@@ -71,6 +71,8 @@ export default function FloatingTaskTimer({
   const [dismissedUntilFocus, setDismissedUntilFocus] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
   const activePointerIdRef = useRef<number | null>(null);
+  const activeTouchIdRef = useRef<number | null>(null);
+  const dragInputModeRef = useRef<'pointer' | 'mouse' | 'touch' | null>(null);
   const timerRef = useRef<HTMLDivElement>(null);
   const openingDesktopWindowRef = useRef(false);
 
@@ -122,42 +124,122 @@ export default function FloatingTaskTimer({
     if (typeof pointerId === 'number') activePointerIdRef.current = pointerId;
   }, [pos]);
 
+  const beginDrag = useCallback((x: number, y: number, mode: 'pointer' | 'mouse' | 'touch', pointerId?: number, touchId?: number) => {
+    dragInputModeRef.current = mode;
+    if (typeof pointerId === 'number') activePointerIdRef.current = pointerId;
+    if (typeof touchId === 'number') activeTouchIdRef.current = touchId;
+    startDrag(x, y, pointerId);
+  }, [startDrag]);
+
+  const stopDrag = useCallback(() => {
+    activePointerIdRef.current = null;
+    activeTouchIdRef.current = null;
+    dragInputModeRef.current = null;
+    setDragging(false);
+  }, []);
+
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
-    startDrag(e.clientX, e.clientY, e.pointerId);
+    beginDrag(e.clientX, e.clientY, 'pointer', e.pointerId);
     e.preventDefault();
     try {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     } catch {
       // Some embedded browsers may not support pointer capture.
     }
-  }, [startDrag]);
+  }, [beginDrag]);
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return;
+    beginDrag(e.clientX, e.clientY, 'mouse');
+    e.preventDefault();
+  }, [beginDrag]);
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return;
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+    beginDrag(touch.clientX, touch.clientY, 'touch', undefined, touch.identifier);
+    e.preventDefault();
+  }, [beginDrag]);
 
   useEffect(() => {
     if (!dragging) return;
+    let raf = 0;
     const onMove = (e: PointerEvent) => {
+      if (dragInputModeRef.current !== 'pointer') return;
       if (activePointerIdRef.current !== null && e.pointerId !== activePointerIdRef.current) return;
       const maxX = window.innerWidth - (timerRef.current?.offsetWidth || 180) - 8;
       const maxY = window.innerHeight - (timerRef.current?.offsetHeight || 48) - 8;
-      setPos({
-        x: Math.max(8, Math.min(maxX, e.clientX - dragOffset.current.x)),
-        y: Math.max(8, Math.min(maxY, e.clientY - dragOffset.current.y)),
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        setPos({
+          x: Math.max(8, Math.min(maxX, e.clientX - dragOffset.current.x)),
+          y: Math.max(8, Math.min(maxY, e.clientY - dragOffset.current.y)),
+        });
       });
     };
     const onUp = (e: PointerEvent) => {
       if (activePointerIdRef.current !== null && e.pointerId !== activePointerIdRef.current) return;
-      activePointerIdRef.current = null;
-      setDragging(false);
+      stopDrag();
+    };
+    const onMouseMove = (e: MouseEvent) => {
+      if (dragInputModeRef.current !== 'mouse') return;
+      const maxX = window.innerWidth - (timerRef.current?.offsetWidth || 180) - 8;
+      const maxY = window.innerHeight - (timerRef.current?.offsetHeight || 48) - 8;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        setPos({
+          x: Math.max(8, Math.min(maxX, e.clientX - dragOffset.current.x)),
+          y: Math.max(8, Math.min(maxY, e.clientY - dragOffset.current.y)),
+        });
+      });
+    };
+    const onMouseUp = () => {
+      if (dragInputModeRef.current !== 'mouse') return;
+      stopDrag();
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (dragInputModeRef.current !== 'touch') return;
+      const touch = Array.from(e.changedTouches).find(item => item.identifier === activeTouchIdRef.current);
+      if (!touch) return;
+      const maxX = window.innerWidth - (timerRef.current?.offsetWidth || 180) - 8;
+      const maxY = window.innerHeight - (timerRef.current?.offsetHeight || 48) - 8;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        setPos({
+          x: Math.max(8, Math.min(maxX, touch.clientX - dragOffset.current.x)),
+          y: Math.max(8, Math.min(maxY, touch.clientY - dragOffset.current.y)),
+        });
+      });
+      e.preventDefault();
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (dragInputModeRef.current !== 'touch') return;
+      const ended = Array.from(e.changedTouches).some(item => item.identifier === activeTouchIdRef.current);
+      if (!ended) return;
+      stopDrag();
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('touchend', onTouchEnd);
+    window.addEventListener('touchcancel', onTouchEnd);
     return () => {
+      cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+      window.removeEventListener('touchcancel', onTouchEnd);
     };
-  }, [dragging]);
+  }, [dragging, stopDrag]);
 
   useEffect(() => {
     if (!workdaySession) {
@@ -259,6 +341,8 @@ export default function FloatingTaskTimer({
             touchAction: 'none',
           }}
           onPointerDown={onPointerDown}
+          onMouseDown={onMouseDown}
+          onTouchStart={onTouchStart}
         >
           <div className="relative overflow-hidden rounded-3xl border border-rose-400/20 bg-rose-950/32 font-mono text-[11px] font-bold text-rose-50 shadow-[0_0_42px_rgba(244,63,94,.22)] backdrop-blur-3xl">
             <TimerGlow />
