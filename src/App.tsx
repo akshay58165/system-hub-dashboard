@@ -653,6 +653,7 @@ export default function App() {
   const [user, setUser] = useState<any>(null);
   const channelRef = useRef<any>(null);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const suppressNextSaveRef = useRef(false);
   const lastRemoteUpdatedAtRef = useRef(0);
   const lastRemoteVersionRef = useRef(0);
   const reconciliationInFlightRef = useRef(false);
@@ -947,6 +948,7 @@ export default function App() {
           topicTombstonesRef.current = combinedTombstones;
           const cloudNeedsRepair = !topicCollectionsEqual(hydratedTopics, remoteTopics);
           isRemoteSyncRef.current = !cloudNeedsRepair;
+          suppressNextSaveRef.current = true;
           dirtyTopicIdsRef.current = cloudNeedsRepair
             ? new Set(hydratedTopics.filter(topic => !remoteTopics.some(remote => remote.id === topic.id)).map(topic => topic.id))
             : new Set();
@@ -1073,6 +1075,7 @@ export default function App() {
                 if (remoteState.aiPresets) setAiPresets(remoteState.aiPresets);
                 if (remoteState.aiUsage) setAiUsage(remoteState.aiUsage);
                 if (remoteState.taskTimers) setTaskTimers(remoteState.taskTimers);
+                suppressNextSaveRef.current = true;
 
                 addEvent({
                   id: `evt-supabase-sync-realtime-${Date.now()}`,
@@ -1150,6 +1153,7 @@ export default function App() {
         if (topicMutationEpochRef.current === savingTopicEpoch) {
           dirtyTopicIdsRef.current.clear();
           isRemoteSyncRef.current = true;
+          suppressNextSaveRef.current = true;
           setTopicsState(mergedTopics);
         }
         return;
@@ -1164,6 +1168,7 @@ export default function App() {
       if (topicMutationEpochRef.current === savingTopicEpoch) {
         dirtyTopicIdsRef.current.clear();
         isRemoteSyncRef.current = true;
+        suppressNextSaveRef.current = true;
         setTopicsState(mergedTopics);
       }
       return;
@@ -1342,8 +1347,8 @@ export default function App() {
   useEffect(() => {
     if (!user || authLoading || !isStateLoaded || hydratedUserId !== user.id) return;
 
-    if (isRemoteSyncRef.current) {
-      isRemoteSyncRef.current = false;
+    if (suppressNextSaveRef.current) {
+      suppressNextSaveRef.current = false;
       return;
     }
 
