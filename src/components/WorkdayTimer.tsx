@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
-import { Check, ChevronDown, Clock3, Pause, Pencil, Play, Plus, RotateCcw, Target, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, Clock3, Loader2, Pause, Pencil, Play, Plus, RotateCcw, Target, Trash2, X } from 'lucide-react';
 import type { Topic, WorkdaySession } from '../types';
 import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
 import EndSessionModal from './EndSessionModal';
@@ -54,6 +54,8 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [showProductivityPrompt, setShowProductivityPrompt] = useState(false);
   const [showEndConfirmation, setShowEndConfirmation] = useState(false);
+  const [isStartingDay, setIsStartingDay] = useState(false);
+  const startTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!session || session.status === 'completed') return;
@@ -72,6 +74,11 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
   }, [session, now]);
 
   const openSetup = () => {
+    if (startTimeoutRef.current) {
+      window.clearTimeout(startTimeoutRef.current);
+      startTimeoutRef.current = null;
+    }
+    setIsStartingDay(false);
     setSetupStep('budget');
     setDraftGoals([]);
     setGoalTopicId('');
@@ -80,13 +87,20 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
   };
 
   const startDay = (goals: NonNullable<WorkdaySession['goals']>) => {
+    if (isStartingDay) return;
     const hours = selectedHours === 'custom' ? Number(customHours) : selectedHours;
     if (!Number.isFinite(hours) || hours <= 0 || hours > 24) return;
-    const stamp = new Date().toISOString();
-    setSession({ dateKey: todayKey(), targetMinutes: Math.round(hours * 60), startedAt: stamp, activeSince: stamp, pausedAt: null, accumulatedActiveMs: 0, productiveActiveMs: 0, productivityRatings: [], accumulatedPausedMs: 0, status: 'running', updatedAt: stamp, goals });
-    setNow(Date.now());
-    setShowSetup(false);
-    setShowPanel(true);
+    setIsStartingDay(true);
+    if (startTimeoutRef.current) window.clearTimeout(startTimeoutRef.current);
+    startTimeoutRef.current = window.setTimeout(() => {
+      const stamp = new Date().toISOString();
+      setSession({ dateKey: todayKey(), targetMinutes: Math.round(hours * 60), startedAt: stamp, activeSince: stamp, pausedAt: null, accumulatedActiveMs: 0, productiveActiveMs: 0, productivityRatings: [], accumulatedPausedMs: 0, status: 'running', updatedAt: stamp, goals });
+      setNow(Date.now());
+      setShowSetup(false);
+      setShowPanel(true);
+      setIsStartingDay(false);
+      startTimeoutRef.current = null;
+    }, 240);
   };
 
   // Clicking anywhere outside the setup card dismisses it — unless the user
@@ -101,6 +115,12 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
   useEffect(() => {
     if (showSetup) setupCardRef.current?.scrollTo({ top: 0 });
   }, [showSetup, setupStep]);
+
+  useEffect(() => {
+    return () => {
+      if (startTimeoutRef.current) window.clearTimeout(startTimeoutRef.current);
+    };
+  }, []);
 
   // The workday panel itself holds no editable input, but its nested "Set
   // goal" sub-form does once a topic is picked — block outside-dismiss only
@@ -292,12 +312,12 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
         <AnimatePresence>
           {showSetup && (
             <motion.div className="fixed inset-0 z-[1000] flex items-start justify-center overflow-y-auto bg-black/80 px-4 py-5 backdrop-blur-sm sm:items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <motion.div ref={setupCardRef} initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .96 }} className="max-h-[calc(100dvh-2.5rem)] w-full max-w-xl overflow-y-auto rounded-2xl border border-cyan-900/50 bg-neutral-950 p-5 shadow-[0_0_50px_rgba(6,182,212,.12)] sm:p-6">
-                <div className="relative"><button onClick={() => setShowSetup(false)} className="absolute right-0 top-0 rounded-lg border border-neutral-800 p-2 text-neutral-500 hover:text-white"><X className="h-4 w-4" /></button><div className="text-center pr-10"><h2 className="text-lg font-bold text-white">{setupStep === 'budget' ? 'Set work budget' : 'Set today\'s goals'}</h2><p className="mt-1 text-xs leading-relaxed text-neutral-400">{setupStep === 'budget' ? 'Choose today\'s active work quota. The timer will not start yet.' : 'Optional. Add topic milestones, or begin without goals.'}</p></div></div>
+                <motion.div ref={setupCardRef} initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .96 }} className="max-h-[calc(100dvh-2.5rem)] w-full max-w-xl overflow-y-auto rounded-2xl border border-cyan-900/50 bg-neutral-950 p-5 shadow-[0_0_50px_rgba(6,182,212,.12)] sm:p-6">
+                <div className="relative"><button disabled={isStartingDay} onClick={() => setShowSetup(false)} className="absolute right-0 top-0 rounded-lg border border-neutral-800 p-2 text-neutral-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"><X className="h-4 w-4" /></button><div className="text-center pr-10"><h2 className="text-lg font-bold text-white">{setupStep === 'budget' ? 'Set work budget' : 'Set today\'s goals'}</h2><p className="mt-1 text-xs leading-relaxed text-neutral-400">{setupStep === 'budget' ? 'Choose today\'s active work quota. The timer will not start yet.' : 'Optional. Add topic milestones, or begin without goals.'}</p></div>{isStartingDay && <div className="mt-3 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300"><Loader2 className="h-3.5 w-3.5 animate-spin" />Starting workday...</div>}</div>
                 {setupStep === 'budget' ? <>
                   <div className="mt-4 flex flex-wrap justify-center gap-1.5">{[1,2,3,4,5,6,7,8,9,10].map(h => <button key={h} onClick={() => setSelectedHours(h as any)} className={`h-8 w-8 rounded-md border font-mono text-[10px] font-bold ${selectedHours === h ? 'border-cyan-500 bg-cyan-950/40 text-cyan-300' : 'border-neutral-800 bg-neutral-900/50 text-neutral-400 hover:border-neutral-600'}`}>{h}</button>)}<button onClick={() => setSelectedHours('custom')} className={`h-8 w-8 rounded-md border flex items-center justify-center ${selectedHours === 'custom' ? 'border-cyan-500 bg-cyan-950/40 text-cyan-300' : 'border-neutral-800 bg-neutral-900/50 text-neutral-400 hover:border-neutral-600'}`}><Pencil className="h-3 w-3" /></button></div>
                   {selectedHours === 'custom' && <label className="mt-3 block text-[9px] uppercase text-neutral-500">Hours<input type="number" min="0.25" max="24" step="0.25" value={customHours} onChange={event => setCustomHours(event.target.value)} className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white" /></label>}
-                  <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2"><button onClick={() => startDay([])} className="rounded-xl border border-neutral-700 bg-neutral-900 py-3 text-sm font-bold text-neutral-200 hover:border-neutral-500">Start without goals</button><button onClick={() => setSetupStep('goals')} className="rounded-xl bg-cyan-500 py-3 text-sm font-bold text-black hover:bg-cyan-400">Continue to goals</button></div>
+                    <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2"><button disabled={isStartingDay} onClick={() => startDay([])} className="rounded-xl border border-neutral-700 bg-neutral-900 py-3 text-sm font-bold text-neutral-200 hover:border-neutral-500 disabled:cursor-not-allowed disabled:opacity-50">Start without goals</button><button disabled={isStartingDay} onClick={() => setSetupStep('goals')} className="rounded-xl bg-cyan-500 py-3 text-sm font-bold text-black hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50">Continue to goals</button></div>
                 </> : <>
                   {draftGoals.length > 0 && <div className="mt-4 space-y-2">{draftGoals.map(goal => { const topic = topics.find(item => item.id === goal.topicId); return topic ? <div key={goal.id} className="flex items-center gap-2 rounded-lg border border-purple-900/30 bg-purple-950/15 px-3 py-2"><Target className="h-3.5 w-3.5 text-purple-400" /><span className="min-w-0 flex-1"><span className="block truncate text-[10px] font-semibold text-white">{topic.name}</span><span className="block text-[8px] uppercase text-neutral-500">{(() => { const topic = topics.find(t => t.id === goal.topicId); const steps = topic ? stagesBetween(topic.status, goal.targetStatus) : [stageLabel[goal.targetStatus] || goal.targetStatus]; return steps.join(' → '); })()}</span></span><button onClick={() => setDraftGoals(current => current.filter(item => item.id !== goal.id))} className="text-neutral-600 hover:text-rose-400"><Trash2 className="h-3.5 w-3.5" /></button></div> : null; })}</div>}
                   <div className="mt-5 space-y-5 rounded-2xl border border-neutral-800 bg-neutral-900/30 p-5">
@@ -305,10 +325,10 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
                     <div className="block text-xs font-bold uppercase tracking-wider text-neutral-400">Topic{renderTopicPicker()}</div>
                     {selectedTopic && <div className="rounded-lg bg-neutral-950 p-2.5"><div className="truncate text-[10px] font-semibold text-white">{selectedTopic.name}</div><div className="mt-1 text-[8px] uppercase text-cyan-300">Current {selectedTopic.status} · Priority {selectedTopic.priority}</div></div>}
                     <div className="block text-xs font-bold uppercase tracking-wider text-neutral-400">Milestone to reach today{renderMilestonePicker()}</div>
-                    <button disabled={!selectedTopic} onClick={addGoal} className="flex w-full items-center justify-center gap-2 rounded-xl border border-purple-700 bg-purple-950/40 py-3 text-sm font-bold text-purple-200 disabled:opacity-40"><Plus className="h-4 w-4" />Add goal</button>
+                      <button disabled={!selectedTopic || isStartingDay} onClick={addGoal} className="flex w-full items-center justify-center gap-2 rounded-xl border border-purple-700 bg-purple-950/40 py-3 text-sm font-bold text-purple-200 disabled:cursor-not-allowed disabled:opacity-40"><Plus className="h-4 w-4" />Add goal</button>
                     {!rankedTopics.length && <div className="text-center text-[8px] text-neutral-600">No unfinished topics available.</div>}
                   </div>
-                  <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2"><button onClick={() => startDay([])} className="rounded-xl border border-neutral-700 bg-neutral-900 py-3.5 text-sm font-bold text-neutral-200 hover:border-neutral-500">Start without goals</button><button disabled={!draftGoals.length} onClick={() => startDay(draftGoals)} className="rounded-xl bg-cyan-500 py-3.5 text-sm font-bold text-black hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-35">Start with {draftGoals.length || ''} goal{draftGoals.length === 1 ? '' : 's'}</button></div>
+                    <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2"><button disabled={isStartingDay} onClick={() => startDay([])} className="rounded-xl border border-neutral-700 bg-neutral-900 py-3.5 text-sm font-bold text-neutral-200 hover:border-neutral-500 disabled:cursor-not-allowed disabled:opacity-50">Start without goals</button><button disabled={!draftGoals.length || isStartingDay} onClick={() => startDay(draftGoals)} className="rounded-xl bg-cyan-500 py-3.5 text-sm font-bold text-black hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-35">Start with {draftGoals.length || ''} goal{draftGoals.length === 1 ? '' : 's'}</button></div>
                   <button onClick={() => setSetupStep('budget')} className="mt-4 w-full py-2 text-xs text-neutral-400 hover:text-white">Back to work budget</button>
                 </>}
               </motion.div>
