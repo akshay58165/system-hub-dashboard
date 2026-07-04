@@ -131,12 +131,13 @@ export default function FloatingTaskTimer({
     }
 
     try {
-      const pipWindow = await documentPictureInPicture.requestWindow({ width: 300, height: 112 });
+      const pipWindow = await documentPictureInPicture.requestWindow({ width: 240, height: 72 });
       document.querySelectorAll('link[rel="stylesheet"], style').forEach(node => {
         pipWindow.document.head.appendChild(node.cloneNode(true));
       });
       pipWindow.document.title = 'Unicorn Day Timer';
-      pipWindow.document.body.className = 'm-0 flex min-h-screen items-center justify-center overflow-hidden bg-neutral-950 p-3';
+      pipWindow.document.documentElement.className = 'm-0 h-full overflow-hidden bg-neutral-950';
+      pipWindow.document.body.className = 'm-0 h-full overflow-hidden bg-neutral-950';
       pipWindow.addEventListener('pagehide', () => setDesktopWindow(null), { once: true });
       setDesktopWindow(pipWindow);
     } catch {
@@ -249,12 +250,12 @@ export default function FloatingTaskTimer({
       </motion.div>
 
       {desktopWindow && !desktopWindow.closed && createPortal(
-        <div className={`flex items-stretch overflow-hidden rounded-xl border font-mono text-[11px] font-bold shadow-2xl ${
+        <div className={`flex h-screen w-screen items-stretch overflow-hidden border font-mono text-[11px] font-bold ${
           showTaskTimer
             ? isTaskRunning ? 'border-amber-700/60 bg-amber-950 text-amber-200' : 'border-neutral-700 bg-neutral-900 text-neutral-300'
             : isMainRunning ? 'border-emerald-800/60 bg-emerald-950 text-emerald-200' : 'border-amber-800/60 bg-amber-950 text-amber-200'
         }`}>
-          <div className="flex min-w-48 items-center gap-2 px-4 py-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2">
             {showTaskTimer
               ? <Timer className={`h-4 w-4 ${isTaskRunning ? 'text-amber-400' : 'text-neutral-500'}`} />
               : <Clock3 className={`h-4 w-4 ${isMainRunning ? 'text-emerald-400' : 'text-amber-400'}`} />}
