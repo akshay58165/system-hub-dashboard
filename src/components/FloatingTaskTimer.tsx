@@ -61,6 +61,7 @@ export default function FloatingTaskTimer({
   const [snoozeUntil, setSnoozeUntil] = useState<number | null>(null);
   const [dismissedUntilFocus, setDismissedUntilFocus] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
+  const activePointerIdRef = useRef<number | null>(null);
   const timerRef = useRef<HTMLDivElement>(null);
   const openingDesktopWindowRef = useRef(false);
 
@@ -108,16 +109,27 @@ export default function FloatingTaskTimer({
   };
 
   // Drag handlers
-  const onMouseDown = useCallback((e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('button')) return;
+  const startDrag = useCallback((x: number, y: number, pointerId?: number) => {
     setDragging(true);
-    dragOffset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y };
-    e.preventDefault();
+    dragOffset.current = { x: x - pos.x, y: y - pos.y };
+    if (typeof pointerId === 'number') activePointerIdRef.current = pointerId;
   }, [pos]);
+
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return;
+    startDrag(e.clientX, e.clientY, e.pointerId);
+    e.preventDefault();
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      // Some embedded browsers may not support pointer capture.
+    }
+  }, [startDrag]);
 
   useEffect(() => {
     if (!dragging) return;
-    const onMove = (e: MouseEvent) => {
+    const onMove = (e: PointerEvent) => {
+      if (activePointerIdRef.current !== null && e.pointerId !== activePointerIdRef.current) return;
       const maxX = window.innerWidth - (timerRef.current?.offsetWidth || 180) - 8;
       const maxY = window.innerHeight - (timerRef.current?.offsetHeight || 48) - 8;
       setPos({
@@ -125,10 +137,19 @@ export default function FloatingTaskTimer({
         y: Math.max(8, Math.min(maxY, e.clientY - dragOffset.current.y)),
       });
     };
-    const onUp = () => setDragging(false);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    const onUp = (e: PointerEvent) => {
+      if (activePointerIdRef.current !== null && e.pointerId !== activePointerIdRef.current) return;
+      activePointerIdRef.current = null;
+      setDragging(false);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
   }, [dragging]);
 
   useEffect(() => {
@@ -251,23 +272,31 @@ export default function FloatingTaskTimer({
           ref={timerRef}
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          style={{ position: 'fixed', left: pos.x, top: pos.y, zIndex: 9999, cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none' }}
-          onMouseDown={onMouseDown}
+          style={{
+            position: 'fixed',
+            left: pos.x,
+            top: pos.y,
+            zIndex: 9999,
+            cursor: dragging ? 'grabbing' : 'grab',
+            userSelect: 'none',
+            touchAction: 'none'
+          }}
+          onPointerDown={onPointerDown}
         >
         {showTaskTimer && activeTaskTimer ? (
-          <div className={`flex items-stretch overflow-hidden rounded-xl border shadow-2xl font-mono text-[11px] font-bold backdrop-blur-xl ${
+          <div className={`flex items-stretch overflow-hidden rounded-2xl border font-mono text-[11px] font-bold backdrop-blur-2xl shadow-[0_0_35px_rgba(16,185,129,.22)] ${
             isTaskRunning
-              ? 'border-amber-700/60 bg-amber-950/90 text-amber-200 shadow-amber-900/30'
-              : 'border-neutral-700/60 bg-neutral-900/95 text-neutral-300'
+              ? 'border-emerald-400/25 bg-emerald-950/40 text-emerald-100'
+              : 'border-emerald-400/15 bg-emerald-950/25 text-emerald-100/80'
           }`}>
             {/* Stage label */}
-            <div className="flex items-center gap-2 px-3 py-2">
-              <Timer className={`h-3.5 w-3.5 shrink-0 ${isTaskRunning ? 'text-amber-400 animate-pulse' : 'text-neutral-500'}`} />
+            <div className="flex items-center gap-2 px-3 py-2.5 bg-white/5">
+              <Timer className={`h-3.5 w-3.5 shrink-0 ${isTaskRunning ? 'text-emerald-300 animate-pulse' : 'text-emerald-200/60'}`} />
               <div className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-wider opacity-70">
+                <span className="text-[9px] uppercase tracking-wider text-emerald-200/70">
                   {stageLabel[activeTaskTimer.stage] || activeTaskTimer.stage}
                 </span>
-                <span className={`text-sm font-black tabular-nums ${isTaskRunning ? 'text-amber-100' : 'text-neutral-200'}`}>
+                <span className={`text-sm font-black tabular-nums ${isTaskRunning ? 'text-white' : 'text-emerald-50'}`}>
                   {fmt(taskActiveMs)}
                 </span>
               </div>
@@ -276,7 +305,7 @@ export default function FloatingTaskTimer({
             <button
               onMouseDown={e => e.stopPropagation()}
               onClick={snoozeDesktopTimer}
-              className="flex w-8 items-center justify-center border-l border-neutral-700/40 text-neutral-500 transition hover:bg-amber-500/20 hover:text-amber-200"
+              className="flex w-8 items-center justify-center border-l border-emerald-400/15 text-emerald-200/70 transition hover:bg-emerald-400/10 hover:text-emerald-100"
               title="Snooze timer for 5 minutes"
               aria-label="Snooze timer for 5 minutes"
             >
@@ -285,7 +314,7 @@ export default function FloatingTaskTimer({
             <button
               onMouseDown={e => e.stopPropagation()}
               onClick={dismissDesktopTimer}
-              className="flex w-8 items-center justify-center border-l border-neutral-700/40 text-neutral-500 transition hover:bg-neutral-800 hover:text-white"
+              className="flex w-8 items-center justify-center border-l border-emerald-400/15 text-emerald-200/70 transition hover:bg-white/10 hover:text-white"
               title="Close floating timer"
               aria-label="Close floating timer"
             >
@@ -293,16 +322,16 @@ export default function FloatingTaskTimer({
             </button>
           </div>
         ) : showMainTimer && workdaySession ? (
-          <div className={`flex items-stretch overflow-hidden rounded-xl border shadow-2xl font-mono text-[11px] font-bold backdrop-blur-xl ${
+          <div className={`flex items-stretch overflow-hidden rounded-2xl border font-mono text-[11px] font-bold backdrop-blur-2xl shadow-[0_0_35px_rgba(16,185,129,.22)] ${
             isMainRunning
-              ? 'border-emerald-800/60 bg-emerald-950/90 text-emerald-200 shadow-emerald-900/30'
-              : 'border-amber-800/60 bg-amber-950/90 text-amber-200'
+              ? 'border-emerald-400/25 bg-emerald-950/40 text-emerald-100'
+              : 'border-emerald-400/15 bg-emerald-950/25 text-emerald-100/80'
           }`}>
-            <div className="flex items-center gap-2 px-3 py-2">
-              <Clock3 className={`h-3.5 w-3.5 shrink-0 ${isMainRunning ? 'text-emerald-400' : 'text-amber-400'}`} />
+            <div className="flex items-center gap-2 px-3 py-2.5 bg-white/5">
+              <Clock3 className={`h-3.5 w-3.5 shrink-0 ${isMainRunning ? 'text-emerald-300' : 'text-emerald-200/60'}`} />
               <div className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-wider opacity-70">Day timer</span>
-                <span className={`text-sm font-black tabular-nums ${isMainRunning ? 'text-emerald-100' : 'text-amber-100'}`}>
+                <span className="text-[9px] uppercase tracking-wider text-emerald-200/70">Day timer</span>
+                <span className={`text-sm font-black tabular-nums ${isMainRunning ? 'text-white' : 'text-emerald-50'}`}>
                   {fmt(mainActiveMs)}
                 </span>
               </div>
@@ -310,7 +339,7 @@ export default function FloatingTaskTimer({
             <button
               onMouseDown={e => e.stopPropagation()}
               onClick={snoozeDesktopTimer}
-              className="flex w-8 items-center justify-center border-l border-neutral-700/40 text-neutral-500 transition hover:bg-amber-500/20 hover:text-amber-200"
+              className="flex w-8 items-center justify-center border-l border-emerald-400/15 text-emerald-200/70 transition hover:bg-emerald-400/10 hover:text-emerald-100"
               title="Snooze timer for 5 minutes"
               aria-label="Snooze timer for 5 minutes"
             >
@@ -319,7 +348,7 @@ export default function FloatingTaskTimer({
             <button
               onMouseDown={e => e.stopPropagation()}
               onClick={dismissDesktopTimer}
-              className="flex w-8 items-center justify-center border-l border-neutral-700/40 text-neutral-500 transition hover:bg-neutral-800 hover:text-white"
+              className="flex w-8 items-center justify-center border-l border-emerald-400/15 text-emerald-200/70 transition hover:bg-white/10 hover:text-white"
               title="Close floating timer"
               aria-label="Close floating timer"
             >
