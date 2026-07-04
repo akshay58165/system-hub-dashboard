@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Clock3, Pause, Play, Plus, RotateCcw, SlidersHorizontal, Square, Target, Trash2 } from 'lucide-react';
-import type { TaskTimerRecord, TaskTimerStage, Topic, WorkdaySession } from '../types';
+import type { SessionRecord, TaskTimerRecord, TaskTimerStage, Topic, WorkdaySession } from '../types';
 import EndSessionModal from './EndSessionModal';
+import SessionsView from './SessionsView';
 
 interface TodayGoalsViewProps {
   topics: Topic[];
@@ -15,6 +16,7 @@ interface TodayGoalsViewProps {
   onStopTaskTimer: (endReason: 'done' | 'deferred', productivityScore?: number) => void;
   onPauseMainTimer: () => void;
   onResumeMainTimer: () => void;
+  sessions: SessionRecord[];
 }
 
 const goalStages = ['scripted', 'shot', 'edited', 'scheduled', 'posted'] as const;
@@ -35,7 +37,7 @@ const priorityDetails = (priority: Topic['priority']) => ({
   5: { label: 'Automatic', style: 'border-purple-800/60 bg-purple-950/30 text-purple-300' }
 } as const)[priority];
 
-export default function TodayGoalsView({ topics, session, setSession, onEndSession, taskTimers, onStartTaskTimer, onPauseTaskTimer, onResumeTaskTimer, onStopTaskTimer, onPauseMainTimer, onResumeMainTimer }: TodayGoalsViewProps) {
+export default function TodayGoalsView({ topics, session, setSession, onEndSession, taskTimers, onStartTaskTimer, onPauseTaskTimer, onResumeTaskTimer, onStopTaskTimer, onPauseMainTimer, onResumeMainTimer, sessions }: TodayGoalsViewProps) {
   const [now, setNow] = useState(Date.now());
   const [topicId, setTopicId] = useState('');
   const [target, setTarget] = useState<typeof goalStages[number]>('scripted');
@@ -155,15 +157,15 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
     timer.status === 'paused' && timer.pausedAt ? Math.max(0, now - new Date(timer.pausedAt).getTime()) : 0
   );
 
-  if (!session) return <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-8 text-center"><Target className="mx-auto h-8 w-8 text-purple-400" /><h1 className="mt-3 text-xl font-bold text-white">Today&apos;s Goals</h1><p className="mt-2 text-sm text-neutral-500">Start the day from the header to create today&apos;s time budget and topic goals.</p></div>;
+  if (!session) return <div className="space-y-5 pb-10"><div><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-purple-400"><Clock3 className="h-4 w-4" />Work intelligence</div><h1 className="mt-2 text-2xl font-bold text-white">Sessions</h1><p className="mt-1 text-sm text-neutral-500">Live work tracking and complete session history.</p></div><div className="rounded-2xl border border-dashed border-neutral-800 bg-neutral-950/50 p-7 text-center"><Target className="mx-auto h-7 w-7 text-purple-400" /><h2 className="mt-3 text-sm font-bold text-white">No active session</h2><p className="mt-1 text-[10px] text-neutral-500">Start the day from the header to begin tracking goals, stages, active time, pauses, and breaks.</p></div><SessionsView sessions={sessions} embedded /></div>;
 
   return <div className="space-y-5 pb-10">
     <EndSessionModal isOpen={showEndConfirmation} activeMs={metrics.active} pausedMs={metrics.paused} completedGoals={completedCount} totalGoals={liveGoals.length} onCancel={() => setShowEndConfirmation(false)} onConfirm={() => { setShowEndConfirmation(false); onEndSession(); }} />
     <section className="rounded-2xl border border-purple-900/35 bg-[linear-gradient(120deg,rgba(20,10,32,.95),rgba(4,16,20,.95))] p-5 md:p-6">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-purple-400"><Target className="h-4 w-4" />Daily execution</div>
-          <h1 className="mt-2 text-2xl font-bold text-white">Today&apos;s Goals</h1>
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-purple-400"><Clock3 className="h-4 w-4" />Live work session</div>
+          <h1 className="mt-2 text-2xl font-bold text-white">Sessions</h1>
           <p className="mt-1 text-sm text-neutral-500">Started {new Date(session.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -295,5 +297,6 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
 
       <div className="h-fit rounded-2xl border border-purple-900/30 bg-neutral-950/70 p-5"><div className="flex items-center gap-2 text-sm font-bold text-white"><Plus className="h-4 w-4 text-purple-400" />Add a goal</div><p className="mt-1 text-[9px] text-neutral-600">Scheduled and posted topics are excluded.</p><div className="mt-4 space-y-3"><label className="block text-[8px] font-bold uppercase text-neutral-500">Ranked topic<select value={topicId} onChange={event => chooseTopic(event.target.value)} className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2.5 text-[10px] font-semibold text-white"><option value="">Select topic</option>{ranked.map(topic => <option key={topic.id} value={topic.id}>P{topic.priority} - {topic.name} - {topic.status}</option>)}</select></label>{selected && <div className="rounded-lg bg-neutral-900/60 p-3"><div className="truncate text-[10px] font-semibold text-white">{selected.name}</div><div className="mt-1 text-[8px] uppercase text-neutral-600">{selected.channel} - current {selected.status}{selected.dueDate ? ` - due ${new Date(selected.dueDate).toLocaleDateString()}` : ''}</div></div>}<label className="block text-[8px] font-bold uppercase text-neutral-500">Milestone<select disabled={!selected} value={target} onChange={event => setTarget(event.target.value as typeof goalStages[number])} className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2.5 text-[10px] capitalize text-white disabled:opacity-40">{targets.map(stage => <option key={stage}>{stage}</option>)}</select></label><button disabled={!selected} onClick={addGoal} className="w-full rounded-lg bg-purple-500 py-2.5 text-[10px] font-bold text-black hover:bg-purple-400 disabled:opacity-40">Add today&apos;s goal</button></div></div>
     </section>
+    <section className="border-t border-neutral-900 pt-5"><div className="mb-4"><h2 className="text-sm font-bold text-white">Completed session history</h2><p className="mt-1 text-[10px] text-neutral-500">Every saved day with goal outcomes, task-stage timelines, active work, pauses, breaks, and productivity.</p></div><SessionsView sessions={sessions} embedded /></section>
   </div>;
 }

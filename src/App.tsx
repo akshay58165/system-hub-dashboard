@@ -24,10 +24,8 @@ import {
   LogOut,
   User as UserIcon,
   AlertCircle,
-  Bookmark,
   Clapperboard,
   Sparkles,
-  ListChecks,
   Youtube,
   Loader2
 } from 'lucide-react';
@@ -67,7 +65,6 @@ const PipelineView = lazy(() => import('./components/PipelineView'));
 const VideoLabView = lazy(() => import('./components/VideoLabView'));
 const TodayGoalsView = lazy(() => import('./components/TodayGoalsView'));
 const ForecastingView = lazy(() => import('./components/ForecastingView'));
-const SessionsView = lazy(() => import('./components/SessionsView'));
 const InsightsView = lazy(() => import('./components/InsightsView'));
 
 // Get or create session ID for the current tab session
@@ -1929,8 +1926,8 @@ export default function App() {
                     : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
                 }`}
               >
-                <ListChecks className="h-3.5 w-3.5 text-purple-400" />
-                <span>Today&apos;s Goals</span>
+                <Clock className="h-3.5 w-3.5 text-purple-400" />
+                <span>Sessions</span>
               </button>
 
               <button
@@ -1943,18 +1940,6 @@ export default function App() {
               >
                 <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
                 <span>Forecasting</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('sessions')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
-                  activeTab === 'sessions'
-                    ? 'bg-neutral-900 border border-neutral-850 text-amber-500'
-                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
-                }`}
-              >
-                <Bookmark className="h-3.5 w-3.5 text-amber-500" />
-                <span>Sessions</span>
               </button>
 
               <button
@@ -2075,7 +2060,7 @@ export default function App() {
                 cycleGoals={cycleGoals}
                 workdaySession={workdaySession}
                 onTabChange={(tab) => {
-                  setActiveTab(tab);
+                  setActiveTab(tab === 'sessions' ? 'topicintel' : tab);
                   window.setTimeout(() => {
                     const destination = document.getElementById('active-workspace-panel');
                     if (destination) highlightCommandDestination(destination);
@@ -2150,6 +2135,7 @@ export default function App() {
                 onStopTaskTimer={stopActiveTaskTimer}
                 onPauseMainTimer={handleMainTimerPause}
                 onResumeMainTimer={handleMainTimerResume}
+                sessions={sessions}
               />
             )}
 
@@ -2158,10 +2144,6 @@ export default function App() {
                 videos={videos}
                 cycleGoals={cycleGoals}
               />
-            )}
-
-            {activeTab === 'sessions' && (
-              <SessionsView sessions={sessions} />
             )}
 
             {activeTab === 'insights' && (
