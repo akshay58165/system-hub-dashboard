@@ -383,24 +383,27 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
         )}
 
       </AnimatePresence>
-      <EndSessionModal
-        isOpen={showEndConfirmation}
-        activeMs={metrics.active}
-        pausedMs={metrics.paused}
-        completedGoals={(session?.goals || []).filter(goal => goalComplete(goal.topicId, goal.targetStatus)).length}
-        totalGoals={(session?.goals || []).length}
-        onCancel={() => setShowEndConfirmation(false)}
-        onConfirm={() => {
-          setShowEndConfirmation(false);
-          onEndSession();
-          setShowPanel(false);
-        }}
-        onDiscard={() => {
-          setShowEndConfirmation(false);
-          setSession(null);
-          setShowPanel(false);
-        }}
-      />
+      {createPortal(
+        <EndSessionModal
+          isOpen={showEndConfirmation}
+          activeMs={metrics.active}
+          pausedMs={metrics.paused}
+          completedGoals={(session?.goals || []).filter(goal => goalComplete(goal.topicId, goal.targetStatus)).length}
+          totalGoals={(session?.goals || []).length}
+          onCancel={() => setShowEndConfirmation(false)}
+          onConfirm={() => {
+            setShowEndConfirmation(false);
+            onEndSession();
+            setShowPanel(false);
+          }}
+          onDiscard={() => {
+            setShowEndConfirmation(false);
+            setSession(null);
+            setShowPanel(false);
+          }}
+        />,
+        document.body
+      )}
     </>
   );
 }
