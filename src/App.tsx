@@ -2515,11 +2515,7 @@ export default function App() {
       </footer>
 
       <FloatingTaskTimer
-        activeTaskTimer={activeTaskTimer}
         workdaySession={workdaySession}
-        onPauseTaskTimer={pauseActiveTaskTimer}
-        onResumeTaskTimer={resumeActiveTaskTimer}
-        onStopTaskTimer={stopActiveTaskTimer}
         onPauseMainTimer={handleMainTimerPause}
         onResumeMainTimer={handleMainTimerResume}
         onOpenSessions={() => setActiveTab('topicintel')}
