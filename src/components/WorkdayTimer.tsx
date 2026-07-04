@@ -374,7 +374,7 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
         )}
 
         {session && showProductivityPrompt && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
             <motion.div initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .96 }} className="w-full max-w-md rounded-2xl border border-purple-800/60 bg-neutral-950 p-5 shadow-[0_0_50px_rgba(168,85,247,.16)]">
               <h2 className="text-base font-bold text-white">How productive was this session?</h2>
               <p className="mt-1 text-[10px] text-neutral-500">Choose once to record this work segment and pause the timer.</p>

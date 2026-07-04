@@ -86,6 +86,30 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
     return { label, tone: 'border-cyan-900/50 bg-cyan-950/15 text-cyan-300', dot: 'bg-cyan-500', rank: 2 };
   };
 
+  const goalLight = (topic: Topic, goalTarget: NonNullable<WorkdaySession['goals']>[number]['targetStatus']) => {
+    const urgency = topicUrgency(topic);
+    const stagesLeft = Math.max(0, stageOrder.indexOf(goalTarget) - stageOrder.indexOf(topic.status));
+    if (topic.blockedReason || urgency.rank === 1 || stagesLeft >= 3) {
+      return {
+        dot: 'bg-rose-400 shadow-[0_0_12px_rgba(248,113,113,.8)] animate-pulse',
+        ring: 'border-rose-500/60',
+        glow: 'shadow-[0_0_14px_rgba(248,113,113,.35)]'
+      };
+    }
+    if (urgency.rank === 2 || stagesLeft === 2 || topic.priority >= 4) {
+      return {
+        dot: 'bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,.8)]',
+        ring: 'border-cyan-500/60',
+        glow: 'shadow-[0_0_14px_rgba(34,211,238,.28)]'
+      };
+    }
+    return {
+      dot: 'bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,.8)]',
+      ring: 'border-emerald-500/60',
+      glow: 'shadow-[0_0_14px_rgba(74,222,128,.28)]'
+    };
+  };
+
   // Only ever treat a goal as real if its topic still exists — topicId is
   // the sole reference; a goal for a deleted topic isn't a goal anymore.
   const liveGoals = (session?.goals || []).filter(goal => topics.some(t => t.id === goal.topicId));
@@ -241,12 +265,15 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
           const ratedTimers = topicTimers.filter(timer => timer.productivityScore);
           const averageProductivity = ratedTimers.length ? ratedTimers.reduce((total, timer) => total + (timer.productivityScore || 0), 0) / ratedTimers.length * 10 : null;
           const suggestedStage = nextTaskStage[topic.status];
-          return <div key={goal.id} className={`rounded-xl border p-4 ${done ? 'border-emerald-900/40 bg-emerald-950/10' : 'border-neutral-850 bg-neutral-900/25'}`}>
+          const light = goalLight(topic, goal.targetStatus);
+          return <div key={goal.id} className={`rounded-xl border p-4 transition-shadow ${done ? 'border-emerald-900/40 bg-emerald-950/10' : 'border-neutral-850 bg-neutral-900/25'} ${light.glow}`}>
             <div className="flex items-start gap-3">
               <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold ${done ? 'bg-emerald-500 text-black' : 'bg-neutral-950 text-neutral-400'}`}>{done ? <Check className="h-4 w-4" /> : String(index + 1).padStart(2, '0')}</span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className={`relative flex h-2 w-2 shrink-0 rounded-full ${urgency.dot}`} />
+                  <span className={`relative flex h-3 w-3 shrink-0 rounded-full border ${light.ring} ${light.dot}`}>
+                    <span className={`absolute inset-[2px] rounded-full bg-black/30 ${done ? 'opacity-20' : 'opacity-0'}`} />
+                  </span>
                   <div className={`truncate text-sm font-bold ${done ? 'text-emerald-300' : 'text-white'}`}>{topic.name}</div>
                 </div>
                 <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px] uppercase">
