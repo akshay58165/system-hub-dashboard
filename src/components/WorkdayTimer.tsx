@@ -360,7 +360,7 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
                 </div>
               </div>
             )}
-            <div className="mt-4 flex gap-2"><button onClick={session.status === 'paused' ? resume : pause} className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-[10px] font-bold ${session.status === 'paused' ? 'bg-emerald-500 text-black' : 'bg-amber-500 text-black'}`}>{session.status === 'paused' ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}{session.status === 'paused' ? 'Resume work' : 'Pause work'}</button><button onClick={endSession} title="End session" className="rounded-lg border border-neutral-800 px-3 text-neutral-500 hover:border-rose-900 hover:text-rose-400"><RotateCcw className="h-4 w-4" /></button></div>
+            <div className="mt-4 flex gap-2"><button onClick={session.status === 'paused' ? resume : pause} className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-[10px] font-bold ${session.status === 'paused' ? 'bg-emerald-500 text-black' : 'bg-amber-500 text-black'}`}>{session.status === 'paused' ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}{session.status === 'paused' ? 'Resume work' : 'Pause work'}</button><button onClick={endSession} title="End session" className="rounded-lg border border-rose-900/60 px-3 py-2 text-[10px] font-bold text-rose-400 hover:border-rose-700 hover:bg-rose-950/30">Stop</button></div>
           </motion.div>
         )}
 
