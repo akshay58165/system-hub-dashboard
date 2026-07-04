@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   Activity, AlertTriangle, ArrowUpRight, CalendarClock, CheckCircle2,
@@ -86,6 +86,7 @@ export default function CommandCenterView({
   topics, videos, experiments, sessions, workdaySession, insights, cycleGoals, activities, onTabChange, onOpenTopicPipeline
 }: CommandCenterViewProps) {
   const [showAttentionPreview, setShowAttentionPreview] = useState(false);
+  const attentionPreviewCloseTimer = useRef<number | null>(null);
   const goalTopicIds = useMemo(
     () => new Set((workdaySession?.goals || []).map(goal => goal.topicId)),
     [workdaySession]
@@ -180,6 +181,25 @@ export default function CommandCenterView({
     section.classList.add('command-action-target');
     window.setTimeout(() => section.classList.remove('command-action-target'), 1400);
   };
+  const showAttentionPopover = () => {
+    if (attentionPreviewCloseTimer.current) {
+      window.clearTimeout(attentionPreviewCloseTimer.current);
+      attentionPreviewCloseTimer.current = null;
+    }
+    setShowAttentionPreview(true);
+  };
+  const hideAttentionPopover = () => {
+    if (attentionPreviewCloseTimer.current) {
+      window.clearTimeout(attentionPreviewCloseTimer.current);
+    }
+    attentionPreviewCloseTimer.current = window.setTimeout(() => {
+      setShowAttentionPreview(false);
+      attentionPreviewCloseTimer.current = null;
+    }, 160);
+  };
+  useEffect(() => () => {
+    if (attentionPreviewCloseTimer.current) window.clearTimeout(attentionPreviewCloseTimer.current);
+  }, []);
   const openActivity = (activity: TopicActivity) => {
     const topic = activity.topicId ? topics.find(item => item.id === activity.topicId) : undefined;
     if (topic) return onOpenTopicPipeline(topic.id, actionTargetForTopic(topic));
@@ -221,10 +241,10 @@ export default function CommandCenterView({
           <div
             key={card.label}
             className="relative"
-            onMouseEnter={() => card.label === 'Needs attention' && setShowAttentionPreview(true)}
-            onMouseLeave={() => card.label === 'Needs attention' && setShowAttentionPreview(false)}
-            onFocus={() => card.label === 'Needs attention' && setShowAttentionPreview(true)}
-            onBlur={() => card.label === 'Needs attention' && setShowAttentionPreview(false)}
+            onMouseEnter={() => card.label === 'Needs attention' && showAttentionPopover()}
+            onMouseLeave={() => card.label === 'Needs attention' && hideAttentionPopover()}
+            onFocus={() => card.label === 'Needs attention' && showAttentionPopover()}
+            onBlur={() => card.label === 'Needs attention' && hideAttentionPopover()}
           >
             <button type="button" onClick={card.action} className="group w-full rounded-xl border border-neutral-850 bg-neutral-950/65 p-4 text-left backdrop-blur transition hover:-translate-y-0.5 hover:border-neutral-600 hover:bg-neutral-900/70">
             <div className="flex items-center justify-between"><span className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">{card.label}</span><span className="flex items-center gap-2"><card.icon className={`h-4 w-4 ${card.iconClass}`} /><ArrowUpRight className="h-3 w-3 text-neutral-700 group-hover:text-neutral-300" /></span></div>
@@ -236,7 +256,13 @@ export default function CommandCenterView({
               </div>
             </button>
             {card.label === 'Needs attention' && showAttentionPreview && visibleAttentionItems.length > 0 && (
-              <div className="absolute left-0 top-[calc(100%+10px)] z-20 w-[320px] overflow-hidden rounded-xl border border-rose-900/40 bg-neutral-950/95 p-3 shadow-[0_24px_80px_rgba(0,0,0,.55)] backdrop-blur">
+              <div
+                className="absolute left-0 top-[calc(100%+10px)] z-20 w-[320px] overflow-hidden rounded-xl border border-rose-900/40 bg-neutral-950/95 p-3 shadow-[0_24px_80px_rgba(0,0,0,.55)] backdrop-blur"
+                onMouseEnter={showAttentionPopover}
+                onMouseLeave={hideAttentionPopover}
+                onFocus={showAttentionPopover}
+                onBlur={hideAttentionPopover}
+              >
                 <div className="flex items-center justify-between border-b border-neutral-900 pb-2">
                   <span className="font-mono text-[9px] uppercase tracking-[.24em] text-rose-300">Next attention</span>
                   <span className="font-mono text-[9px] text-neutral-500">{visibleAttentionItems.length} item{visibleAttentionItems.length === 1 ? '' : 's'}</span>
