@@ -28,7 +28,7 @@ const stagesBetween = (from: string, to: string) => {
   if (start < 0 || end < 0 || end <= start) return [];
   return stageOrder.slice(start + 1, end + 1).map(s => stageLabel[s] || s);
 };
-const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+const ONE_HOUR_MS = 60 * 60 * 1000;
 const taskStageLabels: Record<TaskTimerStage, string> = { script: 'Scripting', shoot: 'Shooting', edit: 'Editing', schedule: 'Scheduling', post: 'Publishing' };
 const nextTaskStage: Record<Topic['status'], TaskTimerStage | null> = { topic: 'script', scripted: 'shoot', shot: 'edit', edited: 'schedule', scheduled: 'post', posted: null };
 const formatDuration = (ms: number) => {
@@ -208,11 +208,11 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">{[
         ['Active', formatDuration(metrics.active), 'text-emerald-300'], ['Remaining', formatDuration(metrics.remaining), 'text-cyan-300'], ['Paused', formatDuration(metrics.paused), 'text-amber-300'], ['Quota', `${metrics.progress.toFixed(1)}%`, 'text-purple-300'], ['Goals', `${completedCount}/${liveGoals.length}`, 'text-white']
       ].map(([label, value, color]) => <div key={label} className="rounded-xl border border-neutral-900 bg-neutral-950/60 p-3"><div className={`text-lg font-black ${color}`}>{value}</div><div className="mt-1 text-[10px] uppercase text-neutral-400">{label}</div></div>)}</div>
-      {metrics.remaining > 0 && metrics.remaining < TWO_HOURS_MS && (
+      {metrics.remaining > 0 && metrics.remaining < ONE_HOUR_MS && (
         <div className="mt-4 rounded-xl border border-amber-800/50 bg-amber-950/15 p-3">
           <div className="text-[10px] font-bold uppercase text-amber-300">Less than 2h left in this session — extend it?</div>
           <div className="mt-2 flex gap-2">
-            {[30, 60, 120].map(minutes => (
+            {[10, 30, 60].map(minutes => (
               <button key={minutes} onClick={() => extendSession(minutes)} className="rounded-lg border border-amber-700/60 bg-amber-500/10 px-4 py-1.5 text-[10px] font-bold text-amber-200 hover:bg-amber-500/20">
                 +{minutes < 60 ? `${minutes}m` : `${minutes / 60}h`}
               </button>

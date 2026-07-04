@@ -15,7 +15,7 @@ interface WorkdayTimerProps {
   onExternalResume?: () => void;
 }
 
-const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+const ONE_HOUR_MS = 60 * 60 * 1000;
 const PRODUCTIVITY_PROMPT_THRESHOLD_MS = 10 * 60 * 1000;
 
 const formatDuration = (milliseconds: number) => {
@@ -357,11 +357,11 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
                 return <div key={goal.id} className={`rounded-lg border p-2.5 ${editingGoalId === goal.id ? 'border-purple-600 bg-purple-950/15 shadow-[0_0_16px_rgba(168,85,247,.12)]' : 'border-neutral-900 bg-neutral-950/70'}`}><div className="flex items-start gap-2"><span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${complete ? 'border-emerald-500 bg-emerald-500 text-black' : 'border-neutral-700 text-transparent'}`}><Check className="h-3 w-3" /></span><span className="min-w-0 flex-1"><span className={`block text-[9px] font-semibold ${complete ? 'text-neutral-500 line-through' : 'text-neutral-100'}`}>{topic.name}</span><span className="mt-1 flex flex-wrap items-center gap-1"><span className="rounded border border-cyan-900/50 bg-cyan-950/20 px-1.5 py-0.5 text-[7px] font-bold uppercase text-cyan-300">{stagesBetween(topic.status, goal.targetStatus).join(' → ')}</span><span className={`rounded border px-1.5 py-0.5 text-[7px] font-bold uppercase ${priority.style}`}>P{topic.priority} · {priority.label}</span><span className={`rounded border px-1.5 py-0.5 text-[7px] font-bold uppercase ${guidance.tone}`}>{guidance.label}</span></span></span><span className="flex shrink-0 gap-1"><button onClick={() => { setEditingGoalId(goal.id); setGoalTopicId(goal.topicId); setGoalTarget(goal.targetStatus); setShowGoals(true); }} className="rounded border border-neutral-800 p-1 text-neutral-500 hover:border-purple-700 hover:text-purple-300" aria-label={`Edit goal for ${topic.name}`}><Pencil className="h-3 w-3" /></button><button onClick={() => removeGoal(goal.id)} className="rounded border border-neutral-800 p-1 text-neutral-600 hover:border-rose-800 hover:text-rose-400" aria-label={`Remove goal for ${topic.name}`}><Trash2 className="h-3 w-3" /></button></span></div></div>;
               })}</div> : <div className="mt-2 text-[8px] text-neutral-600">Optional - no topic goal set.</div>}
             </div>
-            {metrics.remaining > 0 && metrics.remaining < TWO_HOURS_MS && (
+            {metrics.remaining > 0 && metrics.remaining < ONE_HOUR_MS && (
               <div className="mt-3 rounded-lg border border-amber-800/50 bg-amber-950/15 p-2.5">
-                <div className="text-[8px] font-bold uppercase text-amber-300">Less than 2h left — extend the session?</div>
+                <div className="text-[8px] font-bold uppercase text-amber-300">Less than 1 hour left — extend the session?</div>
                 <div className="mt-2 flex gap-1.5">
-                  {[30, 60, 120].map(minutes => (
+                  {[10, 30, 60].map(minutes => (
                     <button key={minutes} onClick={() => extendSession(minutes)} className="flex-1 rounded-md border border-amber-700/60 bg-amber-500/10 py-1.5 text-[9px] font-bold text-amber-200 hover:bg-amber-500/20">
                       +{minutes < 60 ? `${minutes}m` : `${minutes / 60}h`}
                     </button>
