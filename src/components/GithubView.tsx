@@ -155,6 +155,12 @@ export default function GithubView({
   // 2. Operational sorting
   type TopicSortMode = 'due-date' | 'last-created' | 'level' | 'progress-most' | 'progress-least' | 'workload';
   const [sortOrder, setSortOrder] = useState<TopicSortMode>('due-date');
+  const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
+  const sortMenuRef = useDismissOnOutsideClick<HTMLDivElement>(
+    isSortMenuOpen,
+    true,
+    () => setIsSortMenuOpen(false)
+  );
 
   // 3. Search filter
   const [searchQuery, setSearchQuery] = useState('');
@@ -835,18 +841,53 @@ export default function GithubView({
                 />
 
                 {/* Operational Sorter */}
-                <label className="relative flex shrink-0 items-center">
-                  <ArrowUpDown className="pointer-events-none absolute left-2.5 h-3 w-3 text-rose-400" />
-                  <select
-                    value={sortOrder}
-                    onChange={event => setSortOrder(event.target.value as TopicSortMode)}
-                    className="appearance-none rounded border border-neutral-900 bg-neutral-900/50 py-1 pl-7 pr-7 text-xs font-mono text-neutral-300 outline-none transition hover:border-neutral-850 hover:text-white focus:border-neutral-700"
+                <div ref={sortMenuRef} className="relative shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsSortMenuOpen(open => !open)}
+                    className="flex items-center gap-2 rounded border border-neutral-900 bg-neutral-900/50 py-1 pl-2.5 pr-2 text-xs font-mono text-neutral-300 outline-none transition hover:border-neutral-800 hover:text-white focus:border-neutral-700"
                     title="Sort topics"
+                    aria-haspopup="listbox"
+                    aria-expanded={isSortMenuOpen}
                   >
-                    {(Object.entries(sortLabels) as Array<[TopicSortMode, string]>).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                  </select>
-                  <span className="pointer-events-none absolute right-2 text-[8px] text-neutral-600">▼</span>
-                </label>
+                    <ArrowUpDown className="h-3 w-3 text-rose-400" />
+                    <span>{sortLabels[sortOrder]}</span>
+                    <ChevronDown className={`h-3 w-3 text-neutral-600 transition-transform ${isSortMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  <AnimatePresence>
+                    {isSortMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.12 }}
+                        className="absolute right-0 top-[calc(100%+4px)] z-50 min-w-full overflow-hidden rounded border border-neutral-800 bg-neutral-950 p-1 shadow-2xl shadow-black/70"
+                        role="listbox"
+                        aria-label="Sort topics"
+                      >
+                        {(Object.entries(sortLabels) as Array<[TopicSortMode, string]>).map(([value, label]) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => {
+                              setSortOrder(value);
+                              setIsSortMenuOpen(false);
+                            }}
+                            className={`block w-full whitespace-nowrap rounded px-3 py-2 text-left text-xs font-mono transition-colors ${
+                              value === sortOrder
+                                ? 'bg-rose-500/15 text-rose-300'
+                                : 'text-neutral-400 hover:bg-neutral-900 hover:text-white'
+                            }`}
+                            role="option"
+                            aria-selected={value === sortOrder}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             </div>
 

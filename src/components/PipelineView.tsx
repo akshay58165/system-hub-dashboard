@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Layers, 
-  GitBranch, 
+  Layers,
   Clock, 
   AlertTriangle, 
   CheckCircle2, 
@@ -36,6 +35,20 @@ interface PipelineViewProps {
 }
 
 const STAGES = ['Topic', 'Script', 'Shoot', 'Edit', 'Thumbnail', 'Schedule', 'Published'] as const;
+
+const revenueLevelLabel: Record<string, string> = {
+  'Lvl 0.5': 'Neutral',
+  'Lvl 1': 'Product Tag',
+  'Lvl 2': 'Viral',
+  'Lvl 3': 'Product Tag · Viral',
+  'Lvl 4': 'Product Tag · Viral · Pinned Promo',
+  'Lvl 5': 'Members-Only',
+  'Lvl 7': 'Long-Form (8min+)',
+  'Lvl 7.5': 'Long-Form · Product',
+  'Lvl 9': 'Strong Reach · Long-Form',
+  'Lvl 9.5': 'Strong Reach · Long-Form · Product',
+  'Lvl 20': 'Brand Collab',
+};
 
 function deadlineLedState(dueDate?: string, blockedReason?: string, scheduledTime?: string, remaining = 5) {
   if (blockedReason) return { tone: 'blocked', speed: '0.42s', label: `Blocked - ${blockedReason}` };
@@ -574,11 +587,10 @@ export default function PipelineView({
                           {video.title}
                         </h4>
 
-                        {/* Topic Label */}
-                        <span className="text-[8px] font-mono text-zinc-650 flex items-center gap-1 select-none">
-                          <GitBranch className="h-2.5 w-2.5 shrink-0 text-zinc-700" />
-                          <span className="truncate">{video.topic}</span>
-                        </span>
+                        {sourceTopic?.revenueLevel && <span className="text-[8px] font-mono text-emerald-400/80 flex items-center gap-1 select-none">
+                          <Sparkles className="h-2.5 w-2.5 shrink-0 text-emerald-600" />
+                          <span className="truncate">{revenueLevelLabel[sourceTopic.revenueLevel] || sourceTopic.revenueLevel}</span>
+                        </span>}
 
                         <div className="flex flex-wrap gap-x-2 gap-y-1 text-[7px] font-mono text-neutral-500">
                           {video.dueDate && <span className="flex items-center gap-1"><Clock className="h-2.5 w-2.5" />Due {new Date(video.dueDate).toLocaleDateString()}</span>}
