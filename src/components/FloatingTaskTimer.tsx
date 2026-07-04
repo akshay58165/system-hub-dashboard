@@ -36,6 +36,36 @@ type DocumentPictureInPicture = {
 const getDocumentPictureInPicture = () =>
   (window as Window & { documentPictureInPicture?: DocumentPictureInPicture }).documentPictureInPicture;
 
+function TimerGlow() {
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
+      <motion.div
+        className="absolute inset-[-42%] opacity-90 blur-3xl"
+        style={{
+          background: [
+            'radial-gradient(circle at 18% 50%, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.12) 12%, rgba(255,255,255,0) 34%)',
+            'radial-gradient(circle at 50% 18%, rgba(248,113,113,0.38) 0%, rgba(248,113,113,0.16) 14%, rgba(248,113,113,0) 36%)',
+            'radial-gradient(circle at 82% 50%, rgba(255,255,255,0.24) 0%, rgba(255,255,255,0.10) 12%, rgba(255,255,255,0) 34%)',
+            'radial-gradient(circle at 50% 82%, rgba(251,65,89,0.46) 0%, rgba(251,65,89,0.18) 14%, rgba(251,65,89,0) 36%)',
+            'radial-gradient(circle at 50% 50%, rgba(127,29,29,0.10) 0%, rgba(127,29,29,0) 58%)',
+          ].join(', '),
+        }}
+        animate={{ rotate: 360, scale: [1, 1.025, 1] }}
+        transition={{ duration: 14, ease: 'linear', repeat: Infinity }}
+      />
+      <motion.div
+        className="absolute inset-[1px] rounded-[inherit] opacity-80"
+        style={{
+          background: 'radial-gradient(circle at 50% 50%, rgba(248,113,113,0.14) 0%, rgba(248,113,113,0.08) 38%, rgba(248,113,113,0) 72%)',
+          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.06), inset 0 0 18px rgba(248,113,113,0.08)',
+        }}
+        animate={{ opacity: [0.7, 0.95, 0.7] }}
+        transition={{ duration: 5, ease: 'easeInOut', repeat: Infinity }}
+      />
+    </div>
+  );
+}
+
 export default function FloatingTaskTimer({
   activeTaskTimer,
   workdaySession,
@@ -288,10 +318,10 @@ export default function FloatingTaskTimer({
     <>
       {/* Floating pill fallback when the browser is not active and the PiP window is unavailable. */}
       {!browserActive && (!desktopWindow || desktopWindow.closed) && (
-        <motion.div
-          ref={timerRef}
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
+      <motion.div
+        ref={timerRef}
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
           style={{
             position: 'fixed',
             left: pos.x,
@@ -304,7 +334,7 @@ export default function FloatingTaskTimer({
           onPointerDown={onPointerDown}
         >
           <div
-            className={`relative overflow-hidden rounded-3xl border font-mono text-[11px] font-bold backdrop-blur-3xl shadow-[0_0_42px_rgba(244,63,94,.22)] ${
+          className={`relative overflow-hidden rounded-3xl border font-mono text-[11px] font-bold backdrop-blur-3xl shadow-[0_0_42px_rgba(244,63,94,.22)] ${
               showTaskTimer && activeTaskTimer
                 ? isTaskRunning
                   ? 'border-rose-400/25 bg-rose-950/35 text-rose-100'
@@ -312,18 +342,9 @@ export default function FloatingTaskTimer({
                 : isMainRunning
                   ? 'border-rose-400/25 bg-rose-950/35 text-rose-100'
                   : 'border-rose-400/15 bg-rose-950/22 text-rose-100/80'
-            }`}
+          }`}
           >
-            <motion.div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-[-35%] opacity-80"
-              style={{
-                background:
-                  'conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,0) 35deg, rgba(255,255,255,.45) 55deg, rgba(248,113,113,.95) 85deg, rgba(255,255,255,0) 120deg, transparent 180deg, rgba(248,113,113,.45) 250deg, rgba(255,255,255,0) 300deg, transparent 360deg)'
-              }}
-              animate={{ rotate: 360 }}
-              transition={{ duration: 10, ease: 'linear', repeat: Infinity }}
-            />
+            <TimerGlow />
             <div className="relative">
               <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/5 px-2.5 py-1.5">
                 <button
@@ -413,16 +434,7 @@ export default function FloatingTaskTimer({
               ? 'border-rose-400/25 bg-rose-950/40 text-rose-100'
               : 'border-rose-400/15 bg-rose-950/22 text-rose-100/80'
         }`}>
-          <motion.div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-[-35%] opacity-80"
-            style={{
-              background:
-                'conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,0) 35deg, rgba(255,255,255,.45) 55deg, rgba(248,113,113,.95) 85deg, rgba(255,255,255,0) 120deg, transparent 180deg, rgba(248,113,113,.45) 250deg, rgba(255,255,255,0) 300deg, transparent 360deg)'
-            }}
-            animate={{ rotate: 360 }}
-            transition={{ duration: 10, ease: 'linear', repeat: Infinity }}
-          />
+          <TimerGlow />
           <div className="relative flex min-w-0 flex-1 flex-col">
             <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/5 px-3 py-2">
               <button
