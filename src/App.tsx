@@ -2039,6 +2039,7 @@ export default function App() {
                 videos={videos}
                 experiments={experiments}
                 sessions={sessions}
+                taskTimers={taskTimers}
                 insights={insights}
                 cycleGoals={cycleGoals}
                 workdaySession={workdaySession}

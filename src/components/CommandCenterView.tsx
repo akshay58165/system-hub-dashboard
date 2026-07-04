@@ -5,8 +5,9 @@ import {
   CircleDot, Clock3, Flame, Gauge, Layers3, ListTodo, Radio,
   ShieldCheck, Sparkles, Target, TrendingUp, Zap
 } from 'lucide-react';
-import type { CycleGoal, Experiment, CreatorInsight, Topic, TopicActivity, VideoRecord, SessionRecord, WorkdaySession } from '../types';
+import type { CycleGoal, Experiment, CreatorInsight, Topic, TopicActivity, VideoRecord, SessionRecord, WorkdaySession, TaskTimerRecord } from '../types';
 import { getTopicCurrentWorkflow } from '../services/topicWorkflow';
+import ProductionPipelineMap from './ProductionPipelineMap';
 
 interface CommandCenterViewProps {
   topics: Topic[];
@@ -14,6 +15,7 @@ interface CommandCenterViewProps {
   experiments: Experiment[];
   sessions: SessionRecord[];
   workdaySession: WorkdaySession | null;
+  taskTimers: TaskTimerRecord[];
   insights: CreatorInsight[];
   cycleGoals: CycleGoal | null;
   scorecard: any;
@@ -83,7 +85,7 @@ const actionTargetForTopic = (topic: Topic): 'script' | 'shoot' | 'edit' | 'sche
 };
 
 export default function CommandCenterView({
-  topics, videos, experiments, sessions, workdaySession, insights, cycleGoals, activities, onTabChange, onOpenTopicPipeline
+  topics, videos, experiments, sessions, workdaySession, taskTimers, insights, cycleGoals, activities, onTabChange, onOpenTopicPipeline
 }: CommandCenterViewProps) {
   const [showAttentionPreview, setShowAttentionPreview] = useState(false);
   const attentionPreviewCloseTimer = useRef<number | null>(null);
@@ -229,6 +231,17 @@ export default function CommandCenterView({
           </button>
         </div>
       </section>
+
+      <ProductionPipelineMap
+        topics={topics}
+        videos={videos}
+        activities={activities}
+        sessions={sessions}
+        taskTimers={taskTimers}
+        workdaySession={workdaySession}
+        focusTopic={model.queue[0] ?? null}
+        onOpenPipeline={() => onOpenTopicPipeline()}
+      />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {[
