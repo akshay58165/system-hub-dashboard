@@ -7,6 +7,7 @@ import type { SystemEvent, Topic, TopicActivity } from '../types';
 interface TopicCreateModalProps {
   isOpen: boolean;
   onClose: () => void;
+  topicToEdit?: Topic | null;
   setTopics: React.Dispatch<React.SetStateAction<Topic[]>>;
   setActivities: React.Dispatch<React.SetStateAction<TopicActivity[]>>;
   onAddEvent: (evt: SystemEvent) => void;
@@ -47,9 +48,34 @@ function localDateKey(offsetDays = 0) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
+function laneFromFormat(format?: Topic['format']): Lane | null {
+  if (format === 'Short') return 'Shorts';
+  if (format === 'Long') return 'Long';
+  if (format === 'Members') return 'Members-Only';
+  return null;
+}
+
+function dateOnlyFromIso(value?: string | null) {
+  return value ? value.split('T')[0] : '';
+}
+
+function timeOnlyFromIso(value?: string | null) {
+  return value ? value.split('T')[1]?.slice(0, 5) || '' : '';
+}
+
+function createWorkflowStatuses(status: Topic['status']) {
+  const stageIndex = { topic: -1, scripted: 0, shot: 1, edited: 2, scheduled: 3, posted: 4 }[status];
+  const workflowStatuses: Partial<Record<'script' | 'shoot' | 'edit' | 'schedule' | 'post', 'completed'>> = {};
+  (['script', 'shoot', 'edit', 'schedule', 'post'] as const).forEach((stage, index) => {
+    if (index <= stageIndex) workflowStatuses[stage] = 'completed';
+  });
+  return workflowStatuses;
+}
+
 export default function TopicCreateModal({
   isOpen,
   onClose,
+  topicToEdit,
   setTopics,
   setActivities,
   onAddEvent,
@@ -60,36 +86,68 @@ export default function TopicCreateModal({
   const [description, setDescription] = useState('');
   const [channel, setChannel] = useState<'LearnDriven' | 'DecodeWorthy' | null>(null);
   const [lane, setLane] = useState<Lane | null>(null);
-  const [status, setStatus] = useState<'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled'>('topic');
+  const [status, setStatus] = useState<'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted'>('topic');
   const [priority, setPriority] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [dueDate, setDueDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
   const [eligibility, setEligibility] = useState<Eligibility>(emptyEligibility);
-  const firstOpenRef = useRef(false);
+  const initialSnapshotRef = useRef('');
+  const isEditing = Boolean(topicToEdit);
 
-  const hasUnsavedInput = Boolean(
-    name.trim() || description.trim() || channel || lane || status !== 'topic' || priority !== 1 ||
-    dueDate || scheduleTime || Object.values(eligibility).some(Boolean)
-  );
+  const currentSnapshot = JSON.stringify({
+    name: name.trim(),
+    description: description.trim(),
+    channel,
+    lane,
+    status,
+    priority,
+    dueDate,
+    scheduleTime,
+    eligibility
+  });
+
+  const hasUnsavedInput = isEditing
+    ? currentSnapshot !== initialSnapshotRef.current
+    : Boolean(
+        name.trim() || description.trim() || channel || lane || status !== 'topic' || priority !== 1 ||
+        dueDate || scheduleTime || Object.values(eligibility).some(Boolean)
+      );
   const modalRef = useDismissOnOutsideClick<HTMLFormElement>(isOpen, !hasUnsavedInput, onClose);
 
   useEffect(() => {
-    if (!isOpen || firstOpenRef.current) return;
-    setName('');
-    setDescription('');
-    setChannel(null);
-    setLane(null);
-    setStatus('topic');
-    setPriority(1);
-    setDueDate('');
-    setScheduleTime('');
-    setEligibility(emptyEligibility);
-    firstOpenRef.current = true;
-  }, [isOpen]);
+    if (!isOpen) {
+      initialSnapshotRef.current = '';
+      return;
+    }
 
-  useEffect(() => {
-    if (!isOpen) firstOpenRef.current = false;
-  }, [isOpen]);
+    const initialChannel = topicToEdit?.channel ?? null;
+    const initialLane = laneFromFormat(topicToEdit?.format);
+    const initialStatus = topicToEdit?.status ?? 'topic';
+    const initialPriority = topicToEdit?.priority ?? 1;
+    const initialDueDate = dateOnlyFromIso(topicToEdit?.dueDate);
+    const initialTime = topicToEdit?.scheduledTime || timeOnlyFromIso(topicToEdit?.dueDate) || '';
+
+    setName(topicToEdit?.name ?? '');
+    setDescription(topicToEdit?.description ?? '');
+    setChannel(initialChannel);
+    setLane(initialLane);
+    setStatus(initialStatus);
+    setPriority(initialPriority);
+    setDueDate(initialDueDate);
+    setScheduleTime(initialTime);
+    setEligibility(emptyEligibility);
+    initialSnapshotRef.current = JSON.stringify({
+      name: (topicToEdit?.name ?? '').trim(),
+      description: topicToEdit?.description ?? '',
+      channel: initialChannel,
+      lane: initialLane,
+      status: initialStatus,
+      priority: initialPriority,
+      dueDate: initialDueDate,
+      scheduleTime: initialTime,
+      eligibility: emptyEligibility
+    });
+  }, [isOpen, topicToEdit]);
 
   const setEligibilityValue = (key: keyof Eligibility, checked: boolean) => {
     setEligibility(current => ({
@@ -124,7 +182,10 @@ export default function TopicCreateModal({
   })();
 
   const chooseChannel = (nextChannel: 'LearnDriven' | 'DecodeWorthy') => {
-    if (channel === nextChannel) {
+    if (isEditing && channel === nextChannel) {
+      return;
+    }
+    if (!isEditing && channel === nextChannel) {
       setChannel(null);
       setLane(null);
       return;
@@ -149,17 +210,18 @@ export default function TopicCreateModal({
     const finalFormat: Topic['format'] = lane === 'Shorts' ? 'Short' : lane === 'Members-Only' ? 'Members' : 'Long';
     const finalTime = scheduleTime || (channel === 'LearnDriven' ? '21:09' : '19:07');
     const inProgress = status !== 'topic';
-    const stageIndex = { topic: -1, scripted: 0, shot: 1, edited: 2, scheduled: 3 }[status];
-    const workflowStatuses: Partial<Record<'script' | 'shoot' | 'edit' | 'schedule' | 'post', 'completed'>> = {};
-    (['script', 'shoot', 'edit', 'schedule', 'post'] as const).forEach((stage, index) => {
-      if (index <= stageIndex) workflowStatuses[stage] = 'completed';
-    });
+    const workflowStatuses = createWorkflowStatuses(status);
     const finalDueDate = dueDate
       ? new Date(`${dueDate}T${finalTime}:00`).toISOString()
       : status === 'scheduled' ? new Date(`${localDateKey()}T${finalTime}:00`).toISOString() : null;
 
+    const topicId = topicToEdit?.id || `t-manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const createdDate = topicToEdit?.createdDate || new Date().toISOString();
+    const updatedAt = new Date().toISOString();
+    const finalRevenueLevel = revenueLevel || topicToEdit?.revenueLevel || undefined;
     const topic: Topic = {
-      id: `t-manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      ...(topicToEdit || { id: topicId, createdDate }),
+      id: topicId,
       name: name.trim(),
       description: description.trim(),
       channel,
@@ -168,29 +230,39 @@ export default function TopicCreateModal({
       dueDate: finalDueDate,
       scheduledTime: scheduleTime || (status === 'scheduled' ? finalTime : undefined),
       format: finalFormat,
-      createdDate: new Date().toISOString(),
-      lastUpdated: new Date().toISOString(),
-      revenueLevel: revenueLevel || undefined,
+      createdDate,
+      lastUpdated: updatedAt,
+      revenueLevel: finalRevenueLevel,
       inProgress,
-      workflowStatuses: inProgress ? workflowStatuses : undefined
+      workflowStatuses: inProgress ? workflowStatuses : undefined,
+      autoPostPaused: topicToEdit?.autoPostPaused,
     };
 
-    setTopics(previous => [topic, ...previous]);
-    setActivities(previous => [{
-      id: `act-manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      topicName: topic.name,
-      channel: topic.channel,
-      action: `Created new topic in ${status} stage${revenueLevel ? ` with ${revenueLevel}` : ''}`,
-      author: 'typeakshay',
-      timestamp: new Date().toISOString()
-    }, ...previous]);
-    onAddEvent({
-      id: `evt-topic-created-${Date.now()}`,
-      source: 'github',
-      type: 'success',
-      message: `Topic Engine: Added topic "${topic.name}" under ${topic.channel}${revenueLevel ? ` (${revenueLevel})` : ''}`,
-      timestamp: new Date().toISOString()
-    });
+    const changed = currentSnapshot !== initialSnapshotRef.current;
+
+    setTopics(previous => topicToEdit
+      ? previous.map(existing => existing.id === topicToEdit.id ? topic : existing)
+      : [topic, ...previous]
+    );
+
+    if (!topicToEdit || changed) {
+      const activityLabel = topicToEdit ? 'Updated' : 'Created new';
+      setActivities(previous => [{
+        id: `act-${topicToEdit ? 'edit' : 'manual'}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        topicName: topic.name,
+        channel: topic.channel,
+        action: `${activityLabel} topic in ${status} stage${finalRevenueLevel ? ` with ${finalRevenueLevel}` : ''}`,
+        author: 'typeakshay',
+        timestamp: new Date().toISOString()
+      }, ...previous]);
+      onAddEvent({
+        id: `evt-topic-${topicToEdit ? 'updated' : 'created'}-${Date.now()}`,
+        source: 'github',
+        type: 'success',
+        message: `Topic Engine: ${topicToEdit ? 'Updated' : 'Added'} topic "${topic.name}" under ${topic.channel}${finalRevenueLevel ? ` (${finalRevenueLevel})` : ''}`,
+        timestamp: new Date().toISOString()
+      });
+    }
 
     if (inProgress) {
       setPipelineSubView('topics');
@@ -231,7 +303,7 @@ export default function TopicCreateModal({
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <p className="font-mono text-[9px] uppercase tracking-[0.28em] text-rose-400">Topic Engine</p>
-                <h3 className="mt-1 text-sm font-semibold text-neutral-200">Topic Management</h3>
+                <h3 className="mt-1 text-sm font-semibold text-neutral-200">{topicToEdit ? 'Edit Topic' : 'Topic Management'}</h3>
               </div>
               <button type="button" onClick={onClose} className="rounded border border-neutral-800 p-1.5 text-neutral-400 hover:text-white" aria-label="Close topic form">
                 <X className="h-4 w-4" />
@@ -269,11 +341,11 @@ export default function TopicCreateModal({
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block uppercase text-neutral-500">Auto Revenue Level</label>
-                  <div className="mt-1 flex h-7 items-center rounded border border-neutral-900 bg-neutral-950/60 px-2.5 text-xs font-bold text-emerald-400">{revenueLevel || '-'}</div>
+                  <div className="mt-1 flex h-7 items-center rounded border border-neutral-900 bg-neutral-950/60 px-2.5 text-xs font-bold text-emerald-400">{revenueLevel || topicToEdit?.revenueLevel || '-'}</div>
                 </div>
                 <label className="block uppercase text-neutral-500">Current Production Stage
                   <select value={status} onChange={event => setStatus(event.target.value as typeof status)} className="mt-1 h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 text-xs normal-case text-white outline-none">
-                    <option value="topic">Topic</option><option value="scripted">Scripted</option><option value="shot">Shot</option><option value="edited">Edited</option><option value="scheduled">Scheduled</option>
+                    <option value="topic">Topic</option><option value="scripted">Scripted</option><option value="shot">Shot</option><option value="edited">Edited</option><option value="scheduled">Scheduled</option><option value="posted">Posted</option>
                   </select>
                 </label>
               </div>
@@ -315,7 +387,7 @@ export default function TopicCreateModal({
               </div>
 
               <button type="submit" disabled={!name.trim() || !channel} className="flex w-full items-center justify-center gap-1.5 rounded bg-rose-500 py-2 text-[10px] font-bold text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-40">
-                <Plus className="h-3.5 w-3.5" /> Add Topic
+                <Plus className="h-3.5 w-3.5" /> {topicToEdit ? 'Save Changes' : 'Add Topic'}
               </button>
             </div>
           </motion.form>

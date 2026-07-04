@@ -50,6 +50,7 @@ interface VercelViewProps {
   setActiveTab?: (tab: 'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score') => void;
   cycleGoals: CycleGoal | null;
   workdaySession: WorkdaySession | null;
+  onEditTopic?: (topic: Topic) => void;
 }
 
 type TopicSortMode = 'due-date' | 'last-created' | 'level' | 'progress-most' | 'progress-least' | 'workload';
@@ -201,7 +202,8 @@ export default function VercelView({
   setActivities,
   setActiveTab,
   cycleGoals,
-  workdaySession
+  workdaySession,
+  onEditTopic
 }: VercelViewProps) {
   const taskTimer = useTaskTimers();
   const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy' | 'Later'>('All');
@@ -1163,6 +1165,21 @@ export default function VercelView({
                   const urgency = getUrgencyInfo(topic);
                   const currentWorkflow = getTopicCurrentWorkflow(topic);
                   const topicGoal = workdaySession?.goals?.find(goal => goal.topicId === topic.id);
+                  const openTopicEditor = () => {
+                    if (onEditTopic) {
+                      onEditTopic(topic);
+                      return;
+                    }
+                    const defaultTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
+                    const initialTopic = { ...topic };
+                    if (!initialTopic.scheduledTime) {
+                      initialTopic.scheduledTime = defaultTime;
+                    }
+                    const initialDate = initialTopic.dueDate ? new Date(initialTopic.dueDate) : new Date();
+                    setEditCalendarMonth({ month: initialDate.getMonth(), year: initialDate.getFullYear() });
+                    setEditCalendarOpen(false);
+                    setEditingTopic(initialTopic);
+                  };
                   return (
                     <div
                       key={topic.id}
@@ -1170,7 +1187,11 @@ export default function VercelView({
                       className="p-2.5 bg-neutral-900/40 border border-neutral-850 rounded-lg space-y-2 font-mono text-[10px]"
                     >
                       <div className="flex justify-between items-start gap-2">
-                        <div className="min-w-0">
+                        <div
+                          className="min-w-0 cursor-pointer"
+                          onClick={openTopicEditor}
+                          title="Open topic editor"
+                        >
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-xs font-bold text-neutral-200">{topic.name}</span>
                             {topicGoal && <span className="rounded border border-purple-700/60 bg-purple-950/35 px-1.5 py-0.5 text-[8px] font-bold text-purple-200 shadow-[0_0_10px_rgba(168,85,247,.18)]" title={`Today's goal: reach ${topicGoal.targetStatus}`}>🎯 Today&apos;s aim</span>}
@@ -1190,20 +1211,10 @@ export default function VercelView({
                             Created {new Date(topic.createdDate).toLocaleDateString()} · Due {topic.dueDate ? new Date(topic.dueDate).toLocaleDateString() : 'None'}
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 shrink-0">
+                          <div className="flex items-center gap-1 shrink-0">
                           <button
                             type="button"
-                            onClick={() => {
-                              const defaultTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
-                              const initialTopic = { ...topic };
-                              if (!initialTopic.scheduledTime) {
-                                initialTopic.scheduledTime = defaultTime;
-                              }
-                              const initialDate = initialTopic.dueDate ? new Date(initialTopic.dueDate) : new Date();
-                              setEditCalendarMonth({ month: initialDate.getMonth(), year: initialDate.getFullYear() });
-                              setEditCalendarOpen(false);
-                              setEditingTopic(initialTopic);
-                            }}
+                            onClick={openTopicEditor}
                             className="p-1 rounded border border-neutral-800 text-neutral-400 hover:text-blue-300 hover:border-blue-800 transition"
                             title="Edit topic"
                           >

@@ -432,6 +432,7 @@ export default function App() {
   const [experiments, setExperiments] = useState<Experiment[]>(initialExperiments);
   const [insights, setInsights] = useState<CreatorInsight[]>(initialCreatorInsights);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
+  const [topicFormTopic, setTopicFormTopic] = useState<Topic | null>(null);
 
   const vercelUsageSummary = summarizeVercelUsage(vercelProjects, topics, activities, sessions, taskTimers, workdaySession);
   const supabaseUsageSummary = summarizeSupabaseUsage(supabaseProject, topics, activities, sessions, taskTimers, workdaySession);
@@ -2004,6 +2005,7 @@ export default function App() {
                 }
               }}
               onClick={() => {
+                setTopicFormTopic(null);
                 setIsAddFormOpen(true);
               }}
               className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-black font-bold font-mono text-[11px] rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
@@ -2107,15 +2109,19 @@ export default function App() {
                   onAddEvent={addEvent}
                   topics={topics}
                   setTopics={setTopics}
-                  activities={activities}
-                  setActivities={setActivities}
-                  cycleGoals={cycleGoals}
-                  activeSubView={pipelineSubView}
-                  setActiveSubView={setPipelineSubView}
-                  workdaySession={workdaySession}
-                />
-              </TaskTimerContext.Provider>
-            )}
+                activities={activities}
+                setActivities={setActivities}
+                cycleGoals={cycleGoals}
+                activeSubView={pipelineSubView}
+                setActiveSubView={setPipelineSubView}
+                workdaySession={workdaySession}
+                onEditTopic={(topic) => {
+                  setTopicFormTopic(topic);
+                  setIsAddFormOpen(true);
+                }}
+              />
+            </TaskTimerContext.Provider>
+          )}
 
             {activeTab === 'videolab' && (
               <VideoLabView
@@ -2278,7 +2284,11 @@ export default function App() {
       {isAddFormOpen && (
         <TopicCreateModal
           isOpen={isAddFormOpen}
-          onClose={() => setIsAddFormOpen(false)}
+          onClose={() => {
+            setIsAddFormOpen(false);
+            setTopicFormTopic(null);
+          }}
+          topicToEdit={topicFormTopic}
           setTopics={setTopics}
           setActivities={setActivities}
           onAddEvent={addEvent}
