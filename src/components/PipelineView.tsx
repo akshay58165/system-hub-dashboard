@@ -10,7 +10,6 @@ import {
   Flame,
   CheckCircle,
   XCircle,
-  Play,
   RotateCcw,
   Sparkles,
   Info,
@@ -164,7 +163,6 @@ export default function PipelineView({
   // Filters
   const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy'>('All');
   const [selectedFormat, setSelectedFormat] = useState<'All' | 'Short' | 'Long' | 'Members'>('All');
-  const [selectedStatus, setSelectedStatus] = useState<'All' | 'Blocked' | 'Safe'>('All');
 
   // Editing dialog modal
   const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
@@ -373,12 +371,10 @@ export default function PipelineView({
       if (sourceTopic?.savedForLater) return false;
       const matchChannel = selectedChannel === 'All' || v.channelName === selectedChannel;
       const matchFormat = selectedFormat === 'All' || v.format === selectedFormat;
-      const matchStatus = selectedStatus === 'All' || 
-                          (selectedStatus === 'Blocked' && !!v.blockedReason) || 
-                          (selectedStatus === 'Safe' && !v.blockedReason);
+      const matchStatus = true;
       return matchChannel && matchFormat && matchStatus;
     });
-  }, [videos, topics, selectedChannel, selectedFormat, selectedStatus]);
+  }, [videos, topics, selectedChannel, selectedFormat]);
 
   // Buffer and Pipeline risk logic
   const pipelineRisk = useMemo(() => {
@@ -488,18 +484,6 @@ export default function PipelineView({
             ))}
           </div>
 
-          {/* Status Filter */}
-          <div className="flex bg-neutral-900 border border-neutral-850 rounded-lg p-0.5">
-            {(['All', 'Blocked', 'Safe'] as const).map(s => (
-              <button 
-                key={s}
-                onClick={() => setSelectedStatus(s)}
-                className={`px-3 py-1 rounded text-xs font-semibold font-mono transition ${selectedStatus === s ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-neutral-200'}`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
 
         </div>
 
@@ -556,14 +540,14 @@ export default function PipelineView({
                           ? '2px solid rgba(168, 85, 247, 0.3)' 
                           : '2px solid rgba(16, 185, 129, 0.3)' 
                       }}
-                      className={`p-3 rounded-lg bg-neutral-950/30 border border-neutral-900 hover:border-neutral-800/80 hover:bg-neutral-900/20 relative transition-all duration-150 group cursor-grab active:cursor-grabbing ${video.blockedReason ? 'border-red-950/40 bg-red-950/5' : ''}`}
+                      className={`px-2 py-1.5 rounded-lg bg-neutral-950/30 border border-neutral-900 hover:border-neutral-800/80 hover:bg-neutral-900/20 relative transition-all duration-150 group cursor-grab active:cursor-grabbing ${video.blockedReason ? 'border-red-950/40 bg-red-950/5' : ''}`}
                     >
-                      <div className="flex items-start gap-2.5">
+                      <div className="flex items-start gap-1.5">
                         <div className={`topic-led topic-led--${led.tone} mt-0.5 shrink-0`} title={led.label} style={{ '--topic-led-speed': led.speed } as React.CSSProperties}>
                           <span className="topic-led__bezel"><span className="topic-led__lens"><span className="topic-led__glint" /></span></span>
                         </div>
 
-                        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                         {/* Tags / Badges */}
                         <div className="flex flex-wrap items-center gap-1">
                           <span className={`text-[7px] font-mono font-bold px-1 py-0.2 rounded border uppercase ${isLearnDriven ? 'text-purple-400/80 bg-purple-950/5 border-purple-900/10' : 'text-emerald-400/80 bg-emerald-950/5 border-emerald-900/10'}`}>
@@ -603,19 +587,6 @@ export default function PipelineView({
                         {video.notes && <p className="line-clamp-2 text-[8px] leading-snug text-neutral-500">{video.notes}</p>}
                         {video.blockedReason && <p className="text-[8px] leading-snug text-red-400/80">{video.blockedReason}</p>}
 
-                        {/* Absolute positioned next button overlay (no layout shifting) */}
-                        {stage !== 'Published' && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAdvanceStage(video.id);
-                            }}
-                            className="self-end p-1 bg-zinc-950 border border-zinc-850 rounded hover:border-zinc-800 text-indigo-400 hover:text-indigo-300 transition-all duration-150 flex items-center justify-center shadow-md cursor-pointer"
-                            title="Move to next stage"
-                          >
-                            <Play className="h-2 w-2 fill-current" />
-                          </button>
-                        )}
                         </div>
                       </div>
                     </motion.div>
