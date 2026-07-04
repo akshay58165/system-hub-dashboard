@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Clock3, Pause, Play, Square, Check, Timer, X, MoonStar
+  Clock3, Pause, Play, Square, Check, Timer, X, MoonStar, ArrowUpRight, Layers3
 } from 'lucide-react';
 import type { TaskTimerRecord, WorkdaySession } from '../types';
 
@@ -14,6 +14,7 @@ interface FloatingTaskTimerProps {
   onStopTaskTimer: (endReason: 'done' | 'deferred', productivityScore: number) => void;
   onPauseMainTimer: () => void;
   onResumeMainTimer: () => void;
+  onOpenSessions?: () => void;
 }
 
 const fmt = (ms: number) => {
@@ -43,6 +44,7 @@ export default function FloatingTaskTimer({
   onStopTaskTimer,
   onPauseMainTimer,
   onResumeMainTimer,
+  onOpenSessions,
 }: FloatingTaskTimerProps) {
   const [now, setNow] = useState(Date.now());
   const [pos, setPos] = useState({ x: 20, y: 80 });
@@ -208,6 +210,24 @@ export default function FloatingTaskTimer({
     setShowStopModal(false);
   };
 
+  const isTimerRunning = showTaskTimer ? isTaskRunning : isMainRunning;
+  const toggleTimer = () => {
+    if (showTaskTimer) {
+      if (isTaskRunning) {
+        requestTaskPause();
+      } else {
+        onResumeTaskTimer();
+      }
+      return;
+    }
+
+    if (isMainRunning) {
+      onPauseMainTimer();
+    } else {
+      onResumeMainTimer();
+    }
+  };
+
   const requestTaskPause = () => {
     if (!activeTaskTimer || activeTaskTimer.status !== 'running') return;
     if (taskActiveMs >= PRODUCTIVITY_PROMPT_THRESHOLD_MS) {
@@ -234,11 +254,11 @@ export default function FloatingTaskTimer({
 
     try {
       openingDesktopWindowRef.current = true;
-      const pipWindow = await documentPictureInPicture.requestWindow({ width: 240, height: 72 });
+      const pipWindow = await documentPictureInPicture.requestWindow({ width: 280, height: 112 });
       document.querySelectorAll('link[rel="stylesheet"], style').forEach(node => {
         pipWindow.document.head.appendChild(node.cloneNode(true));
       });
-      pipWindow.document.title = 'Unicorn Day Timer';
+      pipWindow.document.title = 'Work Dashboard';
       pipWindow.document.documentElement.className = 'm-0 h-full overflow-hidden bg-neutral-950';
       pipWindow.document.body.className = 'm-0 h-full overflow-hidden bg-neutral-950';
       pipWindow.addEventListener('pagehide', () => {
@@ -283,109 +303,180 @@ export default function FloatingTaskTimer({
           }}
           onPointerDown={onPointerDown}
         >
-        {showTaskTimer && activeTaskTimer ? (
-          <div className={`flex items-stretch overflow-hidden rounded-2xl border font-mono text-[11px] font-bold backdrop-blur-2xl shadow-[0_0_35px_rgba(16,185,129,.22)] ${
-            isTaskRunning
-              ? 'border-emerald-400/25 bg-emerald-950/40 text-emerald-100'
-              : 'border-emerald-400/15 bg-emerald-950/25 text-emerald-100/80'
-          }`}>
-            {/* Stage label */}
-            <div className="flex items-center gap-2 px-3 py-2.5 bg-white/5">
-              <Timer className={`h-3.5 w-3.5 shrink-0 ${isTaskRunning ? 'text-emerald-300 animate-pulse' : 'text-emerald-200/60'}`} />
-              <div className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-wider text-emerald-200/70">
-                  {stageLabel[activeTaskTimer.stage] || activeTaskTimer.stage}
-                </span>
-                <span className={`text-sm font-black tabular-nums ${isTaskRunning ? 'text-white' : 'text-emerald-50'}`}>
-                  {fmt(taskActiveMs)}
-                </span>
-              </div>
-            </div>
+          <div
+            className={`relative overflow-hidden rounded-3xl border font-mono text-[11px] font-bold backdrop-blur-3xl shadow-[0_0_42px_rgba(244,63,94,.22)] ${
+              showTaskTimer && activeTaskTimer
+                ? isTaskRunning
+                  ? 'border-rose-400/25 bg-rose-950/35 text-rose-100'
+                  : 'border-rose-400/15 bg-rose-950/22 text-rose-100/80'
+                : isMainRunning
+                  ? 'border-rose-400/25 bg-rose-950/35 text-rose-100'
+                  : 'border-rose-400/15 bg-rose-950/22 text-rose-100/80'
+            }`}
+          >
+            <motion.div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-[-35%] opacity-80"
+              style={{
+                background:
+                  'conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,0) 35deg, rgba(255,255,255,.45) 55deg, rgba(248,113,113,.95) 85deg, rgba(255,255,255,0) 120deg, transparent 180deg, rgba(248,113,113,.45) 250deg, rgba(255,255,255,0) 300deg, transparent 360deg)'
+              }}
+              animate={{ rotate: 360 }}
+              transition={{ duration: 10, ease: 'linear', repeat: Infinity }}
+            />
+            <div className="relative">
+              <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/5 px-2.5 py-1.5">
+                <button
+                  type="button"
+                  onMouseDown={e => e.stopPropagation()}
+                  onClick={() => onOpenSessions?.()}
+                  className="flex items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-rose-100/80 transition hover:bg-white/10 hover:text-white"
+                  title="Open Sessions"
+                  aria-label="Open Sessions"
+                >
+                  <Layers3 className="h-3 w-3" />
+                  <span>Work Dashboard</span>
+                  <ArrowUpRight className="h-3 w-3" />
+                </button>
 
-            <button
-              onMouseDown={e => e.stopPropagation()}
-              onClick={snoozeDesktopTimer}
-              className="flex w-8 items-center justify-center border-l border-emerald-400/15 text-emerald-200/70 transition hover:bg-emerald-400/10 hover:text-emerald-100"
-              title="Snooze timer for 5 minutes"
-              aria-label="Snooze timer for 5 minutes"
-            >
-              <MoonStar className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onMouseDown={e => e.stopPropagation()}
-              onClick={dismissDesktopTimer}
-              className="flex w-8 items-center justify-center border-l border-emerald-400/15 text-emerald-200/70 transition hover:bg-white/10 hover:text-white"
-              title="Close floating timer"
-              aria-label="Close floating timer"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        ) : showMainTimer && workdaySession ? (
-          <div className={`flex items-stretch overflow-hidden rounded-2xl border font-mono text-[11px] font-bold backdrop-blur-2xl shadow-[0_0_35px_rgba(16,185,129,.22)] ${
-            isMainRunning
-              ? 'border-emerald-400/25 bg-emerald-950/40 text-emerald-100'
-              : 'border-emerald-400/15 bg-emerald-950/25 text-emerald-100/80'
-          }`}>
-            <div className="flex items-center gap-2 px-3 py-2.5 bg-white/5">
-              <Clock3 className={`h-3.5 w-3.5 shrink-0 ${isMainRunning ? 'text-emerald-300' : 'text-emerald-200/60'}`} />
-              <div className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-wider text-emerald-200/70">Day timer</span>
-                <span className={`text-sm font-black tabular-nums ${isMainRunning ? 'text-white' : 'text-emerald-50'}`}>
-                  {fmt(mainActiveMs)}
-                </span>
+                <div className="flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    onMouseDown={e => e.stopPropagation()}
+                    onClick={toggleTimer}
+                    className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-white/5 text-rose-100 transition hover:bg-white/15 hover:text-white"
+                    title={isTimerRunning ? 'Pause timer' : 'Resume timer'}
+                    aria-label={isTimerRunning ? 'Pause timer' : 'Resume timer'}
+                  >
+                    {isTimerRunning ? <Pause className="h-3.5 w-3.5 fill-current" /> : <Play className="h-3.5 w-3.5 fill-current" />}
+                  </button>
+                  <button
+                    onMouseDown={e => e.stopPropagation()}
+                    onClick={snoozeDesktopTimer}
+                    className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-white/5 text-rose-100/80 transition hover:bg-rose-500/15 hover:text-white"
+                    title="Snooze timer for 5 minutes"
+                    aria-label="Snooze timer for 5 minutes"
+                  >
+                    <MoonStar className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onMouseDown={e => e.stopPropagation()}
+                    onClick={dismissDesktopTimer}
+                    className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-white/5 text-rose-100/70 transition hover:bg-black/20 hover:text-white"
+                    title="Close floating timer"
+                    aria-label="Close floating timer"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
+
+              {showTaskTimer && activeTaskTimer ? (
+                <div className="flex items-stretch">
+                  <div className="flex flex-1 items-center gap-2 px-3 py-2.5 bg-black/10">
+                    <Timer className={`h-3.5 w-3.5 shrink-0 ${isTaskRunning ? 'text-rose-300 animate-pulse' : 'text-rose-200/60'}`} />
+                    <div className="flex flex-col">
+                      <span className="text-[9px] uppercase tracking-wider text-rose-200/70">
+                        {stageLabel[activeTaskTimer.stage] || activeTaskTimer.stage}
+                      </span>
+                      <span className={`text-sm font-black tabular-nums ${isTaskRunning ? 'text-white' : 'text-rose-50'}`}>
+                        {fmt(taskActiveMs)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : showMainTimer && workdaySession ? (
+                <div className="flex items-stretch">
+                  <div className="flex flex-1 items-center gap-2 px-3 py-2.5 bg-black/10">
+                    <Clock3 className={`h-3.5 w-3.5 shrink-0 ${isMainRunning ? 'text-rose-300' : 'text-rose-200/60'}`} />
+                    <div className="flex flex-col">
+                      <span className="text-[9px] uppercase tracking-wider text-rose-200/70">Day timer</span>
+                      <span className={`text-sm font-black tabular-nums ${isMainRunning ? 'text-white' : 'text-rose-50'}`}>
+                        {fmt(mainActiveMs)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </div>
-            <button
-              onMouseDown={e => e.stopPropagation()}
-              onClick={snoozeDesktopTimer}
-              className="flex w-8 items-center justify-center border-l border-emerald-400/15 text-emerald-200/70 transition hover:bg-emerald-400/10 hover:text-emerald-100"
-              title="Snooze timer for 5 minutes"
-              aria-label="Snooze timer for 5 minutes"
-            >
-              <MoonStar className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onMouseDown={e => e.stopPropagation()}
-              onClick={dismissDesktopTimer}
-              className="flex w-8 items-center justify-center border-l border-emerald-400/15 text-emerald-200/70 transition hover:bg-white/10 hover:text-white"
-              title="Close floating timer"
-              aria-label="Close floating timer"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
           </div>
-        ) : null}
         </motion.div>
       )}
 
       {desktopWindow && !desktopWindow.closed && createPortal(
-        <div className={`flex h-screen w-screen items-stretch overflow-hidden border font-mono text-[11px] font-bold ${
+        <div className={`relative flex h-full min-h-[112px] w-full items-stretch overflow-hidden rounded-none border font-mono text-[11px] font-bold backdrop-blur-3xl ${
           showTaskTimer
-            ? isTaskRunning ? 'border-amber-700/60 bg-amber-950 text-amber-200' : 'border-neutral-700 bg-neutral-900 text-neutral-300'
-            : isMainRunning ? 'border-emerald-800/60 bg-emerald-950 text-emerald-200' : 'border-amber-800/60 bg-amber-950 text-amber-200'
+            ? isTaskRunning
+              ? 'border-rose-400/25 bg-rose-950/40 text-rose-100'
+              : 'border-rose-400/15 bg-rose-950/22 text-rose-100/80'
+            : isMainRunning
+              ? 'border-rose-400/25 bg-rose-950/40 text-rose-100'
+              : 'border-rose-400/15 bg-rose-950/22 text-rose-100/80'
         }`}>
-          <div className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2">
-            {showTaskTimer
-              ? <Timer className={`h-4 w-4 ${isTaskRunning ? 'text-amber-400' : 'text-neutral-500'}`} />
-              : <Clock3 className={`h-4 w-4 ${isMainRunning ? 'text-emerald-400' : 'text-amber-400'}`} />}
-            <div className="flex flex-col">
-              <span className="text-[9px] uppercase tracking-wider opacity-70">
-                {showTaskTimer && activeTaskTimer ? stageLabel[activeTaskTimer.stage] || activeTaskTimer.stage : 'Day timer'}
-              </span>
-              <span className="text-lg font-black tabular-nums">
-                {fmt(showTaskTimer ? taskActiveMs : mainActiveMs)}
-              </span>
+          <motion.div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-[-35%] opacity-80"
+            style={{
+              background:
+                'conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,0) 35deg, rgba(255,255,255,.45) 55deg, rgba(248,113,113,.95) 85deg, rgba(255,255,255,0) 120deg, transparent 180deg, rgba(248,113,113,.45) 250deg, rgba(255,255,255,0) 300deg, transparent 360deg)'
+            }}
+            animate={{ rotate: 360 }}
+            transition={{ duration: 10, ease: 'linear', repeat: Infinity }}
+          />
+          <div className="relative flex min-w-0 flex-1 flex-col">
+            <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/5 px-3 py-2">
+              <button
+                type="button"
+                onClick={() => onOpenSessions?.()}
+                className="flex items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-rose-100/80 transition hover:bg-white/10 hover:text-white"
+                title="Open Sessions"
+                aria-label="Open Sessions"
+              >
+                <Layers3 className="h-3 w-3" />
+                <span>Work Dashboard</span>
+                <ArrowUpRight className="h-3 w-3" />
+              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={toggleTimer}
+                  className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 bg-white/5 text-rose-100 transition hover:bg-white/15 hover:text-white"
+                  title={isTimerRunning ? 'Pause timer' : 'Resume timer'}
+                  aria-label={isTimerRunning ? 'Pause timer' : 'Resume timer'}
+                >
+                  {isTimerRunning ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current" />}
+                </button>
+                <button
+                  onClick={snoozeDesktopTimer}
+                  className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 bg-white/5 text-rose-100/80 transition hover:bg-rose-500/15 hover:text-white"
+                  title="Snooze floating timer for 5 minutes"
+                  aria-label="Snooze floating timer for 5 minutes"
+                >
+                  <MoonStar className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={dismissDesktopTimer}
+                  className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 bg-white/5 text-rose-100/70 transition hover:bg-black/20 hover:text-white"
+                  title="Close floating timer"
+                  aria-label="Close floating timer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2.5">
+              {showTaskTimer
+                ? <Timer className={`h-4 w-4 ${isTaskRunning ? 'text-rose-300' : 'text-rose-200/60'}`} />
+                : <Clock3 className={`h-4 w-4 ${isMainRunning ? 'text-rose-300' : 'text-rose-200/60'}`} />}
+              <div className="flex flex-col">
+                <span className="text-[9px] uppercase tracking-wider text-rose-200/70">
+                  {showTaskTimer && activeTaskTimer ? stageLabel[activeTaskTimer.stage] || activeTaskTimer.stage : 'Day timer'}
+                </span>
+                <span className="text-lg font-black tabular-nums text-rose-50">
+                  {fmt(showTaskTimer ? taskActiveMs : mainActiveMs)}
+                </span>
+              </div>
             </div>
           </div>
-          <button
-            onClick={snoozeDesktopTimer}
-            className="flex w-12 items-center justify-center border-l border-current/20 text-amber-300 transition hover:bg-white/10"
-            title="Snooze floating timer for 5 minutes"
-            aria-label="Snooze floating timer for 5 minutes"
-          >
-            <MoonStar className="h-4 w-4" />
-          </button>
         </div>,
         desktopWindow.document.body
       )}

@@ -2522,6 +2522,7 @@ export default function App() {
         onStopTaskTimer={stopActiveTaskTimer}
         onPauseMainTimer={handleMainTimerPause}
         onResumeMainTimer={handleMainTimerResume}
+        onOpenSessions={() => setActiveTab('topicintel')}
       />
 
       {/* Database Detonation Modal Overlay */}
