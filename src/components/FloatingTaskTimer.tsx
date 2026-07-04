@@ -62,6 +62,16 @@ export default function FloatingTaskTimer({
     if (desktopWindow && !desktopWindow.closed) desktopWindow.close();
   }, [desktopWindow]);
 
+  useEffect(() => {
+    if (!desktopWindow) return;
+    const closeDesktopTimerOnReturn = () => {
+      if (!desktopWindow.closed) desktopWindow.close();
+      setDesktopWindow(null);
+    };
+    window.addEventListener('focus', closeDesktopTimerOnReturn);
+    return () => window.removeEventListener('focus', closeDesktopTimerOnReturn);
+  }, [desktopWindow]);
+
   // Drag handlers
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
@@ -148,13 +158,14 @@ export default function FloatingTaskTimer({
   return (
     <>
       {/* Floating pill */}
-      <motion.div
-        ref={timerRef}
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        style={{ position: 'fixed', left: pos.x, top: pos.y, zIndex: 9999, cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none' }}
-        onMouseDown={onMouseDown}
-      >
+      {(!desktopWindow || desktopWindow.closed) && (
+        <motion.div
+          ref={timerRef}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          style={{ position: 'fixed', left: pos.x, top: pos.y, zIndex: 9999, cursor: dragging ? 'grabbing' : 'grab', userSelect: 'none' }}
+          onMouseDown={onMouseDown}
+        >
         {showTaskTimer && activeTaskTimer ? (
           <div className={`flex items-stretch overflow-hidden rounded-xl border shadow-2xl font-mono text-[11px] font-bold backdrop-blur-xl ${
             isTaskRunning
@@ -247,7 +258,8 @@ export default function FloatingTaskTimer({
             </button>
           </div>
         ) : null}
-      </motion.div>
+        </motion.div>
+      )}
 
       {desktopWindow && !desktopWindow.closed && createPortal(
         <div className={`flex h-screen w-screen items-stretch overflow-hidden border font-mono text-[11px] font-bold ${
