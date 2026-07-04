@@ -8,7 +8,6 @@ import {
   CheckCircle2, 
   SlidersHorizontal,
   ChevronDown,
-  Plus,
   Flame,
   CheckCircle,
   XCircle,
@@ -60,6 +59,79 @@ function deadlineLedState(dueDate?: string, blockedReason?: string, scheduledTim
   return { tone: 'blue', speed: '0s', label: `Due in ${daysLeft} days` };
 }
 
+type DropdownOption<T extends string> = {
+  value: T;
+  label: string;
+  disabled?: boolean;
+};
+
+function DarkDropdown<T extends string>({
+  label,
+  value,
+  options,
+  open,
+  onToggle,
+  onSelect,
+  disabled
+}: {
+  label: string;
+  value: T;
+  options: DropdownOption<T>[];
+  open: boolean;
+  onToggle: () => void;
+  onSelect: (value: T) => void;
+  disabled?: boolean;
+}) {
+  const selectedLabel = options.find(option => option.value === value)?.label ?? value;
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={disabled}
+        className="flex w-full items-center justify-between gap-3 rounded border border-rose-500 bg-neutral-950 px-3 py-2 text-left font-mono text-xs text-white transition hover:border-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={label}
+      >
+        <span className="truncate">{selectedLabel}</span>
+        <ChevronDown className={`h-4 w-4 shrink-0 text-neutral-500 transition ${open ? 'rotate-180 text-neutral-300' : ''}`} />
+      </button>
+
+      <AnimatePresence>
+        {open && !disabled && (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.985 }}
+            className="absolute left-0 top-[calc(100%+6px)] z-50 w-full overflow-hidden rounded border border-neutral-800 bg-neutral-950 shadow-2xl"
+            role="listbox"
+          >
+            {options.map(option => (
+              <button
+                key={option.value}
+                type="button"
+                disabled={option.disabled}
+                onClick={() => onSelect(option.value)}
+                className={`flex w-full items-center px-3 py-2 text-left font-mono text-xs transition ${
+                  option.value === value
+                    ? 'bg-blue-500/25 text-blue-200'
+                    : 'text-neutral-300 hover:bg-neutral-900 hover:text-white'
+                } ${option.disabled ? 'cursor-not-allowed opacity-40' : ''}`}
+                role="option"
+                aria-selected={option.value === value}
+              >
+                {option.label}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function PipelineView({ 
   videos, 
   setVideos, 
@@ -87,18 +159,8 @@ export default function PipelineView({
   const [editNotes, setEditNotes] = useState('');
   const [editBlocked, setEditBlocked] = useState('');
   const [editNextAction, setEditNextAction] = useState('');
+  const [openDropdown, setOpenDropdown] = useState<'stage' | null>(null);
 
-  // Form for creating a new video from pipeline
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-  const [newChannel, setNewChannel] = useState<'LearnDriven' | 'DecodeWorthy'>('LearnDriven');
-  const [newFormat, setNewFormat] = useState<'Short' | 'Long' | 'Members'>('Short');
-  const [newTopic, setNewTopic] = useState('');
-
-  // Outside-click dismissal: the edit modal always starts pre-filled with a
-  // real video's data, so it only auto-closes while nothing has actually
-  // changed yet; the create modal auto-closes only while every field is
-  // still at its untouched default.
   const editingVideoForDismissCheck = editingVideoId ? videos.find(v => v.id === editingVideoId) : null;
   const editVideoIsUnchanged = editingVideoForDismissCheck
     ? editStage === editingVideoForDismissCheck.pipelineStage &&
@@ -111,12 +173,7 @@ export default function PipelineView({
     editVideoIsUnchanged,
     () => setEditingVideoId(null)
   );
-  const createVideoHasInput = Boolean(newTitle.trim() || newTopic.trim() || newChannel !== 'LearnDriven' || newFormat !== 'Short');
-  const createVideoModalRef = useDismissOnOutsideClick<HTMLDivElement>(
-    isCreateOpen,
-    !createVideoHasInput,
-    () => setIsCreateOpen(false)
-  );
+  const closeDropdown = () => setOpenDropdown(null);
 
   // Handle advancing a video stage
   const handleAdvanceStage = (videoId: string) => {
@@ -296,54 +353,6 @@ export default function PipelineView({
     });
   };
 
-  const handleCreateVideo = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim()) return;
-
-    const newVideo: VideoRecord = {
-      id: `v-manual-${Date.now()}`,
-      channelName: newChannel,
-      title: newTitle,
-      format: newFormat,
-      contentType: newFormat === 'Short' ? 'News decode' : 'Deep explainer',
-      topic: newTopic || 'General',
-      pipelineStage: 'Topic',
-      scriptStatus: 'pending',
-      shootStatus: 'pending',
-      editStatus: 'pending',
-      thumbnailStatus: newFormat === 'Short' ? 'not-applicable' : 'pending',
-      scheduleStatus: 'pending',
-      publishedStatus: 'pending',
-      productionEffortHours: 0,
-      nextAction: 'Write the outline and script hook',
-      tags: {
-        topicType: newTopic || 'General',
-        hookType: 'Question',
-        contentStructure: 'Problem solution',
-        productionStyle: 'Default',
-        audienceIntent: 'Curiosity',
-        difficulty: 'Medium',
-        evergreenPotential: 'Medium',
-        revenuePotential: 'Medium',
-        subscriberPotential: 'Medium',
-        repeatability: 'High'
-      }
-    };
-
-    setVideos(prev => [newVideo, ...prev]);
-    setIsCreateOpen(false);
-    setNewTitle('');
-    setNewTopic('');
-
-    onAddEvent({
-      id: `evt-video-created-${Date.now()}`,
-      source: 'system',
-      type: 'success',
-      message: `Pipeline: Created new video topic "${newTitle}" under ${newChannel}.`,
-      timestamp: new Date().toISOString()
-    });
-  };
-
   // Filter videos
   const filteredVideos = useMemo(() => {
     return videos.filter(v => {
@@ -481,15 +490,6 @@ export default function PipelineView({
 
         </div>
 
-        {/* Add Video Button */}
-        <motion.button 
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97 }}
-          onClick={() => setIsCreateOpen(true)}
-          className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-black font-bold font-mono text-xs rounded-lg flex items-center gap-1.5 shrink-0 transition shadow-md"
-        >
-          <Plus className="h-4 w-4" /> Create Pipeline Item
-        </motion.button>
       </div>
 
       {/* Kanban Board Layout */}
@@ -659,19 +659,19 @@ export default function PipelineView({
                   {/* Pipeline Stage Select */}
                   <div>
                     <label className="block text-[9px] text-neutral-500 uppercase mb-1 font-mono">Pipeline Stage</label>
-                    <div className="relative">
-                      <select 
-                        value={editStage}
-                        onChange={(e) => setEditStage(e.target.value as any)}
-                        className="w-full bg-neutral-900 border border-neutral-900 outline-none text-xs rounded px-3 py-2 text-white font-mono appearance-none cursor-pointer"
-                      >
-                        {STAGES.map(s => {
-                          if (s === 'Thumbnail' && video.format === 'Short') return null;
-                          return <option key={s} value={s}>{s}</option>;
-                        })}
-                      </select>
-                      <ChevronDown className="h-4 w-4 text-neutral-400 absolute right-3 top-2 pointer-events-none" />
-                    </div>
+                    <DarkDropdown
+                      label="Pipeline Stage"
+                      value={editStage}
+                      open={openDropdown === 'stage'}
+                      onToggle={() => setOpenDropdown(current => current === 'stage' ? null : 'stage')}
+                      onSelect={(value) => {
+                        setEditStage(value as typeof STAGES[number]);
+                        closeDropdown();
+                      }}
+                      options={STAGES
+                        .filter(s => !(s === 'Thumbnail' && video.format === 'Short'))
+                        .map(s => ({ value: s, label: s }))}
+                    />
                   </div>
 
                   {/* Next Action Directives */}
@@ -745,120 +745,6 @@ export default function PipelineView({
         })()}
       </AnimatePresence>
 
-      {/* Create Pipeline Item Modal */}
-      <AnimatePresence>
-        {isCreateOpen && (
-          <div className="fixed inset-0 z-50 bg-neutral-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <motion.div
-              ref={createVideoModalRef}
-              initial={{ scale: 0.97, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.97, opacity: 0 }}
-              className="bg-neutral-950 border border-neutral-900 rounded-xl max-w-md w-full p-6 shadow-2xl"
-            >
-              <div className="flex items-center justify-between mb-4 border-b border-neutral-900 pb-3">
-                <h3 className="text-sm font-bold text-white font-sans tracking-tight">
-                  Create New Content Pipeline Topic
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setIsCreateOpen(false)}
-                  className="p-1 rounded text-neutral-500 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
-                  title="Close"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              <form onSubmit={handleCreateVideo} className="space-y-4">
-                {/* Title */}
-                <div>
-                  <label className="block text-[9px] text-neutral-500 uppercase mb-1 font-mono">Video Title</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Explaining Quantum Physics under 60s"
-                    value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)}
-                    className="w-full bg-neutral-900 border border-neutral-900 outline-none text-xs rounded px-3 py-2 text-white font-sans"
-                  />
-                </div>
-
-                {/* Channel Select */}
-                <div>
-                  <label className="block text-[9px] text-neutral-500 uppercase mb-1 font-mono">Target Channel</label>
-                  <div className="relative">
-                    <select
-                      value={newChannel}
-                      onChange={(e) => {
-                        const val = e.target.value as any;
-                        setNewChannel(val);
-                        // DecodeWorthy only supports Shorts content format
-                        if (val === 'DecodeWorthy') {
-                          setNewFormat('Short');
-                        }
-                      }}
-                      className="w-full bg-neutral-900 border border-neutral-900 outline-none text-xs rounded px-3 py-2 text-white font-mono appearance-none cursor-pointer"
-                    >
-                      <option value="LearnDriven">LearnDriven</option>
-                      <option value="DecodeWorthy">DecodeWorthy</option>
-                    </select>
-                    <ChevronDown className="h-4 w-4 text-neutral-400 absolute right-3 top-2 pointer-events-none" />
-                  </div>
-                </div>
-
-                {/* Format Select */}
-                <div>
-                  <label className="block text-[9px] text-neutral-500 uppercase mb-1 font-mono">Content Format</label>
-                  <div className="relative">
-                    <select
-                      value={newFormat}
-                      disabled={newChannel === 'DecodeWorthy'}
-                      onChange={(e) => setNewFormat(e.target.value as any)}
-                      className="w-full bg-neutral-900 border border-neutral-900 outline-none text-xs rounded px-3 py-2 text-white font-mono appearance-none cursor-pointer disabled:opacity-50"
-                    >
-                      <option value="Short">Short</option>
-                      <option value="Long">Long Video</option>
-                      <option value="Members">Members-Only Video</option>
-                    </select>
-                    <ChevronDown className="h-4 w-4 text-neutral-400 absolute right-3 top-2 pointer-events-none" />
-                  </div>
-                </div>
-
-                {/* Topic Input */}
-                <div>
-                  <label className="block text-[9px] text-neutral-500 uppercase mb-1 font-mono">Topic Domain</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Science, Space, History..."
-                    value={newTopic}
-                    onChange={(e) => setNewTopic(e.target.value)}
-                    className="w-full bg-neutral-900 border border-neutral-900 outline-none text-xs rounded px-3 py-2 text-white font-sans"
-                  />
-                </div>
-
-                {/* Controls */}
-                <div className="flex justify-end gap-2 text-[10px] pt-3 border-t border-neutral-900">
-                  <button
-                    type="button"
-                    onClick={() => setIsCreateOpen(false)}
-                    className="px-3 py-1.5 text-neutral-500 hover:text-neutral-300 font-mono"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-black font-bold font-mono rounded"
-                  >
-                    Create Item
-                  </button>
-                </div>
-              </form>
-
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
         </>
       ) : (
         <VercelView
