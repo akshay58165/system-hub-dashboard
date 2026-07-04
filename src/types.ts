@@ -256,6 +256,7 @@ export interface SessionRecord {
   achievedGoals: SessionGoalOutcome[];
   droppedGoals: SessionGoalOutcome[];
   pendingGoals: SessionGoalOutcome[];
+  taskTimers?: TaskTimerRecord[];
 }
 
 export interface VideoRecord {
@@ -476,5 +477,7 @@ export interface TaskTimerRecord {
   productivityScore?: number;
   /** 'done' = task stage fully finished, 'deferred' = stopping to resume later */
   endReason?: 'done' | 'deferred';
+  pauseSource?: 'manual' | 'day';
+  workdaySessionId?: string;
   dateKey: string;             // YYYY-MM-DD for archival scoping
 }

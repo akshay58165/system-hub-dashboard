@@ -37,6 +37,7 @@ import {
 import { Topic, TopicActivity, SystemEvent, CycleGoal, WorkdaySession } from '../types';
 import { getTopicCurrentWorkflow, getTopicWorkflowState } from '../services/topicWorkflow';
 import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
+import { useTaskTimers } from '../contexts/TaskTimerContext';
 
 interface VercelViewProps {
   projects: any[]; // Kept for interface compatibility in App.tsx
@@ -202,6 +203,7 @@ export default function VercelView({
   cycleGoals,
   workdaySession
 }: VercelViewProps) {
+  const taskTimer = useTaskTimers();
   const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy' | 'Later'>('All');
   const [topicSortOrder, setTopicSortOrder] = useState<TopicSortMode>('due-date');
   const [isTopicSortOpen, setIsTopicSortOpen] = useState(false);
@@ -1334,6 +1336,14 @@ export default function VercelView({
                       <div className="flex flex-wrap gap-1.5 pt-1.5 border-t border-neutral-900">
                         {(['script', 'shoot', 'edit', 'schedule', 'post'] as WorkflowStage[]).map(stage => {
                           const state = getWorkflowState(topic, stage);
+                          const stageTimers = taskTimer?.timers.filter(timer => timer.topicId === topic.id && timer.stage === stage) || [];
+                          const liveStageTimer = stageTimers.find(timer => timer.status === 'running' || timer.status === 'paused');
+                          const stageActiveMs = stageTimers.reduce((total, timer) => total + timer.accumulatedActiveMs + (
+                            timer.status === 'running' && timer.activeSince ? Math.max(0, now.getTime() - new Date(timer.activeSince).getTime()) : 0
+                          ), 0);
+                          const stageTimeLabel = stageActiveMs > 0
+                            ? `${String(Math.floor(stageActiveMs / 3600000)).padStart(2, '0')}:${String(Math.floor(stageActiveMs / 60000) % 60).padStart(2, '0')}:${String(Math.floor(stageActiveMs / 1000) % 60).padStart(2, '0')}`
+                            : '';
                           let labelOverride = undefined;
                           let isDisabled = false;
 
@@ -1389,6 +1399,7 @@ export default function VercelView({
                                 disabled={isDisabled}
                                 labelOverride={labelOverride}
                                 onQuickPress={() => {
+                                  taskTimer?.startTimer(topic.id, stage);
                                   if (stage === 'schedule') {
                                     const defaultTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
                                     setSchedDate(topic.dueDate ? topic.dueDate.split('T')[0] : new Date().toISOString().split('T')[0]);
@@ -1401,13 +1412,22 @@ export default function VercelView({
                                 }}
                                 onLongPress={() => {
                                   if (stage === 'schedule') {
-                                    if (state === 'in-progress') completeSchedule(topic);
+                                    if (state === 'in-progress') {
+                                      completeSchedule(topic);
+                                      taskTimer?.completeStageTimer(topic.id, stage);
+                                    }
                                   } else {
                                     handleTransitionToStage(topic, stage, 'completed');
+                                    taskTimer?.completeStageTimer(topic.id, stage);
                                   }
                                 }}
                                 onReset={() => resetWorkflowStage(topic, stage)}
                               />
+                              {(liveStageTimer || stageTimeLabel) && (
+                                <span className={`font-mono text-[7px] ${liveStageTimer?.status === 'running' ? 'text-emerald-300' : liveStageTimer?.status === 'paused' ? 'text-amber-300' : 'text-neutral-600'}`}>
+                                  {liveStageTimer?.status === 'running' ? 'LIVE ' : liveStageTimer?.status === 'paused' ? 'PAUSED ' : ''}{stageTimeLabel}
+                                </span>
+                              )}
                             </div>
                           );
                         })}

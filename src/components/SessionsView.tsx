@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Check, ChevronDown, Clock3, Coffee, Target, Trash2, TrendingUp } from 'lucide-react';
-import type { SessionRecord } from '../types';
+import { Check, ChevronDown, Clock3, Coffee, Target, Timer, Trash2, TrendingUp } from 'lucide-react';
+import type { SessionRecord, TaskTimerStage } from '../types';
 
 interface SessionsViewProps {
   sessions: SessionRecord[];
@@ -12,6 +12,7 @@ const formatDuration = (ms: number) => {
   const minutes = totalMinutes % 60;
   return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 };
+const stageLabels: Record<TaskTimerStage, string> = { script: 'Scripting', shoot: 'Shooting', edit: 'Editing', schedule: 'Scheduling', post: 'Publishing' };
 
 export default function SessionsView({ sessions }: SessionsViewProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -101,6 +102,19 @@ export default function SessionsView({ sessions }: SessionsViewProps) {
 
               {isExpanded && (
                 <div className="border-t border-neutral-900 p-5 space-y-4">
+                  {(session.taskTimers?.length || 0) > 0 && (
+                    <div>
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-cyan-400"><Timer className="h-3.5 w-3.5" />Goal task sessions</div>
+                      <div className="mt-2 grid gap-2 md:grid-cols-2">
+                        {session.taskTimers!.map(timer => (
+                          <div key={timer.id} className="rounded-lg border border-cyan-950/60 bg-cyan-950/10 p-3">
+                            <div className="flex items-start justify-between gap-3"><div><div className="text-[10px] font-semibold text-neutral-200">{timer.topicName}</div><div className="mt-1 text-[8px] font-bold uppercase text-cyan-300">{stageLabels[timer.stage]}</div></div><span className={`rounded px-2 py-1 text-[7px] font-bold uppercase ${timer.endReason === 'done' ? 'bg-emerald-950/40 text-emerald-300' : 'bg-amber-950/40 text-amber-300'}`}>{timer.endReason === 'done' ? 'Completed' : 'Deferred'}</span></div>
+                            <div className="mt-3 grid grid-cols-4 gap-2 text-center"><div><div className="font-mono text-[10px] font-bold text-emerald-300">{formatDuration(timer.accumulatedActiveMs)}</div><div className="text-[6px] uppercase text-neutral-600">Active</div></div><div><div className="font-mono text-[10px] font-bold text-amber-300">{formatDuration(timer.accumulatedPausedMs)}</div><div className="text-[6px] uppercase text-neutral-600">Paused</div></div><div><div className="font-mono text-[10px] font-bold text-cyan-300">{timer.breaksCount}</div><div className="text-[6px] uppercase text-neutral-600">Breaks</div></div><div><div className="font-mono text-[10px] font-bold text-purple-300">{timer.productivityScore ? `${timer.productivityScore * 10}%` : '--'}</div><div className="text-[6px] uppercase text-neutral-600">Productive</div></div></div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {session.achievedGoals.length > 0 && (
                     <div>
                       <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-emerald-400"><Check className="h-3.5 w-3.5" />Achieved</div>
