@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Clock3, Pause, Play, Square, Check, Timer, ChevronDown, X
+  Clock3, Pause, Play, Square, Check, Timer, X, PictureInPicture2
 } from 'lucide-react';
 import type { TaskTimerRecord, WorkdaySession } from '../types';
 
@@ -25,6 +26,13 @@ const stageLabel: Record<string, string> = {
   schedule: 'Scheduling', post: 'Publishing'
 };
 
+type DocumentPictureInPicture = {
+  requestWindow: (options?: { width?: number; height?: number }) => Promise<Window>;
+};
+
+const getDocumentPictureInPicture = () =>
+  (window as Window & { documentPictureInPicture?: DocumentPictureInPicture }).documentPictureInPicture;
+
 export default function FloatingTaskTimer({
   activeTaskTimer,
   workdaySession,
@@ -40,6 +48,7 @@ export default function FloatingTaskTimer({
   const [showStopModal, setShowStopModal] = useState(false);
   const [stopReason, setStopReason] = useState<'done' | 'deferred'>('deferred');
   const [productivity, setProductivity] = useState(7);
+  const [desktopWindow, setDesktopWindow] = useState<Window | null>(null);
   const dragOffset = useRef({ x: 0, y: 0 });
   const timerRef = useRef<HTMLDivElement>(null);
 
@@ -48,6 +57,10 @@ export default function FloatingTaskTimer({
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => () => {
+    if (desktopWindow && !desktopWindow.closed) desktopWindow.close();
+  }, [desktopWindow]);
 
   // Drag handlers
   const onMouseDown = useCallback((e: React.MouseEvent) => {
@@ -105,6 +118,32 @@ export default function FloatingTaskTimer({
     setShowStopModal(false);
   };
 
+  const openDesktopTimer = async () => {
+    const documentPictureInPicture = getDocumentPictureInPicture();
+    if (!documentPictureInPicture) {
+      window.alert('Desktop timer requires a recent version of Chrome or Edge.');
+      return;
+    }
+
+    if (desktopWindow && !desktopWindow.closed) {
+      desktopWindow.focus();
+      return;
+    }
+
+    try {
+      const pipWindow = await documentPictureInPicture.requestWindow({ width: 300, height: 112 });
+      document.querySelectorAll('link[rel="stylesheet"], style').forEach(node => {
+        pipWindow.document.head.appendChild(node.cloneNode(true));
+      });
+      pipWindow.document.title = 'Unicorn Day Timer';
+      pipWindow.document.body.className = 'm-0 flex min-h-screen items-center justify-center overflow-hidden bg-neutral-950 p-3';
+      pipWindow.addEventListener('pagehide', () => setDesktopWindow(null), { once: true });
+      setDesktopWindow(pipWindow);
+    } catch {
+      // The browser may reject the request when Picture-in-Picture is disabled.
+    }
+  };
+
   return (
     <>
       {/* Floating pill */}
@@ -133,6 +172,17 @@ export default function FloatingTaskTimer({
                 </span>
               </div>
             </div>
+
+            {/* Pause / Resume */}
+            <button
+              onMouseDown={e => e.stopPropagation()}
+              onClick={openDesktopTimer}
+              className="flex w-8 items-center justify-center border-l border-neutral-700/40 text-neutral-500 transition hover:bg-blue-500/20 hover:text-blue-300"
+              title="Keep timer above desktop windows"
+              aria-label="Open desktop timer"
+            >
+              <PictureInPicture2 className="h-3.5 w-3.5" />
+            </button>
 
             {/* Pause / Resume */}
             <button
@@ -175,6 +225,15 @@ export default function FloatingTaskTimer({
             </div>
             <button
               onMouseDown={e => e.stopPropagation()}
+              onClick={openDesktopTimer}
+              className="flex w-8 items-center justify-center border-l border-emerald-800/40 text-emerald-500 transition hover:bg-blue-500/20 hover:text-blue-300"
+              title="Keep timer above desktop windows"
+              aria-label="Open desktop timer"
+            >
+              <PictureInPicture2 className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onMouseDown={e => e.stopPropagation()}
               onClick={isMainRunning ? onPauseMainTimer : onResumeMainTimer}
               className={`flex w-8 items-center justify-center border-l transition ${
                 isMainRunning
@@ -188,6 +247,40 @@ export default function FloatingTaskTimer({
           </div>
         ) : null}
       </motion.div>
+
+      {desktopWindow && !desktopWindow.closed && createPortal(
+        <div className={`flex items-stretch overflow-hidden rounded-xl border font-mono text-[11px] font-bold shadow-2xl ${
+          showTaskTimer
+            ? isTaskRunning ? 'border-amber-700/60 bg-amber-950 text-amber-200' : 'border-neutral-700 bg-neutral-900 text-neutral-300'
+            : isMainRunning ? 'border-emerald-800/60 bg-emerald-950 text-emerald-200' : 'border-amber-800/60 bg-amber-950 text-amber-200'
+        }`}>
+          <div className="flex min-w-48 items-center gap-2 px-4 py-3">
+            {showTaskTimer
+              ? <Timer className={`h-4 w-4 ${isTaskRunning ? 'text-amber-400' : 'text-neutral-500'}`} />
+              : <Clock3 className={`h-4 w-4 ${isMainRunning ? 'text-emerald-400' : 'text-amber-400'}`} />}
+            <div className="flex flex-col">
+              <span className="text-[9px] uppercase tracking-wider opacity-70">
+                {showTaskTimer && activeTaskTimer ? stageLabel[activeTaskTimer.stage] || activeTaskTimer.stage : 'Day timer'}
+              </span>
+              <span className="text-lg font-black tabular-nums">
+                {fmt(showTaskTimer ? taskActiveMs : mainActiveMs)}
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={showTaskTimer
+              ? isTaskRunning ? onPauseTaskTimer : onResumeTaskTimer
+              : isMainRunning ? onPauseMainTimer : onResumeMainTimer}
+            className="flex w-12 items-center justify-center border-l border-current/20 text-amber-300 transition hover:bg-white/10"
+            title={showTaskTimer ? isTaskRunning ? 'Pause task' : 'Resume task' : isMainRunning ? 'Pause day' : 'Resume day'}
+          >
+            {(showTaskTimer ? isTaskRunning : isMainRunning)
+              ? <Pause className="h-4 w-4 fill-current" />
+              : <Play className="h-4 w-4 fill-current" />}
+          </button>
+        </div>,
+        desktopWindow.document.body
+      )}
 
       {/* Stop modal - productivity score + end reason */}
       <AnimatePresence>
