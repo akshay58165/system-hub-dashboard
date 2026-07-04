@@ -52,6 +52,7 @@ import {
 import CommandPalette from './components/CommandPalette';
 import WorkdayTimer from './components/WorkdayTimer';
 import FloatingTaskTimer from './components/FloatingTaskTimer';
+import TopicCreateModal from './components/TopicCreateModal';
 
 const GithubView = lazy(() => import('./components/GithubView'));
 const VercelView = lazy(() => import('./components/VercelView'));
@@ -67,7 +68,6 @@ const TodayGoalsView = lazy(() => import('./components/TodayGoalsView'));
 const ForecastingView = lazy(() => import('./components/ForecastingView'));
 const SessionsView = lazy(() => import('./components/SessionsView'));
 const InsightsView = lazy(() => import('./components/InsightsView'));
-const TopicCreateModal = lazy(() => import('./components/TopicCreateModal'));
 
 // Get or create session ID for the current tab session
 let currentSessionId = '';
@@ -2223,17 +2223,15 @@ export default function App() {
       </main>
 
       {isAddFormOpen && (
-        <Suspense fallback={null}>
-          <TopicCreateModal
-            isOpen={isAddFormOpen}
-            onClose={() => setIsAddFormOpen(false)}
-            setTopics={setTopics}
-            setActivities={setActivities}
-            onAddEvent={addEvent}
-            setActiveTab={setActiveTab}
-            setPipelineSubView={setPipelineSubView}
-          />
-        </Suspense>
+        <TopicCreateModal
+          isOpen={isAddFormOpen}
+          onClose={() => setIsAddFormOpen(false)}
+          setTopics={setTopics}
+          setActivities={setActivities}
+          onAddEvent={addEvent}
+          setActiveTab={setActiveTab}
+          setPipelineSubView={setPipelineSubView}
+        />
       )}
 
       {/* Command Palette Modal */}
