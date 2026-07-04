@@ -164,7 +164,7 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
     timer.status === 'paused' && timer.pausedAt ? Math.max(0, now - new Date(timer.pausedAt).getTime()) : 0
   );
 
-  if (!session) return <div className="space-y-5 pb-10"><div><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-purple-400"><Clock3 className="h-4 w-4" />Work intelligence</div><h1 className="mt-2 text-2xl font-bold text-white">Sessions</h1><p className="mt-1 text-sm text-neutral-500">Live work tracking and complete session history.</p></div><div className="rounded-2xl border border-dashed border-neutral-800 bg-neutral-950/50 p-7 text-center"><Target className="mx-auto h-7 w-7 text-purple-400" /><h2 className="mt-3 text-sm font-bold text-white">No active session</h2><p className="mt-1 text-[10px] text-neutral-500">Start the day from the header to begin tracking goals, stages, active time, pauses, and breaks.</p></div><SessionsView sessions={sessions} embedded /></div>;
+  if (!session) return <div className="space-y-5 pb-10"><div><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-purple-400"><Clock3 className="h-4 w-4" />Work intelligence</div><h1 className="mt-2 text-2xl font-bold text-white">Sessions</h1><p className="mt-1 text-sm text-neutral-400">Live work tracking and complete session history.</p></div><div className="rounded-2xl border border-dashed border-neutral-800 bg-neutral-950/50 p-7 text-center"><Target className="mx-auto h-7 w-7 text-purple-400" /><h2 className="mt-3 text-sm font-bold text-white">No active session</h2><p className="mt-1 text-[10px] text-neutral-400">Start the day from the header to begin tracking goals, stages, active time, pauses, and breaks.</p></div><SessionsView sessions={sessions} embedded /></div>;
 
   return <div className="space-y-5 pb-10">
     <EndSessionModal isOpen={showEndConfirmation} activeMs={metrics.active} pausedMs={metrics.paused} completedGoals={completedCount} totalGoals={liveGoals.length} onCancel={() => setShowEndConfirmation(false)} onConfirm={() => { setShowEndConfirmation(false); onEndSession(); }} onDiscard={() => { setShowEndConfirmation(false); setSession(null); }} />
@@ -173,7 +173,7 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
         <div>
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-purple-400"><Clock3 className="h-4 w-4" />Live work session</div>
           <h1 className="mt-2 text-2xl font-bold text-white">Sessions</h1>
-          <p className="mt-1 text-sm text-neutral-500">Started {new Date(session.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+          <p className="mt-1 text-sm text-neutral-400">Started {new Date(session.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={pauseResume} className={`flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-xs font-bold ${session.status === 'paused' ? 'bg-emerald-500 text-black' : 'bg-amber-500 text-black'}`}>{session.status === 'paused' ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}{session.status === 'paused' ? 'Resume work' : 'Pause work'}</button>
@@ -183,10 +183,10 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
       <div className="mt-5 h-2 overflow-hidden rounded-full bg-neutral-900"><div className="h-full rounded-full bg-gradient-to-r from-purple-500 via-cyan-400 to-emerald-400" style={{ width: `${metrics.progress}%` }} /></div>
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">{[
         ['Active', formatDuration(metrics.active), 'text-emerald-300'], ['Remaining', formatDuration(metrics.remaining), 'text-cyan-300'], ['Paused', formatDuration(metrics.paused), 'text-amber-300'], ['Quota', `${metrics.progress.toFixed(1)}%`, 'text-purple-300'], ['Goals', `${completedCount}/${liveGoals.length}`, 'text-white']
-      ].map(([label, value, color]) => <div key={label} className="rounded-xl border border-neutral-900 bg-neutral-950/60 p-3"><div className={`text-lg font-black ${color}`}>{value}</div><div className="mt-1 text-[8px] uppercase text-neutral-600">{label}</div></div>)}</div>
+      ].map(([label, value, color]) => <div key={label} className="rounded-xl border border-neutral-900 bg-neutral-950/60 p-3"><div className={`text-lg font-black ${color}`}>{value}</div><div className="mt-1 text-[10px] uppercase text-neutral-400">{label}</div></div>)}</div>
       {metrics.remaining > 0 && metrics.remaining < TWO_HOURS_MS && (
         <div className="mt-4 rounded-xl border border-amber-800/50 bg-amber-950/15 p-3">
-          <div className="text-[9px] font-bold uppercase text-amber-300">Less than 2h left in this session — extend it?</div>
+          <div className="text-[10px] font-bold uppercase text-amber-300">Less than 2h left in this session — extend it?</div>
           <div className="mt-2 flex gap-2">
             {[30, 60, 120].map(minutes => (
               <button key={minutes} onClick={() => extendSession(minutes)} className="rounded-lg border border-amber-700/60 bg-amber-500/10 px-4 py-1.5 text-[10px] font-bold text-amber-200 hover:bg-amber-500/20">
@@ -203,7 +203,7 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-bold text-white">Execution list</h2>
-            <p className="mt-1 text-[10px] text-neutral-500">Live progress from current stage to today&apos;s milestone.</p>
+            <p className="mt-1 text-[10px] text-neutral-400">Live progress from current stage to today&apos;s milestone.</p>
           </div>
           <div className="flex items-center gap-2">
             <span className="font-mono text-[10px] text-purple-300">{completedCount}/{liveGoals.length} complete</span>
@@ -211,17 +211,17 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
         </div>
 
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-neutral-900 bg-neutral-950/60 p-2">
-          <SlidersHorizontal className="h-3.5 w-3.5 text-neutral-500 shrink-0 ml-1" />
+          <SlidersHorizontal className="h-3.5 w-3.5 text-neutral-400 shrink-0 ml-1" />
           <div className="flex items-center gap-1">
-            <span className="text-[8px] uppercase text-neutral-600 mr-1">Sort</span>
+            <span className="text-[10px] uppercase text-neutral-400 mr-1">Sort</span>
             {(['priority', 'due', 'stage'] as const).map(option => (
-              <button key={option} onClick={() => setSortBy(option)} className={`rounded px-2 py-1 text-[9px] font-bold uppercase transition ${sortBy === option ? 'bg-purple-500 text-black' : 'bg-neutral-900 text-neutral-400 hover:text-neutral-200'}`}>{option}</button>
+              <button key={option} onClick={() => setSortBy(option)} className={`rounded px-2 py-1 text-[10px] font-bold uppercase transition ${sortBy === option ? 'bg-purple-500 text-black' : 'bg-neutral-900 text-neutral-400 hover:text-neutral-200'}`}>{option}</button>
             ))}
           </div>
           <div className="ml-auto flex items-center gap-1">
-            <span className="text-[8px] uppercase text-neutral-600 mr-1">Channel</span>
+            <span className="text-[10px] uppercase text-neutral-400 mr-1">Channel</span>
             {(['All', 'LearnDriven', 'DecodeWorthy'] as const).map(option => (
-              <button key={option} onClick={() => setChannelFilter(option)} className={`rounded px-2 py-1 text-[9px] font-bold uppercase transition ${channelFilter === option ? 'bg-cyan-500 text-black' : 'bg-neutral-900 text-neutral-400 hover:text-neutral-200'}`}>{option}</button>
+              <button key={option} onClick={() => setChannelFilter(option)} className={`rounded px-2 py-1 text-[10px] font-bold uppercase transition ${channelFilter === option ? 'bg-cyan-500 text-black' : 'bg-neutral-900 text-neutral-400 hover:text-neutral-200'}`}>{option}</button>
             ))}
           </div>
         </div>
@@ -243,13 +243,13 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
           const suggestedStage = nextTaskStage[topic.status];
           return <div key={goal.id} className={`rounded-xl border p-4 ${done ? 'border-emerald-900/40 bg-emerald-950/10' : 'border-neutral-850 bg-neutral-900/25'}`}>
             <div className="flex items-start gap-3">
-              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold ${done ? 'bg-emerald-500 text-black' : 'bg-neutral-950 text-neutral-500'}`}>{done ? <Check className="h-4 w-4" /> : String(index + 1).padStart(2, '0')}</span>
+              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold ${done ? 'bg-emerald-500 text-black' : 'bg-neutral-950 text-neutral-400'}`}>{done ? <Check className="h-4 w-4" /> : String(index + 1).padStart(2, '0')}</span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className={`relative flex h-2 w-2 shrink-0 rounded-full ${urgency.dot}`} />
                   <div className={`truncate text-sm font-bold ${done ? 'text-emerald-300' : 'text-white'}`}>{topic.name}</div>
                 </div>
-                <div className="mt-1.5 flex flex-wrap gap-1.5 text-[8px] uppercase">
+                <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px] uppercase">
                   <span className="rounded bg-neutral-950 px-2 py-1 text-neutral-400 border border-neutral-800">{topic.channel}</span>
                   <span className="rounded bg-blue-950/35 px-2 py-1 text-blue-300">{stagesBetween(topic.status, goal.targetStatus).join(' → ')}</span>
                   <span className={`rounded border px-2 py-1 font-bold ${priority.style}`}>P{topic.priority} · {priority.label}</span>
@@ -263,20 +263,20 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
                     ['Breaks', String(totalBreaks), 'text-cyan-300'],
                     ['Stages done', String(completedTimers.length), 'text-purple-300'],
                     ['Productivity', averageProductivity === null ? '--' : `${averageProductivity.toFixed(0)}%`, 'text-rose-300']
-                  ].map(([label, value, color]) => <div key={label} className="rounded-lg border border-neutral-900 bg-neutral-950/70 p-2"><div className={`font-mono text-xs font-black ${color}`}>{value}</div><div className="mt-1 text-[7px] uppercase text-neutral-600">{label}</div></div>)}
+                  ].map(([label, value, color]) => <div key={label} className="rounded-lg border border-neutral-900 bg-neutral-950/70 p-2"><div className={`font-mono text-xs font-black ${color}`}>{value}</div><div className="mt-1 text-[10px] uppercase text-neutral-400">{label}</div></div>)}
                 </div>
 
                 <div className="mt-3 rounded-xl border border-neutral-900 bg-neutral-950/55 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-[9px] font-bold uppercase text-neutral-400"><Clock3 className="h-3.5 w-3.5 text-emerald-400" />Goal sessions</div>
+                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase text-neutral-400"><Clock3 className="h-3.5 w-3.5 text-emerald-400" />Goal sessions</div>
                     {activeTopicTimer ? (
                       <div className="flex items-center gap-2">
-                        <span className={`font-mono text-[9px] font-bold ${activeTopicTimer.status === 'running' ? 'text-emerald-300' : 'text-amber-300'}`}>{taskStageLabels[activeTopicTimer.stage]} {formatDuration(timerActiveMs(activeTopicTimer))}</span>
+                        <span className={`font-mono text-[10px] font-bold ${activeTopicTimer.status === 'running' ? 'text-emerald-300' : 'text-amber-300'}`}>{taskStageLabels[activeTopicTimer.stage]} {formatDuration(timerActiveMs(activeTopicTimer))}</span>
                         <button onClick={activeTopicTimer.status === 'running' ? onPauseTaskTimer : onResumeTaskTimer} className="rounded border border-neutral-800 p-1.5 text-amber-300 hover:bg-neutral-900" title={activeTopicTimer.status === 'running' ? 'Pause this goal timer only' : 'Resume this goal timer'}>{activeTopicTimer.status === 'running' ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}</button>
                         <button onClick={() => onStopTaskTimer('deferred')} className="rounded border border-neutral-800 p-1.5 text-rose-300 hover:bg-neutral-900" title="Stop and defer this goal timer only"><Square className="h-3 w-3" /></button>
                       </div>
                     ) : suggestedStage && !done ? (
-                      <button disabled={session.status !== 'running'} onClick={() => onStartTaskTimer(topic.id, suggestedStage)} className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-[9px] font-bold text-black hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"><Play className="h-3 w-3 fill-current" />Start {taskStageLabels[suggestedStage]}</button>
+                      <button disabled={session.status !== 'running'} onClick={() => onStartTaskTimer(topic.id, suggestedStage)} className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-[10px] font-bold text-black hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"><Play className="h-3 w-3 fill-current" />Start {taskStageLabels[suggestedStage]}</button>
                     ) : null}
                   </div>
 
@@ -287,10 +287,10 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
                       const pausedMs = sessions.reduce((total, timer) => total + timerPausedMs(timer), 0);
                       const latest = [...sessions].sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())[0];
                       return <div key={stage} className={`rounded-lg border p-2.5 ${latest?.status === 'running' ? 'border-emerald-700/60 bg-emerald-950/20' : latest?.status === 'paused' ? 'border-amber-800/60 bg-amber-950/15' : 'border-neutral-900 bg-neutral-950/60'}`}>
-                        <div className="flex items-center justify-between"><span className="text-[8px] font-bold uppercase text-neutral-300">{taskStageLabels[stage]}</span><span className="text-[7px] uppercase text-neutral-600">{sessions.length} session{sessions.length === 1 ? '' : 's'}</span></div>
+                        <div className="flex items-center justify-between"><span className="text-[10px] font-bold uppercase text-neutral-300">{taskStageLabels[stage]}</span><span className="text-[10px] uppercase text-neutral-400">{sessions.length} session{sessions.length === 1 ? '' : 's'}</span></div>
                         <div className="mt-1.5 font-mono text-xs font-black text-emerald-300">{formatDuration(activeMs)}</div>
-                        <div className="mt-1 text-[7px] text-neutral-600">Paused {formatDuration(pausedMs)} · {sessions.reduce((total, timer) => total + timer.breaksCount, 0)} breaks</div>
-                        {latest?.completedAt && <div className="mt-1 text-[7px] text-neutral-600">Last completed {new Date(latest.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>}
+                        <div className="mt-1 text-[10px] text-neutral-400">Paused {formatDuration(pausedMs)} · {sessions.reduce((total, timer) => total + timer.breaksCount, 0)} breaks</div>
+                        {latest?.completedAt && <div className="mt-1 text-[10px] text-neutral-400">Last completed {new Date(latest.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>}
                       </div>;
                     })}
                   </div>
@@ -299,11 +299,11 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
               <button onClick={() => removeGoal(goal.id)} className="text-neutral-700 hover:text-rose-400 shrink-0"><Trash2 className="h-4 w-4" /></button>
             </div>
           </div>;
-        })}</div> : <div className="rounded-xl border border-dashed border-neutral-800 py-12 text-center text-sm text-neutral-600">{liveGoals.length ? 'No goals match this filter.' : 'No topic goals set for today.'}</div>}
+        })}</div> : <div className="rounded-xl border border-dashed border-neutral-800 py-12 text-center text-sm text-neutral-400">{liveGoals.length ? 'No goals match this filter.' : 'No topic goals set for today.'}</div>}
       </div>
 
-      <div className="h-fit rounded-2xl border border-purple-900/30 bg-neutral-950/70 p-5"><div className="flex items-center gap-2 text-sm font-bold text-white"><Plus className="h-4 w-4 text-purple-400" />Add a goal</div><p className="mt-1 text-[9px] text-neutral-600">Scheduled and posted topics are excluded.</p><div className="mt-4 space-y-3"><label className="block text-[8px] font-bold uppercase text-neutral-500">Ranked topic<select value={topicId} onChange={event => chooseTopic(event.target.value)} className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2.5 text-[10px] font-semibold text-white"><option value="">Select topic</option>{ranked.map(topic => <option key={topic.id} value={topic.id}>P{topic.priority} - {topic.name} - {topic.status}</option>)}</select></label>{selected && <div className="rounded-lg bg-neutral-900/60 p-3"><div className="truncate text-[10px] font-semibold text-white">{selected.name}</div><div className="mt-1 text-[8px] uppercase text-neutral-600">{selected.channel} - current {selected.status}{selected.dueDate ? ` - due ${new Date(selected.dueDate).toLocaleDateString()}` : ''}</div></div>}<label className="block text-[8px] font-bold uppercase text-neutral-500">Milestone<select disabled={!selected} value={target} onChange={event => setTarget(event.target.value as typeof goalStages[number])} className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2.5 text-[10px] capitalize text-white disabled:opacity-40">{targets.map(stage => <option key={stage} value={stage}>{stageLabel[stage] || stage}</option>)}</select></label><button disabled={!selected} onClick={addGoal} className="w-full rounded-lg bg-purple-500 py-2.5 text-[10px] font-bold text-black hover:bg-purple-400 disabled:opacity-40">Add today&apos;s goal</button></div></div>
+      <div className="h-fit rounded-2xl border border-purple-900/30 bg-neutral-950/70 p-5"><div className="flex items-center gap-2 text-sm font-bold text-white"><Plus className="h-4 w-4 text-purple-400" />Add a goal</div><p className="mt-1 text-[10px] text-neutral-400">Scheduled and posted topics are excluded.</p><div className="mt-4 space-y-3"><label className="block text-[10px] font-bold uppercase text-neutral-400">Ranked topic<select value={topicId} onChange={event => chooseTopic(event.target.value)} className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2.5 text-[10px] font-semibold text-white"><option value="">Select topic</option>{ranked.map(topic => <option key={topic.id} value={topic.id}>P{topic.priority} - {topic.name} - {topic.status}</option>)}</select></label>{selected && <div className="rounded-lg bg-neutral-900/60 p-3"><div className="truncate text-[10px] font-semibold text-white">{selected.name}</div><div className="mt-1 text-[10px] uppercase text-neutral-400">{selected.channel} - current {selected.status}{selected.dueDate ? ` - due ${new Date(selected.dueDate).toLocaleDateString()}` : ''}</div></div>}<label className="block text-[10px] font-bold uppercase text-neutral-400">Milestone<select disabled={!selected} value={target} onChange={event => setTarget(event.target.value as typeof goalStages[number])} className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2.5 text-[10px] capitalize text-white disabled:opacity-40">{targets.map(stage => <option key={stage} value={stage}>{stageLabel[stage] || stage}</option>)}</select></label><button disabled={!selected} onClick={addGoal} className="w-full rounded-lg bg-purple-500 py-2.5 text-[10px] font-bold text-black hover:bg-purple-400 disabled:opacity-40">Add today&apos;s goal</button></div></div>
     </section>
-    <section className="border-t border-neutral-900 pt-5"><div className="mb-4"><h2 className="text-sm font-bold text-white">Completed session history</h2><p className="mt-1 text-[10px] text-neutral-500">Every saved day with goal outcomes, task-stage timelines, active work, pauses, breaks, and productivity.</p></div><SessionsView sessions={sessions} embedded /></section>
+    <section className="border-t border-neutral-900 pt-5"><div className="mb-4"><h2 className="text-sm font-bold text-white">Completed session history</h2><p className="mt-1 text-[10px] text-neutral-400">Every saved day with goal outcomes, task-stage timelines, active work, pauses, breaks, and productivity.</p></div><SessionsView sessions={sessions} embedded /></section>
   </div>;
 }
