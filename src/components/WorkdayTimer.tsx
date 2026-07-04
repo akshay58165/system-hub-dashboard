@@ -395,6 +395,11 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
           onEndSession();
           setShowPanel(false);
         }}
+        onDiscard={() => {
+          setShowEndConfirmation(false);
+          setSession(null);
+          setShowPanel(false);
+        }}
       />
     </>
   );

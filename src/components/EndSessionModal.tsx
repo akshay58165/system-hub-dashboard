@@ -9,6 +9,7 @@ interface EndSessionModalProps {
   totalGoals: number;
   onCancel: () => void;
   onConfirm: () => void;
+  onDiscard?: () => void;
 }
 
 const formatDuration = (ms: number) => {
@@ -16,7 +17,7 @@ const formatDuration = (ms: number) => {
   return `${String(Math.floor(seconds / 3600)).padStart(2, '0')}:${String(Math.floor((seconds % 3600) / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 };
 
-export default function EndSessionModal({ isOpen, activeMs, pausedMs, completedGoals, totalGoals, onCancel, onConfirm }: EndSessionModalProps) {
+export default function EndSessionModal({ isOpen, activeMs, pausedMs, completedGoals, totalGoals, onCancel, onConfirm, onDiscard }: EndSessionModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -35,6 +36,7 @@ export default function EndSessionModal({ isOpen, activeMs, pausedMs, completedG
               <button type="button" onClick={onCancel} className="flex-1 rounded-xl border border-neutral-800 bg-neutral-900 py-2.5 text-xs font-bold text-neutral-300 transition hover:border-neutral-600 hover:text-white">Keep working</button>
               <button type="button" onClick={onConfirm} className="flex-1 rounded-xl bg-rose-500 py-2.5 text-xs font-bold text-white transition hover:bg-rose-400">End &amp; save session</button>
             </div>
+            {onDiscard && <div className="border-t border-neutral-900 px-4 pb-4 pt-2"><button type="button" onClick={onDiscard} className="w-full rounded-xl border border-neutral-800 py-2 text-[10px] font-bold text-neutral-500 transition hover:border-rose-900 hover:text-rose-400">Discard session without saving</button></div>}
           </motion.div>
         </motion.div>
       )}
