@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   Activity, AlertTriangle, ArrowUpRight, CalendarClock, CheckCircle2,
@@ -85,6 +85,7 @@ const actionTargetForTopic = (topic: Topic): 'script' | 'shoot' | 'edit' | 'sche
 export default function CommandCenterView({
   topics, videos, experiments, sessions, workdaySession, insights, cycleGoals, activities, onTabChange, onOpenTopicPipeline
 }: CommandCenterViewProps) {
+  const [showAttentionPreview, setShowAttentionPreview] = useState(false);
   const goalTopicIds = useMemo(
     () => new Set((workdaySession?.goals || []).map(goal => goal.topicId)),
     [workdaySession]
@@ -166,13 +167,17 @@ export default function CommandCenterView({
   const cycleProgress = cycleTarget ? Math.min(100, Math.round((cycleDelivered / cycleTarget) * 100)) : 0;
   const systemTone = model.blocked.length || model.overdue.length ? 'ACTION REQUIRED' : model.dueSoon.length ? 'WATCH CLOSELY' : 'SYSTEM CLEAR';
   const systemColor = model.blocked.length || model.overdue.length ? 'rose' : model.dueSoon.length ? 'amber' : 'emerald';
-  const openAttentionItem = () => {
-    const target = model.queue.find(topic => model.attention.some(item => item.id === topic.id)) || model.attention[0] || model.queue[0] || model.incomplete[0];
-    if (!target) {
+  const attentionItems = model.queue.filter(topic => model.attention.some(item => item.id === topic.id));
+  const visibleAttentionItems = attentionItems.length > 0 ? attentionItems : model.attention;
+  const openAttentionQueue = () => {
+    const section = document.getElementById('attention-queue-panel');
+    if (!section) {
       onOpenTopicPipeline();
       return;
     }
-    onOpenTopicPipeline(target.id, actionTargetForTopic(target));
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    section.classList.add('command-action-target');
+    window.setTimeout(() => section.classList.remove('command-action-target'), 1400);
   };
   const openActivity = (activity: TopicActivity) => {
     const topic = activity.topicId ? topics.find(item => item.id === activity.topicId) : undefined;
@@ -206,26 +211,112 @@ export default function CommandCenterView({
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {[
-          { label: 'Needs attention', value: model.attention.length, note: `${model.blocked.length} blocked`, icon: AlertTriangle, iconClass: 'text-rose-400', action: openAttentionItem },
+          { label: 'Needs attention', value: model.attention.length, note: `${model.blocked.length} blocked`, icon: AlertTriangle, iconClass: 'text-rose-400', action: openAttentionQueue },
           { label: 'In production', value: model.incomplete.length, note: `${model.scheduled} scheduled`, icon: Layers3, iconClass: 'text-amber-400', action: () => onOpenTopicPipeline() },
           { label: 'Completion', value: `${model.completion}%`, note: `${model.posted} posted`, icon: Gauge, iconClass: 'text-emerald-400', action: () => onOpenTopicPipeline() },
           { label: 'Actions today', value: model.actionsToday, note: 'live audit events', icon: Activity, iconClass: 'text-blue-400', action: () => onTabChange('logs') },
           { label: 'Sessions', value: sessions.length, note: 'completed', icon: Sparkles, iconClass: 'text-purple-400', action: () => onTabChange('sessions') }
         ].map(card => (
-          <button type="button" onClick={card.action} key={card.label} className="group rounded-xl border border-neutral-850 bg-neutral-950/65 p-4 text-left backdrop-blur transition hover:-translate-y-0.5 hover:border-neutral-600 hover:bg-neutral-900/70">
+          <div
+            key={card.label}
+            className="relative"
+            onMouseEnter={() => card.label === 'Needs attention' && setShowAttentionPreview(true)}
+            onMouseLeave={() => card.label === 'Needs attention' && setShowAttentionPreview(false)}
+            onFocus={() => card.label === 'Needs attention' && setShowAttentionPreview(true)}
+            onBlur={() => card.label === 'Needs attention' && setShowAttentionPreview(false)}
+          >
+            <button type="button" onClick={card.action} className="group w-full rounded-xl border border-neutral-850 bg-neutral-950/65 p-4 text-left backdrop-blur transition hover:-translate-y-0.5 hover:border-neutral-600 hover:bg-neutral-900/70">
             <div className="flex items-center justify-between"><span className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">{card.label}</span><span className="flex items-center gap-2"><card.icon className={`h-4 w-4 ${card.iconClass}`} /><ArrowUpRight className="h-3 w-3 text-neutral-700 group-hover:text-neutral-300" /></span></div>
             <div className="mt-3 text-2xl font-bold text-neutral-100">{card.value}</div>
-            <div className="mt-1 font-mono text-[9px] text-neutral-600">{card.note}</div>
-          </button>
+              <div className="mt-1 font-mono text-[9px] text-neutral-600">
+                {card.label === 'Needs attention' && visibleAttentionItems[0]
+                  ? `Next: ${visibleAttentionItems[0].name} · ${nextActionForTopic(visibleAttentionItems[0])}`
+                  : card.note}
+              </div>
+            </button>
+            {card.label === 'Needs attention' && showAttentionPreview && visibleAttentionItems.length > 0 && (
+              <div className="absolute left-0 top-[calc(100%+10px)] z-20 w-[320px] overflow-hidden rounded-xl border border-rose-900/40 bg-neutral-950/95 p-3 shadow-[0_24px_80px_rgba(0,0,0,.55)] backdrop-blur">
+                <div className="flex items-center justify-between border-b border-neutral-900 pb-2">
+                  <span className="font-mono text-[9px] uppercase tracking-[.24em] text-rose-300">Next attention</span>
+                  <span className="font-mono text-[9px] text-neutral-500">{visibleAttentionItems.length} item{visibleAttentionItems.length === 1 ? '' : 's'}</span>
+                </div>
+                <div className="mt-2 space-y-2">
+                  {visibleAttentionItems.slice(0, 3).map((topic, index) => (
+                    <button
+                      key={topic.id}
+                      type="button"
+                      onClick={() => onOpenTopicPipeline(topic.id, actionTargetForTopic(topic))}
+                      className="flex w-full items-start gap-2 rounded-lg border border-neutral-900 bg-neutral-900/40 px-2 py-2 text-left transition hover:border-rose-900/50 hover:bg-rose-950/10"
+                    >
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-neutral-950 font-mono text-[8px] text-neutral-500">
+                        0{index + 1}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-semibold text-neutral-100">{topic.name}</span>
+                        <span className="mt-0.5 block font-mono text-[8px] text-rose-300">
+                          {nextActionForTopic(topic)}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-2 font-mono text-[9px] text-neutral-600">
+                  Click any item to jump straight to that exact action.
+                </div>
+              </div>
+            )}
+          </div>
         ))}
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[1.2fr_.8fr]">
-        <div className="rounded-2xl border border-rose-950/50 bg-neutral-950/70 p-5">
+        <div id="attention-queue-panel" className="rounded-2xl border border-rose-950/50 bg-neutral-950/70 p-5">
           <div className="mb-4 flex items-center justify-between">
-            <div><div className="flex items-center gap-2 text-sm font-bold text-white"><Flame className="h-4 w-4 text-rose-400" /> Action queue</div><p className="mt-1 text-[11px] text-neutral-500">Ordered by consequence and deadline.</p></div>
+            <div>
+              <div className="flex items-center gap-2 text-sm font-bold text-white"><Flame className="h-4 w-4 text-rose-400" /> Attention spotlight</div>
+              <p className="mt-1 text-[11px] text-neutral-500">All items that need your immediate attention, listed with the exact next action.</p>
+            </div>
             <button onClick={() => onOpenTopicPipeline()} className="flex items-center gap-1 font-mono text-[10px] text-rose-400 hover:text-rose-300">Open pipeline <ArrowUpRight className="h-3 w-3" /></button>
           </div>
+          {visibleAttentionItems.length > 0 ? (
+            <div className="mb-4 space-y-2">
+              {visibleAttentionItems.map((topic, index) => {
+                const isBlocked = Boolean(topic.blockedReason);
+                const isOverdue = Boolean(topic.dueDate && timeValue(topic.dueDate) < Date.now());
+                const isDueSoon = Boolean(topic.dueDate && !isOverdue && timeValue(topic.dueDate) <= Date.now() + 24 * 36e5);
+                const actionTarget = actionTargetForTopic(topic);
+                return (
+                  <button
+                    key={topic.id}
+                    type="button"
+                    onClick={() => onOpenTopicPipeline(topic.id, actionTarget)}
+                    className={`flex w-full items-start gap-3 rounded-xl border p-3.5 text-left transition ${
+                      isBlocked || isOverdue
+                        ? 'border-rose-950/50 bg-rose-950/5 hover:border-rose-900/60 hover:bg-rose-950/10'
+                        : isDueSoon
+                          ? 'border-amber-950/40 bg-amber-950/5 hover:border-amber-900/50 hover:bg-amber-950/10'
+                          : 'border-neutral-850 bg-neutral-900/30 hover:border-neutral-700 hover:bg-neutral-900/50'
+                    }`}
+                  >
+                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-neutral-950 font-mono text-[10px] text-neutral-500">0{index + 1}</span>
+                    <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${isBlocked ? 'bg-rose-500 shadow-[0_0_9px_#f43f5e]' : isOverdue ? 'bg-rose-400' : isDueSoon ? 'bg-amber-400 shadow-[0_0_9px_#f59e0b]' : 'bg-neutral-500'}`} />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        <span className="truncate text-xs font-semibold text-neutral-200">{topic.name}</span>
+                        {isOverdue && <span className="rounded bg-rose-950/60 px-1.5 py-0.5 font-mono text-[7px] font-bold uppercase text-rose-300 border border-rose-900/40">Overdue</span>}
+                        {isDueSoon && !isOverdue && <span className="rounded bg-amber-950/40 px-1.5 py-0.5 font-mono text-[7px] font-bold uppercase text-amber-300 border border-amber-900/30">Due Soon</span>}
+                        {isBlocked && <span className="rounded bg-rose-950/60 px-1.5 py-0.5 font-mono text-[7px] font-bold uppercase text-rose-400 border border-rose-900/40">Blocked</span>}
+                      </span>
+                      <span className="mt-1 block text-[10px] font-medium text-rose-300">
+                        <span className="mr-1 font-mono text-[8px] uppercase tracking-wider text-neutral-600">Next</span>{nextActionForTopic(topic)}
+                      </span>
+                    </span>
+                    <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-700 transition group-hover:text-rose-400" />
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
           <div className="space-y-2.5">
             {model.queue.length === 0 ? (
               <div className="flex items-center gap-3 rounded-xl border border-emerald-900/30 bg-emerald-950/10 p-4"><ShieldCheck className="h-5 w-5 text-emerald-400" /><div><div className="text-sm font-semibold text-emerald-300">No open topics</div><div className="text-[11px] text-neutral-500">Everything is published. Add a topic to start the next cycle.</div></div></div>
