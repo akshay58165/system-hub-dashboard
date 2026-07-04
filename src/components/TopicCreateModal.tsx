@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { X, Plus } from 'lucide-react';
+import { Calendar, Plus, X } from 'lucide-react';
 import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
 import type { SystemEvent, Topic, TopicActivity } from '../types';
 
@@ -14,7 +14,34 @@ interface TopicCreateModalProps {
   setPipelineSubView: (subView: 'videos' | 'topics') => void;
 }
 
-function getLocalDateKey(offsetDays = 0) {
+type Lane = 'Shorts' | 'Long' | 'Members-Only';
+type Eligibility = {
+  neutral: boolean;
+  productTag: boolean;
+  viral: boolean;
+  pinnedPromo: boolean;
+  below8Min: boolean;
+  exceed8Min: boolean;
+  strongReach: boolean;
+  brandCollab: boolean;
+  productLinks: boolean;
+  membersOnly: boolean;
+};
+
+const emptyEligibility: Eligibility = {
+  neutral: false,
+  productTag: false,
+  viral: false,
+  pinnedPromo: false,
+  below8Min: false,
+  exceed8Min: false,
+  strongReach: false,
+  brandCollab: false,
+  productLinks: false,
+  membersOnly: false
+};
+
+function localDateKey(offsetDays = 0) {
   const date = new Date();
   date.setDate(date.getDate() + offsetDays);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -29,45 +56,34 @@ export default function TopicCreateModal({
   setActiveTab,
   setPipelineSubView
 }: TopicCreateModalProps) {
-  const [newTopicName, setNewTopicName] = useState('');
-  const [newTopicDesc, setNewTopicDesc] = useState('');
-  const [newTopicChannel, setNewTopicChannel] = useState<'LearnDriven' | 'DecodeWorthy' | null>(null);
-  const [newTopicStatus, setNewTopicStatus] = useState<'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled'>('topic');
-  const [newTopicPriority, setNewTopicPriority] = useState<1 | 2 | 3 | 4 | 5>(1);
-  const [newTopicDueDate, setNewTopicDueDate] = useState('');
-  const [newTopicSchedTime, setNewTopicSchedTime] = useState('');
-  const [newTopicLane, setNewTopicLane] = useState<'Shorts' | 'Long' | 'Members-Only' | null>(null);
-  const todayDateKey = getLocalDateKey();
-  const tomorrowDateKey = getLocalDateKey(1);
-  const hasUnsavedInput = Boolean(
-    newTopicName.trim() ||
-    newTopicDesc.trim() ||
-    newTopicChannel ||
-    newTopicStatus !== 'topic' ||
-    newTopicPriority !== 1 ||
-    newTopicDueDate ||
-    newTopicSchedTime ||
-    newTopicLane
-  );
-
-  const modalRef = useDismissOnOutsideClick<HTMLFormElement>(
-    isOpen,
-    !hasUnsavedInput,
-    onClose
-  );
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [channel, setChannel] = useState<'LearnDriven' | 'DecodeWorthy' | null>(null);
+  const [lane, setLane] = useState<Lane | null>(null);
+  const [status, setStatus] = useState<'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled'>('topic');
+  const [priority, setPriority] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [dueDate, setDueDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
+  const [eligibility, setEligibility] = useState<Eligibility>(emptyEligibility);
   const firstOpenRef = useRef(false);
 
+  const hasUnsavedInput = Boolean(
+    name.trim() || description.trim() || channel || lane || status !== 'topic' || priority !== 1 ||
+    dueDate || scheduleTime || Object.values(eligibility).some(Boolean)
+  );
+  const modalRef = useDismissOnOutsideClick<HTMLFormElement>(isOpen, !hasUnsavedInput, onClose);
+
   useEffect(() => {
-    if (!isOpen) return;
-    if (firstOpenRef.current) return;
-    setNewTopicName('');
-    setNewTopicDesc('');
-    setNewTopicChannel(null);
-    setNewTopicStatus('topic');
-    setNewTopicPriority(1);
-    setNewTopicDueDate('');
-    setNewTopicSchedTime('');
-    setNewTopicLane(null);
+    if (!isOpen || firstOpenRef.current) return;
+    setName('');
+    setDescription('');
+    setChannel(null);
+    setLane(null);
+    setStatus('topic');
+    setPriority(1);
+    setDueDate('');
+    setScheduleTime('');
+    setEligibility(emptyEligibility);
     firstOpenRef.current = true;
   }, [isOpen]);
 
@@ -75,59 +91,96 @@ export default function TopicCreateModal({
     if (!isOpen) firstOpenRef.current = false;
   }, [isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTopicName.trim() || !newTopicChannel) return;
+  const setEligibilityValue = (key: keyof Eligibility, checked: boolean) => {
+    setEligibility(current => ({
+      ...current,
+      [key]: checked,
+      ...(key === 'below8Min' && checked ? { exceed8Min: false } : {}),
+      ...(key === 'exceed8Min' && checked ? { below8Min: false } : {})
+    }));
+  };
 
-    const finalFormat: Topic['format'] = newTopicLane === 'Shorts' ? 'Short' : newTopicLane === 'Members-Only' ? 'Members' : 'Long';
-    const defaultTime = newTopicChannel === 'LearnDriven' ? '21:09' : '19:07';
-    const finalTime = newTopicSchedTime || defaultTime;
-    const statusToStageIdx: Record<typeof newTopicStatus, number> = {
-      topic: -1,
-      scripted: 0,
-      shot: 1,
-      edited: 2,
-      scheduled: 3
-    };
-    const workflowStatuses: Partial<Record<'script' | 'shoot' | 'edit' | 'schedule' | 'post', 'pending' | 'in-progress' | 'completed'>> = {};
-    const targetIdx = statusToStageIdx[newTopicStatus];
-    for (const [idx, stage] of [['script', 0], ['shoot', 1], ['edit', 2], ['schedule', 3], ['post', 4]] as const) {
-      if (targetIdx >= stage) workflowStatuses[idx] = 'completed';
+  const revenueLevel = (() => {
+    if (!Object.values(eligibility).some(Boolean)) return '';
+    if (eligibility.neutral) return 'Lvl 0.5';
+    if (lane === 'Shorts') {
+      if (!eligibility.viral) return 'Lvl 1';
+      if (eligibility.productTag && eligibility.pinnedPromo) return 'Lvl 4';
+      if (eligibility.productTag) return 'Lvl 3';
+      return 'Lvl 2';
     }
-    let finalDueDate: string | null = newTopicDueDate ? new Date(`${newTopicDueDate}T${finalTime}:00`).toISOString() : null;
-    let finalSchedTime: string | undefined = newTopicSchedTime || undefined;
-    if (newTopicStatus === 'scheduled' && newTopicDueDate) {
-      finalDueDate = new Date(`${newTopicDueDate}T${finalTime}:00`).toISOString();
-      finalSchedTime = finalTime;
-    } else if (newTopicStatus === 'scheduled') {
-      const baseDate = new Date().toISOString().split('T')[0];
-      finalDueDate = new Date(`${baseDate}T${finalTime}:00`).toISOString();
-      finalSchedTime = finalTime;
+    if (lane === 'Long') {
+      if (eligibility.brandCollab) return 'Lvl 20';
+      const hasProduct = eligibility.productTag || eligibility.productLinks;
+      if (eligibility.strongReach) {
+        if (eligibility.exceed8Min) return hasProduct ? 'Lvl 9.5' : 'Lvl 9';
+        return hasProduct ? 'Lvl 8.5' : 'Lvl 8';
+      }
+      if (eligibility.exceed8Min) return hasProduct ? 'Lvl 7.5' : 'Lvl 7';
+      return hasProduct ? 'Lvl 6.5' : 'Lvl 6';
     }
-    const inProgress = newTopicStatus !== 'topic';
+    if (lane === 'Members-Only' && eligibility.membersOnly) return 'Lvl 5';
+    return '';
+  })();
 
-    const newTopic: Topic = {
+  const chooseChannel = (nextChannel: 'LearnDriven' | 'DecodeWorthy') => {
+    if (channel === nextChannel) {
+      setChannel(null);
+      setLane(null);
+      return;
+    }
+    setChannel(nextChannel);
+    setLane(nextChannel === 'DecodeWorthy' ? 'Shorts' : null);
+    setEligibility(emptyEligibility);
+    if (!scheduleTime || scheduleTime === (nextChannel === 'LearnDriven' ? '19:07' : '21:09')) {
+      setScheduleTime(nextChannel === 'LearnDriven' ? '21:09' : '19:07');
+    }
+  };
+
+  const chooseLane = (nextLane: Lane) => {
+    setLane(nextLane);
+    setEligibility(emptyEligibility);
+  };
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!name.trim() || !channel) return;
+
+    const finalFormat: Topic['format'] = lane === 'Shorts' ? 'Short' : lane === 'Members-Only' ? 'Members' : 'Long';
+    const finalTime = scheduleTime || (channel === 'LearnDriven' ? '21:09' : '19:07');
+    const inProgress = status !== 'topic';
+    const stageIndex = { topic: -1, scripted: 0, shot: 1, edited: 2, scheduled: 3 }[status];
+    const workflowStatuses: Partial<Record<'script' | 'shoot' | 'edit' | 'schedule' | 'post', 'completed'>> = {};
+    (['script', 'shoot', 'edit', 'schedule', 'post'] as const).forEach((stage, index) => {
+      if (index <= stageIndex) workflowStatuses[stage] = 'completed';
+    });
+    const finalDueDate = dueDate
+      ? new Date(`${dueDate}T${finalTime}:00`).toISOString()
+      : status === 'scheduled' ? new Date(`${localDateKey()}T${finalTime}:00`).toISOString() : null;
+
+    const topic: Topic = {
       id: `t-manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name: newTopicName.trim(),
-      description: newTopicDesc.trim(),
-      channel: newTopicChannel,
-      status: newTopicStatus,
-      priority: newTopicPriority,
+      name: name.trim(),
+      description: description.trim(),
+      channel,
+      status,
+      priority,
       dueDate: finalDueDate,
-      scheduledTime: finalSchedTime,
+      scheduledTime: scheduleTime || (status === 'scheduled' ? finalTime : undefined),
       format: finalFormat,
       createdDate: new Date().toISOString(),
       lastUpdated: new Date().toISOString(),
+      revenueLevel: revenueLevel || undefined,
       inProgress,
-      workflowStatuses: newTopicStatus !== 'topic' ? workflowStatuses : undefined
+      workflowStatuses: inProgress ? workflowStatuses : undefined
     };
 
-    setTopics(previous => [newTopic, ...previous]);
+    setTopics(previous => [topic, ...previous]);
     setActivities(previous => [{
       id: `act-manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      topicName: newTopic.name,
-      channel: newTopic.channel,
-      action: `Created new topic in ${newTopicStatus} stage`,
+      topicName: topic.name,
+      channel: topic.channel,
+      action: `Created new topic in ${status} stage${revenueLevel ? ` with ${revenueLevel}` : ''}`,
       author: 'typeakshay',
       timestamp: new Date().toISOString()
     }, ...previous]);
@@ -135,7 +188,7 @@ export default function TopicCreateModal({
       id: `evt-topic-created-${Date.now()}`,
       source: 'github',
       type: 'success',
-      message: `Topic Engine: Added topic "${newTopic.name}" under ${newTopic.channel}`,
+      message: `Topic Engine: Added topic "${topic.name}" under ${topic.channel}${revenueLevel ? ` (${revenueLevel})` : ''}`,
       timestamp: new Date().toISOString()
     });
 
@@ -143,15 +196,26 @@ export default function TopicCreateModal({
       setPipelineSubView('topics');
       setActiveTab('pipeline');
     }
-
     onClose();
   };
+
+  const checkbox = (key: keyof Eligibility, label: string, wide = false) => (
+    <label className={`flex cursor-pointer items-center gap-1.5 text-[9px] text-neutral-400 hover:text-neutral-200 ${wide ? 'col-span-2' : ''}`}>
+      <input
+        type="checkbox"
+        checked={eligibility[key]}
+        onChange={event => setEligibilityValue(key, event.target.checked)}
+        className="rounded border-neutral-800 bg-neutral-950 text-rose-500 outline-none focus:ring-0"
+      />
+      <span>{label}</span>
+    </label>
+  );
 
   return (
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -159,152 +223,99 @@ export default function TopicCreateModal({
           <motion.form
             ref={modalRef}
             onSubmit={handleSubmit}
-            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+            initial={{ opacity: 0, y: 8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.98 }}
-            className="w-full max-w-2xl rounded-2xl border border-neutral-800 bg-neutral-950 p-5 shadow-2xl"
+            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            className="max-h-[calc(100vh-2rem)] w-full max-w-xl overflow-y-auto rounded-xl border border-neutral-800 bg-neutral-950 p-5 shadow-2xl"
           >
-            <div className="mb-4 flex items-center justify-between gap-4">
+            <div className="mb-4 flex items-center justify-between">
               <div>
-                <p className="text-[10px] uppercase tracking-[0.3em] text-blue-400">Topic Engine</p>
-                <h3 className="mt-1 text-lg font-semibold text-white">Create a new topic</h3>
+                <p className="font-mono text-[9px] uppercase tracking-[0.28em] text-rose-400">Topic Engine</p>
+                <h3 className="mt-1 text-sm font-semibold text-neutral-200">Topic Management</h3>
               </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-lg border border-neutral-800 p-2 text-neutral-400 transition hover:border-neutral-700 hover:text-white"
-                aria-label="Close topic form"
-              >
+              <button type="button" onClick={onClose} className="rounded border border-neutral-800 p-1.5 text-neutral-400 hover:text-white" aria-label="Close topic form">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="space-y-1 text-xs font-mono text-neutral-400">
-                <span>Topic Title</span>
-                <input
-                  value={newTopicName}
-                  onChange={(e) => setNewTopicName(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500"
-                  placeholder="e.g. Why your audience ignores hooks"
-                  required
-                />
+            <div className="space-y-3 rounded-lg border border-neutral-900 bg-neutral-900/40 p-3.5 font-mono text-[10px]">
+              <label className="block uppercase text-neutral-500">Topic Title
+                <input required value={name} onChange={event => setName(event.target.value)} placeholder="e.g. Next-Generation TypeScript Strategies" className="mt-1 w-full rounded border border-neutral-900 bg-neutral-950 px-2.5 py-1.5 text-xs normal-case text-white outline-none focus:border-neutral-700" />
               </label>
-              <label className="space-y-1 text-xs font-mono text-neutral-400">
-                <span>Channel</span>
-                <select
-                  value={newTopicChannel || ''}
-                  onChange={(e) => setNewTopicChannel((e.target.value as 'LearnDriven' | 'DecodeWorthy') || null)}
-                  className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500"
-                  required
-                >
-                  <option value="">Select a channel</option>
-                  <option value="LearnDriven">LearnDriven</option>
-                  <option value="DecodeWorthy">DecodeWorthy</option>
-                </select>
+              <label className="block uppercase text-neutral-500">Description
+                <textarea rows={2} value={description} onChange={event => setDescription(event.target.value)} placeholder="Provide details of topic work..." className="mt-1 w-full rounded border border-neutral-900 bg-neutral-950 px-2.5 py-1.5 font-sans text-xs normal-case text-white outline-none focus:border-neutral-700" />
               </label>
-              <label className="space-y-1 text-xs font-mono text-neutral-400 md:col-span-2">
-                <span>Description</span>
-                <textarea
-                  value={newTopicDesc}
-                  onChange={(e) => setNewTopicDesc(e.target.value)}
-                  rows={3}
-                  className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500"
-                  placeholder="Short context, angle, or notes"
-                />
-              </label>
-              <label className="space-y-1 text-xs font-mono text-neutral-400">
-                <span>Status</span>
-                <select
-                  value={newTopicStatus}
-                  onChange={(e) => setNewTopicStatus(e.target.value as typeof newTopicStatus)}
-                  className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500"
-                >
-                  <option value="topic">Idea</option>
-                  <option value="scripted">Scripted</option>
-                  <option value="shot">Shot</option>
-                  <option value="edited">Edited</option>
-                  <option value="scheduled">Scheduled</option>
-                </select>
-              </label>
-              <label className="space-y-1 text-xs font-mono text-neutral-400">
-                <span>Priority</span>
-                <select
-                  value={newTopicPriority}
-                  onChange={(e) => setNewTopicPriority(Number(e.target.value) as 1 | 2 | 3 | 4 | 5)}
-                  className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500"
-                >
-                  <option value={1}>1 - Low</option>
-                  <option value={2}>2 - Normal</option>
-                  <option value={3}>3 - High</option>
-                  <option value={4}>4 - Urgent</option>
-                  <option value={5}>5 - Critical</option>
-                </select>
-              </label>
-              <label className="space-y-1 text-xs font-mono text-neutral-400">
-                <span>Format</span>
-                <select
-                  value={newTopicLane || ''}
-                  onChange={(e) => setNewTopicLane((e.target.value as 'Shorts' | 'Long' | 'Members-Only') || null)}
-                  className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500"
-                >
-                  <option value="">Select a format</option>
-                  <option value="Shorts">Shorts</option>
-                  <option value="Long">Long</option>
-                  <option value="Members-Only">Members-Only</option>
-                </select>
-              </label>
-              <label className="space-y-1 text-xs font-mono text-neutral-400">
-                <span>Due Date</span>
-                <input
-                  type="date"
-                  value={newTopicDueDate}
-                  onChange={(e) => setNewTopicDueDate(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500"
-                />
-              </label>
-              <label className="space-y-1 text-xs font-mono text-neutral-400">
-                <span>Schedule Time</span>
-                <input
-                  type="time"
-                  value={newTopicSchedTime}
-                  onChange={(e) => setNewTopicSchedTime(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-500"
-                />
-              </label>
-            </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setNewTopicDueDate(todayDateKey)}
-                className="rounded-full border border-neutral-800 px-3 py-1.5 text-xs text-neutral-300 transition hover:border-neutral-700 hover:text-white"
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                onClick={() => setNewTopicDueDate(tomorrowDateKey)}
-                className="rounded-full border border-neutral-800 px-3 py-1.5 text-xs text-neutral-300 transition hover:border-neutral-700 hover:text-white"
-              >
-                Tomorrow
-              </button>
-            </div>
+              <div>
+                <label className="block uppercase text-neutral-500">Creator Channel</label>
+                <div className="mt-1 flex gap-2.5">
+                  {(['LearnDriven', 'DecodeWorthy'] as const).map(value => (
+                    <button key={value} type="button" onClick={() => chooseChannel(value)} className={`flex-1 rounded border py-1.5 text-xs font-bold transition ${channel === value ? 'border-rose-400 bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,.25)]' : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-700 hover:text-white'}`}>{value}</button>
+                  ))}
+                </div>
+              </div>
 
-            <div className="mt-6 flex items-center justify-end gap-3 border-t border-neutral-800 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-lg px-4 py-2 text-sm text-neutral-400 transition hover:text-white"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-black transition hover:bg-blue-400"
-              >
-                <Plus className="h-4 w-4" />
-                Create topic
+              {channel && (
+                <div>
+                  <label className="block uppercase text-neutral-500">Content Lane</label>
+                  <div className="mt-1 flex gap-2">
+                    {(channel === 'LearnDriven' ? ['Shorts', 'Long', 'Members-Only'] : ['Shorts']).map(value => (
+                      <button key={value} type="button" onClick={() => chooseLane(value as Lane)} className={`flex-1 rounded border py-1.5 text-[10px] font-bold transition ${lane === value ? 'border-blue-500 bg-blue-600 text-white shadow-[0_0_8px_rgba(37,99,235,.25)]' : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-700 hover:text-white'}`}>{value}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block uppercase text-neutral-500">Auto Revenue Level</label>
+                  <div className="mt-1 flex h-7 items-center rounded border border-neutral-900 bg-neutral-950/60 px-2.5 text-xs font-bold text-emerald-400">{revenueLevel || '-'}</div>
+                </div>
+                <label className="block uppercase text-neutral-500">Current Production Stage
+                  <select value={status} onChange={event => setStatus(event.target.value as typeof status)} className="mt-1 h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 text-xs normal-case text-white outline-none">
+                    <option value="topic">Topic</option><option value="scripted">Scripted</option><option value="shot">Shot</option><option value="edited">Edited</option><option value="scheduled">Scheduled</option>
+                  </select>
+                </label>
+              </div>
+
+              {lane && (
+                <div className="space-y-1.5 border-t border-neutral-900/60 pt-2">
+                  <label className="block uppercase text-neutral-500">Revenue Streams</label>
+                  <p className="font-sans text-[8px] text-neutral-600">Options change depending on content lane selected.</p>
+                  <div className="mt-1 grid grid-cols-2 gap-2 font-sans">
+                    {checkbox('neutral', 'Neutral - Level 0.5')}
+                    {lane === 'Shorts' && <>{checkbox('productTag', 'Product tag')}{checkbox('viral', 'Viral potential')}{checkbox('pinnedPromo', 'Pinned promotion')}</>}
+                    {lane === 'Long' && <>{checkbox('below8Min', 'Below 8 mins')}{checkbox('exceed8Min', 'Exceeds 8 mins')}{checkbox('strongReach', 'Strong reach potential')}{checkbox('brandCollab', 'Brand collab')}{checkbox('productTag', 'Product tags')}{checkbox('productLinks', 'Product links')}</>}
+                    {lane === 'Members-Only' && checkbox('membersOnly', 'Members-only subscription value', true)}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 gap-3 border-t border-neutral-900/60 pt-2 sm:grid-cols-3">
+                <div>
+                  <label className="block uppercase text-neutral-500">Priority</label>
+                  <div className="mt-1.5 flex gap-1.5">
+                    {([1, 2, 3, 4, 5] as const).map(value => <button key={value} type="button" onClick={() => setPriority(value)} className={`flex h-6 w-6 items-center justify-center rounded border text-[9px] font-bold ${priority === value ? 'border-rose-400 bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,.3)]' : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-700'}`}>{value}</button>)}
+                  </div>
+                </div>
+                <label className="block uppercase text-neutral-500">Due Date
+                  <span className="relative mt-1 block">
+                    <input type="date" value={dueDate} onChange={event => setDueDate(event.target.value)} className="h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 text-[10px] normal-case text-white outline-none" />
+                    <Calendar className="pointer-events-none absolute right-2 top-1.5 h-3.5 w-3.5 text-neutral-500" />
+                  </span>
+                </label>
+                <label className="block uppercase text-neutral-500">Sched Time
+                  <input type="time" value={scheduleTime} onChange={event => setScheduleTime(event.target.value)} className="mt-1 h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 text-[10px] normal-case text-white outline-none" />
+                </label>
+              </div>
+
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setDueDate(localDateKey())} className={`rounded border px-2 py-1 text-[9px] ${dueDate === localDateKey() ? 'border-purple-500 bg-purple-950/40 text-purple-300' : 'border-neutral-900 bg-neutral-950 text-neutral-500 hover:text-white'}`}>Today</button>
+                <button type="button" onClick={() => setDueDate(localDateKey(1))} className={`rounded border px-2 py-1 text-[9px] ${dueDate === localDateKey(1) ? 'border-yellow-500 bg-yellow-950/40 text-yellow-300' : 'border-neutral-900 bg-neutral-950 text-neutral-500 hover:text-white'}`}>Tomorrow</button>
+              </div>
+
+              <button type="submit" disabled={!name.trim() || !channel} className="flex w-full items-center justify-center gap-1.5 rounded bg-rose-500 py-2 text-[10px] font-bold text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-40">
+                <Plus className="h-3.5 w-3.5" /> Add Topic
               </button>
             </div>
           </motion.form>
