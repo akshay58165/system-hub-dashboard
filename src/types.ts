@@ -457,3 +457,24 @@ export interface MonthForecast {
   requiredUploads: number;
   riskOfMissingConsistency: 'Low' | 'Medium' | 'High';
 }
+export type TaskTimerStage = 'script' | 'shoot' | 'edit' | 'schedule' | 'post';
+
+export interface TaskTimerRecord {
+  id: string;
+  topicId: string;
+  topicName: string;         // snapshot at start time
+  stage: TaskTimerStage;
+  status: 'running' | 'paused' | 'completed' | 'abandoned';
+  startedAt: string;
+  completedAt?: string;
+  activeSince: string | null;  // null when paused
+  pausedAt: string | null;
+  accumulatedActiveMs: number;
+  accumulatedPausedMs: number;
+  breaksCount: number;
+  /** 1-10 self-rated productivity score. 1 = 10%, 10 = 100% productive. */
+  productivityScore?: number;
+  /** 'done' = task stage fully finished, 'deferred' = stopping to resume later */
+  endReason?: 'done' | 'deferred';
+  dateKey: string;             // YYYY-MM-DD for archival scoping
+}
