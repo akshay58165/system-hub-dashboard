@@ -2163,6 +2163,11 @@ export default function App() {
               <InsightsView
                 insights={insights}
                 videos={videos}
+                topics={topics}
+                activities={activities}
+                sessions={sessions}
+                taskTimers={taskTimers}
+                workdaySession={workdaySession}
                 onTabChange={setActiveTab}
               />
             )}
