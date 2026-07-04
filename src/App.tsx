@@ -822,9 +822,33 @@ export default function App() {
   // Keyboard shortcut for Cmd+K / Ctrl+K
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isTypingField = Boolean(
+        target &&
+        (target.tagName === 'INPUT' ||
+         target.tagName === 'TEXTAREA' ||
+         target.tagName === 'SELECT' ||
+         target.isContentEditable)
+      );
+
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setIsPaletteOpen(prev => !prev);
+        return;
+      }
+
+      if (isTypingField || e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        setActiveTab('topics');
+        return;
+      }
+
+      if (e.key === 'p' || e.key === 'P') {
+        e.preventDefault();
+        setPipelineSubView('topics');
+        setActiveTab('pipeline');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
