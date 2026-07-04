@@ -286,6 +286,19 @@ select.bg-neutral-900 option {
   animation: workflow-reset-border 3s linear forwards;
 }
 
+@keyframes goal-marching-ants {
+  to { background-position: 100% 0; }
+}
+.goal-stage-highlight {
+  outline: 1.5px dashed currentColor;
+  outline-offset: 2px;
+  animation: goal-outline-pulse 1.5s ease-in-out infinite alternate;
+}
+@keyframes goal-outline-pulse {
+  0% { outline-color: currentColor; opacity: 1; }
+  100% { outline-color: currentColor; opacity: 0.5; }
+}
+
 .workflow-in-progress.blink-yellow,
 .workflow-in-progress.blink-orange,
 .workflow-in-progress.blink-red,

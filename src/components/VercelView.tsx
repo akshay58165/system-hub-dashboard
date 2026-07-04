@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Layers, 
@@ -23,6 +24,8 @@ import {
   ArrowUpDown,
   Shield,
   Bookmark,
+  Coffee,
+  Play,
   X
 } from 'lucide-react';
 import { 
@@ -50,6 +53,7 @@ interface VercelViewProps {
   setActiveTab?: (tab: 'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score') => void;
   cycleGoals: CycleGoal | null;
   workdaySession: WorkdaySession | null;
+  setWorkdaySession?: React.Dispatch<React.SetStateAction<WorkdaySession | null>>;
   onEditTopic?: (topic: Topic) => void;
 }
 
@@ -99,7 +103,7 @@ const WORKFLOW_LABELS: Record<WorkflowStage, Record<WorkflowState, string>> = {
   post: { pending: 'Post', 'in-progress': 'Posting', completed: 'Posted' },
 };
 
-function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, onReset, labelOverride, disabled, blinkClass, controlId }: {
+function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, onReset, labelOverride, disabled, blinkClass, controlId, isGoalStage }: {
   stage: WorkflowStage;
   state: WorkflowState;
   onQuickPress: () => void;
@@ -109,6 +113,7 @@ function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, onReset
   disabled?: boolean;
   blinkClass?: string;
   controlId?: string;
+  isGoalStage?: boolean;
 }) {
   const longPressFired = useRef(false);
   const [isHolding, setIsHolding] = useState(false);
@@ -166,7 +171,7 @@ function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, onReset
           : state === 'in-progress'
             ? 'workflow-in-progress bg-emerald-600 border-emerald-400 text-white ring-1 ring-white/20'
             : 'workflow-completed bg-neutral-900/25 border-neutral-800/50 text-neutral-500 opacity-55'
-      } ${blinkClass || ''}`}
+      } ${blinkClass || ''} ${isGoalStage ? 'goal-stage-highlight' : ''}`}
     >
       {isHolding && !disabled && (
         <svg
@@ -203,6 +208,7 @@ export default function VercelView({
   setActiveTab,
   cycleGoals,
   workdaySession,
+  setWorkdaySession,
   onEditTopic
 }: VercelViewProps) {
   const taskTimer = useTaskTimers();
@@ -214,6 +220,7 @@ export default function VercelView({
     true,
     () => setIsTopicSortOpen(false)
   );
+  const [breakPrompt, setBreakPrompt] = useState<{ topicName: string; stage: string; durationMs: number } | null>(null);
   const [schedulingTopicId, setSchedulingTopicId] = useState<string | null>(null);
   const [schedDate, setSchedDate] = useState('');
   const [schedTime, setSchedTime] = useState('');
@@ -573,6 +580,36 @@ export default function VercelView({
       author: 'Akshay',
       timestamp: new Date().toISOString(),
     }, ...prev]);
+
+    // Auto-link with workday session goals
+    if (workdaySession && setWorkdaySession) {
+      const goalTargetMap: Record<string, 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted'> = {
+        script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted'
+      };
+      const goalTarget = goalTargetMap[targetStage];
+
+      if (targetState === 'in-progress') {
+        const alreadyHasGoal = (workdaySession.goals || []).some(
+          g => g.topicId === topic.id && g.targetStatus === goalTarget
+        );
+        if (!alreadyHasGoal) {
+          const stamp = new Date().toISOString();
+          setWorkdaySession(prev => prev ? {
+            ...prev,
+            goals: [...(prev.goals || []), { id: `goal-auto-${Date.now()}`, topicId: topic.id, targetStatus: goalTarget, addedAt: stamp }],
+            updatedAt: stamp
+          } : prev);
+        }
+      } else if (targetState === 'completed') {
+        const matchingGoal = (workdaySession.goals || []).find(
+          g => g.topicId === topic.id && g.targetStatus === goalTarget
+        );
+        if (matchingGoal) {
+          const durationMs = Date.now() - new Date(matchingGoal.addedAt).getTime();
+          setBreakPrompt({ topicName: topic.name, stage: targetStage, durationMs });
+        }
+      }
+    }
   };
 
   const completeSchedule = (topic: Topic) => {
@@ -1193,7 +1230,7 @@ export default function VercelView({
                           title="Open topic editor"
                         >
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-xs font-bold text-neutral-200">{topic.name}</span>
+                            <span className={`text-xs font-bold text-neutral-200 ${topicGoal ? 'underline decoration-purple-500 decoration-2 underline-offset-2' : ''}`}>{topic.name}</span>
                             {topicGoal && <span className="rounded border border-purple-700/60 bg-purple-950/35 px-1.5 py-0.5 text-[8px] font-bold text-purple-200 shadow-[0_0_10px_rgba(168,85,247,.18)]" title={`Today's goal: reach ${topicGoal.targetStatus}`}>🎯 Today&apos;s aim</span>}
                             <span className="px-1.5 py-0.2 bg-neutral-950 text-neutral-500 border border-neutral-900 rounded text-[8px]">
                               {topic.channel}
@@ -1361,6 +1398,8 @@ export default function VercelView({
                           const stagesOrder: WorkflowStage[] = ['script', 'shoot', 'edit', 'schedule', 'post'];
                           const goalStageForControl: Record<WorkflowStage, NonNullable<WorkdaySession['goals']>[number]['targetStatus']> = { script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted' };
                           const isGoalTarget = topicGoal?.targetStatus === goalStageForControl[stage];
+                          const goalStatusOrder = ['topic', 'scripted', 'shot', 'edited', 'scheduled', 'posted'];
+                          const isGoalStage = topicGoal && goalStatusOrder.indexOf(goalStageForControl[stage]) <= goalStatusOrder.indexOf(topicGoal.targetStatus) && goalStatusOrder.indexOf(goalStageForControl[stage]) > goalStatusOrder.indexOf(topic.status);
                           const stageIndex = stagesOrder.indexOf(stage);
                           const previousStage = stageIndex > 0 ? stagesOrder[stageIndex - 1] : null;
                           if (stage !== 'post' && state === 'pending' && previousStage && getWorkflowState(topic, previousStage) !== 'completed') {
@@ -1433,6 +1472,7 @@ export default function VercelView({
                                   }
                                 }}
                                 onReset={() => resetWorkflowStage(topic, stage)}
+                                isGoalStage={!!isGoalStage}
                               />
                               {(liveStageTimer || stageTimeLabel) && (
                                 <span className={`font-mono text-[7px] ${liveStageTimer?.status === 'running' ? 'text-emerald-300' : liveStageTimer?.status === 'paused' ? 'text-amber-300' : 'text-neutral-600'}`}>
@@ -1910,6 +1950,48 @@ export default function VercelView({
           </div>
         )}
       </AnimatePresence>
+
+      {/* Break prompt after completing a goal */}
+      {breakPrompt && createPortal(
+        <AnimatePresence>
+          <motion.div
+            className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-sm rounded-2xl border border-emerald-900/60 bg-neutral-950 p-6 shadow-[0_0_60px_rgba(16,185,129,.12)] text-center"
+            >
+              <CheckCircle className="mx-auto h-10 w-10 text-emerald-400" />
+              <h3 className="mt-3 text-base font-bold text-white">Goal completed!</h3>
+              <p className="mt-1 text-xs text-neutral-400">
+                <span className="text-emerald-300 font-semibold">{breakPrompt.topicName}</span> — {breakPrompt.stage} finished in {Math.round(breakPrompt.durationMs / 60000)} min
+              </p>
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    if (setWorkdaySession) {
+                      const stamp = new Date().toISOString();
+                      setWorkdaySession(prev => prev ? { ...prev, status: 'paused', pausedAt: stamp, updatedAt: stamp, breaksCount: (prev.breaksCount || 0) + 1 } : prev);
+                    }
+                    setBreakPrompt(null);
+                  }}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-amber-900/50 bg-amber-950/30 py-3 text-sm font-bold text-amber-300 hover:bg-amber-950/50"
+                >
+                  <Coffee className="h-4 w-4" />Take a break
+                </button>
+                <button
+                  onClick={() => setBreakPrompt(null)}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-500"
+                >
+                  <Play className="h-4 w-4" />Continue
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   );
 }

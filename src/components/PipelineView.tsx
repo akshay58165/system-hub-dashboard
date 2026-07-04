@@ -29,6 +29,7 @@ interface PipelineViewProps {
   setActivities: React.Dispatch<React.SetStateAction<TopicActivity[]>>;
   cycleGoals: CycleGoal | null;
   workdaySession: WorkdaySession | null;
+  setWorkdaySession: React.Dispatch<React.SetStateAction<WorkdaySession | null>>;
   activeSubView?: 'videos' | 'topics';
   setActiveSubView?: (subView: 'videos' | 'topics') => void;
 }
@@ -154,6 +155,7 @@ export default function PipelineView({
   setActivities,
   cycleGoals,
   workdaySession,
+  setWorkdaySession,
   activeSubView: propActiveSubView,
   setActiveSubView: propSetActiveSubView
 }: PipelineViewProps) {
@@ -740,6 +742,7 @@ export default function PipelineView({
           setActivities={setActivities}
           cycleGoals={cycleGoals}
           workdaySession={workdaySession}
+          setWorkdaySession={setWorkdaySession}
         />
       )}
 
