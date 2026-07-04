@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import { supabase } from './services/supabase';
 
-import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, WorkdaySession, SessionRecord, SessionGoalOutcome, VideoRecord, Experiment, CreatorInsight, ScorecardState, AiRulePreset, AiUsageStats, YoutubeRevenueData } from './types';
+import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, WorkdaySession, SessionRecord, SessionGoalOutcome, VideoRecord, Experiment, CreatorInsight, ScorecardState, AiRulePreset, AiUsageStats, YoutubeRevenueData, TaskTimerRecord, TaskTimerStage } from './types';
 import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, normalizeCommittedTombstones, prepareLocalTopicMutation, topicCollectionsEqual, visibleCreatorTopics } from './lib/topicSync';
 import { normalizeScorecard, rolloverScorecard } from './services/scorecardStorage';
 import { fetchYoutubeRevenue, startYoutubeAuth, disconnectYoutube } from './services/youtube';
@@ -51,6 +51,7 @@ import {
 
 import CommandPalette from './components/CommandPalette';
 import WorkdayTimer from './components/WorkdayTimer';
+import FloatingTaskTimer from './components/FloatingTaskTimer';
 
 const GithubView = lazy(() => import('./components/GithubView'));
 const VercelView = lazy(() => import('./components/VercelView'));
@@ -66,6 +67,7 @@ const TodayGoalsView = lazy(() => import('./components/TodayGoalsView'));
 const ForecastingView = lazy(() => import('./components/ForecastingView'));
 const SessionsView = lazy(() => import('./components/SessionsView'));
 const InsightsView = lazy(() => import('./components/InsightsView'));
+const TopicCreateModal = lazy(() => import('./components/TopicCreateModal'));
 
 // Get or create session ID for the current tab session
 let currentSessionId = '';
@@ -134,6 +136,7 @@ export default function App() {
   const [cycleGoals, setCycleGoals] = useState<CycleGoal | null>(null);
   const [workdaySession, setWorkdaySession] = useState<WorkdaySession | null>(null);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
+  const [taskTimers, setTaskTimers] = useState<TaskTimerRecord[]>([]);
 
   const [scorecard, setScorecard] = useState<ScorecardState>(() => normalizeScorecard(null));
 
@@ -1002,6 +1005,7 @@ export default function App() {
                 if (remoteState.insights) setInsights(remoteState.insights);
                 if (remoteState.aiPresets) setAiPresets(remoteState.aiPresets);
                 if (remoteState.aiUsage) setAiUsage(remoteState.aiUsage);
+                if (remoteState.taskTimers) setTaskTimers(remoteState.taskTimers);
 
                 addEvent({
                   id: `evt-supabase-sync-realtime-${Date.now()}`,
@@ -1082,7 +1086,7 @@ export default function App() {
     newTopics: Topic[], newActs: TopicActivity[], newGoals: CycleGoal | null,
     newWorkdaySession: WorkdaySession | null, newSessions: SessionRecord[],
     newScorecard: any, newVideos: VideoRecord[], newExperiments: Experiment[], newInsights: CreatorInsight[],
-    newPresets: AiRulePreset[], newUsage: AiUsageStats
+    newPresets: AiRulePreset[], newUsage: AiUsageStats, newTaskTimers: TaskTimerRecord[]
   ) => {
     const savingTopicEpoch = topicMutationEpochRef.current;
     for (let attempt = 0; attempt < 4; attempt++) {
@@ -1105,7 +1109,7 @@ export default function App() {
         ...remoteState, topics: mergedTopics, deletedTopicIds,
         activities: Array.from(mergedActivities.values()).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
         cycleGoals: newGoals, workdaySession: newWorkdaySession, sessions: newSessions, scorecard: newScorecard, videos: newVideos,
-        experiments: newExperiments, insights: newInsights, aiPresets: newPresets, aiUsage: newUsage
+        experiments: newExperiments, insights: newInsights, aiPresets: newPresets, aiUsage: newUsage, taskTimers: newTaskTimers
       };
       const nextVersion = (current?.version || 0) + 1;
       const updatedAt = new Date().toISOString();
@@ -1151,7 +1155,8 @@ export default function App() {
     newExperiments: Experiment[],
     newInsights: CreatorInsight[],
     newPresets: AiRulePreset[],
-    newUsage: AiUsageStats
+    newUsage: AiUsageStats,
+    newTaskTimers: TaskTimerRecord[]
   ) => {
     // Only a genuinely unrecoverable state (missing schema) blocks saving.
     // A transient syncError banner must never permanently stop future saves -
@@ -1160,7 +1165,7 @@ export default function App() {
     // of the session with no automatic recovery.
     if (!supabase || !user || syncFatal) return;
     try {
-      await saveConflictSafeState(newTopics, newActs, newGoals, newWorkdaySession, newSessions, newScorecard, newVideos, newExperiments, newInsights, newPresets, newUsage);
+      await saveConflictSafeState(newTopics, newActs, newGoals, newWorkdaySession, newSessions, newScorecard, newVideos, newExperiments, newInsights, newPresets, newUsage, newTaskTimers);
       setSyncError(null);
       return;
       const { error } = await supabase
@@ -1287,6 +1292,7 @@ export default function App() {
         if (remoteState.insights) setInsights(remoteState.insights);
         if (remoteState.aiPresets) setAiPresets(remoteState.aiPresets);
         if (remoteState.aiUsage) setAiUsage(remoteState.aiUsage);
+        if (remoteState.taskTimers) setTaskTimers(remoteState.taskTimers);
       } finally {
         reconciliationInFlightRef.current = false;
       }
@@ -1317,11 +1323,149 @@ export default function App() {
     const timer = setTimeout(() => {
       saveQueueRef.current = saveQueueRef.current
         .catch(() => undefined)
-        .then(() => saveStateToSupabase(topics, activities, cycleGoals, workdaySession, sessions, scorecard, videos, experiments, insights, aiPresets, aiUsage));
+        .then(() => saveStateToSupabase(topics, activities, cycleGoals, workdaySession, sessions, scorecard, videos, experiments, insights, aiPresets, aiUsage, taskTimers));
     }, 75);
 
     return () => clearTimeout(timer);
-  }, [topics, activities, cycleGoals, workdaySession, sessions, scorecard, videos, experiments, insights, aiPresets, aiUsage, user, authLoading, isStateLoaded, hydratedUserId]);
+  }, [topics, activities, cycleGoals, workdaySession, sessions, scorecard, videos, experiments, insights, aiPresets, aiUsage, taskTimers, user, authLoading, isStateLoaded, hydratedUserId]);
+
+  // ─── Task Timer Handlers ────────────────────────────────────────────────────
+  const todayKey = () => new Date().toLocaleDateString('en-CA');
+
+  // Start a new task timer (auto-pauses any running one — only 1 active at a time)
+  const startTaskTimer = (topicId: string, stage: TaskTimerStage) => {
+    const topic = topics.find(t => t.id === topicId);
+    if (!topic) return;
+    const stamp = new Date().toISOString();
+    setTaskTimers(prev => {
+      // Auto-pause any currently running task timer
+      const withPaused = prev.map(tt => {
+        if (tt.status !== 'running') return tt;
+        const pauseStamp = new Date();
+        return {
+          ...tt,
+          status: 'paused' as const,
+          accumulatedActiveMs: tt.accumulatedActiveMs + (tt.activeSince ? Math.max(0, pauseStamp.getTime() - new Date(tt.activeSince).getTime()) : 0),
+          activeSince: null,
+          pausedAt: pauseStamp.toISOString(),
+          breaksCount: tt.breaksCount + 1,
+        };
+      });
+      const newTimer: TaskTimerRecord = {
+        id: `tt-${Date.now()}-${topicId}-${stage}`,
+        topicId, topicName: topic.name, stage,
+        status: 'running',
+        startedAt: stamp, activeSince: stamp, pausedAt: null,
+        accumulatedActiveMs: 0, accumulatedPausedMs: 0, breaksCount: 0,
+        dateKey: todayKey(),
+      };
+      return [...withPaused, newTimer];
+    });
+    // Log activity
+    setActivities(prev => [{
+      id: `act-task-start-${Date.now()}`,
+      topicName: topic.name, channel: topic.channel,
+      action: `Started ${stage} session timer`,
+      author: 'You', timestamp: stamp, topicId, targetTab: 'pipeline', targetSubView: 'topics'
+    }, ...prev]);
+  };
+
+  const pauseActiveTaskTimer = () => {
+    setTaskTimers(prev => prev.map(tt => {
+      if (tt.status !== 'running') return tt;
+      const stamp = new Date();
+      return {
+        ...tt,
+        status: 'paused' as const,
+        accumulatedActiveMs: tt.accumulatedActiveMs + (tt.activeSince ? Math.max(0, stamp.getTime() - new Date(tt.activeSince).getTime()) : 0),
+        activeSince: null,
+        pausedAt: stamp.toISOString(),
+        breaksCount: tt.breaksCount + 1,
+      };
+    }));
+  };
+
+  const resumeActiveTaskTimer = () => {
+    setTaskTimers(prev => prev.map(tt => {
+      if (tt.status !== 'paused') return tt;
+      const stamp = new Date();
+      return {
+        ...tt,
+        status: 'running' as const,
+        accumulatedPausedMs: tt.accumulatedPausedMs + (tt.pausedAt ? Math.max(0, stamp.getTime() - new Date(tt.pausedAt).getTime()) : 0),
+        activeSince: stamp.toISOString(),
+        pausedAt: null,
+      };
+    }));
+  };
+
+  const stopActiveTaskTimer = (endReason: 'done' | 'deferred', productivityScore: number) => {
+    const stamp = new Date().toISOString();
+    setTaskTimers(prev => prev.map(tt => {
+      if (tt.status !== 'running' && tt.status !== 'paused') return tt;
+      const finalActive = tt.accumulatedActiveMs + (tt.status === 'running' && tt.activeSince ? Math.max(0, new Date(stamp).getTime() - new Date(tt.activeSince).getTime()) : 0);
+      const finalPaused = tt.accumulatedPausedMs + (tt.status === 'paused' && tt.pausedAt ? Math.max(0, new Date(stamp).getTime() - new Date(tt.pausedAt).getTime()) : 0);
+      return { ...tt, status: 'completed' as const, completedAt: stamp, activeSince: null, pausedAt: null, accumulatedActiveMs: finalActive, accumulatedPausedMs: finalPaused, endReason, productivityScore };
+    }));
+    // Log activity
+    const active = taskTimers.find(tt => tt.status === 'running' || tt.status === 'paused');
+    if (active) {
+      const topic = topics.find(t => t.id === active.topicId);
+      if (topic) {
+        setActivities(prev => [{
+          id: `act-task-stop-${Date.now()}`,
+          topicName: topic.name, channel: topic.channel,
+          action: `${endReason === 'done' ? 'Completed' : 'Deferred'} ${active.stage} session (${productivityScore * 10}% productive)`,
+          author: 'You', timestamp: stamp, topicId: topic.id, targetTab: 'pipeline', targetSubView: 'topics'
+        }, ...prev]);
+      }
+    }
+  };
+
+  // When main timer is paused → also pause any running task timer
+  const handleMainTimerPause = () => {
+    pauseActiveTaskTimer();
+    setWorkdaySession(current => {
+      if (!current || current.status !== 'running' || !current.activeSince) return current;
+      const stamp = new Date();
+      return {
+        ...current,
+        accumulatedActiveMs: current.accumulatedActiveMs + Math.max(0, stamp.getTime() - new Date(current.activeSince).getTime()),
+        activeSince: null, pausedAt: stamp.toISOString(), status: 'paused',
+        updatedAt: stamp.toISOString(), breaksCount: (current.breaksCount || 0) + 1
+      };
+    });
+  };
+
+  // When main timer resumes → also resume any paused task timer
+  const handleMainTimerResume = () => {
+    resumeActiveTaskTimer();
+    setWorkdaySession(current => {
+      if (!current || current.status !== 'paused') return current;
+      const stamp = new Date();
+      return {
+        ...current,
+        accumulatedPausedMs: current.accumulatedPausedMs + (current.pausedAt ? Math.max(0, stamp.getTime() - new Date(current.pausedAt).getTime()) : 0),
+        activeSince: stamp.toISOString(), pausedAt: null, status: 'running', updatedAt: stamp.toISOString()
+      };
+    });
+  };
+
+  // When main session ends → complete any running/paused task timers
+  const endWorkdaySessionWithTaskTimers = () => {
+    const stamp = new Date().toISOString();
+    setTaskTimers(prev => prev.map(tt => {
+      if (tt.status !== 'running' && tt.status !== 'paused') return tt;
+      const finalActive = tt.accumulatedActiveMs + (tt.status === 'running' && tt.activeSince ? Math.max(0, new Date(stamp).getTime() - new Date(tt.activeSince).getTime()) : 0);
+      return { ...tt, status: 'completed' as const, completedAt: stamp, activeSince: null, pausedAt: null, accumulatedActiveMs: finalActive, endReason: 'deferred' as const };
+    }));
+    endWorkdaySession();
+  };
+
+  // Derived: the single active task timer (running or paused, most recent)
+  const activeTaskTimer = taskTimers
+    .filter(tt => tt.status === 'running' || tt.status === 'paused')
+    .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())[0] ?? null;
 
   // Update clock
   useEffect(() => {
@@ -1820,7 +1964,7 @@ export default function App() {
               </button>
             </div>
 
-            <WorkdayTimer session={workdaySession} setSession={setWorkdaySession} topics={topics} onEndSession={endWorkdaySession} />
+            <WorkdayTimer session={workdaySession} setSession={setWorkdaySession} topics={topics} onEndSession={endWorkdaySessionWithTaskTimers} onExternalPause={handleMainTimerPause} onExternalResume={handleMainTimerResume} />
 
             <motion.button
               whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(59, 130, 246, 0.6)' }}
@@ -1840,7 +1984,6 @@ export default function App() {
                 }
               }}
               onClick={() => {
-                setActiveTab('topics');
                 setIsAddFormOpen(true);
               }}
               className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-black font-bold font-mono text-[11px] rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
@@ -1914,6 +2057,11 @@ export default function App() {
                 cycleGoals={cycleGoals}
                 activeSubView={pipelineSubView}
                 setActiveSubView={setPipelineSubView}
+                taskTimers={taskTimers}
+                onStartTaskTimer={startTaskTimer}
+                onPauseTaskTimer={pauseActiveTaskTimer}
+                onResumeTaskTimer={resumeActiveTaskTimer}
+                workdaySession={workdaySession}
               />
             )}
 
@@ -1933,7 +2081,8 @@ export default function App() {
                 topics={topics}
                 session={workdaySession}
                 setSession={setWorkdaySession}
-                onEndSession={endWorkdaySession}
+                onEndSession={endWorkdaySessionWithTaskTimers}
+                taskTimers={taskTimers}
               />
             )}
 
@@ -2073,6 +2222,20 @@ export default function App() {
         </AnimatePresence>
       </main>
 
+      {isAddFormOpen && activeTab !== 'topics' && (
+        <Suspense fallback={null}>
+          <TopicCreateModal
+            isOpen={isAddFormOpen}
+            onClose={() => setIsAddFormOpen(false)}
+            setTopics={setTopics}
+            setActivities={setActivities}
+            onAddEvent={addEvent}
+            setActiveTab={setActiveTab}
+            setPipelineSubView={setPipelineSubView}
+          />
+        </Suspense>
+      )}
+
       {/* Command Palette Modal */}
       <CommandPalette 
         isOpen={isPaletteOpen}
@@ -2109,6 +2272,16 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      <FloatingTaskTimer
+        activeTaskTimer={activeTaskTimer}
+        workdaySession={workdaySession}
+        onPauseTaskTimer={pauseActiveTaskTimer}
+        onResumeTaskTimer={resumeActiveTaskTimer}
+        onStopTaskTimer={stopActiveTaskTimer}
+        onPauseMainTimer={handleMainTimerPause}
+        onResumeMainTimer={handleMainTimerResume}
+      />
 
       {/* Database Detonation Modal Overlay */}
       <AnimatePresence>
