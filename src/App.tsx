@@ -22,19 +22,15 @@ import {
   Plus,
   LogIn,
   LogOut,
-  User as UserIcon,
   AlertCircle,
   Clapperboard,
-  Sparkles,
-  Youtube,
-  Loader2
+  Sparkles
 } from 'lucide-react';
 import { supabase } from './services/supabase';
 
-import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, WorkdaySession, SessionRecord, SessionGoalOutcome, VideoRecord, Experiment, CreatorInsight, ScorecardState, AiRulePreset, AiUsageStats, YoutubeRevenueData, TaskTimerRecord, TaskTimerStage } from './types';
+import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, WorkdaySession, SessionRecord, SessionGoalOutcome, VideoRecord, Experiment, CreatorInsight, ScorecardState, AiRulePreset, AiUsageStats, TaskTimerRecord, TaskTimerStage } from './types';
 import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, normalizeCommittedTombstones, prepareLocalTopicMutation, topicCollectionsEqual, visibleCreatorTopics } from './lib/topicSync';
 import { normalizeScorecard, rolloverScorecard } from './services/scorecardStorage';
-import { fetchYoutubeRevenue, startYoutubeAuth, disconnectYoutube } from './services/youtube';
 import { 
   initialGitHubRepos, 
   initialVercelProjects, 
@@ -340,14 +336,6 @@ export default function App() {
   const [aiPresets, setAiPresets] = useState<AiRulePreset[]>([]);
   const [aiUsage, setAiUsage] = useState<AiUsageStats>(() => createEmptyAiUsageStats());
 
-  // Single, app-wide YouTube connection - fetched once here (not per-view),
-  // so every tile that shows YouTube data reflects the same connection
-  // state and nothing ever re-prompts for auth on its own. The one and
-  // only place that starts the OAuth flow is the header control below.
-  const [youtubeRevenue, setYoutubeRevenue] = useState<YoutubeRevenueData | null>(null);
-  const [isLoadingYoutube, setIsLoadingYoutube] = useState(false);
-  const [youtubeError, setYoutubeError] = useState<string | null>(null);
-  const [isConnectingYoutube, setIsConnectingYoutube] = useState(false);
   const [videos, setVideos] = useState<VideoRecord[]>(initialVideos);
   const [experiments, setExperiments] = useState<Experiment[]>(initialExperiments);
   const [insights, setInsights] = useState<CreatorInsight[]>(initialCreatorInsights);
@@ -531,36 +519,6 @@ export default function App() {
       return changed ? nextTopics : prevTopics;
     });
   }, [videos]);
-
-  useEffect(() => {
-    localStorage.removeItem('yt_oauth_credentials');
-    localStorage.removeItem('yt_oauth_credentials_v2');
-    const callback = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-    if (callback.get('state') === 'youtube_oauth') {
-      window.history.replaceState(null, '', window.location.pathname + window.location.search);
-    }
-
-    // api/youtube-auth-callback.js redirects back here with ?youtube=<status>
-    // after the OAuth flow completes (or fails) - surface it once, then
-    // strip the param so a refresh doesn't re-show the same event.
-    const query = new URLSearchParams(window.location.search);
-    const youtubeStatus = query.get('youtube');
-    if (youtubeStatus) {
-      const isSuccess = youtubeStatus === 'connected';
-      addEvent({
-        id: `evt-youtube-oauth-${Date.now()}`,
-        source: 'system',
-        type: isSuccess ? 'success' : 'error',
-        message: isSuccess
-          ? 'YouTube Analytics: Channel connected successfully.'
-          : `YouTube Analytics: Connection failed (${youtubeStatus}).`,
-        timestamp: new Date().toISOString()
-      });
-      query.delete('youtube');
-      const remaining = query.toString();
-      window.history.replaceState(null, '', window.location.pathname + (remaining ? `?${remaining}` : ''));
-    }
-  }, []);
 
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [timeStr, setTimeStr] = useState('');
@@ -1055,45 +1013,6 @@ export default function App() {
       }
     };
   }, [user?.id]);
-
-  const loadYoutubeRevenue = async () => {
-    setIsLoadingYoutube(true);
-    setYoutubeError(null);
-    try {
-      const result = await fetchYoutubeRevenue();
-      setYoutubeRevenue(result);
-      if (result.connected && (result as any).error) setYoutubeError((result as any).error);
-    } catch (err: any) {
-      setYoutubeError(err.message || 'Failed to fetch YouTube data.');
-    } finally {
-      setIsLoadingYoutube(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!user || authLoading) return;
-    loadYoutubeRevenue();
-  }, [user?.id, authLoading]);
-
-  const handleConnectYoutube = async () => {
-    setIsConnectingYoutube(true);
-    try {
-      await startYoutubeAuth();
-    } catch (err: any) {
-      setYoutubeError(err.message || 'Failed to start YouTube connection.');
-      setIsConnectingYoutube(false);
-    }
-  };
-
-  const handleDisconnectYoutube = async () => {
-    if (!window.confirm('Disconnect this YouTube channel? Revenue and subscriber data will stop updating until reconnected.')) return;
-    try {
-      await disconnectYoutube();
-      setYoutubeRevenue({ connected: false });
-    } catch (err: any) {
-      setYoutubeError(err.message || 'Failed to disconnect YouTube.');
-    }
-  };
 
   const saveConflictSafeState = async (
     newTopics: Topic[], newActs: TopicActivity[], newGoals: CycleGoal | null,
@@ -1817,42 +1736,8 @@ export default function App() {
               <span>{syncError ? 'Cloud Sync Error' : 'Cloud Sync Active'}</span>
             </div>
 
-            {/* Global YouTube connection control - the ONE place that starts the
-                OAuth flow anywhere in the app. Every YouTube-backed tile just
-                reads this same state; nothing else ever prompts for auth. */}
-            {!youtubeRevenue || isLoadingYoutube ? (
-              <div className="hidden lg:flex items-center gap-1.5 bg-neutral-900 border border-neutral-850 rounded-lg px-2.5 py-1 text-neutral-500 font-mono text-[9px]">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                <span>YouTube</span>
-              </div>
-            ) : youtubeRevenue.connected ? (
-              <div className="hidden lg:flex items-center gap-2 bg-red-950/20 border border-red-900/30 rounded-lg px-2.5 py-1 text-red-400 select-none font-mono">
-                <Youtube className="h-3.5 w-3.5" />
-                <span className="max-w-[110px] truncate text-[9px] font-bold">{youtubeRevenue.channelTitle || 'Connected'}</span>
-                <button
-                  onClick={handleDisconnectYoutube}
-                  className="hover:text-white ml-1 cursor-pointer transition"
-                  title="Disconnect YouTube"
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={handleConnectYoutube}
-                disabled={isConnectingYoutube}
-                className="hidden lg:flex items-center gap-1.5 bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 hover:border-red-900/40 disabled:opacity-40 rounded-lg px-2.5 py-1 text-neutral-400 hover:text-red-400 font-mono text-[9px] font-bold transition cursor-pointer"
-                title="Connect your YouTube channel for real revenue and subscriber data"
-              >
-                <Youtube className="h-3.5 w-3.5" />
-                <span>{isConnectingYoutube ? 'Redirecting…' : 'Connect YouTube'}</span>
-              </button>
-            )}
-
             {/* Supabase Sync Auth Control - header only renders once `user` is set */}
-            <div className="flex items-center gap-2 bg-emerald-950/20 border border-emerald-900/30 rounded-lg px-2.5 py-1 text-emerald-400 select-none font-mono">
-              <UserIcon className="h-3.5 w-3.5 text-emerald-400" />
-              <span className="max-w-[90px] truncate text-[9px] font-bold">{user.email}</span>
+            <div className="flex items-center gap-2 bg-emerald-950/20 border border-emerald-900/30 rounded-lg px-2 py-1 text-emerald-400 select-none font-mono">
               <button
                 onClick={async () => {
                   if (supabase) {
@@ -1866,8 +1751,9 @@ export default function App() {
                     timestamp: new Date().toISOString()
                   });
                 }}
-                className="hover:text-red-400 ml-1 cursor-pointer transition"
-                title="Logout / Disconnect Sync"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-emerald-900/40 text-emerald-400 transition hover:bg-emerald-950/40 hover:text-white"
+                title={`Logout${user?.email ? ` from ${user.email}` : ''}`}
+                aria-label="Logout"
               >
                 <LogOut className="h-3.5 w-3.5" />
               </button>
