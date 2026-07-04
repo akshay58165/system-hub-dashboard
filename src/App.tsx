@@ -2222,7 +2222,7 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      {isAddFormOpen && activeTab !== 'topics' && (
+      {isAddFormOpen && (
         <Suspense fallback={null}>
           <TopicCreateModal
             isOpen={isAddFormOpen}
