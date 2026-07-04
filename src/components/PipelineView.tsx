@@ -528,7 +528,7 @@ export default function PipelineView({
               </div>
 
               {/* Cards List */}
-              <div className="flex flex-col gap-2 overflow-y-auto flex-1 max-h-[550px] scrollbar-none">
+              <div className="flex flex-col gap-2 flex-1">
                 {items.map(video => {
                   const isLearnDriven = video.channelName === 'LearnDriven';
                   const sourceTopic = topics.find(topic => topic.id === video.id);
@@ -556,7 +556,7 @@ export default function PipelineView({
                           ? '2px solid rgba(168, 85, 247, 0.3)' 
                           : '2px solid rgba(16, 185, 129, 0.3)' 
                       }}
-                      className={`p-3 rounded-lg bg-neutral-950/30 border border-neutral-900 hover:border-neutral-800/80 hover:bg-neutral-900/20 relative overflow-hidden transition-all duration-150 group cursor-grab active:cursor-grabbing ${video.blockedReason ? 'border-red-950/40 bg-red-950/5' : ''}`}
+                      className={`p-3 rounded-lg bg-neutral-950/30 border border-neutral-900 hover:border-neutral-800/80 hover:bg-neutral-900/20 relative transition-all duration-150 group cursor-grab active:cursor-grabbing ${video.blockedReason ? 'border-red-950/40 bg-red-950/5' : ''}`}
                     >
                       <div className="flex items-start gap-2.5">
                         <div className={`topic-led topic-led--${led.tone} mt-0.5 shrink-0`} title={led.label} style={{ '--topic-led-speed': led.speed } as React.CSSProperties}>
