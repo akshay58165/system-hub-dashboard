@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Clock3, Pause, Play, Square, Check, Timer, X, PictureInPicture2
+  Clock3, Pause, Play, Square, Check, Timer, X, MoonStar
 } from 'lucide-react';
 import type { TaskTimerRecord, WorkdaySession } from '../types';
 
@@ -54,9 +54,15 @@ export default function FloatingTaskTimer({
   const [taskPauseProductivity, setTaskPauseProductivity] = useState(7);
   const [pendingTaskTimer, setPendingTaskTimer] = useState<TaskTimerRecord | null>(null);
   const [desktopWindow, setDesktopWindow] = useState<Window | null>(null);
-  const [isPillVisible, setIsPillVisible] = useState(true);
+  const [browserActive, setBrowserActive] = useState(() => {
+    if (typeof document === 'undefined') return true;
+    return document.visibilityState === 'visible' && document.hasFocus();
+  });
+  const [snoozeUntil, setSnoozeUntil] = useState<number | null>(null);
+  const [dismissedUntilFocus, setDismissedUntilFocus] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
   const timerRef = useRef<HTMLDivElement>(null);
+  const openingDesktopWindowRef = useRef(false);
 
   // Tick every second
   useEffect(() => {
@@ -69,14 +75,37 @@ export default function FloatingTaskTimer({
   }, [desktopWindow]);
 
   useEffect(() => {
-    if (!desktopWindow) return;
-    const closeDesktopTimerOnReturn = () => {
-      if (!desktopWindow.closed) desktopWindow.close();
-      setDesktopWindow(null);
+    const updateBrowserActive = () => {
+      setBrowserActive(document.visibilityState === 'visible' && document.hasFocus());
     };
-    window.addEventListener('focus', closeDesktopTimerOnReturn);
-    return () => window.removeEventListener('focus', closeDesktopTimerOnReturn);
-  }, [desktopWindow]);
+
+    updateBrowserActive();
+    window.addEventListener('focus', updateBrowserActive);
+    window.addEventListener('blur', updateBrowserActive);
+    document.addEventListener('visibilitychange', updateBrowserActive);
+    return () => {
+      window.removeEventListener('focus', updateBrowserActive);
+      window.removeEventListener('blur', updateBrowserActive);
+      document.removeEventListener('visibilitychange', updateBrowserActive);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!snoozeUntil) return;
+    const remaining = snoozeUntil - Date.now();
+    if (remaining <= 0) {
+      setSnoozeUntil(null);
+      return;
+    }
+    const timeout = window.setTimeout(() => setSnoozeUntil(null), remaining);
+    return () => window.clearTimeout(timeout);
+  }, [snoozeUntil]);
+
+  const closeDesktopTimer = () => {
+    if (desktopWindow && !desktopWindow.closed) desktopWindow.close();
+    setDesktopWindow(null);
+    openingDesktopWindowRef.current = false;
+  };
 
   // Drag handlers
   const onMouseDown = useCallback((e: React.MouseEvent) => {
@@ -101,6 +130,30 @@ export default function FloatingTaskTimer({
     window.addEventListener('mouseup', onUp);
     return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
   }, [dragging]);
+
+  useEffect(() => {
+    const hasSession = Boolean(activeTaskTimer || workdaySession);
+
+    if (!hasSession) {
+      setDismissedUntilFocus(false);
+      setSnoozeUntil(null);
+      closeDesktopTimer();
+      return;
+    }
+
+    if (browserActive) {
+      setDismissedUntilFocus(false);
+      closeDesktopTimer();
+      return;
+    }
+
+    if (dismissedUntilFocus) return;
+    if (snoozeUntil && snoozeUntil > Date.now()) return;
+    if (desktopWindow && !desktopWindow.closed) return;
+    if (openingDesktopWindowRef.current) return;
+
+    void openDesktopTimer();
+  }, [activeTaskTimer, browserActive, dismissedUntilFocus, desktopWindow, snoozeUntil, workdaySession]);
 
   // Compute active elapsed ms for the displayed timer
   const taskActiveMs = activeTaskTimer
@@ -146,18 +199,20 @@ export default function FloatingTaskTimer({
   };
 
   const openDesktopTimer = async () => {
+    const hasSession = Boolean(activeTaskTimer || workdaySession);
+    if (!hasSession || browserActive) return;
     const documentPictureInPicture = getDocumentPictureInPicture();
-    if (!documentPictureInPicture) {
-      window.alert('Desktop timer requires a recent version of Chrome or Edge.');
-      return;
-    }
+    if (!documentPictureInPicture) return;
 
     if (desktopWindow && !desktopWindow.closed) {
       desktopWindow.focus();
       return;
     }
 
+    if (openingDesktopWindowRef.current) return;
+
     try {
+      openingDesktopWindowRef.current = true;
       const pipWindow = await documentPictureInPicture.requestWindow({ width: 240, height: 72 });
       document.querySelectorAll('link[rel="stylesheet"], style').forEach(node => {
         pipWindow.document.head.appendChild(node.cloneNode(true));
@@ -165,17 +220,33 @@ export default function FloatingTaskTimer({
       pipWindow.document.title = 'Unicorn Day Timer';
       pipWindow.document.documentElement.className = 'm-0 h-full overflow-hidden bg-neutral-950';
       pipWindow.document.body.className = 'm-0 h-full overflow-hidden bg-neutral-950';
-      pipWindow.addEventListener('pagehide', () => setDesktopWindow(null), { once: true });
+      pipWindow.addEventListener('pagehide', () => {
+        setDesktopWindow(null);
+        openingDesktopWindowRef.current = false;
+      }, { once: true });
       setDesktopWindow(pipWindow);
     } catch {
       // The browser may reject the request when Picture-in-Picture is disabled.
+    } finally {
+      openingDesktopWindowRef.current = false;
     }
+  };
+
+  const snoozeDesktopTimer = () => {
+    setSnoozeUntil(Date.now() + 5 * 60 * 1000);
+    closeDesktopTimer();
+  };
+
+  const dismissDesktopTimer = () => {
+    setDismissedUntilFocus(true);
+    setSnoozeUntil(null);
+    closeDesktopTimer();
   };
 
   return (
     <>
-      {/* Floating pill */}
-      {isPillVisible && (!desktopWindow || desktopWindow.closed) && (
+      {/* Floating pill fallback when the browser is not active and the PiP window is unavailable. */}
+      {!browserActive && (!desktopWindow || desktopWindow.closed) && (
         <motion.div
           ref={timerRef}
           initial={{ opacity: 0, scale: 0.9 }}
@@ -202,46 +273,21 @@ export default function FloatingTaskTimer({
               </div>
             </div>
 
-            {/* Pause / Resume */}
             <button
               onMouseDown={e => e.stopPropagation()}
-              onClick={openDesktopTimer}
-              className="flex w-8 items-center justify-center border-l border-neutral-700/40 text-neutral-500 transition hover:bg-blue-500/20 hover:text-blue-300"
-              title="Keep timer above desktop windows"
-              aria-label="Open desktop timer"
+              onClick={snoozeDesktopTimer}
+              className="flex w-8 items-center justify-center border-l border-neutral-700/40 text-neutral-500 transition hover:bg-amber-500/20 hover:text-amber-200"
+              title="Snooze timer for 5 minutes"
+              aria-label="Snooze timer for 5 minutes"
             >
-              <PictureInPicture2 className="h-3.5 w-3.5" />
-            </button>
-
-            {/* Pause / Resume */}
-            <button
-              onMouseDown={e => e.stopPropagation()}
-              onClick={isTaskRunning ? requestTaskPause : onResumeTaskTimer}
-              className={`flex w-8 items-center justify-center border-l transition ${
-                isTaskRunning
-                  ? 'border-amber-700/40 hover:bg-amber-500/20 text-amber-300'
-                  : 'border-neutral-700/40 hover:bg-emerald-500/20 text-emerald-300'
-              }`}
-              title={isTaskRunning ? 'Pause task' : 'Resume task'}
-            >
-              {isTaskRunning ? <Pause className="h-3.5 w-3.5 fill-current" /> : <Play className="h-3.5 w-3.5 fill-current" />}
-            </button>
-
-            {/* Stop / Done */}
-            <button
-              onMouseDown={e => e.stopPropagation()}
-              onClick={() => setShowStopModal(true)}
-              className="flex w-8 items-center justify-center border-l border-neutral-700/40 hover:bg-rose-500/20 text-neutral-500 hover:text-rose-300 transition"
-              title="Stop task timer"
-            >
-              <Square className="h-3 w-3 fill-current" />
+              <MoonStar className="h-3.5 w-3.5" />
             </button>
             <button
               onMouseDown={e => e.stopPropagation()}
-              onClick={() => setIsPillVisible(false)}
+              onClick={dismissDesktopTimer}
               className="flex w-8 items-center justify-center border-l border-neutral-700/40 text-neutral-500 transition hover:bg-neutral-800 hover:text-white"
-              title="Hide floating timer"
-              aria-label="Hide floating timer"
+              title="Close floating timer"
+              aria-label="Close floating timer"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -263,31 +309,19 @@ export default function FloatingTaskTimer({
             </div>
             <button
               onMouseDown={e => e.stopPropagation()}
-              onClick={openDesktopTimer}
-              className="flex w-8 items-center justify-center border-l border-emerald-800/40 text-emerald-500 transition hover:bg-blue-500/20 hover:text-blue-300"
-              title="Keep timer above desktop windows"
-              aria-label="Open desktop timer"
+              onClick={snoozeDesktopTimer}
+              className="flex w-8 items-center justify-center border-l border-neutral-700/40 text-neutral-500 transition hover:bg-amber-500/20 hover:text-amber-200"
+              title="Snooze timer for 5 minutes"
+              aria-label="Snooze timer for 5 minutes"
             >
-              <PictureInPicture2 className="h-3.5 w-3.5" />
+              <MoonStar className="h-3.5 w-3.5" />
             </button>
             <button
               onMouseDown={e => e.stopPropagation()}
-              onClick={isMainRunning ? onPauseMainTimer : onResumeMainTimer}
-              className={`flex w-8 items-center justify-center border-l transition ${
-                isMainRunning
-                  ? 'border-emerald-800/40 hover:bg-amber-500/20 text-amber-300'
-                  : 'border-amber-800/40 hover:bg-emerald-500/20 text-emerald-300'
-              }`}
-              title={isMainRunning ? 'Pause day' : 'Resume day'}
-            >
-              {isMainRunning ? <Pause className="h-3.5 w-3.5 fill-current" /> : <Play className="h-3.5 w-3.5 fill-current" />}
-            </button>
-            <button
-              onMouseDown={e => e.stopPropagation()}
-              onClick={() => setIsPillVisible(false)}
+              onClick={dismissDesktopTimer}
               className="flex w-8 items-center justify-center border-l border-neutral-700/40 text-neutral-500 transition hover:bg-neutral-800 hover:text-white"
-              title="Hide floating timer"
-              aria-label="Hide floating timer"
+              title="Close floating timer"
+              aria-label="Close floating timer"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -316,15 +350,12 @@ export default function FloatingTaskTimer({
             </div>
           </div>
           <button
-            onClick={showTaskTimer
-              ? isTaskRunning ? requestTaskPause : onResumeTaskTimer
-              : isMainRunning ? onPauseMainTimer : onResumeMainTimer}
+            onClick={snoozeDesktopTimer}
             className="flex w-12 items-center justify-center border-l border-current/20 text-amber-300 transition hover:bg-white/10"
-            title={showTaskTimer ? isTaskRunning ? 'Pause task' : 'Resume task' : isMainRunning ? 'Pause day' : 'Resume day'}
+            title="Snooze floating timer for 5 minutes"
+            aria-label="Snooze floating timer for 5 minutes"
           >
-            {(showTaskTimer ? isTaskRunning : isMainRunning)
-              ? <Pause className="h-4 w-4 fill-current" />
-              : <Play className="h-4 w-4 fill-current" />}
+            <MoonStar className="h-4 w-4" />
           </button>
         </div>,
         desktopWindow.document.body
