@@ -849,6 +849,13 @@ export default function App() {
         e.preventDefault();
         setPipelineSubView('topics');
         setActiveTab('pipeline');
+        return;
+      }
+
+      if (e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        setTopicFormTopic(null);
+        setIsAddFormOpen(true);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
