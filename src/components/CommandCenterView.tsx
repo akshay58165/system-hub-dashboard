@@ -169,6 +169,7 @@ export default function CommandCenterView({
   const systemColor = model.blocked.length || model.overdue.length ? 'rose' : model.dueSoon.length ? 'amber' : 'emerald';
   const attentionItems = model.queue.filter(topic => model.attention.some(item => item.id === topic.id));
   const visibleAttentionItems = attentionItems.length > 0 ? attentionItems : model.attention;
+  const openTopic = (topic: Topic) => onOpenTopicPipeline(topic.id, actionTargetForTopic(topic));
   const openAttentionQueue = () => {
     const section = document.getElementById('attention-queue-panel');
     if (!section) {
@@ -242,22 +243,26 @@ export default function CommandCenterView({
                 </div>
                 <div className="mt-2 space-y-2">
                   {visibleAttentionItems.slice(0, 3).map((topic, index) => (
-                    <button
-                      key={topic.id}
-                      type="button"
-                      onClick={() => onOpenTopicPipeline(topic.id, actionTargetForTopic(topic))}
-                      className="flex w-full items-start gap-2 rounded-lg border border-neutral-900 bg-neutral-900/40 px-2 py-2 text-left transition hover:border-rose-900/50 hover:bg-rose-950/10"
-                    >
-                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-neutral-950 font-mono text-[8px] text-neutral-500">
-                        0{index + 1}
+                  <button
+                    key={topic.id}
+                    type="button"
+                    onClick={() => openTopic(topic)}
+                    title={`Open ${topic.name}`}
+                    className="flex w-full items-start gap-2 rounded-lg border border-neutral-900 bg-neutral-900/40 px-2 py-2 text-left transition hover:border-rose-900/50 hover:bg-rose-950/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-400 cursor-pointer"
+                  >
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-neutral-950 font-mono text-[8px] text-neutral-500">
+                      0{index + 1}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-semibold text-neutral-100">{topic.name}</span>
+                      <span className="mt-0.5 block font-mono text-[8px] text-rose-300">
+                        {nextActionForTopic(topic)}
                       </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-xs font-semibold text-neutral-100">{topic.name}</span>
-                        <span className="mt-0.5 block font-mono text-[8px] text-rose-300">
-                          {nextActionForTopic(topic)}
-                        </span>
-                      </span>
-                    </button>
+                    </span>
+                    <span className="mt-0.5 rounded border border-rose-900/40 bg-rose-950/20 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-rose-200">
+                      Go
+                    </span>
+                  </button>
                   ))}
                 </div>
                 <div className="mt-2 font-mono text-[9px] text-neutral-600">
@@ -289,14 +294,15 @@ export default function CommandCenterView({
                   <button
                     key={topic.id}
                     type="button"
-                    onClick={() => onOpenTopicPipeline(topic.id, actionTarget)}
+                    onClick={() => openTopic(topic)}
+                    title={`Open ${topic.name}`}
                     className={`flex w-full items-start gap-3 rounded-xl border p-3.5 text-left transition ${
                       isBlocked || isOverdue
                         ? 'border-rose-950/50 bg-rose-950/5 hover:border-rose-900/60 hover:bg-rose-950/10'
                         : isDueSoon
                           ? 'border-amber-950/40 bg-amber-950/5 hover:border-amber-900/50 hover:bg-amber-950/10'
                           : 'border-neutral-850 bg-neutral-900/30 hover:border-neutral-700 hover:bg-neutral-900/50'
-                    }`}
+                    } cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-400`}
                   >
                     <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-neutral-950 font-mono text-[10px] text-neutral-500">0{index + 1}</span>
                     <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${isBlocked ? 'bg-rose-500 shadow-[0_0_9px_#f43f5e]' : isOverdue ? 'bg-rose-400' : isDueSoon ? 'bg-amber-400 shadow-[0_0_9px_#f59e0b]' : 'bg-neutral-500'}`} />
@@ -310,6 +316,9 @@ export default function CommandCenterView({
                       <span className="mt-1 block text-[10px] font-medium text-rose-300">
                         <span className="mr-1 font-mono text-[8px] uppercase tracking-wider text-neutral-600">Next</span>{nextActionForTopic(topic)}
                       </span>
+                    </span>
+                    <span className="mt-1 rounded border border-rose-900/40 bg-rose-950/20 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-rose-200">
+                      Open
                     </span>
                     <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-700 transition group-hover:text-rose-400" />
                   </button>
