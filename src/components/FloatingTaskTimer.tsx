@@ -280,18 +280,6 @@ export default function FloatingTaskTimer({
         </motion.div>
       )}
 
-      {!isPillVisible && (!desktopWindow || desktopWindow.closed) && (
-        <button
-          type="button"
-          onClick={() => setIsPillVisible(true)}
-          className="fixed left-5 top-20 z-[9999] flex h-9 w-9 items-center justify-center rounded-full border border-emerald-800/70 bg-emerald-950/95 text-emerald-400 shadow-xl transition hover:scale-105 hover:border-emerald-500 hover:text-emerald-200"
-          title="Show floating timer"
-          aria-label="Show floating timer"
-        >
-          <Timer className="h-4 w-4" />
-        </button>
-      )}
-
       {desktopWindow && !desktopWindow.closed && createPortal(
         <div className={`flex h-screen w-screen items-stretch overflow-hidden border font-mono text-[11px] font-bold ${
           showTaskTimer
