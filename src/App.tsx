@@ -86,6 +86,47 @@ function createEmptyAiUsageStats(): AiUsageStats {
   };
 }
 
+function clampPercent(value: number) {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function average(values: number[]) {
+  if (!values.length) return 0;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function summarizeVercelUsage(projects: VercelProject[]) {
+  const deploymentCount = projects.reduce((sum, project) => sum + project.deployments.length, 0);
+  const functionCount = projects.reduce((sum, project) => sum + project.serverlessFunctions.length, 0);
+  const activeProjects = projects.filter(project => project.status !== 'offline').length;
+  const totalInvocations = projects.reduce(
+    (sum, project) => sum + project.serverlessFunctions.reduce((inner, fn) => inner + fn.invocations, 0),
+    0
+  );
+  const avgLatencyMs = average(projects.flatMap(project => project.analytics.latency.map(entry => entry.avgMs)));
+  const avgLcpMs = average(projects.map(project => project.analytics.webVitals.lcp));
+  const artifactStorageMb = deploymentCount * 18 + functionCount * 2;
+
+  return {
+    cpu: clampPercent((totalInvocations / Math.max(1, functionCount * 45)) * 100 + activeProjects * 6),
+    storage: `${Math.max(0, artifactStorageMb)} MB`,
+    ram: clampPercent((avgLatencyMs / 20) + (avgLcpMs / 80) + functionCount * 2),
+    projectCount: projects.length,
+    deploymentCount,
+    functionCount,
+    derivedNote: 'Derived from deployments, functions, and analytics',
+  };
+}
+
+function summarizeSupabaseUsage(project: SupabaseProject) {
+  return {
+    cpu: clampPercent(project.metrics.cpuUsage),
+    storage: project.metrics.dbSize,
+    ram: clampPercent(project.metrics.memoryUsage),
+    activeConnections: project.metrics.activeConnections,
+  };
+}
+
 function highlightCommandDestination(target: HTMLElement, shouldFocus = false) {
   document.querySelectorAll('.command-action-target').forEach((element) => {
     element.classList.remove('command-action-target');
@@ -340,6 +381,9 @@ export default function App() {
   const [experiments, setExperiments] = useState<Experiment[]>(initialExperiments);
   const [insights, setInsights] = useState<CreatorInsight[]>(initialCreatorInsights);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
+
+  const vercelUsageSummary = summarizeVercelUsage(vercelProjects);
+  const supabaseUsageSummary = summarizeSupabaseUsage(supabaseProject);
 
   // Bidirectional Synchronization between topics and videos
   useEffect(() => {
@@ -2205,26 +2249,124 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-neutral-900/60 bg-neutral-950 py-8 mt-12 font-mono text-xs text-neutral-500">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-1.5">
-            <Laptop className="h-4 w-4" />
-            <span>Unicorn's Desk Panel - Cloud Sync Integration Active</span>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
+            <div className="flex items-center gap-1.5">
+              <Laptop className="h-4 w-4" />
+              <span>Unicorn's Desk Panel - Cloud Sync Integration Active</span>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-neutral-400">Last Updated: {formatRelativeTime(lastDbUpdateTime)}</span>
+              <button
+                onClick={() => {
+                  setIsResetOpen(true);
+                  setResetPhase('password');
+                  setResetPassword('');
+                  setResetLogs([]);
+                  setResetProgress(0);
+                }}
+                className="flex items-center gap-1 text-red-400 hover:text-red-300 bg-red-950/40 border border-red-900/50 hover:border-red-800/80 px-2 py-0.5 rounded cursor-pointer transition duration-300 font-mono font-medium text-[10px]"
+              >
+                <Database className="h-3 w-3 animate-pulse text-red-500" />
+                <span>DB Reset</span>
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <span>Last Updated: {formatRelativeTime(lastDbUpdateTime)}</span>
-            <button 
-              onClick={() => {
-                setIsResetOpen(true);
-                setResetPhase('password');
-                setResetPassword('');
-                setResetLogs([]);
-                setResetProgress(0);
-              }}
-              className="flex items-center gap-1 text-red-400 hover:text-red-300 bg-red-950/40 border border-red-900/50 hover:border-red-800/80 px-2 py-0.5 rounded cursor-pointer transition duration-300 ml-2 font-mono font-medium text-[10px]"
-            >
-              <Database className="h-3 w-3 animate-pulse text-red-500" />
-              <span>DB Reset</span>
-            </button>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-sky-950/70 bg-neutral-950/80 backdrop-blur px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg border border-sky-900/70 bg-sky-950/30 flex items-center justify-center text-sky-300">
+                    <Laptop className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.35em] text-sky-400">Vercel Usage</div>
+                    <div className="text-[10px] text-neutral-500 mt-0.5">{vercelUsageSummary.derivedNote}</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] uppercase tracking-[0.3em] text-neutral-600">Projects</div>
+                  <div className="text-sm text-neutral-200 font-semibold">{vercelUsageSummary.projectCount}</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                <div className="rounded-xl border border-neutral-900 bg-neutral-950/70 px-3 py-2">
+                  <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.28em] text-neutral-500">
+                    <Cpu className="h-3 w-3 text-sky-400" />
+                    <span>CPU</span>
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-sky-200">{vercelUsageSummary.cpu}%</div>
+                </div>
+                <div className="rounded-xl border border-neutral-900 bg-neutral-950/70 px-3 py-2">
+                  <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.28em] text-neutral-500">
+                    <Database className="h-3 w-3 text-sky-400" />
+                    <span>Storage</span>
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-sky-200">{vercelUsageSummary.storage}</div>
+                </div>
+                <div className="rounded-xl border border-neutral-900 bg-neutral-950/70 px-3 py-2">
+                  <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.28em] text-neutral-500">
+                    <Activity className="h-3 w-3 text-sky-400" />
+                    <span>RAM</span>
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-sky-200">{vercelUsageSummary.ram}%</div>
+                </div>
+              </div>
+
+              <div className="mt-2 text-[10px] text-neutral-600 flex items-center justify-between gap-2">
+                <span>{vercelUsageSummary.deploymentCount} deployments · {vercelUsageSummary.functionCount} functions</span>
+                <span>Traffic pressure derived from analytics</span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-950/70 bg-neutral-950/80 backdrop-blur px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg border border-emerald-900/70 bg-emerald-950/30 flex items-center justify-center text-emerald-300">
+                    <Database className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase tracking-[0.35em] text-emerald-400">Supabase Usage</div>
+                    <div className="text-[10px] text-neutral-500 mt-0.5">Live database metrics from the active project</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] uppercase tracking-[0.3em] text-neutral-600">Connections</div>
+                  <div className="text-sm text-neutral-200 font-semibold">{supabaseUsageSummary.activeConnections}</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                <div className="rounded-xl border border-neutral-900 bg-neutral-950/70 px-3 py-2">
+                  <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.28em] text-neutral-500">
+                    <Cpu className="h-3 w-3 text-emerald-400" />
+                    <span>CPU</span>
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-emerald-200">{supabaseUsageSummary.cpu}%</div>
+                </div>
+                <div className="rounded-xl border border-neutral-900 bg-neutral-950/70 px-3 py-2">
+                  <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.28em] text-neutral-500">
+                    <Database className="h-3 w-3 text-emerald-400" />
+                    <span>Storage</span>
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-emerald-200">{supabaseUsageSummary.storage}</div>
+                </div>
+                <div className="rounded-xl border border-neutral-900 bg-neutral-950/70 px-3 py-2">
+                  <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.28em] text-neutral-500">
+                    <Activity className="h-3 w-3 text-emerald-400" />
+                    <span>RAM</span>
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-emerald-200">{supabaseUsageSummary.ram}%</div>
+                </div>
+              </div>
+
+              <div className="mt-2 text-[10px] text-neutral-600 flex items-center justify-between gap-2">
+                <span>Postgres health and capacity snapshot</span>
+                <span>Active connections tracked live</span>
+              </div>
+            </div>
           </div>
         </div>
       </footer>
