@@ -9,7 +9,7 @@ import type { TaskTimerRecord, WorkdaySession } from '../types';
 interface FloatingTaskTimerProps {
   activeTaskTimer: TaskTimerRecord | null;
   workdaySession: WorkdaySession | null;
-  onPauseTaskTimer: () => void;
+  onPauseTaskTimer: (productivityScore?: number) => void;
   onResumeTaskTimer: () => void;
   onStopTaskTimer: (endReason: 'done' | 'deferred', productivityScore: number) => void;
   onPauseMainTimer: () => void;
@@ -20,6 +20,8 @@ const fmt = (ms: number) => {
   const s = Math.max(0, Math.floor(ms / 1000));
   return `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 };
+
+const PRODUCTIVITY_PROMPT_THRESHOLD_MS = 10 * 60 * 1000;
 
 const stageLabel: Record<string, string> = {
   script: 'Scripting', shoot: 'Shooting', edit: 'Editing',
@@ -46,8 +48,11 @@ export default function FloatingTaskTimer({
   const [pos, setPos] = useState({ x: 20, y: 80 });
   const [dragging, setDragging] = useState(false);
   const [showStopModal, setShowStopModal] = useState(false);
+  const [showTaskProductivityPrompt, setShowTaskProductivityPrompt] = useState(false);
   const [stopReason, setStopReason] = useState<'done' | 'deferred'>('deferred');
   const [productivity, setProductivity] = useState(7);
+  const [taskPauseProductivity, setTaskPauseProductivity] = useState(7);
+  const [pendingTaskTimer, setPendingTaskTimer] = useState<TaskTimerRecord | null>(null);
   const [desktopWindow, setDesktopWindow] = useState<Window | null>(null);
   const [isPillVisible, setIsPillVisible] = useState(true);
   const dragOffset = useRef({ x: 0, y: 0 });
@@ -129,6 +134,17 @@ export default function FloatingTaskTimer({
     setShowStopModal(false);
   };
 
+  const requestTaskPause = () => {
+    if (!activeTaskTimer || activeTaskTimer.status !== 'running') return;
+    if (taskActiveMs >= PRODUCTIVITY_PROMPT_THRESHOLD_MS) {
+      setTaskPauseProductivity(7);
+      setPendingTaskTimer(activeTaskTimer);
+      setShowTaskProductivityPrompt(true);
+      return;
+    }
+    onPauseTaskTimer(10);
+  };
+
   const openDesktopTimer = async () => {
     const documentPictureInPicture = getDocumentPictureInPicture();
     if (!documentPictureInPicture) {
@@ -200,7 +216,7 @@ export default function FloatingTaskTimer({
             {/* Pause / Resume */}
             <button
               onMouseDown={e => e.stopPropagation()}
-              onClick={isTaskRunning ? onPauseTaskTimer : onResumeTaskTimer}
+              onClick={isTaskRunning ? requestTaskPause : onResumeTaskTimer}
               className={`flex w-8 items-center justify-center border-l transition ${
                 isTaskRunning
                   ? 'border-amber-700/40 hover:bg-amber-500/20 text-amber-300'
@@ -301,7 +317,7 @@ export default function FloatingTaskTimer({
           </div>
           <button
             onClick={showTaskTimer
-              ? isTaskRunning ? onPauseTaskTimer : onResumeTaskTimer
+              ? isTaskRunning ? requestTaskPause : onResumeTaskTimer
               : isMainRunning ? onPauseMainTimer : onResumeMainTimer}
             className="flex w-12 items-center justify-center border-l border-current/20 text-amber-300 transition hover:bg-white/10"
             title={showTaskTimer ? isTaskRunning ? 'Pause task' : 'Resume task' : isMainRunning ? 'Pause day' : 'Resume day'}
@@ -313,6 +329,82 @@ export default function FloatingTaskTimer({
         </div>,
         desktopWindow.document.body
       )}
+
+      <AnimatePresence>
+        {showTaskProductivityPrompt && pendingTaskTimer && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-sm rounded-2xl border border-amber-900/50 bg-neutral-950 p-5 shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-bold text-white">Pause task timer</h3>
+                  <p className="text-[10px] text-neutral-500 mt-0.5">
+                    {stageLabel[pendingTaskTimer.stage] || pendingTaskTimer.stage} · {pendingTaskTimer.topicName}
+                  </p>
+                </div>
+                <button onClick={() => { setShowTaskProductivityPrompt(false); setPendingTaskTimer(null); }} className="text-neutral-600 hover:text-white">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="mb-5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[9px] uppercase tracking-wider text-neutral-500">Session productivity</p>
+                  <span className={`font-mono text-sm font-bold ${taskPauseProductivity >= 8 ? 'text-emerald-400' : taskPauseProductivity >= 5 ? 'text-amber-400' : 'text-rose-400'}`}>
+                    {taskPauseProductivity * 10}%
+                  </span>
+                </div>
+                <div className="flex gap-1.5">
+                  {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                    <button
+                      key={n}
+                      onClick={() => setTaskPauseProductivity(n)}
+                      className={`flex-1 h-7 rounded text-[9px] font-bold transition border ${
+                        n <= taskPauseProductivity
+                          ? n >= 8 ? 'bg-emerald-500/30 border-emerald-600/60 text-emerald-300'
+                            : n >= 5 ? 'bg-amber-500/30 border-amber-600/60 text-amber-300'
+                            : 'bg-rose-500/30 border-rose-600/60 text-rose-300'
+                          : 'border-neutral-800 bg-neutral-900/50 text-neutral-600 hover:border-neutral-700'
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[8px] text-neutral-600 mt-1.5 text-center">
+                  {taskPauseProductivity <= 3 ? 'Low productivity — lots of distractions'
+                    : taskPauseProductivity <= 6 ? 'Moderate — some focus gaps'
+                    : taskPauseProductivity <= 8 ? 'Good flow — mostly productive'
+                    : 'Deep work — fully in the zone'}
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    onPauseTaskTimer(taskPauseProductivity);
+                    setShowTaskProductivityPrompt(false);
+                    setPendingTaskTimer(null);
+                  }}
+                  className="flex-1 rounded-xl bg-amber-400 py-2.5 text-xs font-bold text-black transition hover:bg-amber-300"
+                >
+                  Pause work
+                </button>
+                <button
+                  onClick={() => { setShowTaskProductivityPrompt(false); setPendingTaskTimer(null); }}
+                  className="rounded-xl border border-neutral-800 px-4 py-2.5 text-xs font-bold text-neutral-300 hover:bg-neutral-900"
+                >
+                  Keep running
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Stop modal - productivity score + end reason */}
       <AnimatePresence>

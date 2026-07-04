@@ -11,7 +11,7 @@ interface TodayGoalsViewProps {
   onEndSession: () => void;
   taskTimers: TaskTimerRecord[];
   onStartTaskTimer: (topicId: string, stage: TaskTimerStage) => void;
-  onPauseTaskTimer: () => void;
+  onPauseTaskTimer: (productivityScore?: number) => void;
   onResumeTaskTimer: () => void;
   onStopTaskTimer: (endReason: 'done' | 'deferred', productivityScore?: number) => void;
   onPauseMainTimer: () => void;
@@ -29,6 +29,7 @@ const stagesBetween = (from: string, to: string) => {
   return stageOrder.slice(start + 1, end + 1).map(s => stageLabel[s] || s);
 };
 const ONE_HOUR_MS = 60 * 60 * 1000;
+const PRODUCTIVITY_PROMPT_THRESHOLD_MS = 10 * 60 * 1000;
 const taskStageLabels: Record<TaskTimerStage, string> = { script: 'Scripting', shoot: 'Shooting', edit: 'Editing', schedule: 'Scheduling', post: 'Publishing' };
 const nextTaskStage: Record<Topic['status'], TaskTimerStage | null> = { topic: 'script', scripted: 'shoot', shot: 'edit', edited: 'schedule', scheduled: 'post', posted: null };
 const formatDuration = (ms: number) => {
@@ -51,6 +52,9 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
   const [sortBy, setSortBy] = useState<'priority' | 'due' | 'stage'>('priority');
   const [channelFilter, setChannelFilter] = useState<'All' | 'LearnDriven' | 'DecodeWorthy'>('All');
   const [showEndConfirmation, setShowEndConfirmation] = useState(false);
+  const [showTaskProductivityPrompt, setShowTaskProductivityPrompt] = useState(false);
+  const [taskProductivity, setTaskProductivity] = useState(7);
+  const [pendingTaskTimer, setPendingTaskTimer] = useState<TaskTimerRecord | null>(null);
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
@@ -187,6 +191,17 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
   const timerPausedMs = (timer: TaskTimerRecord) => timer.accumulatedPausedMs + (
     timer.status === 'paused' && timer.pausedAt ? Math.max(0, now - new Date(timer.pausedAt).getTime()) : 0
   );
+  const requestTaskPause = (timer: TaskTimerRecord) => {
+    if (!timer || timer.status !== 'running') return;
+    const activeMs = timerActiveMs(timer);
+    if (activeMs >= PRODUCTIVITY_PROMPT_THRESHOLD_MS) {
+      setTaskProductivity(7);
+      setPendingTaskTimer(timer);
+      setShowTaskProductivityPrompt(true);
+      return;
+    }
+    onPauseTaskTimer(10);
+  };
 
   if (!session) return <div className="space-y-5 pb-10"><div><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-purple-400"><Clock3 className="h-4 w-4" />Work intelligence</div><h1 className="mt-2 text-2xl font-bold text-white">Sessions</h1><p className="mt-1 text-sm text-neutral-400">Live work tracking and complete session history.</p></div><div className="rounded-2xl border border-dashed border-neutral-800 bg-neutral-950/50 p-7 text-center"><Target className="mx-auto h-7 w-7 text-purple-400" /><h2 className="mt-3 text-sm font-bold text-white">No active session</h2><p className="mt-1 text-[10px] text-neutral-400">Start the day from the header to begin tracking goals, stages, active time, pauses, and breaks.</p></div><SessionsView sessions={sessions} embedded /></div>;
 
@@ -299,7 +314,7 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
                     {activeTopicTimer ? (
                       <div className="flex items-center gap-2">
                         <span className={`font-mono text-[10px] font-bold ${activeTopicTimer.status === 'running' ? 'text-emerald-300' : 'text-amber-300'}`}>{taskStageLabels[activeTopicTimer.stage]} {formatDuration(timerActiveMs(activeTopicTimer))}</span>
-                        <button onClick={activeTopicTimer.status === 'running' ? onPauseTaskTimer : onResumeTaskTimer} className="rounded border border-neutral-800 p-1.5 text-amber-300 hover:bg-neutral-900" title={activeTopicTimer.status === 'running' ? 'Pause this goal timer only' : 'Resume this goal timer'}>{activeTopicTimer.status === 'running' ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}</button>
+                        <button onClick={activeTopicTimer.status === 'running' ? () => requestTaskPause(activeTopicTimer) : onResumeTaskTimer} className="rounded border border-neutral-800 p-1.5 text-amber-300 hover:bg-neutral-900" title={activeTopicTimer.status === 'running' ? 'Pause this goal timer only' : 'Resume this goal timer'}>{activeTopicTimer.status === 'running' ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}</button>
                         <button onClick={() => onStopTaskTimer('deferred')} className="rounded border border-neutral-800 p-1.5 text-rose-300 hover:bg-neutral-900" title="Stop and defer this goal timer only"><Square className="h-3 w-3" /></button>
                       </div>
                     ) : suggestedStage && !done ? (
@@ -332,5 +347,64 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
       <div className="h-fit rounded-2xl border border-purple-900/30 bg-neutral-950/70 p-5"><div className="flex items-center gap-2 text-sm font-bold text-white"><Plus className="h-4 w-4 text-purple-400" />Add a goal</div><p className="mt-1 text-[10px] text-neutral-400">Scheduled and posted topics are excluded.</p><div className="mt-4 space-y-3"><label className="block text-[10px] font-bold uppercase text-neutral-400">Ranked topic<select value={topicId} onChange={event => chooseTopic(event.target.value)} className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2.5 text-[10px] font-semibold text-white"><option value="">Select topic</option>{ranked.map(topic => <option key={topic.id} value={topic.id}>P{topic.priority} - {topic.name} - {topic.status}</option>)}</select></label>{selected && <div className="rounded-lg bg-neutral-900/60 p-3"><div className="truncate text-[10px] font-semibold text-white">{selected.name}</div><div className="mt-1 text-[10px] uppercase text-neutral-400">{selected.channel} - current {selected.status}{selected.dueDate ? ` - due ${new Date(selected.dueDate).toLocaleDateString()}` : ''}</div></div>}<label className="block text-[10px] font-bold uppercase text-neutral-400">Milestone<select disabled={!selected} value={target} onChange={event => setTarget(event.target.value as typeof goalStages[number])} className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2.5 text-[10px] capitalize text-white disabled:opacity-40">{targets.map(stage => <option key={stage} value={stage}>{stageLabel[stage] || stage}</option>)}</select></label><button disabled={!selected} onClick={addGoal} className="w-full rounded-lg bg-purple-500 py-2.5 text-[10px] font-bold text-black hover:bg-purple-400 disabled:opacity-40">Add today&apos;s goal</button></div></div>
     </section>
     <section className="border-t border-neutral-900 pt-5"><div className="mb-4"><h2 className="text-sm font-bold text-white">Completed session history</h2><p className="mt-1 text-[10px] text-neutral-400">Every saved day with goal outcomes, task-stage timelines, active work, pauses, breaks, and productivity.</p></div><SessionsView sessions={sessions} embedded /></section>
+    {showTaskProductivityPrompt && pendingTaskTimer && (
+      <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
+        <div className="w-full max-w-sm rounded-2xl border border-amber-900/50 bg-neutral-950 p-5 shadow-2xl">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-bold text-white">Pause task timer?</div>
+              <div className="mt-1 text-[10px] text-neutral-500">{taskStageLabels[pendingTaskTimer.stage]} · {pendingTaskTimer.topicName}</div>
+            </div>
+            <button type="button" onClick={() => setShowTaskProductivityPrompt(false)} className="text-neutral-500 hover:text-white">✕</button>
+          </div>
+
+          <div className="mt-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] uppercase tracking-wider text-neutral-500">Session productivity</span>
+              <span className={`font-mono text-sm font-bold ${taskProductivity >= 8 ? 'text-emerald-400' : taskProductivity >= 5 ? 'text-amber-400' : 'text-rose-400'}`}>{taskProductivity * 10}%</span>
+            </div>
+            <div className="mt-2 flex gap-1.5">
+              {[1,2,3,4,5,6,7,8,9,10].map(score => (
+                <button
+                  key={score}
+                  type="button"
+                  onClick={() => setTaskProductivity(score)}
+                  className={`flex-1 rounded border px-0 py-2 text-[9px] font-bold transition ${score <= taskProductivity ? score >= 8 ? 'border-emerald-600/60 bg-emerald-500/25 text-emerald-200' : score >= 5 ? 'border-amber-600/60 bg-amber-500/20 text-amber-200' : 'border-rose-600/60 bg-rose-500/20 text-rose-200' : 'border-neutral-800 bg-neutral-900/50 text-neutral-600 hover:border-neutral-700'}`}
+                >
+                  {score}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[8px] text-neutral-600 text-center">
+              {taskProductivity <= 3 ? 'Low productivity — lots of distractions' : taskProductivity <= 6 ? 'Moderate — some focus gaps' : taskProductivity <= 8 ? 'Good flow — mostly productive' : 'Deep work — fully in the zone'}
+            </p>
+          </div>
+
+          <div className="mt-4 flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                onPauseTaskTimer(taskProductivity);
+                setShowTaskProductivityPrompt(false);
+                setPendingTaskTimer(null);
+              }}
+              className="flex-1 rounded-xl bg-amber-400 py-2.5 text-xs font-bold text-black hover:bg-amber-300"
+            >
+              Pause work
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowTaskProductivityPrompt(false);
+                setPendingTaskTimer(null);
+              }}
+              className="rounded-xl border border-neutral-800 px-4 py-2.5 text-xs font-bold text-neutral-300 hover:bg-neutral-900"
+            >
+              Keep running
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
   </div>;
 }

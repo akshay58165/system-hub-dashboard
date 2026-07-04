@@ -1413,7 +1413,13 @@ export default function App() {
     }, ...prev]);
   };
 
-  const pauseActiveTaskTimer = (pauseSource: 'manual' | 'day' = 'manual') => {
+  const pauseActiveTaskTimer = (pauseSourceOrProductivity?: 'manual' | 'day' | number, maybeProductivityScore?: number) => {
+    const pauseSource = pauseSourceOrProductivity === 'day' || pauseSourceOrProductivity === 'manual'
+      ? pauseSourceOrProductivity
+      : 'manual';
+    const productivityScore = typeof pauseSourceOrProductivity === 'number'
+      ? pauseSourceOrProductivity
+      : maybeProductivityScore;
     setTaskTimers(prev => prev.map(tt => {
       if (tt.status !== 'running') return tt;
       const stamp = new Date();
@@ -1425,6 +1431,7 @@ export default function App() {
         pausedAt: stamp.toISOString(),
         breaksCount: tt.breaksCount + 1,
         pauseSource,
+        productivityScore: productivityScore ?? tt.productivityScore,
       };
     }));
   };
@@ -2116,6 +2123,7 @@ export default function App() {
                 activeSubView={pipelineSubView}
                 setActiveSubView={setPipelineSubView}
                 workdaySession={workdaySession}
+                setWorkdaySession={setWorkdaySession}
                 onEditTopic={(topic) => {
                   setTopicFormTopic(topic);
                   setIsAddFormOpen(true);
