@@ -21,11 +21,20 @@ export default function EndSessionModal({ isOpen, activeMs, pausedMs, completedG
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <motion.div role="dialog" aria-modal="true" aria-labelledby="end-session-title" initial={{ opacity: 0, y: 10, scale: .96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: .96 }} className="w-full max-w-md overflow-hidden rounded-2xl border border-rose-900/60 bg-neutral-950 shadow-[0_0_60px_rgba(244,63,94,.14)]">
+        <motion.div
+          className="fixed inset-0 z-[140] flex items-start justify-center overflow-y-auto bg-black/80 px-4 py-8 backdrop-blur-sm sm:items-center sm:py-4"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          onClick={onCancel}
+        >
+          <motion.div
+            role="dialog" aria-modal="true" aria-labelledby="end-session-title"
+            initial={{ opacity: 0, y: 10, scale: .96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: .96 }}
+            className="w-full max-w-md overflow-hidden rounded-2xl border border-rose-900/60 bg-neutral-950 shadow-[0_0_60px_rgba(244,63,94,.14)]"
+            onClick={e => e.stopPropagation()}
+          >
             <div className="flex items-start justify-between border-b border-neutral-900 p-5">
               <div className="flex gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-900/60 bg-rose-950/30 text-rose-400"><AlertTriangle className="h-5 w-5" /></span><div><h2 id="end-session-title" className="text-base font-bold text-white">End today&apos;s work session?</h2><p className="mt-1 text-[10px] leading-relaxed text-neutral-500">Your day, goal outcomes, task timers, pauses, and stage history will be saved to Sessions.</p></div></div>
-              <button type="button" onClick={onCancel} className="ml-3 text-neutral-600 transition hover:text-white" aria-label="Cancel ending session"><X className="h-4 w-4" /></button>
+              <button type="button" onClick={onCancel} className="ml-3 text-neutral-600 transition hover:text-white" aria-label="Close"><X className="h-4 w-4" /></button>
             </div>
             <div className="grid grid-cols-3 gap-2 p-5">
               <div className="rounded-xl border border-neutral-900 bg-neutral-900/40 p-3"><Clock3 className="h-3.5 w-3.5 text-emerald-400" /><div className="mt-2 font-mono text-sm font-black text-emerald-300">{formatDuration(activeMs)}</div><div className="mt-1 text-[7px] uppercase text-neutral-600">Active work</div></div>
