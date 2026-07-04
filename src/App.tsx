@@ -207,6 +207,109 @@ function highlightCommandDestination(target: HTMLElement, shouldFocus = false) {
   }, 500);
 }
 
+function parseTimestampMs(value?: string | null) {
+  if (!value) return 0;
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function workdaySessionRevisionMs(session: WorkdaySession | null) {
+  if (!session) return 0;
+  return Math.max(
+    parseTimestampMs(session.updatedAt),
+    parseTimestampMs(session.startedAt),
+    parseTimestampMs(session.activeSince),
+    parseTimestampMs(session.pausedAt)
+  );
+}
+
+function taskTimerRevisionMs(timer: TaskTimerRecord) {
+  return Math.max(
+    parseTimestampMs(timer.completedAt),
+    parseTimestampMs(timer.pausedAt),
+    parseTimestampMs(timer.activeSince),
+    parseTimestampMs(timer.startedAt)
+  );
+}
+
+function sessionRecordRevisionMs(session: SessionRecord) {
+  return Math.max(
+    parseTimestampMs(session.endedAt),
+    parseTimestampMs(session.startedAt)
+  );
+}
+
+function mergeWorkdaySessionByNewest(
+  remoteSession: WorkdaySession | null,
+  localSession: WorkdaySession | null,
+  remoteStateRevisionMs = 0,
+  localEndRevisionMs = 0
+) {
+  const remoteRevision = workdaySessionRevisionMs(remoteSession);
+  const localRevision = localSession ? workdaySessionRevisionMs(localSession) : localEndRevisionMs;
+
+  if (!remoteSession) {
+    return remoteStateRevisionMs >= localRevision ? null : localSession;
+  }
+
+  if (!localSession) return remoteSession;
+  return localRevision >= remoteRevision ? localSession : remoteSession;
+}
+
+function mergeSessionRecordsByNewest(
+  remoteSessions: SessionRecord[] = [],
+  localSessions: SessionRecord[] = [],
+  remoteStateRevisionMs = 0
+) {
+  if (remoteSessions.length === 0) {
+    const localNewest = localSessions.reduce((max, session) => Math.max(max, sessionRecordRevisionMs(session)), 0);
+    return remoteStateRevisionMs >= localNewest ? [] : localSessions;
+  }
+
+  const merged = new Map<string, SessionRecord>();
+  const upsert = (session: SessionRecord) => {
+    const existing = merged.get(session.id);
+    if (!existing || sessionRecordRevisionMs(session) > sessionRecordRevisionMs(existing)) {
+      merged.set(session.id, session);
+    }
+  };
+
+  remoteSessions.forEach(upsert);
+  localSessions.forEach(upsert);
+
+  return Array.from(merged.values()).sort((a, b) =>
+    sessionRecordRevisionMs(b) - sessionRecordRevisionMs(a) ||
+    parseTimestampMs(b.startedAt) - parseTimestampMs(a.startedAt)
+  );
+}
+
+function mergeTaskTimersByNewest(
+  remoteTimers: TaskTimerRecord[] = [],
+  localTimers: TaskTimerRecord[] = [],
+  remoteStateRevisionMs = 0
+) {
+  if (remoteTimers.length === 0) {
+    const localNewest = localTimers.reduce((max, timer) => Math.max(max, taskTimerRevisionMs(timer)), 0);
+    return remoteStateRevisionMs >= localNewest ? [] : localTimers;
+  }
+
+  const merged = new Map<string, TaskTimerRecord>();
+  const upsert = (timer: TaskTimerRecord) => {
+    const existing = merged.get(timer.id);
+    if (!existing || taskTimerRevisionMs(timer) > taskTimerRevisionMs(existing)) {
+      merged.set(timer.id, timer);
+    }
+  };
+
+  remoteTimers.forEach(upsert);
+  localTimers.forEach(upsert);
+
+  return Array.from(merged.values()).sort((a, b) =>
+    taskTimerRevisionMs(b) - taskTimerRevisionMs(a) ||
+    parseTimestampMs(b.startedAt) - parseTimestampMs(a.startedAt)
+  );
+}
+
 export default function App() {
   useEffect(() => {
     // Remove credentials stored by versions that called OpenAI from the browser.
@@ -990,8 +1093,12 @@ export default function App() {
           }
           if (remoteState.activities) setActivities(remoteState.activities);
           if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
-          if ('workdaySession' in remoteState) setWorkdaySession(remoteState.workdaySession || null);
-          if (remoteState.sessions) setSessions(remoteState.sessions);
+          if ('workdaySession' in remoteState) {
+            setWorkdaySession(localSession => mergeWorkdaySessionByNewest(remoteState.workdaySession || null, localSession, remoteUpdatedAt));
+          }
+          if ('sessions' in remoteState) {
+            setSessions(localSessions => mergeSessionRecordsByNewest((remoteState.sessions || []) as SessionRecord[], localSessions, remoteUpdatedAt));
+          }
           if (remoteState.scorecard) setScorecard(normalizeScorecard(remoteState.scorecard));
           if (remoteState.videos) setVideos(remoteState.videos);
           if (remoteState.experiments) setExperiments(remoteState.experiments);
@@ -1097,15 +1204,21 @@ export default function App() {
                 }
                 if (remoteState.activities) setActivities(remoteState.activities);
                 if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
-                if ('workdaySession' in remoteState) setWorkdaySession(remoteState.workdaySession || null);
-                if (remoteState.sessions) setSessions(remoteState.sessions);
+                if ('workdaySession' in remoteState) {
+                  setWorkdaySession(localSession => mergeWorkdaySessionByNewest(remoteState.workdaySession || null, localSession, lastRemoteUpdatedAtRef.current));
+                }
+                if ('sessions' in remoteState) {
+                  setSessions(localSessions => mergeSessionRecordsByNewest((remoteState.sessions || []) as SessionRecord[], localSessions, lastRemoteUpdatedAtRef.current));
+                }
                 if (remoteState.scorecard) setScorecard(normalizeScorecard(remoteState.scorecard));
                 if (remoteState.videos) setVideos(remoteState.videos);
                 if (remoteState.experiments) setExperiments(remoteState.experiments);
                 if (remoteState.insights) setInsights(remoteState.insights);
                 if (remoteState.aiPresets) setAiPresets(remoteState.aiPresets);
                 if (remoteState.aiUsage) setAiUsage(remoteState.aiUsage);
-                if (remoteState.taskTimers) setTaskTimers(remoteState.taskTimers);
+                if ('taskTimers' in remoteState) {
+                  setTaskTimers(localTimers => mergeTaskTimersByNewest((remoteState.taskTimers || []) as TaskTimerRecord[], localTimers, lastRemoteUpdatedAtRef.current));
+                }
                 suppressNextSaveRef.current = true;
 
                 addEvent({
@@ -1160,6 +1273,11 @@ export default function App() {
       const remoteTombstones = normalizeCommittedTombstones(remoteTopics, remoteState.deletedTopicIds || {});
       const deletedTopicIds: Record<string, string> = { ...remoteTombstones, ...topicTombstonesRef.current };
       topicTombstonesRef.current = deletedTopicIds;
+      const remoteStateRevisionMs = current?.updated_at ? new Date(current.updated_at).getTime() : 0;
+      const remoteSessions = (remoteState.sessions || []) as SessionRecord[];
+      const remoteTaskTimers = (remoteState.taskTimers || []) as TaskTimerRecord[];
+      const remoteWorkdaySession = ('workdaySession' in remoteState ? remoteState.workdaySession || null : null) as WorkdaySession | null;
+      const localWorkdayEndRevisionMs = newWorkdaySession ? 0 : newSessions.reduce((max, session) => Math.max(max, sessionRecordRevisionMs(session)), 0);
 
       const mergedTopics = mergeTopicsByNewest(remoteTopics, newTopics, deletedTopicIds);
       const mergedActivities = new Map<string, TopicActivity>();
@@ -1167,11 +1285,14 @@ export default function App() {
         const existing = mergedActivities.get(activity.id);
         if (!existing || new Date(activity.timestamp).getTime() >= new Date(existing.timestamp).getTime()) mergedActivities.set(activity.id, activity);
       });
+      const mergedSessions = mergeSessionRecordsByNewest(remoteSessions, newSessions, remoteStateRevisionMs);
+      const mergedTaskTimers = mergeTaskTimersByNewest(remoteTaskTimers, newTaskTimers, remoteStateRevisionMs);
+      const mergedWorkdaySession = mergeWorkdaySessionByNewest(remoteWorkdaySession, newWorkdaySession, remoteStateRevisionMs, localWorkdayEndRevisionMs);
       const nextState = {
         ...remoteState, topics: mergedTopics, deletedTopicIds,
         activities: Array.from(mergedActivities.values()).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
-        cycleGoals: newGoals, workdaySession: newWorkdaySession, sessions: newSessions, scorecard: newScorecard, videos: newVideos,
-        experiments: newExperiments, insights: newInsights, aiPresets: newPresets, aiUsage: newUsage, taskTimers: newTaskTimers
+        cycleGoals: newGoals, workdaySession: mergedWorkdaySession, sessions: mergedSessions, scorecard: newScorecard, videos: newVideos,
+        experiments: newExperiments, insights: newInsights, aiPresets: newPresets, aiUsage: newUsage, taskTimers: mergedTaskTimers
       };
       const nextVersion = (current?.version || 0) + 1;
       const updatedAt = new Date().toISOString();
@@ -1348,15 +1469,21 @@ export default function App() {
         });
         if (remoteState.activities) setActivities(remoteState.activities);
         if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
-        if ('workdaySession' in remoteState) setWorkdaySession(remoteState.workdaySession || null);
-        if (remoteState.sessions) setSessions(remoteState.sessions);
+        if ('workdaySession' in remoteState) {
+          setWorkdaySession(localSession => mergeWorkdaySessionByNewest(remoteState.workdaySession || null, localSession, remoteUpdatedAt));
+        }
+        if ('sessions' in remoteState) {
+          setSessions(localSessions => mergeSessionRecordsByNewest((remoteState.sessions || []) as SessionRecord[], localSessions, remoteUpdatedAt));
+        }
         if (remoteState.scorecard) setScorecard(normalizeScorecard(remoteState.scorecard));
         if (remoteState.videos) setVideos(remoteState.videos);
         if (remoteState.experiments) setExperiments(remoteState.experiments);
         if (remoteState.insights) setInsights(remoteState.insights);
         if (remoteState.aiPresets) setAiPresets(remoteState.aiPresets);
         if (remoteState.aiUsage) setAiUsage(remoteState.aiUsage);
-        if (remoteState.taskTimers) setTaskTimers(remoteState.taskTimers);
+        if ('taskTimers' in remoteState) {
+          setTaskTimers(localTimers => mergeTaskTimersByNewest((remoteState.taskTimers || []) as TaskTimerRecord[], localTimers, remoteUpdatedAt));
+        }
       } finally {
         reconciliationInFlightRef.current = false;
       }
