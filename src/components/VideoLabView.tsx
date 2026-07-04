@@ -42,7 +42,6 @@ interface UnifiedPost {
   priority?: number;
 }
 
-// Content types styling helper
 const getFormatColor = (channel: 'LearnDriven' | 'DecodeWorthy', format: 'Short' | 'Long' | 'Members'): string => {
   if (channel === 'LearnDriven') {
     switch (format) {
@@ -64,14 +63,27 @@ const getFormatLabel = (channel: 'LearnDriven' | 'DecodeWorthy', format: 'Short'
   return `${channel} ${format}`;
 };
 
-const getContentPattern = (format: 'Short' | 'Long' | 'Members', contentType = '') => {
-  const normalized = contentType.toLowerCase();
-  if (/news|trend|update|current/.test(normalized)) return { backgroundImage: 'repeating-linear-gradient(135deg, transparent 0 9px, rgba(255,255,255,.14) 9px 11px)', backgroundSize: '18px 18px' };
-  if (/explain|educat|guide|how|practical/.test(normalized)) return { backgroundImage: 'linear-gradient(rgba(255,255,255,.09) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.09) 1px, transparent 1px)', backgroundSize: '16px 16px' };
-  if (/story|entertain|infotain|myth|curiosity/.test(normalized)) return { backgroundImage: 'radial-gradient(circle at 3px 3px, rgba(255,255,255,.2) 1.5px, transparent 1.6px)', backgroundSize: '12px 12px' };
-  if (format === 'Short') return { backgroundImage: 'repeating-linear-gradient(135deg, transparent 0 9px, rgba(255,255,255,.12) 9px 11px)', backgroundSize: '18px 18px' };
-  if (format === 'Long') return { backgroundImage: 'linear-gradient(rgba(255,255,255,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px)', backgroundSize: '16px 16px' };
-  return { backgroundImage: 'radial-gradient(circle at 3px 3px, rgba(255,255,255,.18) 1.5px, transparent 1.6px)', backgroundSize: '12px 12px' };
+const getRevenuePattern = (revenueLevel = '') => {
+  const normalized = revenueLevel.toLowerCase();
+  if (normalized.includes('0.5') || normalized.includes('lvl 1')) {
+    return { backgroundImage: 'repeating-linear-gradient(135deg, transparent 0 10px, rgba(255,255,255,.10) 10px 12px)', backgroundSize: '20px 20px' };
+  }
+  if (normalized.includes('lvl 2') || normalized.includes('lvl 3')) {
+    return { backgroundImage: 'linear-gradient(rgba(255,255,255,.09) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.09) 1px, transparent 1px)', backgroundSize: '16px 16px' };
+  }
+  if (normalized.includes('lvl 4') || normalized.includes('lvl 5')) {
+    return { backgroundImage: 'radial-gradient(circle at 3px 3px, rgba(255,255,255,.18) 1.5px, transparent 1.6px)', backgroundSize: '12px 12px' };
+  }
+  if (normalized.includes('lvl 6') || normalized.includes('lvl 7')) {
+    return { backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,.12) 0 1px, transparent 1px 14px)', backgroundSize: '14px 14px' };
+  }
+  if (normalized.includes('lvl 8') || normalized.includes('lvl 9')) {
+    return { backgroundImage: 'repeating-linear-gradient(135deg, rgba(255,255,255,.12) 0 1px, transparent 1px 9px), repeating-linear-gradient(45deg, rgba(255,255,255,.10) 0 1px, transparent 1px 11px)', backgroundSize: '18px 18px' };
+  }
+  if (normalized.includes('lvl 20')) {
+    return { backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,.18) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.18) 50%, rgba(255,255,255,.18) 75%, transparent 75%, transparent)', backgroundSize: '18px 18px' };
+  }
+  return { backgroundImage: 'radial-gradient(circle at 3px 3px, rgba(255,255,255,.12) 1.5px, transparent 1.6px)', backgroundSize: '12px 12px' };
 };
 
 const displayTime = (value?: string) => {
@@ -379,7 +391,7 @@ export default function VideoLabView({
           return (
             <div 
               key={post.id} 
-              style={{ backgroundColor: color, ...getContentPattern(post.format, post.contentType) }}
+              style={{ backgroundColor: color, ...getRevenuePattern(post.revenueLevel) }}
               className="rounded-[3px] w-full h-full relative overflow-hidden text-left"
               title={`${post.title} (${getFormatLabel(post.channelName, post.format)})`}
             >
@@ -903,15 +915,15 @@ export default function VideoLabView({
                   }
 
                   return (
-                    <div className="space-y-3">
-                      {dayPosts.map(post => {
-                        const color = getFormatColor(post.channelName, post.format);
-                        return (
-                          <div 
-                            key={post.id}
-                            className="border border-zinc-900 rounded-lg p-3 space-y-3 relative overflow-hidden"
-                            style={{ backgroundColor: `${color}12`, ...getContentPattern(post.format, post.contentType) }}
-                          >
+            <div className="space-y-3">
+              {dayPosts.map(post => {
+                const color = getFormatColor(post.channelName, post.format);
+                return (
+                  <div 
+                    key={post.id}
+                    className="border border-zinc-900 rounded-lg p-3 space-y-3 relative overflow-hidden"
+                    style={{ backgroundColor: `${color}12`, ...getRevenuePattern(post.revenueLevel) }}
+                  >
                             {/* Color strip */}
                             <div className="absolute top-0 left-0 bottom-0 w-1" style={{ backgroundColor: color }} />
                             
@@ -1004,12 +1016,15 @@ export default function VideoLabView({
               </div>
 
               <div className="space-y-2 border-t border-zinc-900 pt-3">
-                <span className="text-[9px] text-zinc-500 font-bold uppercase block tracking-wider">Content patterns</span>
+                <span className="text-[9px] text-zinc-500 font-bold uppercase block tracking-wider">Revenue level patterns</span>
                 {[
-                  { label: 'News / trends', format: 'Short' as const, type: 'News update' },
-                  { label: 'Explainers / guides', format: 'Long' as const, type: 'Practical explainer' },
-                  { label: 'Stories / infotainment', format: 'Members' as const, type: 'Infotainment story' }
-                ].map(item => <div key={item.label} className="flex items-center gap-2"><div className="h-3 w-5 rounded-[2px] bg-indigo-700" style={getContentPattern(item.format, item.type)} /><span className="text-[9px] text-zinc-400">{item.label}</span></div>)}
+                  { label: 'Lvl 0.5 - Lvl 1', hint: 'Entry revenue', swatch: { backgroundImage: 'repeating-linear-gradient(135deg, transparent 0 10px, rgba(255,255,255,.10) 10px 12px)', backgroundSize: '20px 20px' } },
+                  { label: 'Lvl 2 - Lvl 3', hint: 'Stable revenue', swatch: { backgroundImage: 'linear-gradient(rgba(255,255,255,.09) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.09) 1px, transparent 1px)', backgroundSize: '16px 16px' } },
+                  { label: 'Lvl 4 - Lvl 5', hint: 'Strong revenue', swatch: { backgroundImage: 'radial-gradient(circle at 3px 3px, rgba(255,255,255,.18) 1.5px, transparent 1.6px)', backgroundSize: '12px 12px' } },
+                  { label: 'Lvl 6 - Lvl 7', hint: 'High revenue', swatch: { backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,.12) 0 1px, transparent 1px 14px)', backgroundSize: '14px 14px' } },
+                  { label: 'Lvl 8 - Lvl 9.5', hint: 'Premium revenue', swatch: { backgroundImage: 'repeating-linear-gradient(135deg, rgba(255,255,255,.12) 0 1px, transparent 1px 9px), repeating-linear-gradient(45deg, rgba(255,255,255,.10) 0 1px, transparent 1px 11px)', backgroundSize: '18px 18px' } },
+                  { label: 'Lvl 20', hint: 'Elite revenue', swatch: { backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,.18) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.18) 50%, rgba(255,255,255,.18) 75%, transparent 75%, transparent)', backgroundSize: '18px 18px' } }
+                ].map(item => <div key={item.label} className="flex items-center gap-2"><div className="h-3 w-5 rounded-[2px] bg-indigo-700" style={item.swatch} /><span className="text-[9px] text-zinc-400">{item.label} <span className="text-zinc-600">({item.hint})</span></span></div>)}
               </div>
             </div>
           </div>
