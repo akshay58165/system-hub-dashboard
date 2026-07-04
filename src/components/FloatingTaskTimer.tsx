@@ -49,6 +49,7 @@ export default function FloatingTaskTimer({
   const [stopReason, setStopReason] = useState<'done' | 'deferred'>('deferred');
   const [productivity, setProductivity] = useState(7);
   const [desktopWindow, setDesktopWindow] = useState<Window | null>(null);
+  const [isPillVisible, setIsPillVisible] = useState(true);
   const dragOffset = useRef({ x: 0, y: 0 });
   const timerRef = useRef<HTMLDivElement>(null);
 
@@ -158,7 +159,7 @@ export default function FloatingTaskTimer({
   return (
     <>
       {/* Floating pill */}
-      {(!desktopWindow || desktopWindow.closed) && (
+      {isPillVisible && (!desktopWindow || desktopWindow.closed) && (
         <motion.div
           ref={timerRef}
           initial={{ opacity: 0, scale: 0.9 }}
@@ -219,6 +220,15 @@ export default function FloatingTaskTimer({
             >
               <Square className="h-3 w-3 fill-current" />
             </button>
+            <button
+              onMouseDown={e => e.stopPropagation()}
+              onClick={() => setIsPillVisible(false)}
+              className="flex w-8 items-center justify-center border-l border-neutral-700/40 text-neutral-500 transition hover:bg-neutral-800 hover:text-white"
+              title="Hide floating timer"
+              aria-label="Hide floating timer"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
           </div>
         ) : showMainTimer && workdaySession ? (
           <div className={`flex items-stretch overflow-hidden rounded-xl border shadow-2xl font-mono text-[11px] font-bold backdrop-blur-xl ${
@@ -256,9 +266,30 @@ export default function FloatingTaskTimer({
             >
               {isMainRunning ? <Pause className="h-3.5 w-3.5 fill-current" /> : <Play className="h-3.5 w-3.5 fill-current" />}
             </button>
+            <button
+              onMouseDown={e => e.stopPropagation()}
+              onClick={() => setIsPillVisible(false)}
+              className="flex w-8 items-center justify-center border-l border-neutral-700/40 text-neutral-500 transition hover:bg-neutral-800 hover:text-white"
+              title="Hide floating timer"
+              aria-label="Hide floating timer"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
           </div>
         ) : null}
         </motion.div>
+      )}
+
+      {!isPillVisible && (!desktopWindow || desktopWindow.closed) && (
+        <button
+          type="button"
+          onClick={() => setIsPillVisible(true)}
+          className="fixed left-5 top-20 z-[9999] flex h-9 w-9 items-center justify-center rounded-full border border-emerald-800/70 bg-emerald-950/95 text-emerald-400 shadow-xl transition hover:scale-105 hover:border-emerald-500 hover:text-emerald-200"
+          title="Show floating timer"
+          aria-label="Show floating timer"
+        >
+          <Timer className="h-4 w-4" />
+        </button>
       )}
 
       {desktopWindow && !desktopWindow.closed && createPortal(
