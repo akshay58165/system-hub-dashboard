@@ -2072,14 +2072,39 @@ export default function App() {
                 onOpenTopicPipeline={(topicId, action) => {
                   setPipelineSubView('topics');
                   setActiveTab('pipeline');
-                  window.setTimeout(() => {
-                    const control = document.getElementById(`topic-action-${topicId}-${action}`);
-                    const topicCard = document.getElementById(`topic-control-${topicId}`);
+                  const targetId = topicId && action ? `topic-action-${topicId}-${action}` : '';
+                  let attempts = 0;
+                  const focusTarget = () => {
+                    const control = targetId ? document.getElementById(targetId) : null;
+                    if (control) {
+                      highlightCommandDestination(control, true);
+                      return;
+                    }
+
+                    const topicCard = topicId ? document.getElementById(`topic-control-${topicId}`) : null;
+                    if (topicCard && attempts >= 8) {
+                      highlightCommandDestination(topicCard);
+                      return;
+                    }
+
+                    if (!topicId) {
+                      const workspace = document.getElementById('active-workspace-panel');
+                      if (workspace) highlightCommandDestination(workspace);
+                      return;
+                    }
+
+                    if (attempts < 12) {
+                      attempts += 1;
+                      window.setTimeout(focusTarget, 100);
+                      return;
+                    }
+
                     const workspace = document.getElementById('active-workspace-panel');
-                    const target = control || topicCard || workspace;
-                    if (!target) return;
-                    highlightCommandDestination(target, Boolean(control));
-                  }, 350);
+                    if (topicCard) highlightCommandDestination(topicCard);
+                    else if (workspace) highlightCommandDestination(workspace);
+                  };
+
+                  window.setTimeout(focusTarget, 250);
                 }}
               />
             )}

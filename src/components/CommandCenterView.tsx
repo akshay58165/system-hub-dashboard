@@ -166,6 +166,14 @@ export default function CommandCenterView({
   const cycleProgress = cycleTarget ? Math.min(100, Math.round((cycleDelivered / cycleTarget) * 100)) : 0;
   const systemTone = model.blocked.length || model.overdue.length ? 'ACTION REQUIRED' : model.dueSoon.length ? 'WATCH CLOSELY' : 'SYSTEM CLEAR';
   const systemColor = model.blocked.length || model.overdue.length ? 'rose' : model.dueSoon.length ? 'amber' : 'emerald';
+  const openAttentionItem = () => {
+    const target = model.queue.find(topic => model.attention.some(item => item.id === topic.id)) || model.attention[0] || model.queue[0] || model.incomplete[0];
+    if (!target) {
+      onOpenTopicPipeline();
+      return;
+    }
+    onOpenTopicPipeline(target.id, actionTargetForTopic(target));
+  };
   const openActivity = (activity: TopicActivity) => {
     const topic = activity.topicId ? topics.find(item => item.id === activity.topicId) : undefined;
     if (topic) return onOpenTopicPipeline(topic.id, actionTargetForTopic(topic));
@@ -198,7 +206,7 @@ export default function CommandCenterView({
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {[
-          { label: 'Needs attention', value: model.attention.length, note: `${model.blocked.length} blocked`, icon: AlertTriangle, iconClass: 'text-rose-400', action: () => onOpenTopicPipeline() },
+          { label: 'Needs attention', value: model.attention.length, note: `${model.blocked.length} blocked`, icon: AlertTriangle, iconClass: 'text-rose-400', action: openAttentionItem },
           { label: 'In production', value: model.incomplete.length, note: `${model.scheduled} scheduled`, icon: Layers3, iconClass: 'text-amber-400', action: () => onOpenTopicPipeline() },
           { label: 'Completion', value: `${model.completion}%`, note: `${model.posted} posted`, icon: Gauge, iconClass: 'text-emerald-400', action: () => onOpenTopicPipeline() },
           { label: 'Actions today', value: model.actionsToday, note: 'live audit events', icon: Activity, iconClass: 'text-blue-400', action: () => onTabChange('logs') },
