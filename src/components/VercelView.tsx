@@ -388,13 +388,13 @@ export default function VercelView({
     if (urgency.overdue) {
       return {
         borderClass: 'border-neutral-800/70 bg-neutral-950/50',
-        labelClass: 'text-rose-400',
-        clockClass: 'text-rose-300',
-        ledClass: 'text-rose-400',
+        labelClass: 'text-[#ff6b80]',
+        clockClass: 'text-[#ff6b80]',
+        ledClass: 'text-[#ff6b80]',
         style: {
-          ['--emergency-rgb' as string]: '244 63 94',
-          ['--emergency-core' as string]: '#f43f5e',
-          ['--emergency-soft' as string]: '244 63 94'
+          ['--emergency-rgb' as string]: '255 107 128',
+          ['--emergency-core' as string]: '#ff6b80',
+          ['--emergency-soft' as string]: '255 107 128'
         }
       };
     }
@@ -402,13 +402,13 @@ export default function VercelView({
     if (urgency.calendarDaysLeft <= 1) {
       return {
         borderClass: 'border-neutral-800/70 bg-neutral-950/50',
-        labelClass: 'text-red-400',
-        clockClass: 'text-red-300',
-        ledClass: 'text-red-400',
+        labelClass: 'text-[#ff5a70]',
+        clockClass: 'text-[#ff5a70]',
+        ledClass: 'text-[#ff5a70]',
         style: {
-          ['--emergency-rgb' as string]: '239 68 68',
-          ['--emergency-core' as string]: '#ef4444',
-          ['--emergency-soft' as string]: '239 68 68'
+          ['--emergency-rgb' as string]: '255 90 112',
+          ['--emergency-core' as string]: '#ff5a70',
+          ['--emergency-soft' as string]: '255 90 112'
         }
       };
     }
