@@ -2115,8 +2115,6 @@ export default function App() {
                 setTopics={setTopics}
                 activities={activities}
                 setActivities={setActivities}
-                isAddFormOpen={isAddFormOpen}
-                setIsAddFormOpen={setIsAddFormOpen}
                 setActiveTab={setActiveTab}
                 setPipelineSubView={setPipelineSubView}
               />
