@@ -267,7 +267,7 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
     </div>
   );
 
-  const renderMilestonePicker = () => <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">{availableTargets.map(stage => <button key={stage} type="button" disabled={!selectedTopic} onClick={() => setGoalTarget(stage)} className={`rounded-lg border px-3 py-2.5 text-xs font-bold capitalize transition disabled:opacity-30 ${goalTarget === stage ? 'border-purple-500 bg-purple-500/20 text-purple-200 shadow-[0_0_10px_rgba(168,85,247,.12)]' : 'border-neutral-800 bg-neutral-950 text-neutral-500 hover:border-neutral-700 hover:text-neutral-300'}`}>{stageLabel[stage] || stage}</button>)}</div>;
+  const renderMilestonePicker = () => { const targetIdx = stageOrder.indexOf(goalTarget as typeof stageOrder[number]); return <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">{availableTargets.map(stage => { const idx = stageOrder.indexOf(stage as typeof stageOrder[number]); const isTarget = goalTarget === stage; const isIncluded = idx > 0 && idx <= targetIdx && idx > stageOrder.indexOf((selectedTopic?.status || 'topic') as typeof stageOrder[number]); return <button key={stage} type="button" disabled={!selectedTopic} onClick={() => setGoalTarget(stage)} className={`rounded-lg border px-3 py-2.5 text-xs font-bold capitalize transition disabled:opacity-30 ${isTarget ? 'border-purple-500 bg-purple-500/20 text-purple-200 shadow-[0_0_10px_rgba(168,85,247,.12)]' : isIncluded ? 'border-purple-800/60 bg-purple-950/30 text-purple-400' : 'border-neutral-800 bg-neutral-950 text-neutral-500 hover:border-neutral-700 hover:text-neutral-300'}`}>{stageLabel[stage] || stage}</button>; })}</div>; };
 
   return (
     <>
