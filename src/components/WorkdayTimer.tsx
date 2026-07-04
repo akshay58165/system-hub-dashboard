@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { Check, ChevronDown, Clock3, Pause, Pencil, Play, Plus, RotateCcw, Target, Trash2, X } from 'lucide-react';
 import type { Topic, WorkdaySession } from '../types';
 import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
+import EndSessionModal from './EndSessionModal';
 
 interface WorkdayTimerProps {
   session: WorkdaySession | null;
@@ -44,6 +45,7 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
   const [topicPickerOpen, setTopicPickerOpen] = useState(false);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [showProductivityPrompt, setShowProductivityPrompt] = useState(false);
+  const [showEndConfirmation, setShowEndConfirmation] = useState(false);
 
   useEffect(() => {
     if (!session || session.status === 'completed') return;
@@ -139,10 +141,7 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
   };
 
   const endSession = () => {
-    if (window.confirm('End today\'s work session? It will be saved to Sessions with everything achieved, dropped, or still open.')) {
-      onEndSession();
-      setShowPanel(false);
-    }
+    setShowEndConfirmation(true);
   };
 
   const extendSession = (minutes: number) => {
@@ -367,6 +366,19 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
         )}
 
       </AnimatePresence>
+      <EndSessionModal
+        isOpen={showEndConfirmation}
+        activeMs={metrics.active}
+        pausedMs={metrics.paused}
+        completedGoals={(session?.goals || []).filter(goal => goalComplete(goal.topicId, goal.targetStatus)).length}
+        totalGoals={(session?.goals || []).length}
+        onCancel={() => setShowEndConfirmation(false)}
+        onConfirm={() => {
+          setShowEndConfirmation(false);
+          onEndSession();
+          setShowPanel(false);
+        }}
+      />
     </>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Clock3, Pause, Play, Plus, RotateCcw, SlidersHorizontal, Square, Target, Trash2 } from 'lucide-react';
 import type { TaskTimerRecord, TaskTimerStage, Topic, WorkdaySession } from '../types';
+import EndSessionModal from './EndSessionModal';
 
 interface TodayGoalsViewProps {
   topics: Topic[];
@@ -40,6 +41,7 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
   const [target, setTarget] = useState<typeof goalStages[number]>('scripted');
   const [sortBy, setSortBy] = useState<'priority' | 'due' | 'stage'>('priority');
   const [channelFilter, setChannelFilter] = useState<'All' | 'LearnDriven' | 'DecodeWorthy'>('All');
+  const [showEndConfirmation, setShowEndConfirmation] = useState(false);
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
@@ -144,9 +146,7 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
     updatedAt: new Date().toISOString()
   } : current);
   const endSession = () => {
-    if (window.confirm('End today\'s work session? It will be saved to Sessions with everything achieved, dropped, or still open.')) {
-      onEndSession();
-    }
+    setShowEndConfirmation(true);
   };
   const timerActiveMs = (timer: TaskTimerRecord) => timer.accumulatedActiveMs + (
     timer.status === 'running' && timer.activeSince ? Math.max(0, now - new Date(timer.activeSince).getTime()) : 0
@@ -158,6 +158,7 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
   if (!session) return <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-8 text-center"><Target className="mx-auto h-8 w-8 text-purple-400" /><h1 className="mt-3 text-xl font-bold text-white">Today&apos;s Goals</h1><p className="mt-2 text-sm text-neutral-500">Start the day from the header to create today&apos;s time budget and topic goals.</p></div>;
 
   return <div className="space-y-5 pb-10">
+    <EndSessionModal isOpen={showEndConfirmation} activeMs={metrics.active} pausedMs={metrics.paused} completedGoals={completedCount} totalGoals={liveGoals.length} onCancel={() => setShowEndConfirmation(false)} onConfirm={() => { setShowEndConfirmation(false); onEndSession(); }} />
     <section className="rounded-2xl border border-purple-900/35 bg-[linear-gradient(120deg,rgba(20,10,32,.95),rgba(4,16,20,.95))] p-5 md:p-6">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div>
