@@ -238,6 +238,83 @@ function sessionRecordRevisionMs(session: SessionRecord) {
   );
 }
 
+function finalizeTaskTimersForSession(
+  timers: TaskTimerRecord[],
+  session: WorkdaySession,
+  endedAtIso: string
+) {
+  const endedAt = new Date(endedAtIso).getTime();
+  return timers.map(timer => {
+    const belongsToSession = timer.workdaySessionId === session.startedAt || (!timer.workdaySessionId && timer.dateKey === session.dateKey);
+    if (!belongsToSession || (timer.status !== 'running' && timer.status !== 'paused')) return timer;
+    return {
+      ...timer,
+      status: 'completed' as const,
+      completedAt: endedAtIso,
+      accumulatedActiveMs: timer.accumulatedActiveMs + (timer.status === 'running' && timer.activeSince ? Math.max(0, endedAt - new Date(timer.activeSince).getTime()) : 0),
+      accumulatedPausedMs: timer.accumulatedPausedMs + (timer.status === 'paused' && timer.pausedAt ? Math.max(0, endedAt - new Date(timer.pausedAt).getTime()) : 0),
+      activeSince: null,
+      pausedAt: null,
+      endReason: 'deferred' as const
+    };
+  });
+}
+
+function buildArchivedSessionRecord(
+  current: WorkdaySession,
+  topics: Topic[],
+  taskTimers: TaskTimerRecord[],
+  endedAtIso: string
+): SessionRecord {
+  const stageOrder: Topic['status'][] = ['topic', 'scripted', 'shot', 'edited', 'scheduled', 'posted'];
+  const achievedGoals: SessionGoalOutcome[] = [];
+  const pendingGoals: SessionGoalOutcome[] = [];
+  const endedAt = new Date(endedAtIso).getTime();
+  const activeCarry = current.status === 'running' && current.activeSince
+    ? Math.max(0, endedAt - new Date(current.activeSince).getTime())
+    : 0;
+  const pausedCarry = current.status === 'paused' && current.pausedAt
+    ? Math.max(0, endedAt - new Date(current.pausedAt).getTime())
+    : 0;
+
+  (current.goals || []).forEach(goal => {
+    const topic = topics.find(t => t.id === goal.topicId);
+    if (!topic) return;
+    const outcome: SessionGoalOutcome = { topicId: topic.id, topicName: topic.name, targetStatus: goal.targetStatus };
+    const isDone = stageOrder.indexOf(topic.status) >= stageOrder.indexOf(goal.targetStatus);
+    (isDone ? achievedGoals : pendingGoals).push(outcome);
+  });
+
+  const droppedGoals: SessionGoalOutcome[] = (current.droppedGoals || []).map(d => ({
+    topicId: d.topicId,
+    topicName: d.topicName,
+    targetStatus: d.targetStatus
+  }));
+  const finalizedTimers = finalizeTaskTimersForSession(taskTimers, current, endedAtIso);
+
+  const finalActiveMs = current.accumulatedActiveMs + activeCarry;
+  const finalProductiveMs = (current.productiveActiveMs ?? current.accumulatedActiveMs) + activeCarry;
+  const finalPausedMs = current.accumulatedPausedMs + pausedCarry;
+
+  return {
+    id: `session-${Date.now()}`,
+    dateKey: current.dateKey,
+    startedAt: current.startedAt,
+    endedAt: endedAtIso,
+    targetMinutes: current.targetMinutes,
+    extensionMinutes: current.extensionMinutes || 0,
+    accumulatedActiveMs: finalActiveMs,
+    productiveActiveMs: finalProductiveMs,
+    productivityPercent: finalActiveMs ? Math.min(100, (finalProductiveMs / finalActiveMs) * 100) : 100,
+    accumulatedPausedMs: finalPausedMs,
+    breaksCount: current.breaksCount || 0,
+    achievedGoals,
+    droppedGoals,
+    pendingGoals,
+    taskTimers: finalizedTimers.filter(timer => timer.workdaySessionId === current.startedAt || (!timer.workdaySessionId && timer.dateKey === current.dateKey))
+  };
+}
+
 function mergeWorkdaySessionByNewest(
   remoteSession: WorkdaySession | null,
   localSession: WorkdaySession | null,
@@ -471,59 +548,23 @@ export default function App() {
   const endWorkdaySession = () => {
     const current = workdaySession;
     if (!current) return;
-    const stageOrder: Topic['status'][] = ['topic', 'scripted', 'shot', 'edited', 'scheduled', 'posted'];
-    const achievedGoals: SessionGoalOutcome[] = [];
-    const pendingGoals: SessionGoalOutcome[] = [];
-    (current.goals || []).forEach(goal => {
-      const topic = topics.find(t => t.id === goal.topicId);
-      if (!topic) return;
-      const outcome: SessionGoalOutcome = { topicId: topic.id, topicName: topic.name, targetStatus: goal.targetStatus };
-      const isDone = stageOrder.indexOf(topic.status) >= stageOrder.indexOf(goal.targetStatus);
-      (isDone ? achievedGoals : pendingGoals).push(outcome);
-    });
-    const droppedGoals: SessionGoalOutcome[] = (current.droppedGoals || []).map(d => ({
-      topicId: d.topicId, topicName: d.topicName, targetStatus: d.targetStatus
-    }));
-
     const now = new Date();
-    const finalActiveMs = current.accumulatedActiveMs + (current.status === 'running' && current.activeSince
-      ? Math.max(0, now.getTime() - new Date(current.activeSince).getTime()) : 0);
-    const finalProductiveMs = (current.productiveActiveMs ?? current.accumulatedActiveMs) + (current.status === 'running' && current.activeSince
-      ? Math.max(0, now.getTime() - new Date(current.activeSince).getTime()) : 0);
-    const finalPausedMs = current.accumulatedPausedMs + (current.status === 'paused' && current.pausedAt
-      ? Math.max(0, now.getTime() - new Date(current.pausedAt).getTime()) : 0);
-    const sessionTaskTimers = taskTimers
-      .filter(timer => timer.workdaySessionId === current.startedAt || (!timer.workdaySessionId && timer.dateKey === current.dateKey))
-      .map(timer => {
-        if (timer.status !== 'running' && timer.status !== 'paused') return timer;
-        return {
-          ...timer,
-          status: 'completed' as const,
-          completedAt: now.toISOString(),
-          accumulatedActiveMs: timer.accumulatedActiveMs + (timer.status === 'running' && timer.activeSince ? Math.max(0, now.getTime() - new Date(timer.activeSince).getTime()) : 0),
-          accumulatedPausedMs: timer.accumulatedPausedMs + (timer.status === 'paused' && timer.pausedAt ? Math.max(0, now.getTime() - new Date(timer.pausedAt).getTime()) : 0),
-          activeSince: null,
-          pausedAt: null,
-          endReason: 'deferred' as const
-        };
-      });
+    const endedAtIso = now.toISOString();
+    const record = buildArchivedSessionRecord(current, topics, taskTimers, endedAtIso);
+    const nextSessions = [record, ...sessions];
+    const nextTaskTimers = finalizeTaskTimersForSession(taskTimers, current, endedAtIso);
 
-    const record: SessionRecord = {
-      id: `session-${Date.now()}`,
-      dateKey: current.dateKey,
-      startedAt: current.startedAt,
-      endedAt: now.toISOString(),
-      targetMinutes: current.targetMinutes,
-      extensionMinutes: current.extensionMinutes || 0,
-      accumulatedActiveMs: finalActiveMs,
-      productiveActiveMs: finalProductiveMs,
-      productivityPercent: finalActiveMs ? Math.min(100, (finalProductiveMs / finalActiveMs) * 100) : 100,
-      accumulatedPausedMs: finalPausedMs,
-      breaksCount: current.breaksCount || 0,
-      achievedGoals, droppedGoals, pendingGoals, taskTimers: sessionTaskTimers
-    };
-    setSessions(prev => [record, ...prev]);
+    suppressNextSaveRef.current = true;
+    setSessions(nextSessions);
+    setTaskTimers(nextTaskTimers);
     setWorkdaySession(null);
+    saveQueueRef.current = saveQueueRef.current
+      .catch(() => undefined)
+      .then(() => saveStateToSupabase(topics, activities, cycleGoals, null, nextSessions, scorecard, videos, experiments, insights, aiPresets, aiUsage, nextTaskTimers))
+      .catch(error => {
+        console.error('Failed to save archived session:', error);
+        setSyncError(error instanceof Error ? error.message : 'Failed to save archived session.');
+      });
   };
 
   const [aiPresets, setAiPresets] = useState<AiRulePreset[]>([]);

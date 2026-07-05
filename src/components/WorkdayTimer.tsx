@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
-import { Check, ChevronDown, Clock3, Loader2, Pause, Pencil, Play, Plus, RotateCcw, Target, Trash2, X } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, Clock3, Loader2, Pause, Pencil, Play, Plus, RotateCcw, Target, Trash2, X } from 'lucide-react';
 import type { Topic, WorkdaySession } from '../types';
 import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
 import EndSessionModal from './EndSessionModal';
@@ -38,6 +38,34 @@ const stagesBetween = (from: string, to: string) => {
   if (start < 0 || end < 0 || end <= start) return [];
   return stageOrder.slice(start + 1, end + 1).map(s => stageLabel[s] || s);
 };
+
+function GoalTrail({
+  stages,
+  tone = 'cyan'
+}: {
+  stages: string[];
+  tone?: 'cyan' | 'emerald' | 'amber' | 'purple';
+}) {
+  const palette = {
+    cyan: 'from-cyan-400/0 via-cyan-300 to-cyan-400/0 text-cyan-200',
+    emerald: 'from-emerald-400/0 via-emerald-300 to-emerald-400/0 text-emerald-200',
+    amber: 'from-amber-400/0 via-amber-300 to-amber-400/0 text-amber-200',
+    purple: 'from-purple-400/0 via-purple-300 to-purple-400/0 text-purple-200'
+  }[tone];
+
+  return (
+    <div className="mt-1.5 flex items-center gap-2">
+      <span className="relative h-3 flex-1 overflow-hidden rounded-full">
+        <span className={`absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r ${palette} blur-[1px]`} />
+        <span className={`absolute left-2 right-5 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r ${palette} shadow-[0_0_16px_currentColor]`} />
+        <ArrowRight className={`absolute right-0 top-1/2 h-3.5 w-3.5 -translate-y-1/2 ${palette.includes('text-emerald') ? 'text-emerald-200' : palette.includes('text-amber') ? 'text-amber-200' : palette.includes('text-purple') ? 'text-purple-200' : 'text-cyan-200'}`} />
+      </span>
+      <span className={`shrink-0 font-mono text-[8px] uppercase tracking-wider ${palette.includes('text-emerald') ? 'text-emerald-200' : palette.includes('text-amber') ? 'text-amber-200' : palette.includes('text-purple') ? 'text-purple-200' : 'text-cyan-200'}`}>
+        {stages.length ? stages.join(' -> ') : 'Goal path'}
+      </span>
+    </div>
+  );
+}
 
 export default function WorkdayTimer({ session, setSession, topics, onEndSession, onOpenTopic, onExternalPause, onExternalResume }: WorkdayTimerProps) {
   const [now, setNow] = useState(Date.now());
@@ -406,7 +434,7 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
                 const complete = goalComplete(goal.topicId, goal.targetStatus);
                 const priority = priorityDetails(topic.priority);
                 const guidance = topicGuidance(topic);
-                return <div key={goal.id} className={`rounded-lg border p-2.5 ${editingGoalId === goal.id ? 'border-purple-600 bg-purple-950/15 shadow-[0_0_16px_rgba(168,85,247,.12)]' : 'border-neutral-900 bg-neutral-950/70'}`}><div className="flex items-start gap-2"><span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${complete ? 'border-emerald-500 bg-emerald-500 text-black' : 'border-neutral-700 text-transparent'}`}><Check className="h-3 w-3" /></span><span className="min-w-0 flex-1"><span className={`block text-[9px] font-semibold ${complete ? 'text-neutral-500 line-through' : 'text-neutral-100'}`}>{topic.name}</span><span className="mt-1 flex flex-wrap items-center gap-1"><span className="rounded border border-cyan-900/50 bg-cyan-950/20 px-1.5 py-0.5 text-[7px] font-bold uppercase text-cyan-300">{stagesBetween(topic.status, goal.targetStatus).join(' → ')}</span><span className={`rounded border px-1.5 py-0.5 text-[7px] font-bold uppercase ${priority.style}`}>P{topic.priority} · {priority.label}</span><span className={`rounded border px-1.5 py-0.5 text-[7px] font-bold uppercase ${guidance.tone}`}>{guidance.label}</span></span></span><span className="flex shrink-0 gap-1"><button onClick={() => { setEditingGoalId(goal.id); setGoalTopicId(goal.topicId); setGoalTarget(goal.targetStatus); setShowGoals(true); }} className="rounded border border-neutral-800 p-1 text-neutral-500 hover:border-purple-700 hover:text-purple-300" aria-label={`Edit goal for ${topic.name}`}><Pencil className="h-3 w-3" /></button><button onClick={() => removeGoal(goal.id)} className="rounded border border-neutral-800 p-1 text-neutral-600 hover:border-rose-800 hover:text-rose-400" aria-label={`Remove goal for ${topic.name}`}><Trash2 className="h-3 w-3" /></button></span></div></div>;
+                return <div key={goal.id} className={`rounded-lg border p-2.5 ${editingGoalId === goal.id ? 'border-purple-600 bg-purple-950/15 shadow-[0_0_16px_rgba(168,85,247,.12)]' : 'border-neutral-900 bg-neutral-950/70'}`}><div className="flex items-start gap-2"><span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${complete ? 'border-emerald-500 bg-emerald-500 text-black' : 'border-neutral-700 text-transparent'}`}><Check className="h-3 w-3" /></span><span className="min-w-0 flex-1"><span className={`block text-[9px] font-semibold ${complete ? 'text-neutral-500 line-through' : 'text-neutral-100'}`}>{topic.name}</span><GoalTrail stages={stagesBetween(topic.status, goal.targetStatus)} tone={complete ? 'emerald' : 'cyan'} /><span className="mt-1 flex flex-wrap items-center gap-1"><span className={`rounded border px-1.5 py-0.5 text-[7px] font-bold uppercase ${priority.style}`}>P{topic.priority} · {priority.label}</span><span className={`rounded border px-1.5 py-0.5 text-[7px] font-bold uppercase ${guidance.tone}`}>{guidance.label}</span></span></span><span className="flex shrink-0 gap-1"><button onClick={() => { setEditingGoalId(goal.id); setGoalTopicId(goal.topicId); setGoalTarget(goal.targetStatus); setShowGoals(true); }} className="rounded border border-neutral-800 p-1 text-neutral-500 hover:border-purple-700 hover:text-purple-300" aria-label={`Edit goal for ${topic.name}`}><Pencil className="h-3 w-3" /></button><button onClick={() => removeGoal(goal.id)} className="rounded border border-neutral-800 p-1 text-neutral-600 hover:border-rose-800 hover:text-rose-400" aria-label={`Remove goal for ${topic.name}`}><Trash2 className="h-3 w-3" /></button></span></div></div>;
               })}</div> : <div className="mt-2 text-[8px] text-neutral-600">Optional - no topic goal set.</div>}
             </div>
             {metrics.remaining > 0 && metrics.remaining < ONE_HOUR_MS && (
@@ -454,7 +482,7 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
                   <button onClick={() => setShowGoals(false)} className="rounded-lg border border-neutral-800 p-2 text-neutral-500 hover:text-white"><X className="h-4 w-4" /></button>
                 </div>
 
-                {(session.goals || []).length > 0 && <div className="mt-5"><div className="text-xs font-bold uppercase tracking-wider text-neutral-400">Current goals · {(session.goals || []).filter(g => goalComplete(g.topicId, g.targetStatus)).length}/{(session.goals || []).length} done</div><div className="mt-2 space-y-2">{(session.goals || []).map(goal => { const topic = topics.find(t => t.id === goal.topicId); if (!topic) return null; const complete = goalComplete(goal.topicId, goal.targetStatus); const priority = priorityDetails(topic.priority); return <div key={goal.id} className={`flex items-center gap-2 rounded-lg border p-2.5 ${editingGoalId === goal.id ? 'border-purple-600 bg-purple-950/15' : complete ? 'border-emerald-900/40 bg-emerald-950/10' : 'border-neutral-800 bg-neutral-900/40'}`}><span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${complete ? 'border-emerald-500 bg-emerald-500 text-black' : 'border-neutral-700'}`}>{complete && <Check className="h-3 w-3" />}</span><span className="min-w-0 flex-1"><span className={`block text-[10px] font-semibold ${complete ? 'text-neutral-500 line-through' : 'text-white'}`}>{topic.name}</span><span className="mt-0.5 flex flex-wrap gap-1"><span className="rounded border border-cyan-900/50 bg-cyan-950/20 px-1.5 py-0.5 text-[7px] font-bold uppercase text-cyan-300">{stagesBetween(topic.status, goal.targetStatus).join(' → ')}</span><span className={`rounded border px-1.5 py-0.5 text-[7px] font-bold uppercase ${priority.style}`}>P{topic.priority}</span></span></span><span className="flex shrink-0 gap-1"><button onClick={() => { setEditingGoalId(goal.id); setGoalTopicId(goal.topicId); setGoalTarget(goal.targetStatus); }} className="rounded border border-neutral-800 p-1 text-neutral-500 hover:border-purple-700 hover:text-purple-300"><Pencil className="h-3 w-3" /></button><button onClick={() => removeGoal(goal.id)} className="rounded border border-neutral-800 p-1 text-neutral-600 hover:border-rose-800 hover:text-rose-400"><Trash2 className="h-3 w-3" /></button></span></div>; })}</div></div>}
+                {(session.goals || []).length > 0 && <div className="mt-5"><div className="text-xs font-bold uppercase tracking-wider text-neutral-400">Current goals · {(session.goals || []).filter(g => goalComplete(g.topicId, g.targetStatus)).length}/{(session.goals || []).length} done</div><div className="mt-2 space-y-2">{(session.goals || []).map(goal => { const topic = topics.find(t => t.id === goal.topicId); if (!topic) return null; const complete = goalComplete(goal.topicId, goal.targetStatus); const priority = priorityDetails(topic.priority); return <div key={goal.id} className={`flex items-center gap-2 rounded-lg border p-2.5 ${editingGoalId === goal.id ? 'border-purple-600 bg-purple-950/15' : complete ? 'border-emerald-900/40 bg-emerald-950/10' : 'border-neutral-800 bg-neutral-900/40'}`}><span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${complete ? 'border-emerald-500 bg-emerald-500 text-black' : 'border-neutral-700'}`}>{complete && <Check className="h-3 w-3" />}</span><span className="min-w-0 flex-1"><span className={`block text-[10px] font-semibold ${complete ? 'text-neutral-500 line-through' : 'text-white'}`}>{topic.name}</span><GoalTrail stages={stagesBetween(topic.status, goal.targetStatus)} tone={complete ? 'emerald' : 'cyan'} /><span className="mt-0.5 flex flex-wrap gap-1"><span className={`rounded border px-1.5 py-0.5 text-[7px] font-bold uppercase ${priority.style}`}>P{topic.priority}</span></span></span><span className="flex shrink-0 gap-1"><button onClick={() => { setEditingGoalId(goal.id); setGoalTopicId(goal.topicId); setGoalTarget(goal.targetStatus); }} className="rounded border border-neutral-800 p-1 text-neutral-500 hover:border-purple-700 hover:text-purple-300"><Pencil className="h-3 w-3" /></button><button onClick={() => removeGoal(goal.id)} className="rounded border border-neutral-800 p-1 text-neutral-600 hover:border-rose-800 hover:text-rose-400"><Trash2 className="h-3 w-3" /></button></span></div>; })}</div></div>}
 
                 <div className="mt-5 space-y-5 rounded-2xl border border-neutral-800 bg-neutral-900/30 p-5">
                   <div className="text-xs font-bold uppercase tracking-wider text-neutral-400">{editingGoalId ? 'Edit goal' : 'Add a new goal'}</div>

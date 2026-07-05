@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Check, Clock3, Pause, Play, Plus, RotateCcw, SlidersHorizontal, Square, Target, Trash2 } from 'lucide-react';
+import { ArrowRight, Check, Clock3, Pause, Play, Plus, RotateCcw, SlidersHorizontal, Square, Target, Trash2 } from 'lucide-react';
 import type { SessionRecord, TaskTimerRecord, TaskTimerStage, Topic, WorkdaySession } from '../types';
 import EndSessionModal from './EndSessionModal';
 import SessionsView from './SessionsView';
@@ -44,6 +44,38 @@ const priorityDetails = (priority: Topic['priority']) => ({
   4: { label: 'Important', style: 'border-blue-800/60 bg-blue-950/30 text-blue-300' },
   5: { label: 'Automatic', style: 'border-purple-800/60 bg-purple-950/30 text-purple-300' }
 } as const)[priority];
+
+function GoalTrail({
+  stages,
+  tone = 'cyan'
+}: {
+  stages: string[];
+  tone?: 'cyan' | 'emerald' | 'amber' | 'purple';
+}) {
+  const textClass = {
+    cyan: 'text-cyan-200',
+    emerald: 'text-emerald-200',
+    amber: 'text-amber-200',
+    purple: 'text-purple-200'
+  }[tone];
+  const gradientClass = {
+    cyan: 'from-cyan-400/0 via-cyan-300 to-cyan-400/0',
+    emerald: 'from-emerald-400/0 via-emerald-300 to-emerald-400/0',
+    amber: 'from-amber-400/0 via-amber-300 to-amber-400/0',
+    purple: 'from-purple-400/0 via-purple-300 to-purple-400/0'
+  }[tone];
+
+  return (
+    <div className={`mt-1.5 flex items-center gap-2 font-mono text-[8px] uppercase tracking-wider ${textClass}`}>
+      <span className="relative h-3 flex-1 overflow-hidden rounded-full">
+        <span className={`absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r ${gradientClass} blur-[1px]`} />
+        <span className={`absolute left-2 right-5 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r ${gradientClass} shadow-[0_0_16px_currentColor]`} />
+        <ArrowRight className={`absolute right-0 top-1/2 h-3.5 w-3.5 -translate-y-1/2 ${textClass}`} />
+      </span>
+      <span className="shrink-0">{stages.length ? stages.join(' -> ') : 'Goal path'}</span>
+    </div>
+  );
+}
 
 export default function TodayGoalsView({ topics, session, setSession, onEndSession, taskTimers, onStartTaskTimer, onPauseTaskTimer, onResumeTaskTimer, onStopTaskTimer, onPauseMainTimer, onResumeMainTimer, sessions }: TodayGoalsViewProps) {
   const [now, setNow] = useState(Date.now());
@@ -293,7 +325,7 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
                 </div>
                 <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px] uppercase">
                   <span className="rounded bg-neutral-950 px-2 py-1 text-neutral-400 border border-neutral-800">{topic.channel}</span>
-                  <span className="rounded bg-blue-950/35 px-2 py-1 text-blue-300">{stagesBetween(topic.status, goal.targetStatus).join(' → ')}</span>
+                  <GoalTrail stages={stagesBetween(topic.status, goal.targetStatus)} tone={done ? 'emerald' : 'cyan'} />
                   <span className={`rounded border px-2 py-1 font-bold ${priority.style}`}>P{topic.priority} · {priority.label}</span>
                   <span className={`rounded border px-2 py-1 font-bold ${urgency.tone}`}>{urgency.label}</span>
                   {topic.blockedReason && <span className="rounded bg-rose-950/40 px-2 py-1 text-rose-300 border border-rose-900/40">Blocked: {topic.blockedReason}</span>}
