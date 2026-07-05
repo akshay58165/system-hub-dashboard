@@ -542,7 +542,7 @@ export default function CommandCenterView({
                 </div>
                 <div className="mt-1 font-mono text-[8px] font-medium text-neutral-500">{weekExecution.completionRate}% of goal outcomes finished</div>
                 <div className="mt-3 space-y-3">
-                  {weekExecution.days.map(day => {
+                  {[...weekExecution.days].reverse().map(day => {
                     const dayProductivity = day.activeMs ? Math.round((day.productiveMs / day.activeMs) * 100) : 0;
                     const goalRate = day.touchedGoals ? Math.round((day.completedGoals / day.touchedGoals) * 100) : 0;
                     return (
