@@ -27,6 +27,7 @@ import {
   Coffee,
   Play,
   Pause,
+  ThumbsUp,
   X
 } from 'lucide-react';
 import { 
@@ -1496,28 +1497,47 @@ export default function VercelView({
                                 onReset={() => resetWorkflowStage(topic, stage)}
                                 isGoalStage={!!isGoalStage}
                               />
-                              {isGoalTarget && (
-                                <motion.div
-                                  className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider text-amber-400"
-                                  initial={{ opacity: 0, y: -4 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                >
-                                  <motion.svg
-                                    viewBox="0 0 16 16"
-                                    className="h-3 w-3"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth={1.5}
-                                    animate={{ x: [0, 2, 0], y: [0, -1, 0] }}
-                                    transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                              {isGoalTarget && (() => {
+                                const isGoalAchieved = topicGoal && goalStatusOrder.indexOf(topic.status) >= goalStatusOrder.indexOf(topicGoal.targetStatus);
+                                return isGoalAchieved ? (
+                                  <motion.div
+                                    className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider text-emerald-400"
+                                    initial={{ opacity: 0, scale: 0.6 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ type: 'spring', stiffness: 400, damping: 15 }}
                                   >
-                                    <path d="M2 14 L12 4" strokeLinecap="round" />
-                                    <path d="M8 3 L12.5 3 L12.5 7.5" strokeLinecap="round" strokeLinejoin="round" />
-                                    <circle cx="13.5" cy="2.5" r="1.5" fill="currentColor" stroke="none" />
-                                  </motion.svg>
-                                  <span>Goal</span>
-                                </motion.div>
-                              )}
+                                    <motion.span
+                                      animate={{ rotate: [0, -12, 12, -6, 6, 0] }}
+                                      transition={{ duration: 0.9, delay: 0.1 }}
+                                      className="inline-flex"
+                                    >
+                                      <ThumbsUp className="h-3 w-3 fill-current" />
+                                    </motion.span>
+                                    <span>Goaled</span>
+                                  </motion.div>
+                                ) : (
+                                  <motion.div
+                                    className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider text-amber-400"
+                                    initial={{ opacity: 0, y: -4 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                  >
+                                    <motion.svg
+                                      viewBox="0 0 16 16"
+                                      className="h-3 w-3"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth={1.5}
+                                      animate={{ x: [0, 2, 0], y: [0, -1, 0] }}
+                                      transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                                    >
+                                      <path d="M2 14 L12 4" strokeLinecap="round" />
+                                      <path d="M8 3 L12.5 3 L12.5 7.5" strokeLinecap="round" strokeLinejoin="round" />
+                                      <circle cx="13.5" cy="2.5" r="1.5" fill="currentColor" stroke="none" />
+                                    </motion.svg>
+                                    <span>Goal</span>
+                                  </motion.div>
+                                );
+                              })()}
                               {(liveStageTimer || stageTimeLabel) && (
                                 <div className="flex items-center gap-1">
                                   <span className={`font-mono text-[7px] ${liveStageTimer?.status === 'running' ? 'text-emerald-300' : liveStageTimer?.status === 'paused' ? 'text-amber-300' : 'text-neutral-600'}`}>
