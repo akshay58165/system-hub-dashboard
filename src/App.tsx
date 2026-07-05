@@ -404,6 +404,7 @@ export default function App() {
 
   const [pipelineSubView, setPipelineSubView] = useState<'videos' | 'topics'>('videos');
   const [topicSortOrder, setTopicSortOrder] = useState<TopicSortMode>('due-date');
+  const previousTopicSortUserIdRef = useRef<string | null>(null);
 
   const [cycleGoals, setCycleGoals] = useState<CycleGoal | null>(null);
   const [workdaySession, setWorkdaySession] = useState<WorkdaySession | null>(null);
@@ -1027,10 +1028,26 @@ export default function App() {
   }, [activeTab]);
 
   useEffect(() => {
-    if (!user) {
-      setTopicSortOrder('due-date');
+    const previousUserId = previousTopicSortUserIdRef.current;
+    if (!user?.id) {
+      if (previousUserId) {
+        localStorage.removeItem(`unicorn_topic_sort_order_${previousUserId}`);
+      }
+      previousTopicSortUserIdRef.current = null;
+      return;
+    }
+
+    previousTopicSortUserIdRef.current = user.id;
+    const storedSort = localStorage.getItem(`unicorn_topic_sort_order_${user.id}`);
+    if (storedSort === 'due-date' || storedSort === 'last-created' || storedSort === 'level' || storedSort === 'progress-most' || storedSort === 'progress-least' || storedSort === 'workload') {
+      setTopicSortOrder(storedSort as TopicSortMode);
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    localStorage.setItem(`unicorn_topic_sort_order_${user.id}`, topicSortOrder);
+  }, [topicSortOrder, user?.id]);
 
   // 1. Listen for Supabase auth state change on mount
   useEffect(() => {
