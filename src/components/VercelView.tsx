@@ -1409,7 +1409,13 @@ export default function VercelView({
                         {(['script', 'shoot', 'edit', 'schedule', 'post'] as WorkflowStage[]).map(stage => {
                           const state = getWorkflowState(topic, stage);
                           const stageTimers = taskTimer?.timers.filter(timer => timer.topicId === topic.id && timer.stage === stage) || [];
-                          const liveStageTimer = stageTimers.find(timer => timer.status === 'running' || timer.status === 'paused');
+                          // Only surface the LIVE/PAUSED chip while a workday session is
+                          // active. Once the day is stopped/reset the chip should disappear;
+                          // the accumulated total keeps showing as historic time.
+                          const hasActiveWorkday = Boolean(workdaySession && workdaySession.status !== 'completed');
+                          const liveStageTimer = hasActiveWorkday
+                            ? stageTimers.find(timer => timer.status === 'running' || timer.status === 'paused')
+                            : undefined;
                           const stageActiveMs = stageTimers.reduce((total, timer) => total + timer.accumulatedActiveMs + (
                             timer.status === 'running' && timer.activeSince ? Math.max(0, now.getTime() - new Date(timer.activeSince).getTime()) : 0
                           ), 0);
