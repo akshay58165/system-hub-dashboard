@@ -55,6 +55,14 @@ const deadlineText = (dueDate: string | null) => {
   return `${Math.ceil(hours / 24)}d remaining`;
 };
 
+const compactDuration = (ms: number) => {
+  const totalMinutes = Math.max(0, Math.round(ms / 60000));
+  if (totalMinutes === 0) return '0m';
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+};
+
 const nextActionForTopic = (topic: Topic) => {
   if (topic.blockedReason) return `Resolve blocker: ${topic.blockedReason}`;
   const workflow = getTopicCurrentWorkflow(topic);
@@ -168,6 +176,82 @@ export default function CommandCenterView({
   ].reduce<number>((sum, value) => sum + (value || 0), 0) : 0;
   const cycleDelivered = topics.filter(topic => topic.status === 'posted').length;
   const cycleProgress = cycleTarget ? Math.min(100, Math.round((cycleDelivered / cycleTarget) * 100)) : 0;
+  const weekExecution = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(today);
+      date.setDate(today.getDate() - (6 - index));
+      return {
+        key: date.toDateString(),
+        label: date.toLocaleDateString([], { weekday: 'short' }).slice(0, 2),
+        dateLabel: date.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+        sessions: [] as SessionRecord[],
+        activeMs: 0,
+        productiveMs: 0,
+        completedGoals: 0,
+        touchedGoals: 0,
+        droppedGoals: 0,
+        pendingGoals: 0,
+        breaks: 0,
+        taskTimers: 0
+      };
+    });
+    const dayIndex = new Map(days.map((day, index) => [day.key, index] as const));
+
+    sessions.forEach(session => {
+      const index = dayIndex.get(new Date(session.endedAt).toDateString());
+      if (index === undefined) return;
+      const bucket = days[index];
+      bucket.sessions.push(session);
+      bucket.activeMs += session.accumulatedActiveMs;
+      bucket.productiveMs += session.productiveActiveMs ?? Math.round(session.accumulatedActiveMs * ((session.productivityPercent ?? 100) / 100));
+      bucket.completedGoals += session.achievedGoals.length;
+      bucket.touchedGoals += session.achievedGoals.length + session.pendingGoals.length + session.droppedGoals.length;
+      bucket.droppedGoals += session.droppedGoals.length;
+      bucket.pendingGoals += session.pendingGoals.length;
+      bucket.breaks += session.breaksCount ?? 0;
+      bucket.taskTimers += session.taskTimers?.length ?? 0;
+    });
+
+    const totals = days.reduce((sum, day) => {
+      sum.activeMs += day.activeMs;
+      sum.productiveMs += day.productiveMs;
+      sum.completedGoals += day.completedGoals;
+      sum.touchedGoals += day.touchedGoals;
+      sum.droppedGoals += day.droppedGoals;
+      sum.pendingGoals += day.pendingGoals;
+      sum.breaks += day.breaks;
+      sum.taskTimers += day.taskTimers;
+      return sum;
+    }, { activeMs: 0, productiveMs: 0, completedGoals: 0, touchedGoals: 0, droppedGoals: 0, pendingGoals: 0, breaks: 0, taskTimers: 0 });
+
+    const productivity = totals.activeMs ? Math.round((totals.productiveMs / totals.activeMs) * 100) : 0;
+    const completionRate = totals.touchedGoals ? Math.round((totals.completedGoals / totals.touchedGoals) * 100) : 0;
+    const activeHours = totals.activeMs / 36e5;
+    const throughput = activeHours ? (totals.completedGoals / activeHours) : 0;
+    const loadCleared = totals.completedGoals - totals.droppedGoals;
+    const firstHalf = days.slice(0, 3);
+    const secondHalf = days.slice(4);
+    const averageProductivity = (segment: typeof days) => {
+      const active = segment.reduce((sum, day) => sum + day.activeMs, 0);
+      const productive = segment.reduce((sum, day) => sum + day.productiveMs, 0);
+      return active ? Math.round((productive / active) * 100) : 0;
+    };
+    const productivityMomentum = averageProductivity(secondHalf) - averageProductivity(firstHalf);
+    const maxActive = Math.max(1, ...days.map(day => day.activeMs));
+
+    return {
+      days,
+      totals,
+      productivity,
+      completionRate,
+      throughput,
+      loadCleared,
+      productivityMomentum,
+      maxActive
+    };
+  }, [sessions]);
   const systemTone = model.blocked.length || model.overdue.length ? 'ACTION REQUIRED' : model.dueSoon.length ? 'WATCH CLOSELY' : 'SYSTEM CLEAR';
   const systemColor = model.blocked.length || model.overdue.length ? 'rose' : model.dueSoon.length ? 'amber' : 'emerald';
   const attentionItems = model.queue.filter(topic => model.attention.some(item => item.id === topic.id));
@@ -424,6 +508,70 @@ export default function CommandCenterView({
             <div className="mb-3 flex items-center justify-between"><span className="font-mono text-[9px] uppercase tracking-wider text-neutral-600">7-day action pulse</span><span className="font-mono text-[9px] text-cyan-500">{activities.length} logged</span></div>
             <div className="flex h-20 items-end gap-2">
               {model.activityDays.map(day => <div key={day.label} className="flex flex-1 flex-col items-center gap-1"><div className="w-full rounded-t bg-gradient-to-t from-cyan-900/50 to-cyan-400" style={{ height: `${Math.max(5, (day.count / model.maxActivity) * 58)}px` }} /><span className="font-mono text-[8px] text-neutral-600">{day.label}</span></div>)}
+            </div>
+            <div className="mt-4 grid gap-3 xl:grid-cols-[1.05fr_.95fr]">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-emerald-950/40 bg-emerald-950/10 p-3">
+                  <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300"><CheckCircle2 className="h-3.5 w-3.5" />Goal execution</div>
+                  <div className="mt-2 text-lg font-bold text-white">{weekExecution.totals.completedGoals}/{weekExecution.totals.touchedGoals || 0}</div>
+                  <div className="mt-1 font-mono text-[9px] text-emerald-200/70">completed this week</div>
+                </div>
+                <div className="rounded-xl border border-cyan-950/40 bg-cyan-950/10 p-3">
+                  <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-cyan-300"><Gauge className="h-3.5 w-3.5" />Productivity</div>
+                  <div className="mt-2 text-lg font-bold text-white">{weekExecution.productivity}%</div>
+                  <div className="mt-1 font-mono text-[9px] text-cyan-200/70">{compactDuration(weekExecution.totals.productiveMs)} focused</div>
+                </div>
+                <div className="rounded-xl border border-purple-950/40 bg-purple-950/10 p-3">
+                  <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-purple-300"><Layers3 className="h-3.5 w-3.5" />Load cleared</div>
+                  <div className="mt-2 text-lg font-bold text-white">{weekExecution.loadCleared}</div>
+                  <div className="mt-1 font-mono text-[9px] text-purple-200/70">{weekExecution.totals.droppedGoals} dropped, {weekExecution.totals.pendingGoals} carried</div>
+                </div>
+              </div>
+              <div className="rounded-xl border border-neutral-900 bg-neutral-950/70 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">Goal behavior trend</div>
+                  <div className={`rounded border px-1.5 py-0.5 font-mono text-[8px] uppercase ${weekExecution.productivityMomentum >= 0 ? 'border-emerald-900/40 bg-emerald-950/20 text-emerald-300' : 'border-rose-900/40 bg-rose-950/20 text-rose-300'}`}>
+                    {weekExecution.productivityMomentum >= 0 ? '+' : ''}{weekExecution.productivityMomentum}% vs early week
+                  </div>
+                </div>
+                <div className="mt-1 font-mono text-[8px] text-neutral-600">{weekExecution.completionRate}% of goal outcomes finished</div>
+                <div className="mt-3 space-y-2">
+                  {weekExecution.days.map(day => {
+                    const dayProductivity = day.activeMs ? Math.round((day.productiveMs / day.activeMs) * 100) : 0;
+                    const goalRate = day.touchedGoals ? Math.round((day.completedGoals / day.touchedGoals) * 100) : 0;
+                    return (
+                      <div key={day.key} className="grid grid-cols-[40px_1fr_94px] items-center gap-2">
+                        <div>
+                          <div className="font-mono text-[9px] uppercase tracking-wider text-neutral-400">{day.label}</div>
+                          <div className="font-mono text-[8px] text-neutral-600">{day.dateLabel}</div>
+                        </div>
+                        <div className="relative h-3 overflow-hidden rounded-full bg-neutral-900">
+                          <div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-cyan-900/60 via-cyan-400 to-emerald-300" style={{ width: `${day.activeMs ? Math.max(8, Math.round((day.activeMs / weekExecution.maxActive) * 100)) : 8}%` }} />
+                          <div className="absolute inset-y-0 right-0 rounded-full bg-emerald-400/80" style={{ width: `${Math.max(0, Math.min(100, dayProductivity))}%`, opacity: 0.35 }} />
+                        </div>
+                        <div className="text-right font-mono text-[8px] text-neutral-500">
+                          <div className="text-neutral-300">{compactDuration(day.activeMs)} · {day.completedGoals} done</div>
+                          <div className="text-neutral-600">{dayProductivity}% prod · {goalRate}% goal hit</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-neutral-900 pt-3">
+                  <div className="rounded-lg border border-neutral-900 bg-neutral-950/60 px-2 py-1.5">
+                    <div className="font-mono text-[8px] uppercase tracking-wider text-neutral-600">Avg throughput</div>
+                    <div className="mt-1 text-sm font-bold text-white">{weekExecution.throughput.toFixed(1)}</div>
+                  </div>
+                  <div className="rounded-lg border border-neutral-900 bg-neutral-950/60 px-2 py-1.5">
+                    <div className="font-mono text-[8px] uppercase tracking-wider text-neutral-600">Task timers</div>
+                    <div className="mt-1 text-sm font-bold text-white">{weekExecution.totals.taskTimers}</div>
+                  </div>
+                  <div className="rounded-lg border border-neutral-900 bg-neutral-950/60 px-2 py-1.5">
+                    <div className="font-mono text-[8px] uppercase tracking-wider text-neutral-600">Breaks logged</div>
+                    <div className="mt-1 text-sm font-bold text-white">{weekExecution.totals.breaks}</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </button>
         </div>
