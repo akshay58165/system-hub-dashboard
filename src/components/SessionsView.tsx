@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Check, ChevronDown, Clock3, Coffee, Target, Timer, Trash2, TrendingUp } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Check, ChevronDown, Clock3, Coffee, Flame, Target, Timer, Trash2, TrendingUp, Zap } from 'lucide-react';
 import type { SessionRecord, TaskTimerStage } from '../types';
 
 interface SessionsViewProps {
@@ -15,9 +15,34 @@ const formatDuration = (ms: number) => {
 };
 const stageLabels: Record<TaskTimerStage, string> = { script: 'Scripting', shoot: 'Shooting', edit: 'Editing', schedule: 'Scheduling', post: 'Publishing' };
 
+// Buckets used to colour the productivity chip and the active-time bar.
+function productivityBand(pct: number): { tone: 'ember' | 'gold' | 'lime'; badgeCls: string; barCls: string; label: string; icon: React.ComponentType<{ className?: string }> } {
+  if (pct >= 70) return { tone: 'lime', badgeCls: 'border-emerald-800/60 bg-emerald-950/40 text-emerald-300', barCls: 'from-emerald-400 to-emerald-600', label: 'Deep', icon: Flame };
+  if (pct >= 40) return { tone: 'gold', badgeCls: 'border-amber-800/60 bg-amber-950/40 text-amber-300', barCls: 'from-amber-400 to-amber-600', label: 'Steady', icon: Zap };
+  return { tone: 'ember', badgeCls: 'border-rose-800/60 bg-rose-950/40 text-rose-300', barCls: 'from-rose-400 to-rose-600', label: 'Shallow', icon: TrendingUp };
+}
+
 export default function SessionsView({ sessions, embedded = false }: SessionsViewProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const ordered = [...sessions].sort((a, b) => new Date(b.endedAt).getTime() - new Date(a.endedAt).getTime());
+  const ordered = useMemo(
+    () => [...sessions].sort((a, b) => new Date(b.endedAt).getTime() - new Date(a.endedAt).getTime()),
+    [sessions]
+  );
+
+  // Group by calendar date (of session start) so the list reads as a diary.
+  const grouped = useMemo(() => {
+    const map = new Map<string, { label: string; sessions: SessionRecord[]; totalActiveMs: number }>();
+    ordered.forEach(session => {
+      const d = new Date(session.startedAt);
+      const key = d.toDateString();
+      const label = d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+      const bucket = map.get(key) ?? { label, sessions: [], totalActiveMs: 0 };
+      bucket.sessions.push(session);
+      bucket.totalActiveMs += session.accumulatedActiveMs;
+      map.set(key, bucket);
+    });
+    return Array.from(map.values());
+  }, [ordered]);
 
   if (ordered.length === 0) {
     return (
