@@ -513,34 +513,34 @@ export default function CommandCenterView({
               <div className="rounded-xl border border-neutral-900 bg-neutral-950/70 p-3 xl:min-h-[380px]">
                 <div className="mb-3 flex items-center justify-between">
                   <div className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">Execution stack</div>
-                  <div className="font-mono text-[8px] text-neutral-600">week totals</div>
+                  <div className="font-mono text-[8px] font-medium text-neutral-500">week totals</div>
                 </div>
                 <div className="flex min-h-[380px] flex-col overflow-hidden rounded-lg border border-neutral-900 bg-neutral-950/80">
                   <div className="flex flex-1 flex-col justify-between border-b border-neutral-900 bg-emerald-950/10 px-3 py-4">
                     <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300"><CheckCircle2 className="h-3.5 w-3.5" />Goal execution</div>
                     <div className="mt-3 text-2xl font-bold text-white">{weekExecution.totals.completedGoals}/{weekExecution.totals.touchedGoals || 0}</div>
-                    <div className="mt-2 font-mono text-[9px] text-emerald-200/70">completed this week</div>
+                    <div className="mt-2 font-mono text-[9px] font-medium text-emerald-100/80">completed this week</div>
                   </div>
                   <div className="flex flex-1 flex-col justify-between border-b border-neutral-900 bg-cyan-950/10 px-3 py-4">
                     <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-cyan-300"><Gauge className="h-3.5 w-3.5" />Productivity</div>
                     <div className="mt-3 text-2xl font-bold text-white">{weekExecution.productivity}%</div>
-                    <div className="mt-2 font-mono text-[9px] text-cyan-200/70">{compactDuration(weekExecution.totals.productiveMs)} focused</div>
+                    <div className="mt-2 font-mono text-[9px] font-medium text-cyan-100/80">{compactDuration(weekExecution.totals.productiveMs)} focused</div>
                   </div>
                   <div className="flex flex-1 flex-col justify-between bg-purple-950/10 px-3 py-4">
                     <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-purple-300"><Layers3 className="h-3.5 w-3.5" />Load cleared</div>
                     <div className="mt-3 text-2xl font-bold text-white">{weekExecution.loadCleared}</div>
-                    <div className="mt-2 font-mono text-[9px] text-purple-200/70">{weekExecution.totals.droppedGoals} dropped, {weekExecution.totals.pendingGoals} carried</div>
+                    <div className="mt-2 font-mono text-[9px] font-medium text-purple-100/80">{weekExecution.totals.droppedGoals} dropped, {weekExecution.totals.pendingGoals} carried</div>
                   </div>
                 </div>
               </div>
               <div className="rounded-xl border border-neutral-900 bg-neutral-950/70 p-3">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">Goal behavior trend</div>
+                  <div className="font-mono text-[9px] font-medium uppercase tracking-wider text-neutral-400">Goal behavior trend</div>
                   <div className={`rounded border px-1.5 py-0.5 font-mono text-[8px] uppercase ${weekExecution.productivityMomentum >= 0 ? 'border-emerald-900/40 bg-emerald-950/20 text-emerald-300' : 'border-rose-900/40 bg-rose-950/20 text-rose-300'}`}>
                     {weekExecution.productivityMomentum >= 0 ? '+' : ''}{weekExecution.productivityMomentum}% vs early week
                   </div>
                 </div>
-                <div className="mt-1 font-mono text-[8px] text-neutral-600">{weekExecution.completionRate}% of goal outcomes finished</div>
+                <div className="mt-1 font-mono text-[8px] font-medium text-neutral-500">{weekExecution.completionRate}% of goal outcomes finished</div>
                 <div className="mt-3 space-y-3">
                   {weekExecution.days.map(day => {
                     const dayProductivity = day.activeMs ? Math.round((day.productiveMs / day.activeMs) * 100) : 0;
@@ -548,16 +548,16 @@ export default function CommandCenterView({
                     return (
                       <div key={day.key} className="grid grid-cols-[42px_minmax(0,1fr)_110px] items-center gap-3">
                         <div className="leading-none">
-                          <div className="font-mono text-[9px] uppercase tracking-wider text-neutral-400">{day.label}</div>
-                          <div className="font-mono text-[8px] text-neutral-600">{day.dateLabel}</div>
+                          <div className="font-mono text-[9px] font-medium uppercase tracking-wider text-neutral-300">{day.label}</div>
+                          <div className="font-mono text-[8px] font-medium text-neutral-500">{day.dateLabel}</div>
                         </div>
                         <div className="relative h-4 overflow-hidden rounded-full bg-neutral-900">
                           <div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-cyan-900/60 via-cyan-400 to-emerald-300" style={{ width: `${day.activeMs ? Math.max(8, Math.round((day.activeMs / weekExecution.maxActive) * 100)) : 8}%` }} />
                           <div className="absolute inset-y-0 right-0 rounded-full bg-emerald-400/80" style={{ width: `${Math.max(0, Math.min(100, dayProductivity))}%`, opacity: 0.35 }} />
                         </div>
-                        <div className="text-right font-mono text-[8px] text-neutral-500">
-                          <div className="text-neutral-300">{compactDuration(day.activeMs)} · {day.completedGoals} done</div>
-                          <div className="text-neutral-600">{dayProductivity}% prod · {goalRate}% goal hit</div>
+                        <div className="text-right font-mono text-[8px] font-medium text-neutral-400">
+                          <div className="text-neutral-200">{compactDuration(day.activeMs)} · {day.completedGoals} done</div>
+                          <div className="text-neutral-500">{dayProductivity}% prod · {goalRate}% goal hit</div>
                         </div>
                       </div>
                     );
@@ -565,15 +565,15 @@ export default function CommandCenterView({
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-2 border-t border-neutral-900 pt-3">
                   <div className="rounded-lg border border-neutral-900 bg-neutral-950/60 px-2 py-1.5">
-                    <div className="font-mono text-[8px] uppercase tracking-wider text-neutral-600">Avg throughput</div>
+                    <div className="font-mono text-[8px] font-medium uppercase tracking-wider text-neutral-500">Avg throughput</div>
                     <div className="mt-1 text-sm font-bold text-white">{weekExecution.throughput.toFixed(1)}</div>
                   </div>
                   <div className="rounded-lg border border-neutral-900 bg-neutral-950/60 px-2 py-1.5">
-                    <div className="font-mono text-[8px] uppercase tracking-wider text-neutral-600">Task timers</div>
+                    <div className="font-mono text-[8px] font-medium uppercase tracking-wider text-neutral-500">Task timers</div>
                     <div className="mt-1 text-sm font-bold text-white">{weekExecution.totals.taskTimers}</div>
                   </div>
                   <div className="rounded-lg border border-neutral-900 bg-neutral-950/60 px-2 py-1.5">
-                    <div className="font-mono text-[8px] uppercase tracking-wider text-neutral-600">Breaks logged</div>
+                    <div className="font-mono text-[8px] font-medium uppercase tracking-wider text-neutral-500">Breaks logged</div>
                     <div className="mt-1 text-sm font-bold text-white">{weekExecution.totals.breaks}</div>
                   </div>
                 </div>
