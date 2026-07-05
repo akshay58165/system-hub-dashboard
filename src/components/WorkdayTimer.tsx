@@ -394,7 +394,7 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
                     if (!topic) return null;
                     const remaining = stagesBetween(topic.status, goal.targetStatus);
                     return (
-                      <button key={goal.topicId} type="button" onClick={() => { if (onOpenTopic) { onOpenTopic(topic.id); setShowPendingReview(false); } }} className="group flex w-full items-start gap-3 rounded-xl border border-neutral-800 bg-neutral-900/40 p-3 text-left transition hover:border-amber-800/60 hover:bg-amber-950/10">
+                      <button key={`${goal.topicId}-${goal.targetStatus}`} type="button" onClick={() => { if (onOpenTopic) { onOpenTopic(topic.id); setShowPendingReview(false); } }} className="group flex w-full items-start gap-3 rounded-xl border border-neutral-800 bg-neutral-900/40 p-3 text-left transition hover:border-amber-800/60 hover:bg-amber-950/10">
                         <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-700 text-amber-400"><Target className="h-3 w-3" /></span>
                         <span className="min-w-0 flex-1">
                           <span className="block text-[11px] font-semibold text-neutral-100 group-hover:text-white">{topic.name}</span>
@@ -409,8 +409,9 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
                 </div>
                 <div className="mt-5 grid grid-cols-2 gap-2">
                   <button type="button" onClick={() => { setPendingGoalsFromLastSession([]); setShowPendingReview(false); openSetup(); }} className="rounded-xl border border-neutral-700 bg-neutral-900 py-2.5 text-xs font-bold text-neutral-300 transition hover:border-neutral-500 hover:text-white">Start fresh</button>
-                  <button type="button" onClick={() => { setShowPendingReview(false); setDraftGoals(pendingGoalsFromLastSession.map(g => ({ id: `goal-${Date.now()}-${g.topicId}`, topicId: g.topicId, targetStatus: g.targetStatus, addedAt: new Date().toISOString() }))); setPendingGoalsFromLastSession([]); setSetupStep('goals'); setShowSetup(true); }} className="rounded-xl bg-amber-500 py-2.5 text-xs font-bold text-black transition hover:bg-amber-400">Continue these goals</button>
+                  <button type="button" onClick={() => { setShowPendingReview(false); setDraftGoals(pendingGoalsFromLastSession.map((g, i) => ({ id: `goal-${Date.now()}-${i}-${g.topicId}-${g.targetStatus}`, topicId: g.topicId, targetStatus: g.targetStatus, addedAt: new Date().toISOString() }))); setPendingGoalsFromLastSession([]); setSetupStep('goals'); setShowSetup(true); }} className="rounded-xl bg-amber-500 py-2.5 text-xs font-bold text-black transition hover:bg-amber-400">Continue these goals</button>
                 </div>
+                <button type="button" onClick={() => setShowPendingReview(false)} className="mt-3 w-full rounded-xl border border-neutral-800 py-2 text-[10px] font-bold text-neutral-500 transition hover:border-neutral-600 hover:text-neutral-300" title="Keep these pending — you can reopen this list from the header any time">I&apos;ll do it later</button>
               </motion.div>
             </motion.div>
           )}
