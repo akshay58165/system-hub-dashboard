@@ -290,13 +290,23 @@ select.bg-neutral-900 option {
   to { background-position: 100% 0; }
 }
 .goal-stage-highlight {
-  outline: 1.5px dashed currentColor;
-  outline-offset: 2px;
-  animation: goal-outline-pulse 1.5s ease-in-out infinite alternate;
+  position: relative;
 }
-@keyframes goal-outline-pulse {
-  0% { outline-color: currentColor; opacity: 1; }
-  100% { outline-color: currentColor; opacity: 0.5; }
+.goal-stage-highlight::after {
+  content: '';
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  bottom: -3px;
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, transparent, #f59e0b, #f59e0b, transparent);
+  box-shadow: 0 0 6px #f59e0b80, 0 0 12px #f59e0b40;
+  animation: goal-glow-slide 1.8s ease-in-out infinite;
+}
+@keyframes goal-glow-slide {
+  0%, 100% { opacity: 0.5; left: 15%; right: 15%; }
+  50% { opacity: 1; left: 5%; right: 5%; }
 }
 
 .workflow-in-progress.blink-yellow,
