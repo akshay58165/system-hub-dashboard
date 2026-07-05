@@ -1591,18 +1591,19 @@ export default function App() {
         } : tt);
       }
       if (existing?.status === 'running') return prev;
+      // Auto-pause any other running task timer (different topic/stage) so it
+      // can be resumed later — do NOT complete it. Paused timers stay paused.
       const settled = prev.map(tt => {
-        if (tt.status !== 'running' && tt.status !== 'paused') return tt;
+        if (tt.status !== 'running') return tt;
         const end = new Date(stamp).getTime();
         return {
           ...tt,
-          status: 'completed' as const,
-          completedAt: stamp,
-          accumulatedActiveMs: tt.accumulatedActiveMs + (tt.status === 'running' && tt.activeSince ? Math.max(0, end - new Date(tt.activeSince).getTime()) : 0),
-          accumulatedPausedMs: tt.accumulatedPausedMs + (tt.status === 'paused' && tt.pausedAt ? Math.max(0, end - new Date(tt.pausedAt).getTime()) : 0),
+          status: 'paused' as const,
+          accumulatedActiveMs: tt.accumulatedActiveMs + (tt.activeSince ? Math.max(0, end - new Date(tt.activeSince).getTime()) : 0),
           activeSince: null,
-          pausedAt: null,
-          endReason: 'deferred' as const
+          pausedAt: stamp,
+          breaksCount: tt.breaksCount + 1,
+          pauseSource: 'manual' as const,
         };
       });
       const newTimer: TaskTimerRecord = {

@@ -26,6 +26,7 @@ import {
   Bookmark,
   Coffee,
   Play,
+  Pause,
   X
 } from 'lucide-react';
 import { 
@@ -57,9 +58,10 @@ interface VercelViewProps {
   onEditTopic?: (topic: Topic) => void;
 }
 
-type TopicSortMode = 'due-date' | 'last-created' | 'level' | 'progress-most' | 'progress-least' | 'workload';
+type TopicSortMode = 'goals' | 'due-date' | 'last-created' | 'level' | 'progress-most' | 'progress-least' | 'workload';
 
 const topicSortLabels: Record<TopicSortMode, string> = {
+  goals: "Today's goals first",
   'due-date': 'Due date / time',
   'last-created': 'Last created',
   level: 'Level: H to L',
@@ -215,6 +217,21 @@ export default function VercelView({
   const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy' | 'Later'>('All');
   const [topicSortOrder, setTopicSortOrder] = useState<TopicSortMode>('due-date');
   const [isTopicSortOpen, setIsTopicSortOpen] = useState(false);
+  // Auto-switch to "Today's goals first" when a workday session has goals,
+  // and back to "Due date" when it ends. The ref remembers the last auto-set
+  // value so a user's manual change is not clobbered on re-render.
+  const lastAutoSortRef = useRef<TopicSortMode | null>(null);
+  useEffect(() => {
+    const hasSessionGoals = Boolean(workdaySession && (workdaySession.goals || []).length);
+    const target: TopicSortMode = hasSessionGoals ? 'goals' : 'due-date';
+    if (lastAutoSortRef.current === target) return;
+    // Only override if the current sort matches the previous auto-set value
+    // (i.e. the user hasn't manually chosen something else since).
+    if (lastAutoSortRef.current === null || topicSortOrder === lastAutoSortRef.current) {
+      setTopicSortOrder(target);
+    }
+    lastAutoSortRef.current = target;
+  }, [workdaySession?.startedAt, (workdaySession?.goals || []).length]);
   const topicSortRef = useDismissOnOutsideClick<HTMLDivElement>(
     isTopicSortOpen,
     true,
@@ -773,6 +790,12 @@ export default function VercelView({
         ? Boolean(t.savedForLater)
         : !t.savedForLater && (selectedChannel === 'All' || t.channel === selectedChannel))
       .sort((a, b) => {
+        if (topicSortOrder === 'goals') {
+          const goalIds = new Set((workdaySession?.goals || []).map(g => g.topicId));
+          const aGoal = goalIds.has(a.id) ? 0 : 1;
+          const bGoal = goalIds.has(b.id) ? 0 : 1;
+          return aGoal - bGoal || topicDueTime(a) - topicDueTime(b) || new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
+        }
         if (topicSortOrder === 'due-date') return topicDueTime(a) - topicDueTime(b) || new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
         if (topicSortOrder === 'last-created') return new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime();
         if (topicSortOrder === 'level') return topicLevel(b) - topicLevel(a) || topicDueTime(a) - topicDueTime(b);
@@ -780,7 +803,7 @@ export default function VercelView({
         if (topicSortOrder === 'progress-least') return workRemaining(a) - workRemaining(b) || topicDueTime(a) - topicDueTime(b);
         return workloadScore(b) - workloadScore(a) || topicDueTime(a) - topicDueTime(b);
       });
-  }, [topics, selectedChannel, topicSortOrder]);
+  }, [topics, selectedChannel, topicSortOrder, workdaySession?.goals]);
 
   // Next upload topic details (nearest future scheduled video)
   const nextUpload = useMemo(() => {
@@ -1496,9 +1519,33 @@ export default function VercelView({
                                 </motion.div>
                               )}
                               {(liveStageTimer || stageTimeLabel) && (
-                                <span className={`font-mono text-[7px] ${liveStageTimer?.status === 'running' ? 'text-emerald-300' : liveStageTimer?.status === 'paused' ? 'text-amber-300' : 'text-neutral-600'}`}>
-                                  {liveStageTimer?.status === 'running' ? 'LIVE ' : liveStageTimer?.status === 'paused' ? 'PAUSED ' : ''}{stageTimeLabel}
-                                </span>
+                                <div className="flex items-center gap-1">
+                                  <span className={`font-mono text-[7px] ${liveStageTimer?.status === 'running' ? 'text-emerald-300' : liveStageTimer?.status === 'paused' ? 'text-amber-300' : 'text-neutral-600'}`}>
+                                    {liveStageTimer?.status === 'running' ? 'LIVE ' : liveStageTimer?.status === 'paused' ? 'PAUSED ' : ''}{stageTimeLabel}
+                                  </span>
+                                  {liveStageTimer?.status === 'running' && (
+                                    <button
+                                      type="button"
+                                      onClick={(event) => { event.stopPropagation(); taskTimer?.pauseTimer(); }}
+                                      title="Pause this task timer"
+                                      aria-label="Pause this task timer"
+                                      className="flex h-3.5 w-3.5 items-center justify-center rounded border border-amber-800/60 bg-amber-500/10 text-amber-300 transition hover:border-amber-500 hover:bg-amber-500/25"
+                                    >
+                                      <Pause className="h-2 w-2 fill-current" />
+                                    </button>
+                                  )}
+                                  {liveStageTimer?.status === 'paused' && (
+                                    <button
+                                      type="button"
+                                      onClick={(event) => { event.stopPropagation(); taskTimer?.startTimer(topic.id, stage); }}
+                                      title="Resume this task timer"
+                                      aria-label="Resume this task timer"
+                                      className="flex h-3.5 w-3.5 items-center justify-center rounded border border-emerald-800/60 bg-emerald-500/15 text-emerald-300 transition hover:border-emerald-500 hover:bg-emerald-500/30"
+                                    >
+                                      <Play className="h-2 w-2 fill-current" />
+                                    </button>
+                                  )}
+                                </div>
                               )}
                             </div>
                           );
