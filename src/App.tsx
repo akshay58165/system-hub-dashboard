@@ -1580,22 +1580,13 @@ export default function App() {
     const stamp = new Date().toISOString();
     setTaskTimers(prev => {
       const existing = prev.find(tt => (tt.status === 'running' || tt.status === 'paused') && tt.topicId === topicId && tt.stage === stage);
-      if (existing?.status === 'paused') {
-        return prev.map(tt => tt.id === existing.id ? {
-          ...tt,
-          status: 'running' as const,
-          accumulatedPausedMs: tt.accumulatedPausedMs + (tt.pausedAt ? Math.max(0, new Date(stamp).getTime() - new Date(tt.pausedAt).getTime()) : 0),
-          activeSince: stamp,
-          pausedAt: null,
-          pauseSource: undefined
-        } : tt);
-      }
       if (existing?.status === 'running') return prev;
       // Auto-pause any other running task timer (different topic/stage) so it
       // can be resumed later — do NOT complete it. Paused timers stay paused.
+      // This applies whether we're starting a fresh timer OR resuming a paused one.
+      const end = new Date(stamp).getTime();
       const settled = prev.map(tt => {
-        if (tt.status !== 'running') return tt;
-        const end = new Date(stamp).getTime();
+        if (tt.status !== 'running' || tt.id === existing?.id) return tt;
         return {
           ...tt,
           status: 'paused' as const,
@@ -1606,6 +1597,16 @@ export default function App() {
           pauseSource: 'manual' as const,
         };
       });
+      if (existing?.status === 'paused') {
+        return settled.map(tt => tt.id === existing.id ? {
+          ...tt,
+          status: 'running' as const,
+          accumulatedPausedMs: tt.accumulatedPausedMs + (tt.pausedAt ? Math.max(0, end - new Date(tt.pausedAt).getTime()) : 0),
+          activeSince: stamp,
+          pausedAt: null,
+          pauseSource: undefined
+        } : tt);
+      }
       const newTimer: TaskTimerRecord = {
         id: `tt-${Date.now()}-${topicId}-${stage}`,
         topicId, topicName: topic.name, stage,
