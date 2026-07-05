@@ -221,7 +221,7 @@ export default function CommandCenterView({
             <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">Creator Command Center</h1>
             <p className="mt-2 max-w-2xl text-sm text-neutral-400">One screen for what needs action now, where production is accumulating, and what is safely moving forward.</p>
           </div>
-          <button type="button" onClick={() => onOpenTopicPipeline()} className={`group min-w-[250px] rounded-xl border p-4 text-left transition hover:-translate-y-0.5 ${systemColor === 'rose' ? 'border-rose-900/50 bg-rose-950/20 hover:border-rose-700' : systemColor === 'amber' ? 'border-amber-900/50 bg-amber-950/20 hover:border-amber-700' : 'border-emerald-900/50 bg-emerald-950/20 hover:border-emerald-700'}`}>
+          <button type="button" onClick={() => { const first = model.attention[0]; if (first) onOpenTopicPipeline(first.id, actionTargetForTopic(first)); else onOpenTopicPipeline(); }} className={`group min-w-[250px] rounded-xl border p-4 text-left transition hover:-translate-y-0.5 ${systemColor === 'rose' ? 'border-rose-900/50 bg-rose-950/20 hover:border-rose-700' : systemColor === 'amber' ? 'border-amber-900/50 bg-amber-950/20 hover:border-amber-700' : 'border-emerald-900/50 bg-emerald-950/20 hover:border-emerald-700'}`}>
             <div className="flex items-center justify-between">
               <span className="font-mono text-[9px] uppercase tracking-widest text-neutral-500">Operational state</span>
               <span className={`h-2.5 w-2.5 rounded-full ${systemColor === 'rose' ? 'bg-rose-500 shadow-[0_0_12px_#f43f5e]' : systemColor === 'amber' ? 'bg-amber-400 shadow-[0_0_12px_#f59e0b]' : 'bg-emerald-400 shadow-[0_0_12px_#10b981]'}`} />
@@ -470,8 +470,8 @@ export default function CommandCenterView({
             <div className="mb-4 flex items-center gap-2 text-sm font-bold text-white"><ShieldCheck className="h-4 w-4 text-emerald-400" /> Safety signals</div>
             <div className="space-y-2">
               {[
-                { ok: model.blocked.length === 0, label: model.blocked.length ? `${model.blocked.length} blocked topics` : 'No blocked production', action: () => onOpenTopicPipeline() },
-                { ok: model.overdue.length === 0, label: model.overdue.length ? `${model.overdue.length} overdue deadlines` : 'Deadlines controlled', action: () => onOpenTopicPipeline() },
+                { ok: model.blocked.length === 0, label: model.blocked.length ? `${model.blocked.length} blocked topics` : 'No blocked production', action: () => { const t = model.blocked[0]; t ? onOpenTopicPipeline(t.id, 'unblock') : onOpenTopicPipeline(); } },
+                { ok: model.overdue.length === 0, label: model.overdue.length ? `${model.overdue.length} overdue deadlines` : 'Deadlines controlled', action: () => { const t = model.overdue[0]; t ? onOpenTopicPipeline(t.id, actionTargetForTopic(t)) : onOpenTopicPipeline(); } },
                 { ok: model.scheduled > 0, label: model.scheduled ? `${model.scheduled} releases scheduled` : 'No release scheduled', action: () => onOpenTopicPipeline() },
                 { ok: activities.length > 0, label: activities.length ? 'Audit trail active' : 'No activity history', action: () => onTabChange('logs') }
               ].map(signal => <button type="button" onClick={signal.action} key={signal.label} className="group flex w-full items-center gap-2 rounded-lg bg-neutral-900/35 px-3 py-2 text-left transition hover:bg-neutral-800/60"><span className={`h-1.5 w-1.5 rounded-full ${signal.ok ? 'bg-emerald-400' : 'bg-rose-500'}`} /><span className={`flex-1 text-[10px] ${signal.ok ? 'text-neutral-400' : 'text-rose-300'}`}>{signal.label}</span><ArrowUpRight className="h-3 w-3 text-neutral-700 group-hover:text-neutral-300" /></button>)}

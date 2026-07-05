@@ -1441,7 +1441,6 @@ export default function VercelView({
 
                           return (
                             <div key={stage} className="flex flex-col items-start gap-1">
-                              {isGoalTarget && <motion.div animate={{ rotate: [0, -3, 3, -1, 0], skewY: [0, -2, 2, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }} className="flex origin-bottom-left items-end" title={`Finish line: reach ${topicGoal.targetStatus}`}><span className="h-5 w-0.5 rounded-full bg-neutral-300" /><span className="goal-checkered-flag relative mb-1 flex min-h-5 items-center overflow-hidden rounded-r-sm border border-white/50 px-1.5 py-0.5 shadow-[0_0_10px_rgba(255,255,255,.2)]"><span className="relative rounded-sm bg-black/90 px-1 py-0.5 text-[7px] font-black uppercase tracking-wide text-white">Finish: {topicGoal.targetStatus}</span></span></motion.div>}
                               <WorkflowStatusButton
                                 controlId={`topic-action-${topic.id}-${stage}`}
                                 stage={stage}
@@ -1474,6 +1473,28 @@ export default function VercelView({
                                 onReset={() => resetWorkflowStage(topic, stage)}
                                 isGoalStage={!!isGoalStage}
                               />
+                              {isGoalTarget && (
+                                <motion.div
+                                  className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider text-amber-400"
+                                  initial={{ opacity: 0, y: -4 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                >
+                                  <motion.svg
+                                    viewBox="0 0 16 16"
+                                    className="h-3 w-3"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth={1.5}
+                                    animate={{ x: [0, 2, 0], y: [0, -1, 0] }}
+                                    transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+                                  >
+                                    <path d="M2 14 L12 4" strokeLinecap="round" />
+                                    <path d="M8 3 L12.5 3 L12.5 7.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    <circle cx="13.5" cy="2.5" r="1.5" fill="currentColor" stroke="none" />
+                                  </motion.svg>
+                                  <span>Goal</span>
+                                </motion.div>
+                              )}
                               {(liveStageTimer || stageTimeLabel) && (
                                 <span className={`font-mono text-[7px] ${liveStageTimer?.status === 'running' ? 'text-emerald-300' : liveStageTimer?.status === 'paused' ? 'text-amber-300' : 'text-neutral-600'}`}>
                                   {liveStageTimer?.status === 'running' ? 'LIVE ' : liveStageTimer?.status === 'paused' ? 'PAUSED ' : ''}{stageTimeLabel}

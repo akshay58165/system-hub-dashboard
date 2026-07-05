@@ -11,6 +11,7 @@ interface WorkdayTimerProps {
   setSession: React.Dispatch<React.SetStateAction<WorkdaySession | null>>;
   topics: Topic[];
   onEndSession: () => void;
+  onOpenTopic?: (topicId: string) => void;
   onExternalPause?: () => void;
   onExternalResume?: () => void;
 }
@@ -38,7 +39,7 @@ const stagesBetween = (from: string, to: string) => {
   return stageOrder.slice(start + 1, end + 1).map(s => stageLabel[s] || s);
 };
 
-export default function WorkdayTimer({ session, setSession, topics, onEndSession, onExternalPause, onExternalResume }: WorkdayTimerProps) {
+export default function WorkdayTimer({ session, setSession, topics, onEndSession, onOpenTopic, onExternalPause, onExternalResume }: WorkdayTimerProps) {
   const [now, setNow] = useState(Date.now());
   const [showSetup, setShowSetup] = useState(false);
   const [showPanel, setShowPanel] = useState(false);
@@ -55,6 +56,8 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
   const [showProductivityPrompt, setShowProductivityPrompt] = useState(false);
   const [showEndConfirmation, setShowEndConfirmation] = useState(false);
   const [isStartingDay, setIsStartingDay] = useState(false);
+  const [pendingGoalsFromLastSession, setPendingGoalsFromLastSession] = useState<{ topicId: string; targetStatus: typeof goalStages[number] }[]>([]);
+  const [showPendingReview, setShowPendingReview] = useState(false);
   const startTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -302,6 +305,15 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
           </button>
           <span className="pointer-events-none absolute inset-x-1 bottom-0 h-0.5 overflow-hidden rounded-full bg-neutral-900"><span className="block h-full bg-emerald-400" style={{ width: `${metrics.progress}%` }} /></span>
         </div>
+      ) : pendingGoalsFromLastSession.length > 0 ? (
+        <div className="flex shrink-0 items-stretch gap-0 overflow-hidden rounded-lg border border-amber-800/60 font-mono text-[10px] font-bold">
+          <button type="button" onClick={() => setShowPendingReview(true)} className="flex items-center gap-2 bg-amber-950/25 px-3 py-1.5 text-amber-300 transition hover:bg-amber-950/40">
+            <Target className="h-3.5 w-3.5" /><span>{pendingGoalsFromLastSession.length} goal{pendingGoalsFromLastSession.length > 1 ? 's' : ''} pending</span>
+          </button>
+          <button type="button" onClick={() => { setPendingGoalsFromLastSession([]); openSetup(); }} className="border-l border-amber-800/60 bg-cyan-950/20 px-2.5 py-1.5 text-cyan-300 transition hover:bg-cyan-950/40" title="Start fresh">
+            <RotateCcw className="h-3 w-3" />
+          </button>
+        </div>
       ) : (
         <button type="button" onClick={openSetup} className="flex shrink-0 items-center gap-2 rounded-lg border border-cyan-900/60 bg-cyan-950/20 px-3 py-1.5 font-mono text-[10px] font-bold text-cyan-300 transition hover:border-cyan-700">
           <Clock3 className="h-3.5 w-3.5" /><span>Start the day</span>
@@ -331,6 +343,46 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
                     <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2"><button disabled={isStartingDay} onClick={() => startDay([])} className="rounded-xl border border-neutral-700 bg-neutral-900 py-3.5 text-sm font-bold text-neutral-200 hover:border-neutral-500 disabled:cursor-not-allowed disabled:opacity-50">Start without goals</button><button disabled={!draftGoals.length || isStartingDay} onClick={() => startDay(draftGoals)} className="rounded-xl bg-cyan-500 py-3.5 text-sm font-bold text-black hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-35">Start with {draftGoals.length || ''} goal{draftGoals.length === 1 ? '' : 's'}</button></div>
                   <button onClick={() => setSetupStep('budget')} className="mt-4 w-full py-2 text-xs text-neutral-400 hover:text-white">Back to work budget</button>
                 </>}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+
+      {createPortal(
+        <AnimatePresence>
+          {showPendingReview && pendingGoalsFromLastSession.length > 0 && !session && (
+            <motion.div className="fixed inset-0 z-[1000] flex items-start justify-center overflow-y-auto bg-black/80 px-4 py-5 backdrop-blur-sm sm:items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowPendingReview(false)}>
+              <motion.div initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .96 }} className="w-full max-w-md rounded-2xl border border-amber-900/50 bg-neutral-950 p-5 shadow-[0_0_50px_rgba(245,158,11,.1)]" onClick={e => e.stopPropagation()}>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2 text-sm font-bold text-white"><Target className="h-4 w-4 text-amber-400" />Incomplete goals</div>
+                  <button onClick={() => setShowPendingReview(false)} className="text-neutral-600 hover:text-white"><X className="h-4 w-4" /></button>
+                </div>
+                <p className="mt-2 text-[10px] leading-relaxed text-neutral-500">These goals were not completed in your last session. You can jump to a topic to finish it, or start a new day.</p>
+                <div className="mt-4 space-y-2">
+                  {pendingGoalsFromLastSession.map(goal => {
+                    const topic = topics.find(t => t.id === goal.topicId);
+                    if (!topic) return null;
+                    const remaining = stagesBetween(topic.status, goal.targetStatus);
+                    return (
+                      <button key={goal.topicId} type="button" onClick={() => { if (onOpenTopic) { onOpenTopic(topic.id); setShowPendingReview(false); } }} className="group flex w-full items-start gap-3 rounded-xl border border-neutral-800 bg-neutral-900/40 p-3 text-left transition hover:border-amber-800/60 hover:bg-amber-950/10">
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-700 text-amber-400"><Target className="h-3 w-3" /></span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[11px] font-semibold text-neutral-100 group-hover:text-white">{topic.name}</span>
+                          <span className="mt-1 flex flex-wrap gap-1">
+                            <span className="rounded border border-cyan-900/50 bg-cyan-950/20 px-1.5 py-0.5 text-[7px] font-bold uppercase text-cyan-300">{remaining.length ? remaining.join(' → ') : goal.targetStatus}</span>
+                            <span className="rounded border border-neutral-800 bg-neutral-900/50 px-1.5 py-0.5 text-[7px] font-bold uppercase text-neutral-400">{topic.channel}</span>
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-5 grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => { setPendingGoalsFromLastSession([]); setShowPendingReview(false); openSetup(); }} className="rounded-xl border border-neutral-700 bg-neutral-900 py-2.5 text-xs font-bold text-neutral-300 transition hover:border-neutral-500 hover:text-white">Start fresh</button>
+                  <button type="button" onClick={() => { setShowPendingReview(false); setDraftGoals(pendingGoalsFromLastSession.map(g => ({ id: `goal-${Date.now()}-${g.topicId}`, topicId: g.topicId, targetStatus: g.targetStatus, addedAt: new Date().toISOString() }))); setPendingGoalsFromLastSession([]); setSetupStep('goals'); setShowSetup(true); }} className="rounded-xl bg-amber-500 py-2.5 text-xs font-bold text-black transition hover:bg-amber-400">Continue these goals</button>
+                </div>
               </motion.div>
             </motion.div>
           )}
@@ -431,9 +483,12 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
           totalGoals={(session?.goals || []).length}
           onCancel={() => setShowEndConfirmation(false)}
           onConfirm={() => {
+            const goals = session?.goals || [];
+            const incomplete = goals.filter(g => !goalComplete(g.topicId, g.targetStatus)).map(g => ({ topicId: g.topicId, targetStatus: g.targetStatus }));
             setShowEndConfirmation(false);
             onEndSession();
             setShowPanel(false);
+            if (incomplete.length) { setPendingGoalsFromLastSession(incomplete); setShowPendingReview(true); }
           }}
           onDiscard={() => {
             setShowEndConfirmation(false);

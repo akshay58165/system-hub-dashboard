@@ -45,7 +45,6 @@ import {
 
 import CommandPalette from './components/CommandPalette';
 import WorkdayTimer from './components/WorkdayTimer';
-import FloatingTaskTimer from './components/FloatingTaskTimer';
 import TopicCreateModal from './components/TopicCreateModal';
 import { TaskTimerContext } from './contexts/TaskTimerContext';
 
@@ -2155,7 +2154,7 @@ export default function App() {
               </button>
             </div>
 
-            <WorkdayTimer session={workdaySession} setSession={setWorkdaySession} topics={topics} onEndSession={endWorkdaySessionWithTaskTimers} onExternalPause={handleMainTimerPause} onExternalResume={handleMainTimerResume} />
+            <WorkdayTimer session={workdaySession} setSession={setWorkdaySession} topics={topics} onEndSession={endWorkdaySessionWithTaskTimers} onOpenTopic={(topicId) => { setPipelineSubView('topics'); setActiveTab('pipeline'); const focusTarget = () => { const card = document.getElementById(`topic-control-${topicId}`); if (card) { highlightCommandDestination(card); return; } if (attempts < 12) { attempts++; window.setTimeout(focusTarget, 100); } }; let attempts = 0; window.setTimeout(focusTarget, 250); }} onExternalPause={handleMainTimerPause} onExternalResume={handleMainTimerResume} />
 
             <motion.button
               whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(59, 130, 246, 0.6)' }}
@@ -2514,12 +2513,6 @@ export default function App() {
         </div>
       </footer>
 
-      <FloatingTaskTimer
-        workdaySession={workdaySession}
-        onPauseMainTimer={handleMainTimerPause}
-        onResumeMainTimer={handleMainTimerResume}
-        onOpenSessions={() => setActiveTab('topicintel')}
-      />
 
       {/* Database Detonation Modal Overlay */}
       <AnimatePresence>

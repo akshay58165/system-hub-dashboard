@@ -439,13 +439,3 @@ select.bg-neutral-900 option {
   text-shadow: 0 0 4px rgba(59, 130, 246, 0.35);
 }
 
-.goal-checkered-flag {
-  background-color: #fff;
-  background-image:
-    linear-gradient(45deg, #111 25%, transparent 25%, transparent 75%, #111 75%),
-    linear-gradient(45deg, #111 25%, transparent 25%, transparent 75%, #111 75%);
-  background-position: 0 0, 4px 4px;
-  background-size: 8px 8px;
-  clip-path: polygon(0 0, 100% 0, 88% 50%, 100% 100%, 0 100%);
-  padding-right: 0.75rem;
-}
