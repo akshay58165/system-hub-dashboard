@@ -351,10 +351,6 @@ export default function VideoLabView({
 
   // Delete video (if mock/video database item)
   const handleDeletePost = (post: UnifiedPost) => {
-    if (post.source === 'pipeline') {
-      alert("This post comes from an active pipeline topic. Please update or delete it in the pipeline dashboard.");
-      return;
-    }
     onDeleteContentItem?.(post.id, post.title, post.title);
   };
 
@@ -931,17 +927,21 @@ export default function VideoLabView({
                             
                             <div className="flex justify-between items-start pl-2">
                               <span className="text-sm font-bold text-white tracking-tight leading-tight line-clamp-2 pr-4">{post.title}</span>
-                              {post.source === 'video' ? (
-                                <button 
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {post.source === 'pipeline' && (
+                                  <span className="text-[7px] bg-indigo-950 text-indigo-400 border border-indigo-900/40 px-1 py-0.2 rounded font-bold" title="Live Pipeline Item">
+                                    Pipeline
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
                                   onClick={() => handleDeletePost(post)}
                                   className="text-zinc-400 hover:text-red-400 p-0.5"
-                                  title="Remove mock record"
+                                  title={post.source === 'pipeline' ? 'Delete pipeline record' : 'Remove mock record'}
                                 >
                                   <Trash2 className="h-3 w-3" />
                                 </button>
-                              ) : (
-                                <span className="text-[7px] bg-indigo-950 text-indigo-400 border border-indigo-900/40 px-1 py-0.2 rounded font-bold" title="Live Pipeline Item">Pipeline</span>
-                              )}
+                              </div>
                             </div>
 
                             <div className="flex flex-wrap gap-1.5 pl-2">
