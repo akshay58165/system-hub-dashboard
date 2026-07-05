@@ -812,6 +812,7 @@ export default function GithubView({
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 {topics.some(topic => topic.isDemo) && (
                   <button
+                    type="button"
                     onClick={() => {
                       const demoTopics = topics.filter(topic => topic.isDemo);
                       onDeleteContentItems?.(
@@ -1031,6 +1032,7 @@ export default function GithubView({
                         </span>
 
                         <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             const savedForLater = !topic.savedForLater;
@@ -1056,6 +1058,7 @@ export default function GithubView({
                         </button>
 
                         <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             startEditTopic(topic);
@@ -1067,6 +1070,7 @@ export default function GithubView({
                         </button>
 
                         <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             onDeleteContentItem?.(topic.id, topic.name, topic.name);
