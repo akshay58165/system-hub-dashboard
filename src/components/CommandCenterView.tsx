@@ -240,7 +240,7 @@ export default function CommandCenterView({
         taskTimers={taskTimers}
         workdaySession={workdaySession}
         focusTopic={model.queue[0] ?? null}
-        onOpenPipeline={() => onOpenTopicPipeline()}
+        onOpenPipeline={(topicId, action) => onOpenTopicPipeline(topicId, action)}
       />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">

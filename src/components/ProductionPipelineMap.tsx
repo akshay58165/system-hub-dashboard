@@ -25,8 +25,17 @@ interface ProductionPipelineMapProps {
   taskTimers: TaskTimerRecord[];
   workdaySession: WorkdaySession | null;
   focusTopic: Topic | null;
-  onOpenPipeline: () => void;
+  onOpenPipeline: (topicId?: string, action?: 'script' | 'shoot' | 'edit' | 'schedule' | 'post' | 'unblock') => void;
 }
+
+const stageAction: Record<PipelineNodeKey, 'script' | 'shoot' | 'edit' | 'schedule' | 'post' | undefined> = {
+  topic: 'script',
+  scripted: 'shoot',
+  shot: 'edit',
+  edited: 'schedule',
+  scheduled: 'post',
+  posted: undefined,
+};
 
 type NodeTone = {
   badge: string;
@@ -173,6 +182,8 @@ export default function ProductionPipelineMap({
       oldestName?: string;
       oldestAgeDays?: number;
       nextAction: string;
+      focusTopicId?: string;
+      focusAction?: 'script' | 'shoot' | 'edit' | 'schedule' | 'post' | 'unblock';
       icon: React.ComponentType<{ className?: string }>;
       tone: NodeTone;
     }>(status => {
@@ -181,6 +192,16 @@ export default function ProductionPipelineMap({
       const overdue = bucket.filter(t => t.dueDate && new Date(t.dueDate).getTime() < now).length;
       const stale = bucket.filter(t => daysSince(t.createdDate, now) >= 3).length;
       const oldest = [...bucket].sort((a, b) => new Date(a.createdDate).getTime() - new Date(b.createdDate).getTime())[0];
+
+      // Pick the topic this card should jump to when clicked:
+      // 1. blocked (needs unblocking) 2. overdue 3. oldest 4. any
+      const firstBlocked = bucket.find(t => Boolean(t.blockedReason));
+      const firstOverdue = bucket.filter(t => t.dueDate && new Date(t.dueDate).getTime() < now)
+        .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())[0];
+      const focus = firstBlocked ?? firstOverdue ?? oldest;
+      const focusAction: 'script' | 'shoot' | 'edit' | 'schedule' | 'post' | 'unblock' | undefined = focus
+        ? (firstBlocked ? 'unblock' : stageAction[status])
+        : undefined;
 
       const timerStage = timerStageForNode[status];
       const timersInStage = timerStage
@@ -199,6 +220,8 @@ export default function ProductionPipelineMap({
         oldestName: oldest?.name,
         oldestAgeDays: oldest ? daysSince(oldest.createdDate, now) : undefined,
         nextAction: nextActionForStage[status],
+        focusTopicId: focus?.id,
+        focusAction,
         icon: ({ topic: Lightbulb, scripted: PenLine, shot: Camera, edited: Scissors, scheduled: CalendarDays, posted: Youtube } as const)[status],
         tone: toneMap[status],
       };
@@ -243,7 +266,11 @@ export default function ProductionPipelineMap({
 
         <button
           type="button"
-          onClick={onOpenPipeline}
+          onClick={() => {
+            if (activeTaskTimer) onOpenPipeline(activeTaskTimer.topicId, activeTaskTimer.stage);
+            else if (focusTopic) onOpenPipeline(focusTopic.id, focusTopic.blockedReason ? 'unblock' : stageAction[focusTopic.status]);
+            else onOpenPipeline();
+          }}
           className="group min-w-[240px] rounded-2xl border border-cyan-900/40 bg-cyan-950/20 p-4 text-left transition hover:-translate-y-0.5 hover:border-cyan-700/60"
         >
           <div className="flex items-center justify-between">
@@ -290,7 +317,8 @@ export default function ProductionPipelineMap({
               <motion.button
                 key={node.key}
                 type="button"
-                onClick={onOpenPipeline}
+                onClick={() => onOpenPipeline(node.focusTopicId, node.focusAction)}
+                title={node.focusTopicId ? `Jump to: ${node.oldestName}` : 'Open pipeline'}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, delay: index * 0.05 }}
