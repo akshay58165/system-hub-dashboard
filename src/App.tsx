@@ -328,7 +328,13 @@ function mergeWorkdaySessionByNewest(
     return remoteStateRevisionMs >= localRevision ? null : localSession;
   }
 
-  if (!localSession) return remoteSession;
+  if (!localSession) {
+    // Local has no active session — either we never had one, or we just ended
+    // it. If our end is at least as recent as the remote session's last change,
+    // the session was intentionally cleared; do NOT resurrect the stale remote
+    // running session (that's what made a stopped timer keep ticking).
+    return localEndRevisionMs >= remoteRevision ? null : remoteSession;
+  }
   return localRevision >= remoteRevision ? localSession : remoteSession;
 }
 
@@ -554,6 +560,7 @@ export default function App() {
     const nextSessions = [record, ...sessions];
     const nextTaskTimers = finalizeTaskTimersForSession(taskTimers, current, endedAtIso);
 
+    lastWorkdayEndAtRef.current = now.getTime();
     suppressNextSaveRef.current = true;
     setSessions(nextSessions);
     setTaskTimers(nextTaskTimers);
@@ -797,6 +804,9 @@ export default function App() {
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const suppressNextSaveRef = useRef(false);
   const lastRemoteUpdatedAtRef = useRef(0);
+  // Timestamp (ms) of the most recent local workday-session end. Lets merges
+  // reject a stale remote "running" session so a stopped timer stays stopped.
+  const lastWorkdayEndAtRef = useRef(0);
   const lastRemoteVersionRef = useRef(0);
   const reconciliationInFlightRef = useRef(false);
   const [hydratedUserId, setHydratedUserId] = useState<string | null>(null);
@@ -1133,7 +1143,7 @@ export default function App() {
           if (remoteState.activities) setActivities(remoteState.activities);
           if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
           if ('workdaySession' in remoteState) {
-            setWorkdaySession(localSession => mergeWorkdaySessionByNewest(remoteState.workdaySession || null, localSession, remoteUpdatedAt));
+            setWorkdaySession(localSession => mergeWorkdaySessionByNewest(remoteState.workdaySession || null, localSession, remoteUpdatedAt, lastWorkdayEndAtRef.current));
           }
           if ('sessions' in remoteState) {
             setSessions(localSessions => mergeSessionRecordsByNewest((remoteState.sessions || []) as SessionRecord[], localSessions, remoteUpdatedAt));
@@ -1244,7 +1254,7 @@ export default function App() {
                 if (remoteState.activities) setActivities(remoteState.activities);
                 if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
                 if ('workdaySession' in remoteState) {
-                  setWorkdaySession(localSession => mergeWorkdaySessionByNewest(remoteState.workdaySession || null, localSession, lastRemoteUpdatedAtRef.current));
+                  setWorkdaySession(localSession => mergeWorkdaySessionByNewest(remoteState.workdaySession || null, localSession, lastRemoteUpdatedAtRef.current, lastWorkdayEndAtRef.current));
                 }
                 if ('sessions' in remoteState) {
                   setSessions(localSessions => mergeSessionRecordsByNewest((remoteState.sessions || []) as SessionRecord[], localSessions, lastRemoteUpdatedAtRef.current));
@@ -1316,7 +1326,7 @@ export default function App() {
       const remoteSessions = (remoteState.sessions || []) as SessionRecord[];
       const remoteTaskTimers = (remoteState.taskTimers || []) as TaskTimerRecord[];
       const remoteWorkdaySession = ('workdaySession' in remoteState ? remoteState.workdaySession || null : null) as WorkdaySession | null;
-      const localWorkdayEndRevisionMs = newWorkdaySession ? 0 : newSessions.reduce((max, session) => Math.max(max, sessionRecordRevisionMs(session)), 0);
+      const localWorkdayEndRevisionMs = newWorkdaySession ? 0 : Math.max(lastWorkdayEndAtRef.current, newSessions.reduce((max, session) => Math.max(max, sessionRecordRevisionMs(session)), 0));
 
       const mergedTopics = mergeTopicsByNewest(remoteTopics, newTopics, deletedTopicIds);
       const mergedActivities = new Map<string, TopicActivity>();
@@ -1509,7 +1519,7 @@ export default function App() {
         if (remoteState.activities) setActivities(remoteState.activities);
         if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
         if ('workdaySession' in remoteState) {
-          setWorkdaySession(localSession => mergeWorkdaySessionByNewest(remoteState.workdaySession || null, localSession, remoteUpdatedAt));
+          setWorkdaySession(localSession => mergeWorkdaySessionByNewest(remoteState.workdaySession || null, localSession, remoteUpdatedAt, lastWorkdayEndAtRef.current));
         }
         if ('sessions' in remoteState) {
           setSessions(localSessions => mergeSessionRecordsByNewest((remoteState.sessions || []) as SessionRecord[], localSessions, remoteUpdatedAt));
