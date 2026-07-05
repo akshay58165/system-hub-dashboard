@@ -885,18 +885,18 @@ export default function GithubView({
   };
 
   const activeTopics = useMemo(() => filteredTopics.filter(topic => {
-    const isPosted = topic.status === 'posted' || getTopicWorkflowState(topic, 'post') === 'completed';
-    const isScheduled = topic.status === 'scheduled' || (getTopicWorkflowState(topic, 'schedule') === 'completed' && !isPosted);
+    const isPosted = topic.status === 'posted';
+    const isScheduled = topic.status === 'scheduled' || (getTopicWorkflowState(topic, 'schedule') === 'completed' && topic.status !== 'posted');
     return !isPosted && !isScheduled;
   }), [filteredTopics]);
 
   const scheduledTopics = useMemo(() => filteredTopics.filter(topic => {
-    const isPosted = topic.status === 'posted' || getTopicWorkflowState(topic, 'post') === 'completed';
-    const isScheduled = topic.status === 'scheduled' || (getTopicWorkflowState(topic, 'schedule') === 'completed' && !isPosted);
+    const isPosted = topic.status === 'posted';
+    const isScheduled = topic.status === 'scheduled' || (getTopicWorkflowState(topic, 'schedule') === 'completed' && topic.status !== 'posted');
     return isScheduled && !isPosted;
   }), [filteredTopics]);
 
-  const postedTopics = useMemo(() => filteredTopics.filter(topic => topic.status === 'posted' || getTopicWorkflowState(topic, 'post') === 'completed'), [filteredTopics]);
+  const postedTopics = useMemo(() => filteredTopics.filter(topic => topic.status === 'posted'), [filteredTopics]);
 
   return (
     <div className="space-y-6">
