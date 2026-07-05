@@ -94,6 +94,22 @@ const displayTime = (value?: string) => {
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
+const parseArchiveDateStr = (value?: string) => {
+  if (!value) return '';
+  const datePart = value.split('T')[0];
+  return /^\d{4}-\d{2}-\d{2}$/.test(datePart) ? datePart : '';
+};
+
+const getTopicArchiveDateStr = (topic: Topic) => {
+  return (
+    parseArchiveDateStr(topic.postedAt) ||
+    parseArchiveDateStr(topic.dueDate || undefined) ||
+    parseArchiveDateStr(topic.scheduledTime) ||
+    parseArchiveDateStr(topic.createdDate) ||
+    parseArchiveDateStr(topic.lastUpdated)
+  );
+};
+
 export default function VideoLabView({ 
   videos, 
   setVideos, 
@@ -159,16 +175,18 @@ export default function VideoLabView({
 
     // Add active pipeline topics
     topics.forEach(t => {
-      if (t.dueDate && (t.status === 'posted' || t.status === 'scheduled')) {
+      if (t.status === 'posted' || t.status === 'scheduled') {
+        const dateStr = getTopicArchiveDateStr(t);
+        if (!dateStr) return;
         posts.push({
           id: t.id,
           title: t.name,
           channelName: t.channel,
           format: t.format || 'Long', // Default to Long if undefined
-          dateStr: t.dueDate.split('T')[0],
+          dateStr,
           source: 'pipeline',
           state: t.status === 'posted' ? 'published' : 'scheduled',
-          time: displayTime(t.postedAt || t.scheduledTime),
+          time: displayTime(t.postedAt || t.scheduledTime || t.dueDate || t.createdDate || t.lastUpdated),
           contentType: t.category || 'Unclassified',
           revenueLevel: t.revenueLevel || 'Not tagged',
           priority: t.priority
