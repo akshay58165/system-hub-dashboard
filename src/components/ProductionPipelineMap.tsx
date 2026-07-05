@@ -25,6 +25,9 @@ interface ProductionPipelineMapProps {
   taskTimers: TaskTimerRecord[];
   workdaySession: WorkdaySession | null;
   focusTopic: Topic | null;
+  dueSoonCount?: number;
+  firstAttentionTopicId?: string;
+  firstAttentionAction?: 'script' | 'shoot' | 'edit' | 'schedule' | 'post' | 'unblock';
   onOpenPipeline: (topicId?: string, action?: 'script' | 'shoot' | 'edit' | 'schedule' | 'post' | 'unblock') => void;
 }
 
@@ -141,6 +144,9 @@ export default function ProductionPipelineMap({
   taskTimers,
   workdaySession,
   focusTopic,
+  dueSoonCount = 0,
+  firstAttentionTopicId,
+  firstAttentionAction,
   onOpenPipeline
 }: ProductionPipelineMapProps) {
   const now = Date.now();
@@ -250,60 +256,90 @@ export default function ProductionPipelineMap({
         transition={{ duration: 26, repeat: Infinity, ease: 'easeInOut' }}
       />
 
-      <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div className="max-w-3xl">
-          <div className="mb-2 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[.24em] text-cyan-300">
-            <Sparkles className="h-3.5 w-3.5 animate-pulse" />
-            Pipeline overview
-          </div>
-          <h2 className="text-2xl font-bold tracking-tight text-white md:text-3xl">
-            Where every topic is right now
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm text-neutral-400">
-            Each card is one stage of production. Red pulse means something needs attention here. Green pulse means a task timer is running in that stage right now.
-          </p>
-        </div>
+      {(() => {
+        const attentionCount = totalBlocked + totalOverdue;
+        const opsTone: 'rose' | 'amber' | 'emerald' = attentionCount > 0 ? 'rose' : dueSoonCount > 0 ? 'amber' : 'emerald';
+        const opsLabel = attentionCount > 0 ? 'Action required' : dueSoonCount > 0 ? 'Watch closely' : 'System clear';
+        const opsBorder = opsTone === 'rose' ? 'border-rose-900/50 hover:border-rose-700' : opsTone === 'amber' ? 'border-amber-900/50 hover:border-amber-700' : 'border-emerald-900/50 hover:border-emerald-700';
+        const opsBg = opsTone === 'rose' ? 'bg-rose-950/20' : opsTone === 'amber' ? 'bg-amber-950/20' : 'bg-emerald-950/20';
+        const opsText = opsTone === 'rose' ? 'text-rose-400' : opsTone === 'amber' ? 'text-amber-300' : 'text-emerald-400';
+        const opsDot = opsTone === 'rose' ? 'bg-rose-500 shadow-[0_0_12px_#f43f5e]' : opsTone === 'amber' ? 'bg-amber-400 shadow-[0_0_12px_#f59e0b]' : 'bg-emerald-400 shadow-[0_0_12px_#10b981]';
+        return (
+          <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="mb-2 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[.24em] text-cyan-300">
+                <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+                Live content operations
+              </div>
+              <h2 className="text-2xl font-bold tracking-tight text-white md:text-3xl">
+                Creator Command Center
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm text-neutral-400">
+                Every topic, every stage. Red pulse means attention here. Green pulse means a task timer is running.
+              </p>
+            </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            if (activeTaskTimer) onOpenPipeline(activeTaskTimer.topicId, activeTaskTimer.stage);
-            else if (focusTopic) onOpenPipeline(focusTopic.id, focusTopic.blockedReason ? 'unblock' : stageAction[focusTopic.status]);
-            else onOpenPipeline();
-          }}
-          className="group min-w-[240px] rounded-2xl border border-cyan-900/40 bg-cyan-950/20 p-4 text-left transition hover:-translate-y-0.5 hover:border-cyan-700/60"
-        >
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Now working on</span>
-            {activeTaskTimer ? <LiveDot /> : totalBlocked + totalOverdue > 0 ? <AttentionDot /> : <span className="h-2.5 w-2.5 rounded-full bg-neutral-700" />}
+            <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[500px]">
+              {/* Operational state tile */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (firstAttentionTopicId) onOpenPipeline(firstAttentionTopicId, firstAttentionAction);
+                  else onOpenPipeline();
+                }}
+                className={`group rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 ${opsBorder} ${opsBg}`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Operational state</span>
+                  <span className={`h-2.5 w-2.5 rounded-full ${opsDot}`} />
+                </div>
+                <div className={`mt-2 font-mono text-sm font-bold uppercase tracking-wide ${opsText}`}>{opsLabel}</div>
+                <div className="mt-1 flex items-center justify-between gap-3 text-[11px] text-neutral-500">
+                  <span>{totalBlocked} blocked · {totalOverdue} overdue · {dueSoonCount} due soon</span>
+                  <ArrowUpRight className="h-3.5 w-3.5 shrink-0 group-hover:text-white" />
+                </div>
+              </button>
+
+              {/* Now working on tile */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (activeTaskTimer) onOpenPipeline(activeTaskTimer.topicId, activeTaskTimer.stage);
+                  else if (focusTopic) onOpenPipeline(focusTopic.id, focusTopic.blockedReason ? 'unblock' : stageAction[focusTopic.status]);
+                  else onOpenPipeline();
+                }}
+                className="group rounded-2xl border border-cyan-900/40 bg-cyan-950/20 p-4 text-left transition hover:-translate-y-0.5 hover:border-cyan-700/60"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Now working on</span>
+                  {activeTaskTimer ? <LiveDot /> : <span className="h-2.5 w-2.5 rounded-full bg-neutral-700" />}
+                </div>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={focusTopic?.id ?? activeTaskTimer?.id ?? 'idle'}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.25 }}
+                    className="mt-2"
+                  >
+                    <div className="text-sm font-semibold text-white truncate">
+                      {activeTaskTimer ? activeTaskTimer.topicName : focusTopic?.name ?? 'Nothing active'}
+                    </div>
+                    <div className="mt-1 text-[11px] leading-relaxed text-neutral-400">
+                      {activeTaskTimer
+                        ? `${activeTaskTimer.status === 'paused' ? 'Paused' : 'Running'} · ${formatDuration(activeTaskTimerMs?.active ?? 0)} on ${activeTaskTimer.stage}`
+                        : focusTopic
+                          ? `Currently at ${focusTopic.status}${focusTopic.blockedReason ? ' · blocked' : ''}`
+                          : 'Start a topic action and this card will light up.'}
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
+              </button>
+            </div>
           </div>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={focusTopic?.id ?? activeTaskTimer?.id ?? 'idle'}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.25 }}
-              className="mt-2"
-            >
-              <div className="text-sm font-semibold text-white">
-                {activeTaskTimer ? activeTaskTimer.topicName : focusTopic?.name ?? 'Nothing active'}
-              </div>
-              <div className="mt-1 text-[11px] leading-relaxed text-neutral-400">
-                {activeTaskTimer
-                  ? `${activeTaskTimer.status === 'paused' ? 'Paused' : 'Running'} · ${formatDuration(activeTaskTimerMs?.active ?? 0)} on ${activeTaskTimer.stage}`
-                  : focusTopic
-                    ? `Currently at ${focusTopic.status}${focusTopic.blockedReason ? ' · blocked' : ''}`
-                    : 'Start a topic action and this card will light up.'}
-              </div>
-            </motion.div>
-          </AnimatePresence>
-          <div className="mt-3 flex items-center gap-1.5 font-mono text-[10px] text-cyan-300">
-            <span>Open pipeline</span>
-            <ArrowUpRight className="h-3.5 w-3.5" />
-          </div>
-        </button>
-      </div>
+        );
+      })()}
 
       <div className="relative z-10 mt-6 rounded-3xl border border-neutral-800/70 bg-neutral-950/55 p-4 md:p-5">
         <div className="grid gap-3 xl:grid-cols-6">

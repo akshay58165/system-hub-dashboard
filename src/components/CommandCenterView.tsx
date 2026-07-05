@@ -210,28 +210,6 @@ export default function CommandCenterView({
 
   return (
     <div className="space-y-5 pb-10">
-      <section className="relative overflow-hidden rounded-2xl border border-neutral-800 bg-[linear-gradient(120deg,rgba(15,12,24,.98),rgba(5,14,18,.98))] p-5 md:p-6">
-        <div className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-cyan-500/8 blur-3xl" />
-        <div className="pointer-events-none absolute -left-20 bottom-0 h-48 w-48 rounded-full bg-purple-500/8 blur-3xl" />
-        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="mb-2 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[.24em] text-cyan-400">
-              <Radio className="h-3.5 w-3.5 animate-pulse" /> Live content operations
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">Creator Command Center</h1>
-            <p className="mt-2 max-w-2xl text-sm text-neutral-400">One screen for what needs action now, where production is accumulating, and what is safely moving forward.</p>
-          </div>
-          <button type="button" onClick={() => { const first = model.attention[0]; if (first) onOpenTopicPipeline(first.id, actionTargetForTopic(first)); else onOpenTopicPipeline(); }} className={`group min-w-[250px] rounded-xl border p-4 text-left transition hover:-translate-y-0.5 ${systemColor === 'rose' ? 'border-rose-900/50 bg-rose-950/20 hover:border-rose-700' : systemColor === 'amber' ? 'border-amber-900/50 bg-amber-950/20 hover:border-amber-700' : 'border-emerald-900/50 bg-emerald-950/20 hover:border-emerald-700'}`}>
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-[9px] uppercase tracking-widest text-neutral-500">Operational state</span>
-              <span className={`h-2.5 w-2.5 rounded-full ${systemColor === 'rose' ? 'bg-rose-500 shadow-[0_0_12px_#f43f5e]' : systemColor === 'amber' ? 'bg-amber-400 shadow-[0_0_12px_#f59e0b]' : 'bg-emerald-400 shadow-[0_0_12px_#10b981]'}`} />
-            </div>
-            <div className={`mt-2 font-mono text-lg font-bold ${systemColor === 'rose' ? 'text-rose-400' : systemColor === 'amber' ? 'text-amber-300' : 'text-emerald-400'}`}>{systemTone}</div>
-            <div className="mt-1 flex items-center justify-between gap-3 text-xs text-neutral-500"><span>{model.blocked.length} blocked - {model.overdue.length} overdue - {model.dueSoon.length} due soon</span><ArrowUpRight className="h-3.5 w-3.5 shrink-0 group-hover:text-white" /></div>
-          </button>
-        </div>
-      </section>
-
       <ProductionPipelineMap
         topics={topics}
         videos={videos}
@@ -240,6 +218,9 @@ export default function CommandCenterView({
         taskTimers={taskTimers}
         workdaySession={workdaySession}
         focusTopic={model.queue[0] ?? null}
+        dueSoonCount={model.dueSoon.length}
+        firstAttentionTopicId={model.attention[0]?.id}
+        firstAttentionAction={model.attention[0] ? actionTargetForTopic(model.attention[0]) : undefined}
         onOpenPipeline={(topicId, action) => onOpenTopicPipeline(topicId, action)}
       />
 
