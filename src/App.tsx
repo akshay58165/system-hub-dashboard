@@ -1726,14 +1726,6 @@ export default function App() {
 
   // When main session ends → complete any running/paused task timers
   const endWorkdaySessionWithTaskTimers = () => {
-    const stamp = new Date().toISOString();
-    setTaskTimers(prev => prev.map(tt => {
-      if (tt.status !== 'running' && tt.status !== 'paused') return tt;
-      const end = new Date(stamp).getTime();
-      const finalActive = tt.accumulatedActiveMs + (tt.status === 'running' && tt.activeSince ? Math.max(0, end - new Date(tt.activeSince).getTime()) : 0);
-      const finalPaused = tt.accumulatedPausedMs + (tt.status === 'paused' && tt.pausedAt ? Math.max(0, end - new Date(tt.pausedAt).getTime()) : 0);
-      return { ...tt, status: 'completed' as const, completedAt: stamp, activeSince: null, pausedAt: null, accumulatedActiveMs: finalActive, accumulatedPausedMs: finalPaused, endReason: 'deferred' as const };
-    }));
     endWorkdaySession();
   };
 
