@@ -179,7 +179,7 @@ export default function GithubView({
 
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
   // Distinguishes "opened for a fresh Add Topic" from "opened via
-  // startEditTopic" — both just flip the same isAddFormOpen boolean (which
+  // startEditTopic" â€” both just flip the same isAddFormOpen boolean (which
   // can also be toggled externally, from App.tsx's header button), so
   // without this flag the form would keep showing whatever topic was last
   // edited instead of a blank slate.
@@ -324,7 +324,7 @@ export default function GithubView({
   };
 
   // Whenever the form opens and it WASN'T startEditTopic that opened it,
-  // start from a clean slate — covers every way the form can be opened
+  // start from a clean slate â€” covers every way the form can be opened
   // (this view's own header toggle, or App.tsx's top-level "Add Topic"
   // button controlling the same prop from outside).
   useEffect(() => {
@@ -341,7 +341,7 @@ export default function GithubView({
 
     const revLvl = getAutomaticRevenueLevel();
     // Content Lane must always be reflected as the topic's real stored
-    // format everywhere else in the app reads it — never just used to
+    // format everywhere else in the app reads it â€” never just used to
     // compute the revenue level and then discarded.
     const finalFormat: Topic['format'] = newTopicLane === 'Shorts' ? 'Short' : newTopicLane === 'Members-Only' ? 'Members' : 'Long';
 
@@ -392,7 +392,7 @@ export default function GithubView({
         format: finalFormat,
         lastUpdated: new Date().toISOString(),
         // A blank result here just means no eligibility box was touched this
-        // time, not "clear the revenue level" — keep whatever was already set.
+        // time, not "clear the revenue level" â€” keep whatever was already set.
         revenueLevel: revLvl || original?.revenueLevel,
         inProgress: inProgress || original?.inProgress,
         workflowStatuses: newTopicStatus !== 'topic' ? workflowStatuses : original?.workflowStatuses
@@ -480,7 +480,7 @@ export default function GithubView({
   };
 
   // Opens the same Add Topic form pre-filled with an existing topic's
-  // values, so editing has access to every field creation does — instead of
+  // values, so editing has access to every field creation does â€” instead of
   // the previous edit-nothing-but-delete-and-recreate workflow.
   const startEditTopic = (topic: Topic) => {
     openedForEditRef.current = true;
@@ -495,7 +495,7 @@ export default function GithubView({
     setNewTopicLane(topic.format === 'Short' ? 'Shorts' : topic.format === 'Members' ? 'Members-Only' : 'Long');
     // Eligibility checkboxes are the inputs that produced revenueLevel, not
     // something stored on the topic itself, so they can't be reconstructed
-    // exactly — left blank here. The topic's existing revenueLevel is
+    // exactly â€” left blank here. The topic's existing revenueLevel is
     // preserved on save unless the user actively re-picks eligibility.
     setEligibility({
       neutral: false,
@@ -687,6 +687,214 @@ export default function GithubView({
     }
     return "Deep-dive system investigations, developer tooling audits, database lock analysis, and performance benchmarks.";
   };
+
+  const renderTopicCard = (topic: Topic) => {
+    const prio = getPriorityDetails(topic.priority);
+    const workflow = getTopicCurrentWorkflow(topic);
+    const led = topicLedState(topic);
+    const isDueSoon = getTopicWorkflowState(topic, 'schedule') !== 'completed' && led.active;
+
+    const statusColors = {
+      script: 'text-blue-400 bg-blue-950/20 border-blue-900/20',
+      shoot: 'text-amber-400 bg-amber-950/20 border-amber-900/20',
+      edit: 'text-emerald-400 bg-emerald-950/20 border-emerald-900/20',
+      schedule: 'text-pink-400 bg-pink-950/20 border-pink-900/20',
+      post: 'text-rose-400 bg-rose-950/20 border-rose-900/20'
+    }[workflow.stage];
+
+    return (
+      <div
+        key={topic.id}
+        id={`topic-inventory-${topic.id}`}
+        className={`p-3.5 bg-neutral-950/30 hover:bg-neutral-900/20 border rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-3 font-mono text-[11px] transition-all duration-300 hover:translate-x-0.5 ${
+          isDueSoon
+            ? 'border-red-950/40 hover:border-red-900/40 bg-red-950/5 shadow-[0_0_12px_rgba(239,68,68,0.03)]'
+            : 'border-neutral-900 hover:border-neutral-800/80'
+        }`}
+      >
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <div className={`topic-led topic-led--${led.tone} mt-0.5 shrink-0`} title={led.label} style={{ '--topic-led-speed': led.speed } as React.CSSProperties}>
+            <span className="topic-led__bezel"><span className="topic-led__lens"><span className="topic-led__glint" /></span></span>
+          </div>
+
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex items-center flex-wrap gap-2">
+              <span className="text-xs font-bold text-neutral-200 truncate">{topic.name}</span>
+              <span className="px-1.5 py-0.2 bg-neutral-900/40 text-neutral-500 border border-neutral-900 rounded text-[9px]">
+                {topic.channel}
+              </span>
+              {topic.format && (
+                <span className="px-1.5 py-0.2 bg-cyan-950/20 text-cyan-400 border border-cyan-900/30 rounded text-[9px] font-bold">
+                  {topic.format}
+                </span>
+              )}
+              {topic.category && (
+                <span className="px-1.5 py-0.2 bg-violet-950/20 text-violet-400 border border-violet-900/30 rounded text-[9px]">
+                  {topic.category}
+                </span>
+              )}
+              {topic.isDemo && (
+                <span className="px-1.5 py-0.2 bg-amber-950/20 text-amber-400 border border-amber-900/30 rounded text-[9px] font-bold">
+                  Demo â€¢ Deletable
+                </span>
+              )}
+              {topic.revenueLevel && (
+                <span className="px-1.5 py-0.2 bg-emerald-950/20 text-emerald-400 border border-emerald-900/30 rounded text-[9px] font-bold">
+                  {topic.revenueLevel}
+                </span>
+              )}
+              {!topic.inProgress && topic.status !== 'scheduled' && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTopics(prev => prev.map(t => t.id === topic.id ? {
+                      ...t,
+                      inProgress: true,
+                      lastUpdated: new Date().toISOString()
+                    } : t));
+
+                    const newActivity: TopicActivity = {
+                      id: `act-progress-${Date.now()}`,
+                      topicName: topic.name,
+                      channel: topic.channel,
+                      action: `Moved topic to progress section`,
+                      author: 'typeakshay',
+                      timestamp: new Date().toISOString()
+                    };
+                    setActivities(prev => [newActivity, ...prev]);
+
+                    onAddEvent({
+                      id: `evt-to-progress-${Date.now()}`,
+                      source: 'github',
+                      type: 'info',
+                      message: `Workflow Engine: "${topic.name}" moved to active production pipeline.`,
+                      timestamp: new Date().toISOString()
+                    });
+
+                    if (setPipelineSubView) setPipelineSubView('topics');
+                    if (setActiveTab) setActiveTab('pipeline');
+                  }}
+                  className="px-1.5 py-0.2 bg-blue-950/45 hover:bg-blue-900/20 text-blue-400 border border-blue-900/40 hover:border-blue-500 hover:text-white rounded text-[8px] font-mono transition cursor-pointer select-none"
+                  title="Send to Progress section"
+                >
+                  Start Pipeline â†’
+                </button>
+              )}
+              {(topic.inProgress || topic.status === 'scheduled' || topic.status === 'posted') && (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (setPipelineSubView) setPipelineSubView('topics');
+                    if (setActiveTab) setActiveTab('pipeline');
+                  }}
+                  className="px-1.5 py-0.2 bg-amber-950/35 hover:bg-amber-900/25 text-amber-400 border border-amber-900/40 hover:border-amber-500 rounded text-[8px] font-mono transition cursor-pointer"
+                  title="Open edit, delete, reset, and status controls"
+                >
+                  Manage â†’
+                </button>
+              )}
+            </div>
+            <p className="text-[10px] text-neutral-400 font-sans leading-relaxed">{topic.description}</p>
+
+            {topic.dueDate && (
+              <div className="flex items-center gap-1 text-[9px] text-neutral-500 italic mt-0.5 font-sans">
+                <Calendar className="h-3 w-3" />
+                <span>Due date: {new Date(topic.dueDate).toLocaleDateString()}</span>
+                {isDueSoon && (
+                  <span className="text-red-400 font-bold ml-1 uppercase animate-pulse">
+                    {getDueDateWarningText(topic.dueDate, now)}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+          <span className={`px-2 py-0.5 rounded border text-[9px] font-bold uppercase ${statusColors}`}>
+            {workflow.label}
+          </span>
+
+          <span className={`px-2 py-0.5 rounded border text-[9px] font-bold ${prio.style}`}>
+            {prio.text}
+          </span>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              const savedForLater = !topic.savedForLater;
+              setTopics(prev => prev.map(item => item.id === topic.id ? {
+                ...item,
+                savedForLater,
+                lastUpdated: new Date().toISOString()
+              } : item));
+              setActivities(prev => [{
+                id: `act-later-${topic.id}-${Date.now()}`,
+                topicName: topic.name,
+                channel: topic.channel,
+                action: savedForLater ? 'Saved topic for later' : 'Restored topic from Later',
+                author: 'typeakshay',
+                timestamp: new Date().toISOString()
+              }, ...prev]);
+            }}
+            className={`p-1 rounded transition cursor-pointer ${topic.savedForLater ? 'text-blue-400 bg-blue-950/20' : 'text-neutral-600 hover:text-blue-400 hover:bg-blue-950/20'}`}
+            title={topic.savedForLater ? 'Restore from Later' : 'Save for later'}
+            aria-label={topic.savedForLater ? 'Restore from Later' : 'Save for later'}
+          >
+            <Bookmark className={`h-3.5 w-3.5 ${topic.savedForLater ? 'fill-current' : ''}`} />
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              startEditTopic(topic);
+            }}
+            className="p-1 rounded text-neutral-600 hover:text-blue-400 hover:bg-blue-950/20 transition cursor-pointer"
+            title="Edit topic"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteContentItem?.(topic.id, topic.name, topic.name);
+              onAddEvent({
+                id: `evt-topic-delete-${Date.now()}`,
+                source: 'github',
+                type: 'warning',
+                message: `Topic Repos: Queued delete for topic "${topic.name}".`,
+                timestamp: new Date().toISOString()
+              });
+            }}
+            className="p-1 rounded text-neutral-600 hover:text-rose-400 hover:bg-rose-950/20 transition cursor-pointer"
+            title="Delete topic"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const activeTopics = useMemo(() => filteredTopics.filter(topic => {
+    const isPosted = topic.status === 'posted' || getTopicWorkflowState(topic, 'post') === 'completed';
+    const isScheduled = topic.status === 'scheduled' || (getTopicWorkflowState(topic, 'schedule') === 'completed' && !isPosted);
+    return !isPosted && !isScheduled;
+  }), [filteredTopics]);
+
+  const scheduledTopics = useMemo(() => filteredTopics.filter(topic => {
+    const isPosted = topic.status === 'posted' || getTopicWorkflowState(topic, 'post') === 'completed';
+    const isScheduled = topic.status === 'scheduled' || (getTopicWorkflowState(topic, 'schedule') === 'completed' && !isPosted);
+    return isScheduled && !isPosted;
+  }), [filteredTopics]);
+
+  const postedTopics = useMemo(() => filteredTopics.filter(topic => topic.status === 'posted' || getTopicWorkflowState(topic, 'post') === 'completed'), [filteredTopics]);
 
   return (
     <div className="space-y-6">
@@ -889,209 +1097,69 @@ export default function GithubView({
             </div>
 
             {/* List of Topics */}
-            <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1">
-              {filteredTopics.length === 0 ? (
-                <div className="text-center py-10 text-neutral-500 font-mono text-xs border border-dashed border-neutral-900 rounded-lg">
-                  No active topics matching filters.
+            <div className="space-y-5 max-h-[460px] overflow-y-auto pr-1">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between border-b border-neutral-900 pb-2">
+                  <div>
+                    <h4 className="text-[10px] uppercase tracking-[0.3em] text-neutral-500">Active topics</h4>
+                    <p className="mt-1 text-[10px] font-mono text-neutral-600">Topics still moving through the workflow.</p>
+                  </div>
+                  <span className="rounded border border-neutral-900 bg-neutral-950 px-2 py-0.5 text-[9px] font-mono text-neutral-500">
+                    {activeTopics.length}
+                  </span>
                 </div>
-              ) : (
-                filteredTopics.map(topic => {
-                  const prio = getPriorityDetails(topic.priority);
-                  const workflow = getTopicCurrentWorkflow(topic);
-                  const led = topicLedState(topic);
-                  const isDueSoon = getTopicWorkflowState(topic, 'schedule') !== 'completed' && led.active;
+                {activeTopics.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-neutral-900 py-8 text-center text-xs font-mono text-neutral-500">
+                    No active topics matching filters.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {activeTopics.map(renderTopicCard)}
+                  </div>
+                )}
+              </div>
 
-                  // Colors for statuses
-                  const statusColors = {
-                    script: 'text-blue-400 bg-blue-950/20 border-blue-900/20',
-                    shoot: 'text-amber-400 bg-amber-950/20 border-amber-900/20',
-                    edit: 'text-emerald-400 bg-emerald-950/20 border-emerald-900/20',
-                    schedule: 'text-pink-400 bg-pink-950/20 border-pink-900/20',
-                    post: 'text-rose-400 bg-rose-950/20 border-rose-900/20'
-                  }[workflow.stage];
+              <div className="space-y-3">
+                <div className="flex items-center justify-between border-b border-neutral-900 pb-2">
+                  <div>
+                    <h4 className="text-[10px] uppercase tracking-[0.3em] text-pink-400/80">Scheduled topics</h4>
+                    <p className="mt-1 text-[10px] font-mono text-neutral-600">Ready to publish, but not posted yet.</p>
+                  </div>
+                  <span className="rounded border border-pink-900/40 bg-pink-950/20 px-2 py-0.5 text-[9px] font-mono text-pink-300">
+                    {scheduledTopics.length}
+                  </span>
+                </div>
+                {scheduledTopics.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-neutral-900 py-8 text-center text-xs font-mono text-neutral-500">
+                    No scheduled topics yet.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {scheduledTopics.map(renderTopicCard)}
+                  </div>
+                )}
+              </div>
 
-                  return (
-                    <div 
-                      key={topic.id} 
-                      id={`topic-inventory-${topic.id}`}
-                      className={`p-3.5 bg-neutral-950/30 hover:bg-neutral-900/20 border rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-3 font-mono text-[11px] transition-all duration-300 hover:translate-x-0.5 ${
-                        isDueSoon 
-                          ? 'border-red-950/40 hover:border-red-900/40 bg-red-950/5 shadow-[0_0_12px_rgba(239,68,68,0.03)]' 
-                          : 'border-neutral-900 hover:border-neutral-800/80'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                        {/* Physical urgency LED: color and switching rate follow deadline pressure and remaining work. */}
-                        <div className={`topic-led topic-led--${led.tone} mt-0.5 shrink-0`} title={led.label} style={{ '--topic-led-speed': led.speed } as React.CSSProperties}>
-                          <span className="topic-led__bezel"><span className="topic-led__lens"><span className="topic-led__glint" /></span></span>
-                        </div>
-
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <div className="flex items-center flex-wrap gap-2">
-                            <span className="text-xs font-bold text-neutral-200 truncate">{topic.name}</span>
-                            <span className="px-1.5 py-0.2 bg-neutral-900/40 text-neutral-500 border border-neutral-900 rounded text-[9px]">
-                              {topic.channel}
-                            </span>
-                            {topic.format && (
-                              <span className="px-1.5 py-0.2 bg-cyan-950/20 text-cyan-400 border border-cyan-900/30 rounded text-[9px] font-bold">
-                                {topic.format}
-                              </span>
-                            )}
-                            {topic.category && (
-                              <span className="px-1.5 py-0.2 bg-violet-950/20 text-violet-400 border border-violet-900/30 rounded text-[9px]">
-                                {topic.category}
-                              </span>
-                            )}
-                            {topic.isDemo && (
-                              <span className="px-1.5 py-0.2 bg-amber-950/20 text-amber-400 border border-amber-900/30 rounded text-[9px] font-bold">
-                                Demo • Deletable
-                              </span>
-                            )}
-                            {topic.revenueLevel && (
-                              <span className="px-1.5 py-0.2 bg-emerald-950/20 text-emerald-400 border border-emerald-900/30 rounded text-[9px] font-bold">
-                                {topic.revenueLevel}
-                              </span>
-                            )}
-                            {!topic.inProgress && topic.status !== 'scheduled' && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setTopics(prev => prev.map(t => t.id === topic.id ? {
-                                    ...t,
-                                    inProgress: true,
-                                    lastUpdated: new Date().toISOString()
-                                  } : t));
-                                  
-                                  // Add activity log
-                                  const newActivity: TopicActivity = {
-                                    id: `act-progress-${Date.now()}`,
-                                    topicName: topic.name,
-                                    channel: topic.channel,
-                                    action: `Moved topic to progress section`,
-                                    author: 'typeakshay',
-                                    timestamp: new Date().toISOString()
-                                  };
-                                  setActivities(prev => [newActivity, ...prev]);
-
-                                  onAddEvent({
-                                    id: `evt-to-progress-${Date.now()}`,
-                                    source: 'github',
-                                    type: 'info',
-                                    message: `Workflow Engine: "${topic.name}" moved to active production pipeline.`,
-                                    timestamp: new Date().toISOString()
-                                  });
-
-                                  if (setPipelineSubView) setPipelineSubView('topics');
-                                  if (setActiveTab) setActiveTab('pipeline');
-                                }}
-                                className="px-1.5 py-0.2 bg-blue-950/45 hover:bg-blue-900/20 text-blue-400 border border-blue-900/40 hover:border-blue-500 hover:text-white rounded text-[8px] font-mono transition cursor-pointer select-none"
-                                title="Send to Progress section"
-                              >
-                                Start Pipeline →
-                              </button>
-                            )}
-                            {(topic.inProgress || topic.status === 'scheduled' || topic.status === 'posted') && (
-                              <button
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  if (setPipelineSubView) setPipelineSubView('topics');
-                                  if (setActiveTab) setActiveTab('pipeline');
-                                }}
-                                className="px-1.5 py-0.2 bg-amber-950/35 hover:bg-amber-900/25 text-amber-400 border border-amber-900/40 hover:border-amber-500 rounded text-[8px] font-mono transition cursor-pointer"
-                                title="Open edit, delete, reset, and status controls"
-                              >
-                                Manage →
-                              </button>
-                            )}
-                          </div>
-                          <p className="text-[10px] text-neutral-400 font-sans leading-relaxed">{topic.description}</p>
-                          
-                          {/* Due Date Indicator */}
-                          {topic.dueDate && (
-                            <div className="flex items-center gap-1 text-[9px] text-neutral-500 italic mt-0.5 font-sans">
-                              <Calendar className="h-3 w-3" />
-                              <span>Due date: {new Date(topic.dueDate).toLocaleDateString()}</span>
-                              {isDueSoon && (
-                                <span className="text-red-400 font-bold ml-1 uppercase animate-pulse">
-                                  {getDueDateWarningText(topic.dueDate, now)}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Status and Priority Badges */}
-                      <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
-                        <span className={`px-2 py-0.5 rounded border text-[9px] font-bold uppercase ${statusColors}`}>
-                          {workflow.label}
-                        </span>
-
-                        <span className={`px-2 py-0.5 rounded border text-[9px] font-bold ${prio.style}`}>
-                          {prio.text}
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const savedForLater = !topic.savedForLater;
-                            setTopics(prev => prev.map(item => item.id === topic.id ? {
-                              ...item,
-                              savedForLater,
-                              lastUpdated: new Date().toISOString()
-                            } : item));
-                            setActivities(prev => [{
-                              id: `act-later-${topic.id}-${Date.now()}`,
-                              topicName: topic.name,
-                              channel: topic.channel,
-                              action: savedForLater ? 'Saved topic for later' : 'Restored topic from Later',
-                              author: 'typeakshay',
-                              timestamp: new Date().toISOString()
-                            }, ...prev]);
-                          }}
-                          className={`p-1 rounded transition cursor-pointer ${topic.savedForLater ? 'text-blue-400 bg-blue-950/20' : 'text-neutral-600 hover:text-blue-400 hover:bg-blue-950/20'}`}
-                          title={topic.savedForLater ? 'Restore from Later' : 'Save for later'}
-                          aria-label={topic.savedForLater ? 'Restore from Later' : 'Save for later'}
-                        >
-                          <Bookmark className={`h-3.5 w-3.5 ${topic.savedForLater ? 'fill-current' : ''}`} />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            startEditTopic(topic);
-                          }}
-                          className="p-1 rounded text-neutral-600 hover:text-blue-400 hover:bg-blue-950/20 transition cursor-pointer"
-                          title="Edit topic"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDeleteContentItem?.(topic.id, topic.name, topic.name);
-                            onAddEvent({
-                              id: `evt-topic-delete-${Date.now()}`,
-                              source: 'github',
-                              type: 'warning',
-                              message: `Topic Repos: Queued delete for topic "${topic.name}".`,
-                              timestamp: new Date().toISOString()
-                            });
-                          }}
-                          className="p-1 rounded text-neutral-600 hover:text-rose-400 hover:bg-rose-950/20 transition cursor-pointer"
-                          title="Delete topic"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
+              <div className="space-y-3 pb-1">
+                <div className="flex items-center justify-between border-b border-neutral-900 pb-2">
+                  <div>
+                    <h4 className="text-[10px] uppercase tracking-[0.3em] text-rose-400/80">Posted topics</h4>
+                    <p className="mt-1 text-[10px] font-mono text-neutral-600">Published work archived at the bottom of the page.</p>
+                  </div>
+                  <span className="rounded border border-rose-900/40 bg-rose-950/20 px-2 py-0.5 text-[9px] font-mono text-rose-300">
+                    {postedTopics.length}
+                  </span>
+                </div>
+                {postedTopics.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-neutral-900 py-8 text-center text-xs font-mono text-neutral-500">
+                    No posted topics yet.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {postedTopics.map(renderTopicCard)}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1629,7 +1697,7 @@ export default function GithubView({
                         You have {criticalTopics.length} topics due within 24 hours or overdue. Click to highlight them.
                       </p>
                     </div>
-                    <span className="ml-auto text-red-700 transition group-hover:text-red-300">↗</span>
+                    <span className="ml-auto text-red-700 transition group-hover:text-red-300">â†—</span>
                   </button>
                 ) : (
                   <div className="p-3 bg-emerald-950/10 border border-emerald-900/40 text-emerald-400 rounded-lg flex items-start gap-2">
@@ -1722,7 +1790,7 @@ export default function GithubView({
                           <User className="h-3 w-3" />
                           {activity.author}
                         </span>
-                        <span className="text-neutral-600">•</span>
+                        <span className="text-neutral-600">â€¢</span>
                         <span className="text-neutral-500 font-mono italic">
                           {formatTimeAgo(activity.timestamp)}
                         </span>
