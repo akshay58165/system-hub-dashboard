@@ -1019,6 +1019,12 @@ export default function App() {
     localStorage.setItem('unicorn_active_tab', activeTab);
   }, [activeTab]);
 
+  useEffect(() => {
+    if (activeTab === 'pipeline') {
+      setPipelineSubView('topics');
+    }
+  }, [activeTab]);
+
   // 1. Listen for Supabase auth state change on mount
   useEffect(() => {
     if (!supabase) {
@@ -2090,7 +2096,10 @@ export default function App() {
               </button>
 
               <button
-                onClick={() => setActiveTab('pipeline')}
+                onClick={() => {
+                  setPipelineSubView('topics');
+                  setActiveTab('pipeline');
+                }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
                   activeTab === 'pipeline'
                     ? 'bg-neutral-900 border border-neutral-850 text-amber-400'
