@@ -17,6 +17,7 @@ interface TodayGoalsViewProps {
   onPauseMainTimer: () => void;
   onResumeMainTimer: () => void;
   sessions: SessionRecord[];
+  onRemoveGoal?: (goalId: string) => void;
 }
 
 const goalStages = ['scripted', 'shot', 'edited', 'scheduled', 'posted'] as const;
@@ -77,7 +78,7 @@ function GoalTrail({
   );
 }
 
-export default function TodayGoalsView({ topics, session, setSession, onEndSession, taskTimers, onStartTaskTimer, onPauseTaskTimer, onResumeTaskTimer, onStopTaskTimer, onPauseMainTimer, onResumeMainTimer, sessions }: TodayGoalsViewProps) {
+export default function TodayGoalsView({ topics, session, setSession, onEndSession, taskTimers, onStartTaskTimer, onPauseTaskTimer, onResumeTaskTimer, onStopTaskTimer, onPauseMainTimer, onResumeMainTimer, sessions, onRemoveGoal }: TodayGoalsViewProps) {
   const [now, setNow] = useState(Date.now());
   const [topicId, setTopicId] = useState('');
   const [target, setTarget] = useState<typeof goalStages[number]>('scripted');
@@ -192,21 +193,7 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
     setSession({ ...session, goals: [...(session.goals || []), { id: `goal-${Date.now()}`, topicId: selected.id, targetStatus: target, addedAt: stamp }], updatedAt: stamp });
     setTopicId('');
   };
-  const removeGoal = (id: string) => setSession(current => {
-    if (!current) return current;
-    const goal = (current.goals || []).find(g => g.id === id);
-    const topic = goal ? topics.find(t => t.id === goal.topicId) : undefined;
-    const droppedEntry = goal && topic ? [{
-      id: goal.id, topicId: goal.topicId, topicName: topic.name,
-      targetStatus: goal.targetStatus, droppedAt: new Date().toISOString()
-    }] : [];
-    return {
-      ...current,
-      goals: (current.goals || []).filter(g => g.id !== id),
-      droppedGoals: [...(current.droppedGoals || []), ...droppedEntry],
-      updatedAt: new Date().toISOString()
-    };
-  });
+  const removeGoal = (id: string) => onRemoveGoal?.(id);
   const pauseResume = () => session?.status === 'paused' ? onResumeMainTimer() : onPauseMainTimer();
   const extendSession = (minutes: number) => setSession(current => current ? {
     ...current,

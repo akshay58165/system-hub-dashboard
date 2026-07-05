@@ -32,6 +32,7 @@ interface PipelineViewProps {
   setWorkdaySession: React.Dispatch<React.SetStateAction<WorkdaySession | null>>;
   activeSubView?: 'videos' | 'topics';
   setActiveSubView?: (subView: 'videos' | 'topics') => void;
+  onDeleteContentItem?: (itemId: string, label: string, topicName?: string) => void;
 }
 
 const STAGES = ['Topic', 'Script', 'Shoot', 'Edit', 'Thumbnail', 'Schedule', 'Published'] as const;
@@ -157,7 +158,8 @@ export default function PipelineView({
   workdaySession,
   setWorkdaySession,
   activeSubView: propActiveSubView,
-  setActiveSubView: propSetActiveSubView
+  setActiveSubView: propSetActiveSubView,
+  onDeleteContentItem
 }: PipelineViewProps) {
   const [localSubView, setLocalSubView] = useState<'videos' | 'topics'>('videos');
   const activeSubView = propActiveSubView || localSubView;
@@ -354,14 +356,14 @@ export default function PipelineView({
   const handleDeleteVideo = () => {
     if (!editingVideoId) return;
     const video = videos.find(item => item.id === editingVideoId);
-    if (!video || !window.confirm(`Delete "${video.title}"? This permanently removes it from the pipeline.`)) return;
-    setVideos(prev => prev.filter(item => item.id !== editingVideoId));
+    if (!video) return;
+    onDeleteContentItem?.(video.id, video.title, video.title);
     setEditingVideoId(null);
     onAddEvent({
       id: `evt-pipeline-delete-${Date.now()}`,
       source: 'system',
       type: 'warning',
-      message: `Pipeline: Deleted "${video.title}".`,
+      message: `Pipeline: Queued delete for "${video.title}".`,
       timestamp: new Date().toISOString()
     });
   };

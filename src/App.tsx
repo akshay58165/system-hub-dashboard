@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Terminal, 
@@ -83,6 +83,23 @@ function createEmptyAiUsageStats(): AiUsageStats {
     lastCall: null,
     cycleStartedAt: new Date().toISOString()
   };
+}
+
+type PendingDeleteKind = 'content' | 'activity' | 'goal' | 'preset' | 'events';
+
+interface PendingDeleteItem {
+  kind: PendingDeleteKind;
+  id: string;
+  label: string;
+  topicId?: string;
+  topicName?: string;
+}
+
+interface PendingDeleteGroup {
+  id: string;
+  label: string;
+  createdAt: number;
+  items: PendingDeleteItem[];
 }
 
 function clampPercent(value: number) {
@@ -447,8 +464,13 @@ export default function App() {
   const isRemoteSyncRef = useRef(false);
   const [topics, setTopicsState] = useState<Topic[]>(initialTopics);
   const topicTombstonesRef = useRef<Record<string, string>>({});
+  const videoTombstonesRef = useRef<Record<string, string>>({});
   const dirtyTopicIdsRef = useRef<Set<string>>(new Set());
   const topicMutationEpochRef = useRef(0);
+  const [pendingDeleteGroups, setPendingDeleteGroups] = useState<PendingDeleteGroup[]>([]);
+  const pendingDeleteTimersRef = useRef<Record<string, number>>({});
+  const pendingDeleteCommittersRef = useRef<Record<string, (() => void) | undefined>>({});
+  const pendingDeleteGroupsRef = useRef<PendingDeleteGroup[]>([]);
   const setTopics: React.Dispatch<React.SetStateAction<Topic[]>> = (update) => {
     setTopicsState(previous => {
       const requested = typeof update === 'function' ? update(previous) : update;
@@ -534,6 +556,189 @@ export default function App() {
     });
   };
 
+  const scheduleDeleteGroup = (items: PendingDeleteItem[], commit: () => void, label: string) => {
+    const groupId = `del-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const createdAt = Date.now();
+    pendingDeleteCommittersRef.current[groupId] = commit;
+    setPendingDeleteGroups(prev => [...prev, { id: groupId, label, createdAt, items }]);
+    pendingDeleteTimersRef.current[groupId] = window.setTimeout(() => {
+      setPendingDeleteGroups(prev => prev.filter(group => group.id !== groupId));
+      const timer = pendingDeleteTimersRef.current[groupId];
+      if (timer) window.clearTimeout(timer);
+      delete pendingDeleteTimersRef.current[groupId];
+      const commitPending = pendingDeleteCommittersRef.current[groupId];
+      delete pendingDeleteCommittersRef.current[groupId];
+      suppressNextSaveRef.current = false;
+      commitPending?.();
+    }, 10_000);
+  };
+
+  const undoLastDelete = () => {
+    const latest = pendingDeleteGroupsRef.current[pendingDeleteGroupsRef.current.length - 1];
+    if (!latest) return;
+    const timer = pendingDeleteTimersRef.current[latest.id];
+    if (timer) window.clearTimeout(timer);
+    delete pendingDeleteTimersRef.current[latest.id];
+    delete pendingDeleteCommittersRef.current[latest.id];
+    setPendingDeleteGroups(prev => prev.filter(group => group.id !== latest.id));
+  };
+
+  const requestDeleteContent = (items: PendingDeleteItem[], commit: () => void, label: string) => {
+    scheduleDeleteGroup(items, commit, label);
+  };
+
+  const requestDeleteGoal = (goalId: string) => {
+    const currentSession = workdaySession;
+    if (!currentSession) return;
+    const goal = (currentSession.goals || []).find(item => item.id === goalId);
+    if (!goal) return;
+    const topic = topics.find(item => item.id === goal.topicId);
+    const goalTopicName = topic?.name || goal.topicId;
+    const goalTargetStatus = goal.targetStatus;
+    requestDeleteContent([{
+      kind: 'goal',
+      id: goal.id,
+      label: goalTopicName,
+      topicId: goal.topicId,
+      topicName: topic?.name
+    }], () => {
+      setWorkdaySession(current => {
+        if (!current) return current;
+        const goalEntry = (current.goals || []).find(item => item.id === goalId);
+        const droppedEntry = goalEntry ? [{
+          id: goalEntry.id,
+          topicId: goalEntry.topicId,
+          topicName: goalTopicName,
+          targetStatus: goalTargetStatus,
+          droppedAt: new Date().toISOString()
+        }] : [];
+        return {
+          ...current,
+          goals: (current.goals || []).filter(item => item.id !== goalId),
+          droppedGoals: [...(current.droppedGoals || []), ...droppedEntry],
+          updatedAt: new Date().toISOString()
+        };
+      });
+    }, `Remove goal "${topic?.name || goal.topicId}"`);
+  };
+
+  const requestDeleteActivity = (activityId: string) => {
+    const activity = activities.find(item => item.id === activityId);
+    if (!activity) return;
+    requestDeleteContent([{
+      kind: 'activity',
+      id: activity.id,
+      label: activity.action,
+      topicId: activity.topicId,
+      topicName: activity.topicName
+    }], () => {
+      setActivities(prev => prev.filter(item => item.id !== activityId));
+    }, `Remove activity "${activity.action}"`);
+  };
+
+  const requestDeletePreset = (presetId: string) => {
+    const preset = aiPresets.find(item => item.id === presetId);
+    if (!preset) return;
+    requestDeleteContent([{
+      kind: 'preset',
+      id: preset.id,
+      label: preset.name
+    }], () => {
+      setAiPresets(prev => prev.filter(item => item.id !== presetId));
+    }, `Remove preset "${preset.name}"`);
+  };
+
+  const requestClearEvents = () => {
+    if (!events.length) return;
+    requestDeleteContent([{
+      kind: 'events',
+      id: 'terminal-events',
+      label: 'Terminal logs'
+    }], () => {
+      setEvents([]);
+      localStorage.removeItem('unicorn_events');
+    }, 'Clear terminal logs');
+  };
+
+  const requestDeleteContentItem = (itemId: string, label: string, topicName?: string) => {
+    const matchingTopic = topics.find(topic => topic.id === itemId);
+    const matchingVideo = videos.find(video => video.id === itemId);
+    const relatedTopicName = topicName || matchingTopic?.name || matchingVideo?.title || label;
+    requestDeleteContent([{
+      kind: 'content',
+      id: itemId,
+      label: relatedTopicName,
+      topicId: matchingTopic?.id || matchingVideo?.id,
+      topicName: relatedTopicName
+    }], () => {
+      const deletedAt = new Date().toISOString();
+      if (matchingTopic) {
+        topicTombstonesRef.current[matchingTopic.id] = deletedAt;
+        dirtyTopicIdsRef.current.add(matchingTopic.id);
+        topicMutationEpochRef.current += 1;
+        isRemoteSyncRef.current = false;
+      }
+      if (matchingVideo) {
+        videoTombstonesRef.current[matchingVideo.id] = deletedAt;
+      }
+      setTopicsState(prev => prev.filter(topic => topic.id !== itemId));
+      setVideos(prev => prev.filter(video => video.id !== itemId));
+      setTaskTimers(prev => prev.filter(timer => timer.topicId !== itemId));
+      setSelectedVideoId(current => current === itemId ? null : current);
+      setActivities(prev => prev.filter(activity => {
+        if (activity.topicId === itemId) return false;
+        if (relatedTopicName && activity.topicName === relatedTopicName) return false;
+        return true;
+      }));
+      setEvents(prev => [{
+        id: `evt-delete-${Date.now()}-${itemId}`,
+        source: 'system',
+        type: 'warning',
+        message: `Deleted "${relatedTopicName}" after undo window expired.`,
+        timestamp: deletedAt
+      }, ...prev]);
+    }, `Delete "${relatedTopicName}"`);
+  };
+
+  const requestDeleteContentItems = (items: Array<{ id: string; label: string; topicName?: string }>, label: string) => {
+    if (!items.length) return;
+    requestDeleteContent(items.map(item => ({
+      kind: 'content',
+      id: item.id,
+      label: item.label,
+      topicName: item.topicName || item.label
+    })), () => {
+      const deletedAt = new Date().toISOString();
+      const deletedIds = new Set(items.map(item => item.id));
+      const deletedNames = new Set(items.map(item => item.topicName || item.label));
+      items.forEach(item => {
+        if (topics.find(topic => topic.id === item.id)) {
+          topicTombstonesRef.current[item.id] = deletedAt;
+          dirtyTopicIdsRef.current.add(item.id);
+        }
+        if (videos.find(video => video.id === item.id)) {
+          videoTombstonesRef.current[item.id] = deletedAt;
+        }
+      });
+      if (items.some(item => topics.some(topic => topic.id === item.id))) {
+        topicMutationEpochRef.current += 1;
+        isRemoteSyncRef.current = false;
+      }
+      setTopicsState(prev => prev.filter(topic => !deletedIds.has(topic.id)));
+      setVideos(prev => prev.filter(video => !deletedIds.has(video.id)));
+      setTaskTimers(prev => prev.filter(timer => !deletedIds.has(timer.topicId)));
+      setSelectedVideoId(current => current && deletedIds.has(current) ? null : current);
+      setActivities(prev => prev.filter(activity => {
+        if (activity.topicId && deletedIds.has(activity.topicId)) return false;
+        if (deletedNames.has(activity.topicName)) return false;
+        return true;
+      }));
+    }, label);
+  };
+  useEffect(() => {
+    pendingDeleteGroupsRef.current = pendingDeleteGroups;
+  }, [pendingDeleteGroups]);
+
   // Referential integrity: a workday goal only ever references a topic by
   // id (see WorkdaySession in types.ts) and is never a valid goal once that
   // topic no longer exists — regardless of where/how the topic was removed
@@ -585,8 +790,45 @@ export default function App() {
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
   const [topicFormTopic, setTopicFormTopic] = useState<Topic | null>(null);
 
-  const vercelUsageSummary = summarizeVercelUsage(vercelProjects, topics, activities, sessions, taskTimers, workdaySession);
-  const supabaseUsageSummary = summarizeSupabaseUsage(supabaseProject, topics, activities, sessions, taskTimers, workdaySession);
+  const pendingDeleteContentIds = useMemo(() => new Set(
+    pendingDeleteGroups.flatMap(group => group.items.filter(item => item.kind === 'content').map(item => item.id))
+  ), [pendingDeleteGroups]);
+  const pendingDeleteContentNames = useMemo(() => new Set(
+    pendingDeleteGroups.flatMap(group => group.items.filter(item => item.kind === 'content').flatMap(item => item.topicName ? [item.topicName] : []))
+  ), [pendingDeleteGroups]);
+  const pendingDeleteActivityIds = useMemo(() => new Set(
+    pendingDeleteGroups.flatMap(group => group.items.filter(item => item.kind === 'activity').map(item => item.id))
+  ), [pendingDeleteGroups]);
+  const pendingDeleteGoalIds = useMemo(() => new Set(
+    pendingDeleteGroups.flatMap(group => group.items.filter(item => item.kind === 'goal').map(item => item.id))
+  ), [pendingDeleteGroups]);
+  const pendingDeletePresetIds = useMemo(() => new Set(
+    pendingDeleteGroups.flatMap(group => group.items.filter(item => item.kind === 'preset').map(item => item.id))
+  ), [pendingDeleteGroups]);
+
+  const visibleTopics = useMemo(() => topics.filter(topic => !pendingDeleteContentIds.has(topic.id)), [topics, pendingDeleteContentIds]);
+  const visibleVideos = useMemo(() => videos.filter(video => !pendingDeleteContentIds.has(video.id) && !videoTombstonesRef.current[video.id]), [videos, pendingDeleteContentIds]);
+  const visibleActivities = useMemo(() => activities.filter(activity => {
+    if (pendingDeleteActivityIds.has(activity.id)) return false;
+    if (activity.topicId && pendingDeleteContentIds.has(activity.topicId)) return false;
+    if (activity.topicName && pendingDeleteContentNames.has(activity.topicName)) return false;
+    return true;
+  }), [activities, pendingDeleteActivityIds, pendingDeleteContentIds, pendingDeleteContentNames]);
+  const visibleWorkdaySession = useMemo(() => {
+    if (!workdaySession) return null;
+    const filteredGoals = (workdaySession.goals || []).filter(goal => !pendingDeleteGoalIds.has(goal.id) && !pendingDeleteContentIds.has(goal.topicId));
+    if (filteredGoals.length === (workdaySession.goals || []).length) return workdaySession;
+    return { ...workdaySession, goals: filteredGoals };
+  }, [workdaySession, pendingDeleteGoalIds, pendingDeleteContentIds]);
+  const visibleTaskTimers = useMemo(() => taskTimers.filter(timer => !pendingDeleteContentIds.has(timer.topicId)), [taskTimers, pendingDeleteContentIds]);
+  const visibleAiPresets = useMemo(() => aiPresets.filter(preset => !pendingDeletePresetIds.has(preset.id)), [aiPresets, pendingDeletePresetIds]);
+  const visibleEvents = useMemo(() => {
+    const pendingClear = pendingDeleteGroups.some(group => group.items.some(item => item.kind === 'events'));
+    return pendingClear ? [] : events;
+  }, [events, pendingDeleteGroups]);
+
+  const vercelUsageSummary = summarizeVercelUsage(vercelProjects, visibleTopics, visibleActivities, sessions, visibleTaskTimers, visibleWorkdaySession);
+  const supabaseUsageSummary = summarizeSupabaseUsage(supabaseProject, visibleTopics, visibleActivities, sessions, visibleTaskTimers, visibleWorkdaySession);
 
   // Bidirectional Synchronization between topics and videos
   useEffect(() => {
@@ -596,7 +838,10 @@ export default function App() {
       const nextVideos = [...prevVideos];
 
       // Remove videos that are deleted in tombstones
-      const deletedIds = new Set(Object.keys(topicTombstonesRef.current));
+      const deletedIds = new Set([
+        ...Object.keys(topicTombstonesRef.current),
+        ...Object.keys(videoTombstonesRef.current)
+      ]);
       const filteredVideos = nextVideos.filter(v => {
         if (deletedIds.has(v.id)) {
           changed = true;
@@ -615,6 +860,7 @@ export default function App() {
       const videoMap = new Map(filteredVideos.map(v => [v.id, v]));
 
       topics.forEach(t => {
+        if (videoTombstonesRef.current[t.id]) return;
         const v = videoMap.get(t.id);
         
         // Map Topic status to Video pipelineStage
@@ -707,6 +953,7 @@ export default function App() {
       const topicMap = new Map(nextTopics.map(t => [t.id, t]));
 
       videos.forEach(v => {
+        if (videoTombstonesRef.current[v.id]) return;
         const t = topicMap.get(v.id);
 
         // Map Video pipelineStage to Topic status
@@ -991,6 +1238,12 @@ export default function App() {
         return;
       }
 
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && pendingDeleteGroupsRef.current.length > 0) {
+        e.preventDefault();
+        undoLastDelete();
+        return;
+      }
+
       if (isTypingField || e.metaKey || e.ctrlKey || e.altKey) return;
 
       if (e.key === 't' || e.key === 'T') {
@@ -1157,6 +1410,9 @@ export default function App() {
           const remoteTombstones = normalizeCommittedTombstones(remoteTopics, remoteState.deletedTopicIds || {});
           const backupTombstones = normalizeCommittedTombstones(backupTopics, recoveryBackup?.state?.deletedTopicIds || {});
           const combinedTombstones = { ...remoteTombstones, ...backupTombstones };
+          const remoteVideoTombstones = (remoteState.deletedVideoIds || {}) as Record<string, string>;
+          const backupVideoTombstones = (recoveryBackup?.state?.deletedVideoIds || {}) as Record<string, string>;
+          videoTombstonesRef.current = { ...remoteVideoTombstones, ...backupVideoTombstones };
           const hydratedTopics = mergeTopicsByNewest(remoteTopics, backupTopics, combinedTombstones);
           topicTombstonesRef.current = combinedTombstones;
           const cloudNeedsRepair = !topicCollectionsEqual(hydratedTopics, remoteTopics);
@@ -1180,7 +1436,7 @@ export default function App() {
             setSessions(localSessions => mergeSessionRecordsByNewest((remoteState.sessions || []) as SessionRecord[], localSessions, remoteUpdatedAt));
           }
           if (remoteState.scorecard) setScorecard(normalizeScorecard(remoteState.scorecard));
-          if (remoteState.videos) setVideos(remoteState.videos);
+          if (remoteState.videos) setVideos((remoteState.videos as VideoRecord[]).filter(video => !videoTombstonesRef.current[video.id]));
           if (remoteState.experiments) setExperiments(remoteState.experiments);
           if (remoteState.insights) setInsights(remoteState.insights);
 
@@ -1225,7 +1481,8 @@ export default function App() {
               insights,
               aiPresets,
               aiUsage,
-              topicSortOrder
+              topicSortOrder,
+              deletedVideoIds: videoTombstonesRef.current
             },
             updated_at: new Date().toISOString()
           }, { onConflict: 'user_id' });
@@ -1267,7 +1524,9 @@ export default function App() {
                 lastRemoteUpdatedAtRef.current = newState.updated_at ? new Date(newState.updated_at).getTime() : Date.now();
                 const remoteTopics = visibleCreatorTopics((remoteState.topics || []) as Topic[]);
                 const remoteTombstones = normalizeCommittedTombstones(remoteTopics, remoteState.deletedTopicIds || {});
+                const remoteVideoTombstones = (remoteState.deletedVideoIds || {}) as Record<string, string>;
                 const combinedTombstones = { ...remoteTombstones, ...topicTombstonesRef.current };
+                videoTombstonesRef.current = { ...remoteVideoTombstones, ...videoTombstonesRef.current };
                 remoteTopics.forEach(topic => {
                   if (!dirtyTopicIdsRef.current.has(topic.id)) delete combinedTombstones[topic.id];
                 });
@@ -1293,7 +1552,7 @@ export default function App() {
                   setSessions(localSessions => mergeSessionRecordsByNewest((remoteState.sessions || []) as SessionRecord[], localSessions, lastRemoteUpdatedAtRef.current));
                 }
                 if (remoteState.scorecard) setScorecard(normalizeScorecard(remoteState.scorecard));
-                if (remoteState.videos) setVideos(remoteState.videos);
+                if (remoteState.videos) setVideos((remoteState.videos as VideoRecord[]).filter(video => !videoTombstonesRef.current[video.id]));
                 if (remoteState.experiments) setExperiments(remoteState.experiments);
                 if (remoteState.insights) setInsights(remoteState.insights);
                 if (remoteState.aiPresets) setAiPresets(remoteState.aiPresets);
@@ -1354,7 +1613,10 @@ export default function App() {
       const remoteTopics = visibleCreatorTopics((remoteState.topics || []) as Topic[]);
       const remoteTombstones = normalizeCommittedTombstones(remoteTopics, remoteState.deletedTopicIds || {});
       const deletedTopicIds: Record<string, string> = { ...remoteTombstones, ...topicTombstonesRef.current };
+      const remoteVideoTombstones = (remoteState.deletedVideoIds || {}) as Record<string, string>;
+      const deletedVideoIds: Record<string, string> = { ...remoteVideoTombstones, ...videoTombstonesRef.current };
       topicTombstonesRef.current = deletedTopicIds;
+      videoTombstonesRef.current = deletedVideoIds;
       const remoteStateRevisionMs = current?.updated_at ? new Date(current.updated_at).getTime() : 0;
       const remoteSessions = (remoteState.sessions || []) as SessionRecord[];
       const remoteTaskTimers = (remoteState.taskTimers || []) as TaskTimerRecord[];
@@ -1375,7 +1637,8 @@ export default function App() {
         activities: Array.from(mergedActivities.values()).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
         cycleGoals: newGoals, workdaySession: mergedWorkdaySession, sessions: mergedSessions, scorecard: newScorecard, videos: newVideos,
         experiments: newExperiments, insights: newInsights, aiPresets: newPresets, aiUsage: newUsage, taskTimers: mergedTaskTimers,
-        topicSortOrder
+        topicSortOrder,
+        deletedVideoIds
       };
       const nextVersion = (current?.version || 0) + 1;
       const updatedAt = new Date().toISOString();
@@ -1492,7 +1755,7 @@ export default function App() {
     const nextBackup = {
       updatedAt: new Date().toISOString(),
       sessionId: currentSessionId,
-      state: { topics: durableTopics, deletedTopicIds: durableTombstones, activities, cycleGoals, workdaySession, sessions, scorecard, videos, experiments, insights, aiPresets, aiUsage, topicSortOrder }
+      state: { topics: durableTopics, deletedTopicIds: durableTombstones, deletedVideoIds: videoTombstonesRef.current, activities, cycleGoals, workdaySession, sessions, scorecard, videos, experiments, insights, aiPresets, aiUsage, topicSortOrder }
     };
 
     try {
@@ -1559,7 +1822,7 @@ export default function App() {
           setSessions(localSessions => mergeSessionRecordsByNewest((remoteState.sessions || []) as SessionRecord[], localSessions, remoteUpdatedAt));
         }
         if (remoteState.scorecard) setScorecard(normalizeScorecard(remoteState.scorecard));
-        if (remoteState.videos) setVideos(remoteState.videos);
+        if (remoteState.videos) setVideos((remoteState.videos as VideoRecord[]).filter(video => !videoTombstonesRef.current[video.id]));
         if (remoteState.experiments) setExperiments(remoteState.experiments);
         if (remoteState.insights) setInsights(remoteState.insights);
         if (remoteState.aiPresets) setAiPresets(remoteState.aiPresets);
@@ -1776,7 +2039,7 @@ export default function App() {
   };
 
   // Derived: the single active task timer (running or paused, most recent)
-  const activeTaskTimer = taskTimers
+  const activeTaskTimer = visibleTaskTimers
     .filter(tt => tt.status === 'running' || tt.status === 'paused')
     .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())[0] ?? null;
 
@@ -2235,7 +2498,7 @@ export default function App() {
               </button>
             </div>
 
-            <WorkdayTimer session={workdaySession} setSession={setWorkdaySession} topics={topics} onEndSession={endWorkdaySessionWithTaskTimers} onOpenTopic={(topicId) => { setPipelineSubView('topics'); setActiveTab('pipeline'); const focusTarget = () => { const card = document.getElementById(`topic-control-${topicId}`); if (card) { highlightCommandDestination(card); return; } if (attempts < 12) { attempts++; window.setTimeout(focusTarget, 100); } }; let attempts = 0; window.setTimeout(focusTarget, 250); }} onExternalPause={handleMainTimerPause} onExternalResume={handleMainTimerResume} />
+            <WorkdayTimer session={visibleWorkdaySession} setSession={setWorkdaySession} topics={visibleTopics} onEndSession={endWorkdaySessionWithTaskTimers} onOpenTopic={(topicId) => { setPipelineSubView('topics'); setActiveTab('pipeline'); const focusTarget = () => { const card = document.getElementById(`topic-control-${topicId}`); if (card) { highlightCommandDestination(card); return; } if (attempts < 12) { attempts++; window.setTimeout(focusTarget, 100); } }; let attempts = 0; window.setTimeout(focusTarget, 250); }} onExternalPause={handleMainTimerPause} onExternalResume={handleMainTimerResume} />
 
             <motion.button
               whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(59, 130, 246, 0.6)' }}
@@ -2285,14 +2548,14 @@ export default function App() {
             }>
             {activeTab === 'overview' && (
               <CommandCenterView
-                topics={topics}
-                videos={videos}
+                topics={visibleTopics}
+                videos={visibleVideos}
                 experiments={experiments}
                 sessions={sessions}
-                taskTimers={taskTimers}
+                taskTimers={visibleTaskTimers}
                 insights={insights}
                 cycleGoals={cycleGoals}
-                workdaySession={workdaySession}
+                workdaySession={visibleWorkdaySession}
                 sortOrder={topicSortOrder}
                 setSortOrder={setTopicSortOrder}
                 onTabChange={(tab) => {
@@ -2304,7 +2567,7 @@ export default function App() {
                 }}
                 setSelectedVideoId={setSelectedVideoId}
                 scorecard={scorecard}
-                activities={activities}
+                activities={visibleActivities}
                 onOpenTopicPipeline={(topicId, action) => {
                   setPipelineSubView('topics');
                   setActiveTab('pipeline');
@@ -2347,9 +2610,9 @@ export default function App() {
 
             {activeTab === 'pipeline' && (
               <TaskTimerContext.Provider value={{
-                timers: taskTimers,
+                timers: visibleTaskTimers,
                 activeTimer: activeTaskTimer,
-                workdaySession,
+                workdaySession: visibleWorkdaySession,
                 startTimer: startTaskTimer,
                 pauseTimer: pauseActiveTaskTimer,
                 resumeTimer: resumeActiveTaskTimer,
@@ -2357,44 +2620,46 @@ export default function App() {
                 completeStageTimer: completeTaskTimerStage
               }}>
                 <PipelineView
-                  videos={videos}
+                  videos={visibleVideos}
                   setVideos={setVideos}
                   onAddEvent={addEvent}
-                  topics={topics}
+                  topics={visibleTopics}
                   setTopics={setTopics}
-                activities={activities}
+                activities={visibleActivities}
                 setActivities={setActivities}
                 cycleGoals={cycleGoals}
                 activeSubView={pipelineSubView}
                 setActiveSubView={setPipelineSubView}
-                workdaySession={workdaySession}
+                workdaySession={visibleWorkdaySession}
                 setWorkdaySession={setWorkdaySession}
                 onEditTopic={(topic) => {
                   setTopicFormTopic(topic);
                   setIsAddFormOpen(true);
                 }}
+                onDeleteContentItem={requestDeleteContentItem}
               />
             </TaskTimerContext.Provider>
           )}
 
             {activeTab === 'videolab' && (
               <VideoLabView
-                videos={videos}
+                videos={visibleVideos}
                 setVideos={setVideos}
                 selectedVideoId={selectedVideoId}
                 setSelectedVideoId={setSelectedVideoId}
-                topics={topics}
+                topics={visibleTopics}
                 cycleGoals={cycleGoals}
+                onDeleteContentItem={requestDeleteContentItem}
               />
             )}
 
             {activeTab === 'topicintel' && (
               <TodayGoalsView
-                topics={topics}
-                session={workdaySession}
+                topics={visibleTopics}
+                session={visibleWorkdaySession}
                 setSession={setWorkdaySession}
                 onEndSession={endWorkdaySessionWithTaskTimers}
-                taskTimers={taskTimers}
+                taskTimers={visibleTaskTimers}
                 onStartTaskTimer={startTaskTimer}
                 onPauseTaskTimer={() => pauseActiveTaskTimer('manual')}
                 onResumeTaskTimer={() => resumeActiveTaskTimer()}
@@ -2402,12 +2667,13 @@ export default function App() {
                 onPauseMainTimer={handleMainTimerPause}
                 onResumeMainTimer={handleMainTimerResume}
                 sessions={sessions}
+                onRemoveGoal={requestDeleteGoal}
               />
             )}
 
             {activeTab === 'forecasting' && (
               <ForecastingView
-                videos={videos}
+                videos={visibleVideos}
                 cycleGoals={cycleGoals}
               />
             )}
@@ -2415,12 +2681,12 @@ export default function App() {
             {activeTab === 'insights' && (
               <InsightsView
                 insights={insights}
-                videos={videos}
-                topics={topics}
-                activities={activities}
+                videos={visibleVideos}
+                topics={visibleTopics}
+                activities={visibleActivities}
                 sessions={sessions}
-                taskTimers={taskTimers}
-                workdaySession={workdaySession}
+                taskTimers={visibleTaskTimers}
+                workdaySession={visibleWorkdaySession}
                 onTabChange={setActiveTab}
               />
             )}
@@ -2431,12 +2697,14 @@ export default function App() {
                 onAddEvent={addEvent} 
                 onUpdateRepo={handleUpdateRepo}
                 onTriggerDeploy={triggerVercelDeploy}
-                topics={topics}
+                topics={visibleTopics}
                 setTopics={setTopics}
-                activities={activities}
+                activities={visibleActivities}
                 setActivities={setActivities}
                 setActiveTab={setActiveTab}
                 setPipelineSubView={setPipelineSubView}
+                onDeleteContentItem={requestDeleteContentItem}
+                onDeleteContentItems={requestDeleteContentItems}
               />
             )}
 
@@ -2445,12 +2713,13 @@ export default function App() {
                 projects={vercelProjects} 
                 onAddEvent={addEvent} 
                 onUpdateProject={handleUpdateProject}
-                topics={topics}
+                topics={visibleTopics}
                 setTopics={setTopics}
-                activities={activities}
+                activities={visibleActivities}
                 setActivities={setActivities}
                 setActiveTab={setActiveTab}
                 cycleGoals={cycleGoals}
+                onDeleteContentItem={requestDeleteContentItem}
               />
             )}
 
@@ -2459,16 +2728,20 @@ export default function App() {
                 supabase={supabaseProject} 
                 onAddEvent={addEvent} 
                 onUpdateSupabase={handleUpdateSupabase}
-                topics={topics}
+                topics={visibleTopics}
                 setTopics={setTopics}
-                activities={activities}
+                activities={visibleActivities}
                 setActivities={setActivities}
                 cycleGoals={cycleGoals}
                 setCycleGoals={setCycleGoals}
-                aiPresets={aiPresets}
+                aiPresets={visibleAiPresets}
                 setAiPresets={setAiPresets}
                 aiUsage={aiUsage}
                 setAiUsage={setAiUsage}
+                onDeleteContentItem={requestDeleteContentItem}
+                onDeleteContentItems={requestDeleteContentItems}
+                onDeleteActivity={requestDeleteActivity}
+                onDeletePreset={requestDeletePreset}
               />
             )}
 
@@ -2499,8 +2772,8 @@ export default function App() {
                 {/* Sub View Contents */}
                 {logsSubView === 'content' && (
                   <ContentActivityView
-                    activities={activities}
-                    topics={topics}
+                    activities={visibleActivities}
+                    topics={visibleTopics}
                     onShowBacklog={() => setLogsSubView('backlog')}
                     onNavigateActivity={navigateToActivity}
                   />
@@ -2508,19 +2781,21 @@ export default function App() {
                 
                 {logsSubView === 'backlog' && (
                   <LogsView
-                    events={events}
-                    onClearEvents={() => { setEvents([]); localStorage.removeItem('unicorn_events'); }}
+                    events={visibleEvents}
+                    onClearEvents={requestClearEvents}
                     onBack={() => setLogsSubView('content')}
                   />
                 )}
 
                 {logsSubView === 'tables' && (
                   <LogsTableEditor
-                    topics={topics}
+                    topics={visibleTopics}
                     setTopics={setTopics}
-                    activities={activities}
+                    activities={visibleActivities}
                     setActivities={setActivities}
                     onAddEvent={addEvent}
+                    onDeleteContentItem={requestDeleteContentItem}
+                    onDeleteActivity={requestDeleteActivity}
                   />
                 )}
               </div>

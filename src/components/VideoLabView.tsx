@@ -24,6 +24,7 @@ interface VideoLabProps {
   setSelectedVideoId: (id: string) => void;
   topics: Topic[];
   cycleGoals: CycleGoal | null;
+  onDeleteContentItem?: (itemId: string, label: string, topicName?: string) => void;
 }
 
 type ViewType = 'calendar' | 'weekly' | 'monthly' | 'yearly';
@@ -99,7 +100,8 @@ export default function VideoLabView({
   selectedVideoId, 
   setSelectedVideoId,
   topics,
-  cycleGoals
+  cycleGoals,
+  onDeleteContentItem
 }: VideoLabProps) {
   const [viewMode, setViewMode] = useState<ViewType>('calendar');
   const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
@@ -353,7 +355,7 @@ export default function VideoLabView({
       alert("This post comes from an active pipeline topic. Please update or delete it in the pipeline dashboard.");
       return;
     }
-    setVideos(prev => prev.filter(v => v.id !== post.id));
+    onDeleteContentItem?.(post.id, post.title, post.title);
   };
 
   // Render subdivided grid blocks inside a day square

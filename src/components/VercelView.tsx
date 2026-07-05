@@ -57,6 +57,7 @@ interface VercelViewProps {
   workdaySession: WorkdaySession | null;
   setWorkdaySession?: React.Dispatch<React.SetStateAction<WorkdaySession | null>>;
   onEditTopic?: (topic: Topic) => void;
+  onDeleteContentItem?: (itemId: string, label: string, topicName?: string) => void;
 }
 
 type TopicSortMode = 'goals' | 'due-date' | 'last-created' | 'level' | 'progress-most' | 'progress-least' | 'workload';
@@ -212,7 +213,8 @@ export default function VercelView({
   cycleGoals,
   workdaySession,
   setWorkdaySession,
-  onEditTopic
+  onEditTopic,
+  onDeleteContentItem
 }: VercelViewProps) {
   const taskTimer = useTaskTimers();
   const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy' | 'Later'>('All');
@@ -733,16 +735,7 @@ export default function VercelView({
   };
 
   const deleteTopic = (topic: Topic) => {
-    if (!window.confirm(`Delete "${topic.name}"? This permanently removes it from every topic view.`)) return;
-    setTopics(prev => prev.filter(item => item.id !== topic.id));
-    setActivities(prev => [{
-      id: `act-delete-${Date.now()}`,
-      topicName: topic.name,
-      channel: topic.channel,
-      action: `Deleted topic`,
-      author: 'typeakshay',
-      timestamp: new Date().toISOString()
-    }, ...prev]);
+    onDeleteContentItem?.(topic.id, topic.name, topic.name);
   };
 
   const toggleSavedForLater = (topic: Topic) => {

@@ -18,6 +18,8 @@ interface LogsTableEditorProps {
   activities: TopicActivity[];
   setActivities: React.Dispatch<React.SetStateAction<TopicActivity[]>>;
   onAddEvent: (evt: SystemEvent) => void;
+  onDeleteContentItem?: (itemId: string, label: string, topicName?: string) => void;
+  onDeleteActivity?: (activityId: string) => void;
 }
 
 export default function LogsTableEditor({
@@ -25,7 +27,9 @@ export default function LogsTableEditor({
   setTopics,
   activities,
   setActivities,
-  onAddEvent
+  onAddEvent,
+  onDeleteContentItem,
+  onDeleteActivity
 }: LogsTableEditorProps) {
   const [selectedTable, setSelectedTable] = useState<'topics' | 'activities'>('topics');
   const [search, setSearch] = useState('');
@@ -44,30 +48,26 @@ export default function LogsTableEditor({
 
   // Delete Topic Action
   const handleDeleteTopic = (topicId: string, topicName: string) => {
-    if (confirm(`Are you sure you want to permanently delete topic "${topicName}"?`)) {
-      setTopics(prev => prev.filter(t => t.id !== topicId));
-      onAddEvent({
-        id: `evt-table-del-t-${Date.now()}`,
-        source: 'system',
-        type: 'warning',
-        message: `Database: Topic "${topicName}" was deleted from the topics relation table.`,
-        timestamp: new Date().toISOString()
-      });
-    }
+    onDeleteContentItem?.(topicId, topicName, topicName);
+    onAddEvent({
+      id: `evt-table-del-t-${Date.now()}`,
+      source: 'system',
+      type: 'warning',
+      message: `Database: Topic "${topicName}" was queued for deletion from the topics relation table.`,
+      timestamp: new Date().toISOString()
+    });
   };
 
   // Delete Activity Action
   const handleDeleteActivity = (actId: string, actionDesc: string) => {
-    if (confirm(`Are you sure you want to remove this activity log entry?`)) {
-      setActivities(prev => prev.filter(a => a.id !== actId));
-      onAddEvent({
-        id: `evt-table-del-a-${Date.now()}`,
-        source: 'system',
-        type: 'warning',
-        message: `Database: Removed activity log entry "${actionDesc.substring(0, 30)}...".`,
-        timestamp: new Date().toISOString()
-      });
-    }
+    onDeleteActivity?.(actId);
+    onAddEvent({
+      id: `evt-table-del-a-${Date.now()}`,
+      source: 'system',
+      type: 'warning',
+      message: `Database: Activity log entry "${actionDesc.substring(0, 30)}..." queued for deletion.`,
+      timestamp: new Date().toISOString()
+    });
   };
 
   // Update Topic Status Inline

@@ -58,6 +58,10 @@ interface SupabaseViewProps {
   setAiPresets: React.Dispatch<React.SetStateAction<AiRulePreset[]>>;
   aiUsage: AiUsageStats;
   setAiUsage: React.Dispatch<React.SetStateAction<AiUsageStats>>;
+  onDeleteContentItem?: (itemId: string, label: string, topicName?: string) => void;
+  onDeleteContentItems?: (items: Array<{ id: string; label: string; topicName?: string }>, label: string) => void;
+  onDeleteActivity?: (activityId: string) => void;
+  onDeletePreset?: (presetId: string) => void;
 }
 
 const TOPIC_REVENUE_OPTIONS = [
@@ -86,7 +90,8 @@ export default function SupabaseView({
   aiPresets,
   setAiPresets,
   aiUsage,
-  setAiUsage
+  setAiUsage,
+  onDeletePreset
 }: SupabaseViewProps) {
   const [activeSubTab, setActiveSubTab] = useState<'script' | 'goals'>('script');
 
@@ -447,8 +452,7 @@ ${task}`;
     if (!selectedPresetId) return;
     const preset = aiPresets.find(p => p.id === selectedPresetId);
     if (!preset) return;
-    if (!window.confirm(`Delete preset "${preset.name}"?`)) return;
-    setAiPresets(prev => prev.filter(p => p.id !== selectedPresetId));
+    onDeletePreset?.(selectedPresetId);
     setSelectedPresetId('');
   };
 

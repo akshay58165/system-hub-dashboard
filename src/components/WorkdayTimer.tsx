@@ -14,6 +14,7 @@ interface WorkdayTimerProps {
   onOpenTopic?: (topicId: string) => void;
   onExternalPause?: () => void;
   onExternalResume?: () => void;
+  onRemoveGoal?: (goalId: string) => void;
 }
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -67,7 +68,7 @@ function GoalTrail({
   );
 }
 
-export default function WorkdayTimer({ session, setSession, topics, onEndSession, onOpenTopic, onExternalPause, onExternalResume }: WorkdayTimerProps) {
+export default function WorkdayTimer({ session, setSession, topics, onEndSession, onOpenTopic, onExternalPause, onExternalResume, onRemoveGoal }: WorkdayTimerProps) {
   const [now, setNow] = useState(Date.now());
   const [showSetup, setShowSetup] = useState(false);
   const [showPanel, setShowPanel] = useState(false);
@@ -248,21 +249,7 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
     setEditingGoalId(null);
   };
   const removeGoal = (goalId: string) => {
-    setSession(current => {
-      if (!current) return current;
-      const goal = (current.goals || []).find(g => g.id === goalId);
-      const topic = goal ? topics.find(t => t.id === goal.topicId) : undefined;
-      const droppedEntry = goal && topic ? [{
-        id: goal.id, topicId: goal.topicId, topicName: topic.name,
-        targetStatus: goal.targetStatus, droppedAt: new Date().toISOString()
-      }] : [];
-      return {
-        ...current,
-        goals: (current.goals || []).filter(g => g.id !== goalId),
-        droppedGoals: [...(current.droppedGoals || []), ...droppedEntry],
-        updatedAt: new Date().toISOString()
-      };
-    });
+    onRemoveGoal?.(goalId);
     if (editingGoalId === goalId) { setEditingGoalId(null); setGoalTopicId(''); }
   };
   const editGoal = (goal: NonNullable<WorkdaySession['goals']>[number]) => {

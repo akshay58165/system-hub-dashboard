@@ -43,6 +43,8 @@ interface GithubViewProps {
   setActivities: React.Dispatch<React.SetStateAction<TopicActivity[]>>;
   sortOrder: TopicSortMode;
   setSortOrder: React.Dispatch<React.SetStateAction<TopicSortMode>>;
+  onDeleteContentItem?: (itemId: string, label: string, topicName?: string) => void;
+  onDeleteContentItems?: (items: Array<{ id: string; label: string; topicName?: string }>, label: string) => void;
   isAddFormOpen?: boolean;
   setIsAddFormOpen?: (open: boolean) => void;
   setActiveTab?: (tab: string) => void;
@@ -142,6 +144,8 @@ export default function GithubView({
   setActivities,
   sortOrder,
   setSortOrder,
+  onDeleteContentItem,
+  onDeleteContentItems,
   isAddFormOpen: isAddFormOpenProp,
   setIsAddFormOpen: setIsAddFormOpenProp,
   setActiveTab,
@@ -809,20 +813,11 @@ export default function GithubView({
                 {topics.some(topic => topic.isDemo) && (
                   <button
                     onClick={() => {
-                      if (!window.confirm('Remove all injected infotainment demo topics?')) return;
                       const demoTopics = topics.filter(topic => topic.isDemo);
-                      setTopics(prev => prev.filter(topic => !topic.isDemo));
-                      setActivities(prev => [
-                        ...demoTopics.map((topic, idx) => ({
-                          id: `act-delete-demo-${Date.now()}-${idx}`,
-                          topicName: topic.name,
-                          channel: topic.channel,
-                          action: `Deleted topic`,
-                          author: 'typeakshay',
-                          timestamp: new Date().toISOString()
-                        })),
-                        ...prev
-                      ]);
+                      onDeleteContentItems?.(
+                        demoTopics.map(topic => ({ id: topic.id, label: topic.name, topicName: topic.name })),
+                        'Remove all injected demo topics'
+                      );
                     }}
                     className="px-2.5 py-1 bg-amber-950/20 border border-amber-900/40 hover:border-amber-700 text-amber-400 rounded text-[10px] font-mono flex items-center gap-1.5 shrink-0 transition"
                     title="Permanently remove all injected demo topics"
@@ -1074,21 +1069,12 @@ export default function GithubView({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (!window.confirm(`Delete "${topic.name}"? This removes the topic permanently.`)) return;
-                            setTopics(prev => prev.filter(t => t.id !== topic.id));
-                            setActivities(prev => [{
-                              id: `act-delete-${Date.now()}`,
-                              topicName: topic.name,
-                              channel: topic.channel,
-                              action: `Deleted topic`,
-                              author: 'typeakshay',
-                              timestamp: new Date().toISOString()
-                            }, ...prev]);
+                            onDeleteContentItem?.(topic.id, topic.name, topic.name);
                             onAddEvent({
                               id: `evt-topic-delete-${Date.now()}`,
                               source: 'github',
                               type: 'warning',
-                              message: `Topic Repos: Deleted topic "${topic.name}".`,
+                              message: `Topic Repos: Queued delete for topic "${topic.name}".`,
                               timestamp: new Date().toISOString()
                             });
                           }}
