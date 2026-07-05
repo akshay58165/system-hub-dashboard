@@ -39,70 +39,43 @@ export default function SessionsView({ sessions, embedded = false }: SessionsVie
         <p className="mt-1 text-sm text-neutral-500">{ordered.length} completed session{ordered.length === 1 ? '' : 's'} — real recorded time, breaks, and goal outcomes for each.</p>
       </div>}
 
-      <div className="space-y-3">
+      <div className="space-y-1.5">
         {ordered.map(session => {
           const isExpanded = expandedId === session.id;
-          const totalMs = session.accumulatedActiveMs + session.accumulatedPausedMs;
           const targetMs = (session.targetMinutes + session.extensionMinutes) * 60_000;
           const completionPct = targetMs ? Math.min(100, Math.round((session.accumulatedActiveMs / targetMs) * 100)) : 0;
           const totalGoals = session.achievedGoals.length + session.droppedGoals.length + session.pendingGoals.length;
+          const productivity = Math.round(session.productivityPercent ?? 100);
 
           return (
-            <div key={session.id} className="rounded-2xl border border-neutral-800 bg-neutral-950/70 overflow-hidden">
+            <div key={session.id} className="rounded-xl border border-neutral-800/80 bg-neutral-950/70 overflow-hidden">
               <button
                 type="button"
                 onClick={() => setExpandedId(isExpanded ? null : session.id)}
-                className="w-full flex flex-col gap-3 p-5 text-left hover:bg-neutral-900/30 transition"
+                className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-neutral-900/40 transition"
               >
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-bold text-white">{new Date(session.startedAt).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}</div>
-                    <div className="mt-0.5 text-[10px] text-neutral-500">
-                      {new Date(session.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – {new Date(session.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </div>
-                  <ChevronDown className={`h-4 w-4 text-neutral-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4 xl:grid-cols-7">
-                  <div className="rounded-lg border border-neutral-900 bg-neutral-900/40 p-2.5">
-                    <div className="text-sm font-black text-emerald-300">{formatDuration(session.accumulatedActiveMs)}</div>
-                    <div className="mt-0.5 text-[7px] uppercase text-neutral-600">Active</div>
-                  </div>
-                  <div className="rounded-lg border border-neutral-900 bg-neutral-900/40 p-2.5">
-                    <div className="text-sm font-black text-amber-300">{formatDuration(session.accumulatedPausedMs)}</div>
-                    <div className="mt-0.5 text-[7px] uppercase text-neutral-600">Paused</div>
-                  </div>
-                  <div className="rounded-lg border border-neutral-900 bg-neutral-900/40 p-2.5">
-                    <div className="text-sm font-black text-white">{formatDuration(totalMs)}</div>
-                    <div className="mt-0.5 text-[7px] uppercase text-neutral-600">Total</div>
-                  </div>
-                  <div className="rounded-lg border border-neutral-900 bg-neutral-900/40 p-2.5">
-                    <div className="text-sm font-black text-cyan-300">{session.breaksCount}</div>
-                    <div className="mt-0.5 text-[7px] uppercase text-neutral-600">Breaks</div>
-                  </div>
-                  <div className="rounded-lg border border-neutral-900 bg-neutral-900/40 p-2.5">
-                    <div className="text-sm font-black text-purple-300">{completionPct}%</div>
-                    <div className="mt-0.5 text-[7px] uppercase text-neutral-600">of quota</div>
-                  </div>
-                  <div className="rounded-lg border border-neutral-900 bg-neutral-900/40 p-2.5">
-                    <div className="text-sm font-black text-rose-300">{Math.round(session.productivityPercent ?? 100)}%</div>
-                    <div className="mt-0.5 text-[7px] uppercase text-neutral-600">productive</div>
-                  </div>
-                  <div className="rounded-lg border border-neutral-900 bg-neutral-900/40 p-2.5">
-                    <div className="text-sm font-black text-white">{session.achievedGoals.length}/{totalGoals}</div>
-                    <div className="mt-0.5 text-[7px] uppercase text-neutral-600">goals hit</div>
+                {/* Date + time range */}
+                <div className="min-w-[135px] shrink-0">
+                  <div className="text-[11px] font-bold text-white leading-tight">{new Date(session.startedAt).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+                  <div className="mt-0.5 font-mono text-[9px] text-neutral-500">
+                    {new Date(session.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}–{new Date(session.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-1.5 text-[8px] uppercase">
-                  <span className="rounded border border-neutral-800 bg-neutral-900 px-2 py-1 text-neutral-400">
-                    Quota {Math.round(session.targetMinutes / 60 * 10) / 10}h{session.extensionMinutes > 0 ? ` +${session.extensionMinutes}m extended` : ''}
-                  </span>
-                  {session.achievedGoals.length > 0 && <span className="rounded border border-emerald-900/40 bg-emerald-950/20 px-2 py-1 text-emerald-300">{session.achievedGoals.length} achieved</span>}
-                  {session.droppedGoals.length > 0 && <span className="rounded border border-rose-900/40 bg-rose-950/20 px-2 py-1 text-rose-300">{session.droppedGoals.length} dropped</span>}
-                  {session.pendingGoals.length > 0 && <span className="rounded border border-neutral-800 bg-neutral-900 px-2 py-1 text-neutral-400">{session.pendingGoals.length} still open</span>}
+                {/* Inline stats — no card grid, just labeled numbers on one row */}
+                <div className="flex flex-1 flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[10px]">
+                  <span><span className="text-emerald-300 font-bold">{formatDuration(session.accumulatedActiveMs)}</span> <span className="text-neutral-600">active</span></span>
+                  <span><span className="text-amber-300 font-bold">{formatDuration(session.accumulatedPausedMs)}</span> <span className="text-neutral-600">paused</span></span>
+                  <span><span className="text-cyan-300 font-bold">{session.breaksCount}</span> <span className="text-neutral-600">brk</span></span>
+                  <span><span className="text-purple-300 font-bold">{completionPct}%</span> <span className="text-neutral-600">quota</span></span>
+                  <span><span className={`font-bold ${productivity >= 70 ? 'text-emerald-300' : productivity >= 40 ? 'text-amber-300' : 'text-rose-300'}`}>{productivity}%</span> <span className="text-neutral-600">prod</span></span>
+                  <span><span className={`font-bold ${session.achievedGoals.length === totalGoals && totalGoals > 0 ? 'text-emerald-300' : 'text-white'}`}>{session.achievedGoals.length}/{totalGoals}</span> <span className="text-neutral-600">goals</span></span>
+                  {session.extensionMinutes > 0 && (
+                    <span className="rounded border border-amber-900/40 bg-amber-950/20 px-1.5 py-0.5 text-[8px] font-bold uppercase text-amber-300">+{session.extensionMinutes}m ext</span>
+                  )}
                 </div>
+
+                <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-neutral-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
               </button>
 
               {isExpanded && (
