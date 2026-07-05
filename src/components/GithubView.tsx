@@ -353,7 +353,7 @@ export default function GithubView({
     const workflowStatuses: Record<string, 'completed' | 'in-progress' | 'pending'> = {};
 
     if (newTopicStatus !== 'topic') {
-      inProgress = true;
+      inProgress = newTopicStatus === 'scripted' || newTopicStatus === 'shot' || newTopicStatus === 'edited';
       const stagesOrder: ('script' | 'shoot' | 'edit' | 'schedule' | 'post')[] = ['script', 'shoot', 'edit', 'schedule', 'post'];
       const statusToStageIdx: Record<string, number> = {
         scripted: 0,
@@ -394,7 +394,9 @@ export default function GithubView({
         // A blank result here just means no eligibility box was touched this
         // time, not "clear the revenue level" â€” keep whatever was already set.
         revenueLevel: revLvl || original?.revenueLevel,
-        inProgress: inProgress || original?.inProgress,
+        inProgress: newTopicStatus === 'topic'
+          ? (original?.inProgress ?? false)
+          : (newTopicStatus === 'scripted' || newTopicStatus === 'shot' || newTopicStatus === 'edited'),
         workflowStatuses: newTopicStatus !== 'topic' ? workflowStatuses : original?.workflowStatuses
       };
 

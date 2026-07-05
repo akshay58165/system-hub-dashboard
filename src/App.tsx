@@ -409,6 +409,28 @@ function mergeTaskTimersByNewest(
   );
 }
 
+const workflowStageNames = ['script', 'shoot', 'edit', 'schedule', 'post'] as const;
+
+function workflowStatusesForTopicStatus(status: Topic['status']) {
+  const completedThrough = {
+    topic: -1,
+    scripted: 0,
+    shot: 1,
+    edited: 2,
+    scheduled: 3,
+    posted: 4
+  }[status];
+
+  return workflowStageNames.reduce((acc, stage, index) => {
+    acc[stage] = index <= completedThrough ? 'completed' : 'pending';
+    return acc;
+  }, {} as Partial<Record<typeof workflowStageNames[number], 'pending' | 'in-progress' | 'completed'>>);
+}
+
+function isWorkflowInProgressStatus(status: Topic['status']) {
+  return status === 'scripted' || status === 'shot' || status === 'edited';
+}
+
 export default function App() {
   useEffect(() => {
     // Remove credentials stored by versions that called OpenAI from the browser.
@@ -963,6 +985,8 @@ export default function App() {
         else if (v.pipelineStage === 'Edit' || v.pipelineStage === 'Thumbnail') status = 'edited';
         else if (v.pipelineStage === 'Schedule') status = 'scheduled';
         else if (v.pipelineStage === 'Published') status = 'posted';
+        const workflowStatuses = workflowStatusesForTopicStatus(status);
+        const inProgress = isWorkflowInProgressStatus(status);
 
         if (!t) {
           // Create new Topic if created from Pipeline Kanban
@@ -977,7 +1001,10 @@ export default function App() {
             createdDate: new Date().toISOString(),
             lastUpdated: new Date().toISOString(),
             format: v.format,
-            blockedReason: v.blockedReason
+            blockedReason: v.blockedReason,
+            inProgress,
+            workflowStatuses,
+            postedAt: status === 'posted' ? v.uploadDate || new Date().toISOString() : undefined
           };
           nextTopics.push(newTopic);
           changed = true;
@@ -998,6 +1025,13 @@ export default function App() {
             t.format = v.format;
             t.blockedReason = v.blockedReason;
             t.lastUpdated = new Date().toISOString();
+            t.inProgress = inProgress;
+            t.workflowStatuses = workflowStatuses;
+            if (status === 'posted') {
+              t.postedAt = t.postedAt || v.uploadDate || new Date().toISOString();
+            } else {
+              delete t.postedAt;
+            }
             changed = true;
             addEvent({
               id: `evt-sync-upt-${Date.now()}-${v.id}`,
