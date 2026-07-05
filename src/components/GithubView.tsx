@@ -28,7 +28,7 @@ import {
   Bookmark,
   X
 } from 'lucide-react';
-import { GitHubRepo, SystemEvent, Topic, TopicActivity } from '../types';
+import { GitHubRepo, SystemEvent, Topic, TopicActivity, TopicSortMode } from '../types';
 import { getTopicCurrentWorkflow, getTopicWorkflowState } from '../services/topicWorkflow';
 import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
 
@@ -41,6 +41,8 @@ interface GithubViewProps {
   setTopics: React.Dispatch<React.SetStateAction<Topic[]>>;
   activities: TopicActivity[];
   setActivities: React.Dispatch<React.SetStateAction<TopicActivity[]>>;
+  sortOrder: TopicSortMode;
+  setSortOrder: React.Dispatch<React.SetStateAction<TopicSortMode>>;
   isAddFormOpen?: boolean;
   setIsAddFormOpen?: (open: boolean) => void;
   setActiveTab?: (tab: string) => void;
@@ -129,15 +131,17 @@ function getDueDateWarningText(dueDateStr: string | null, now: Date = new Date()
   }
 }
 
-export default function GithubView({ 
-  repos, 
-  onAddEvent, 
-  onUpdateRepo, 
+export default function GithubView({
+  repos,
+  onAddEvent,
+  onUpdateRepo,
   onTriggerDeploy,
   topics,
   setTopics,
   activities,
   setActivities,
+  sortOrder,
+  setSortOrder,
   isAddFormOpen: isAddFormOpenProp,
   setIsAddFormOpen: setIsAddFormOpenProp,
   setActiveTab,
@@ -152,9 +156,6 @@ export default function GithubView({
   // 1. Selected channel filter: 'All' | 'LearnDriven' | 'DecodeWorthy'
   const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy' | 'Later'>('All');
 
-  // 2. Operational sorting
-  type TopicSortMode = 'due-date' | 'last-created' | 'level' | 'progress-most' | 'progress-least' | 'workload';
-  const [sortOrder, setSortOrder] = useState<TopicSortMode>('due-date');
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
   const sortMenuRef = useDismissOnOutsideClick<HTMLDivElement>(
     isSortMenuOpen,

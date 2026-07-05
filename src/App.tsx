@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { supabase } from './services/supabase';
 
-import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, WorkdaySession, SessionRecord, SessionGoalOutcome, VideoRecord, Experiment, CreatorInsight, ScorecardState, AiRulePreset, AiUsageStats, TaskTimerRecord, TaskTimerStage } from './types';
+import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, TopicSortMode, CycleGoal, WorkdaySession, SessionRecord, SessionGoalOutcome, VideoRecord, Experiment, CreatorInsight, ScorecardState, AiRulePreset, AiUsageStats, TaskTimerRecord, TaskTimerStage } from './types';
 import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, normalizeCommittedTombstones, prepareLocalTopicMutation, topicCollectionsEqual, visibleCreatorTopics } from './lib/topicSync';
 import { normalizeScorecard, rolloverScorecard } from './services/scorecardStorage';
 import { 
@@ -403,6 +403,7 @@ export default function App() {
   });
 
   const [pipelineSubView, setPipelineSubView] = useState<'videos' | 'topics'>('videos');
+  const [topicSortOrder, setTopicSortOrder] = useState<TopicSortMode>('due-date');
 
   const [cycleGoals, setCycleGoals] = useState<CycleGoal | null>(null);
   const [workdaySession, setWorkdaySession] = useState<WorkdaySession | null>(null);
@@ -1025,6 +1026,12 @@ export default function App() {
     }
   }, [activeTab]);
 
+  useEffect(() => {
+    if (!user) {
+      setTopicSortOrder('due-date');
+    }
+  }, [user?.id]);
+
   // 1. Listen for Supabase auth state change on mount
   useEffect(() => {
     if (!supabase) {
@@ -1148,6 +1155,7 @@ export default function App() {
           }
           if (remoteState.activities) setActivities(remoteState.activities);
           if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
+          if (remoteState.topicSortOrder) setTopicSortOrder(remoteState.topicSortOrder as TopicSortMode);
           if ('workdaySession' in remoteState) {
             setWorkdaySession(localSession => mergeWorkdaySessionByNewest(remoteState.workdaySession || null, localSession, remoteUpdatedAt, lastWorkdayEndAtRef.current));
           }
@@ -1199,7 +1207,8 @@ export default function App() {
               experiments,
               insights,
               aiPresets,
-              aiUsage
+              aiUsage,
+              topicSortOrder
             },
             updated_at: new Date().toISOString()
           }, { onConflict: 'user_id' });
@@ -1259,6 +1268,7 @@ export default function App() {
                 }
                 if (remoteState.activities) setActivities(remoteState.activities);
                 if (remoteState.cycleGoals) setCycleGoals(remoteState.cycleGoals);
+                if (remoteState.topicSortOrder) setTopicSortOrder(remoteState.topicSortOrder as TopicSortMode);
                 if ('workdaySession' in remoteState) {
                   setWorkdaySession(localSession => mergeWorkdaySessionByNewest(remoteState.workdaySession || null, localSession, lastRemoteUpdatedAtRef.current, lastWorkdayEndAtRef.current));
                 }
@@ -1347,7 +1357,8 @@ export default function App() {
         ...remoteState, topics: mergedTopics, deletedTopicIds,
         activities: Array.from(mergedActivities.values()).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
         cycleGoals: newGoals, workdaySession: mergedWorkdaySession, sessions: mergedSessions, scorecard: newScorecard, videos: newVideos,
-        experiments: newExperiments, insights: newInsights, aiPresets: newPresets, aiUsage: newUsage, taskTimers: mergedTaskTimers
+        experiments: newExperiments, insights: newInsights, aiPresets: newPresets, aiUsage: newUsage, taskTimers: mergedTaskTimers,
+        topicSortOrder
       };
       const nextVersion = (current?.version || 0) + 1;
       const updatedAt = new Date().toISOString();
@@ -1464,7 +1475,7 @@ export default function App() {
     const nextBackup = {
       updatedAt: new Date().toISOString(),
       sessionId: currentSessionId,
-      state: { topics: durableTopics, deletedTopicIds: durableTombstones, activities, cycleGoals, workdaySession, sessions, scorecard, videos, experiments, insights, aiPresets, aiUsage }
+      state: { topics: durableTopics, deletedTopicIds: durableTombstones, activities, cycleGoals, workdaySession, sessions, scorecard, videos, experiments, insights, aiPresets, aiUsage, topicSortOrder }
     };
 
     try {
@@ -1480,7 +1491,7 @@ export default function App() {
     } catch { /* A malformed old backup must not block the current snapshot. */ }
 
     localStorage.setItem(backupKey, JSON.stringify(nextBackup));
-  }, [topics, activities, cycleGoals, workdaySession, sessions, scorecard, videos, experiments, insights, aiPresets, aiUsage, user, authLoading, isStateLoaded, hydratedUserId]);
+  }, [topics, activities, cycleGoals, workdaySession, sessions, scorecard, videos, experiments, insights, aiPresets, aiUsage, topicSortOrder, user, authLoading, isStateLoaded, hydratedUserId]);
 
   // Realtime is the fast path; versioned reconciliation is the reliability path.
   // It keeps devices converged even when postgres_changes delivery is delayed,
@@ -1573,7 +1584,7 @@ export default function App() {
     }, 75);
 
     return () => clearTimeout(timer);
-  }, [topics, activities, cycleGoals, workdaySession, sessions, scorecard, videos, experiments, insights, aiPresets, aiUsage, taskTimers, user, authLoading, isStateLoaded, hydratedUserId]);
+  }, [topics, activities, cycleGoals, workdaySession, sessions, scorecard, videos, experiments, insights, aiPresets, aiUsage, taskTimers, topicSortOrder, user, authLoading, isStateLoaded, hydratedUserId]);
 
   // ─── Task Timer Handlers ────────────────────────────────────────────────────
   const todayKey = () => new Date().toLocaleDateString('en-CA');
@@ -2265,6 +2276,8 @@ export default function App() {
                 insights={insights}
                 cycleGoals={cycleGoals}
                 workdaySession={workdaySession}
+                sortOrder={topicSortOrder}
+                setSortOrder={setTopicSortOrder}
                 onTabChange={(tab) => {
                   setActiveTab(tab === 'sessions' ? 'topicintel' : tab);
                   window.setTimeout(() => {

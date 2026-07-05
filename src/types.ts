@@ -178,6 +178,8 @@ export interface TopicActivity {
   targetSubView?: 'videos' | 'topics';
 }
 
+export type TopicSortMode = 'due-date' | 'last-created' | 'level' | 'progress-most' | 'progress-least' | 'workload';
+
 export interface CycleGoal {
   cycleType: 'this-month' | 'next-month' | 'custom';
   monthName: string;
