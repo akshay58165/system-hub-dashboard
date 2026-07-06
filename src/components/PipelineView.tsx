@@ -36,7 +36,7 @@ interface PipelineViewProps {
   onEditTopic?: (topic: Topic) => void;
 }
 
-const STAGES = ['Topic', 'Script', 'Shoot', 'Edit', 'Thumbnail', 'Schedule', 'Published'] as const;
+const STAGES = ['Topic', 'Hook', 'Script', 'Shoot', 'Edit', 'Thumbnail', 'Schedule', 'Published'] as const;
 
 const revenueLevelLabel: Record<string, string> = {
   'Lvl 0.5': 'Neutral',
@@ -208,10 +208,11 @@ export default function PipelineView({
           // Auto update helper statuses
           const updated: Partial<VideoRecord> = {
             pipelineStage: nextStage,
-            scriptStatus: nextStage === 'Script' ? 'in-progress' : (currentIndex >= 1 ? 'completed' : 'pending'),
-            shootStatus: nextStage === 'Shoot' ? 'in-progress' : (currentIndex >= 2 ? 'completed' : 'pending'),
-            editStatus: nextStage === 'Edit' ? 'in-progress' : (currentIndex >= 3 ? 'completed' : 'pending'),
-            thumbnailStatus: nextStage === 'Thumbnail' ? 'in-progress' : (v.format === 'Short' ? 'not-applicable' : (currentIndex >= 4 ? 'completed' : 'pending')),
+            hookStatus: nextStage === 'Hook' ? 'in-progress' : (currentIndex >= 1 ? 'completed' : 'pending'),
+            scriptStatus: nextStage === 'Script' ? 'in-progress' : (currentIndex >= 2 ? 'completed' : 'pending'),
+            shootStatus: nextStage === 'Shoot' ? 'in-progress' : (currentIndex >= 3 ? 'completed' : 'pending'),
+            editStatus: nextStage === 'Edit' ? 'in-progress' : (currentIndex >= 4 ? 'completed' : 'pending'),
+            thumbnailStatus: nextStage === 'Thumbnail' ? 'in-progress' : (v.format === 'Short' ? 'not-applicable' : (currentIndex >= 5 ? 'completed' : 'pending')),
             scheduleStatus: nextStage === 'Schedule' ? 'completed' : 'pending',
             publishedStatus: nextStage === 'Published' ? 'completed' : 'pending',
           };
@@ -253,21 +254,22 @@ export default function PipelineView({
 
         // Skip Thumbnail stage for Shorts if targetStage is Thumbnail
         if (targetStage === 'Thumbnail' && v.format === 'Short') {
-          return v; 
+          return v;
         }
 
         const stageIdx = STAGES.indexOf(targetStage);
         const updated: Partial<VideoRecord> = {
           pipelineStage: targetStage,
-          scriptStatus: stageIdx > 1 ? 'completed' : (stageIdx === 1 ? 'in-progress' : 'pending'),
-          shootStatus: stageIdx > 2 ? 'completed' : (stageIdx === 2 ? 'in-progress' : 'pending'),
-          editStatus: stageIdx > 3 ? 'completed' : (stageIdx === 3 ? 'in-progress' : 'pending'),
+          hookStatus: stageIdx > 1 ? 'completed' : (stageIdx === 1 ? 'in-progress' : 'pending'),
+          scriptStatus: stageIdx > 2 ? 'completed' : (stageIdx === 2 ? 'in-progress' : 'pending'),
+          shootStatus: stageIdx > 3 ? 'completed' : (stageIdx === 3 ? 'in-progress' : 'pending'),
+          editStatus: stageIdx > 4 ? 'completed' : (stageIdx === 4 ? 'in-progress' : 'pending'),
         };
 
         if (v.format === 'Short') {
           updated.thumbnailStatus = 'not-applicable';
         } else {
-          updated.thumbnailStatus = stageIdx > 4 ? 'completed' : (stageIdx === 4 ? 'in-progress' : 'pending');
+          updated.thumbnailStatus = stageIdx > 5 ? 'completed' : (stageIdx === 5 ? 'in-progress' : 'pending');
         }
 
         updated.scheduleStatus = targetStage === 'Schedule' || targetStage === 'Published' ? 'completed' : 'pending';
@@ -323,14 +325,15 @@ export default function PipelineView({
         };
         // sync helper status checkmarks
         const stageIdx = STAGES.indexOf(editStage);
-        updated.scriptStatus = stageIdx > 1 ? 'completed' : (stageIdx === 1 ? 'in-progress' : 'pending');
-        updated.shootStatus = stageIdx > 2 ? 'completed' : (stageIdx === 2 ? 'in-progress' : 'pending');
-        updated.editStatus = stageIdx > 3 ? 'completed' : (stageIdx === 3 ? 'in-progress' : 'pending');
-        
+        updated.hookStatus = stageIdx > 1 ? 'completed' : (stageIdx === 1 ? 'in-progress' : 'pending');
+        updated.scriptStatus = stageIdx > 2 ? 'completed' : (stageIdx === 2 ? 'in-progress' : 'pending');
+        updated.shootStatus = stageIdx > 3 ? 'completed' : (stageIdx === 3 ? 'in-progress' : 'pending');
+        updated.editStatus = stageIdx > 4 ? 'completed' : (stageIdx === 4 ? 'in-progress' : 'pending');
+
         if (v.format === 'Short') {
           updated.thumbnailStatus = 'not-applicable';
         } else {
-          updated.thumbnailStatus = stageIdx > 4 ? 'completed' : (stageIdx === 4 ? 'in-progress' : 'pending');
+          updated.thumbnailStatus = stageIdx > 5 ? 'completed' : (stageIdx === 5 ? 'in-progress' : 'pending');
         }
 
         updated.scheduleStatus = editStage === 'Schedule' || editStage === 'Published' ? 'completed' : 'pending';

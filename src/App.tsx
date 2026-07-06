@@ -887,12 +887,15 @@ export default function App() {
         const v = videoMap.get(t.id);
         
         // Map Topic status to Video pipelineStage
-        let stage: 'Topic' | 'Script' | 'Shoot' | 'Edit' | 'Thumbnail' | 'Schedule' | 'Published' = 'Topic';
-        if (t.status === 'scripted') stage = 'Script';
+        let stage: 'Topic' | 'Hook' | 'Script' | 'Shoot' | 'Edit' | 'Thumbnail' | 'Schedule' | 'Published' = 'Topic';
+        if (t.status === 'hooked') stage = 'Hook';
+        else if (t.status === 'scripted') stage = 'Script';
         else if (t.status === 'shot') stage = 'Shoot';
         else if (t.status === 'edited') stage = 'Edit';
         else if (t.status === 'scheduled') stage = 'Schedule';
         else if (t.status === 'posted') stage = 'Published';
+        // Topic just started hooking — surface it in the Hook column even before it's marked hooked
+        if (t.status === 'topic' && t.workflowStatuses?.hook === 'in-progress') stage = 'Hook';
 
         if (!v) {
           // Create new VideoRecord
@@ -905,7 +908,10 @@ export default function App() {
             topic: t.category || 'General',
             dueDate: t.dueDate || undefined,
             pipelineStage: stage,
-            scriptStatus: t.status !== 'topic' ? 'completed' : 'pending',
+            hookStatus: t.status === 'topic'
+              ? (t.workflowStatuses?.hook === 'in-progress' ? 'in-progress' : 'pending')
+              : 'completed',
+            scriptStatus: (t.status === 'topic' || t.status === 'hooked') ? 'pending' : 'completed',
             shootStatus: (t.status === 'shot' || t.status === 'edited' || t.status === 'scheduled' || t.status === 'posted') ? 'completed' : 'pending',
             editStatus: (t.status === 'edited' || t.status === 'scheduled' || t.status === 'posted') ? 'completed' : 'pending',
             thumbnailStatus: t.format === 'Short' ? 'not-applicable' : ((t.status === 'scheduled' || t.status === 'posted') ? 'completed' : 'pending'),

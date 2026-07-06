@@ -277,13 +277,14 @@ export interface VideoRecord {
   topic: string;
   series?: string;
   category?: string;
-  pipelineStage: 'Topic' | 'Script' | 'Shoot' | 'Edit' | 'Thumbnail' | 'Schedule' | 'Published';
+  pipelineStage: 'Topic' | 'Hook' | 'Script' | 'Shoot' | 'Edit' | 'Thumbnail' | 'Schedule' | 'Published';
   uploadDate?: string;
   dueDate?: string;
   publishTime?: string;
   duration?: number; // duration in seconds
-  
+
   // Pipeline status checks
+  hookStatus?: 'pending' | 'in-progress' | 'completed';
   scriptStatus: 'pending' | 'in-progress' | 'completed';
   shootStatus: 'pending' | 'in-progress' | 'completed';
   editStatus: 'pending' | 'in-progress' | 'completed';
