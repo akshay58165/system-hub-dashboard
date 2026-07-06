@@ -44,7 +44,14 @@ const stageOrder: TaskTimerStage[] = ['script', 'shoot', 'edit', 'schedule'];
 // A single timer rendered as a card. Shared by all three views so the metrics
 // mean the same thing everywhere — session-based, topic-based, task-based all
 // resolve to the same underlying TaskTimerRecord fields.
-function TimerCard({ timer, session, headline }: { timer: TaskTimerRecord; session: SessionRecord; headline: 'topic' | 'stage' }) {
+type TimerCardProps = {
+  timer: TaskTimerRecord;
+  session: SessionRecord;
+  headline: 'topic' | 'stage';
+  key?: React.Key;
+};
+
+function TimerCard({ timer, session, headline }: TimerCardProps) {
   const sessionDate = new Date(session.startedAt).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
   const startedTime = new Date(timer.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const endedTime = timer.completedAt ? new Date(timer.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
@@ -202,7 +209,10 @@ export default function SessionsView({ sessions, embedded = false }: SessionsVie
       existing.uniqueTopicIds.add(timer.topicId);
       map.set(timer.stage, existing);
     });
-    return stageOrder.map(stage => map.get(stage)).filter((g): g is NonNullable<typeof g> => !!g);
+    return stageOrder.flatMap(stage => {
+      const group = map.get(stage);
+      return group ? [group] : [];
+    });
   }, [flatTimers]);
   const availableStages = useMemo(() => taskGroups.map(g => g.stage), [taskGroups]);
 
@@ -534,7 +544,9 @@ export default function SessionsView({ sessions, embedded = false }: SessionsVie
           </div>
 
           {(() => {
-            const groupByStage = new Map(taskGroups.map(g => [g.stage, g]));
+            const groupByStage = new Map<TaskTimerStage, (typeof taskGroups)[number]>(
+              taskGroups.map(group => [group.stage, group] as const)
+            );
             const requestedStages = taskStageFilter === 'all' ? stageOrder : [taskStageFilter];
             const stagesWithData = requestedStages.filter((s): s is TaskTimerStage => groupByStage.has(s));
             if (stagesWithData.length === 0) {

@@ -23,8 +23,7 @@ import {
   LogIn,
   LogOut,
   AlertCircle,
-  Clapperboard,
-  Sparkles
+  Clapperboard
 } from 'lucide-react';
 import { supabase } from './services/supabase';
 
@@ -60,7 +59,6 @@ const PipelineView = lazy(() => import('./components/PipelineView'));
 const VideoLabView = lazy(() => import('./components/VideoLabView'));
 const TodayGoalsView = lazy(() => import('./components/TodayGoalsView'));
 const ForecastingView = lazy(() => import('./components/ForecastingView'));
-const InsightsView = lazy(() => import('./components/InsightsView'));
 
 // Get or create session ID for the current tab session
 let currentSessionId = '';
@@ -437,8 +435,9 @@ export default function App() {
     localStorage.removeItem('unicorn_openai_api_key');
   }, []);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score' | 'pipeline' | 'videolab' | 'topicintel' | 'forecasting' | 'experiments' | 'sessions' | 'insights'>(() => {
-    return (localStorage.getItem('unicorn_active_tab') as any) || 'overview';
+  const [activeTab, setActiveTab] = useState<'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score' | 'pipeline' | 'videolab' | 'topicintel' | 'forecasting' | 'experiments' | 'sessions'>(() => {
+    const savedTab = localStorage.getItem('unicorn_active_tab') as any;
+    return savedTab === 'insights' ? 'overview' : savedTab || 'overview';
   });
 
   const [pipelineSubView, setPipelineSubView] = useState<'videos' | 'topics'>('videos');
@@ -2481,18 +2480,6 @@ export default function App() {
               </button>
 
               <button
-                onClick={() => setActiveTab('insights')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
-                  activeTab === 'insights'
-                    ? 'bg-neutral-900 border border-neutral-850 text-purple-400'
-                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
-                }`}
-              >
-                <Sparkles className="h-3.5 w-3.5 text-purple-400 animate-pulse" />
-                <span>Insights</span>
-              </button>
-
-              <button
                 onClick={() => setActiveTab('topics')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
                   activeTab === 'topics'
@@ -2717,19 +2704,6 @@ export default function App() {
               <ForecastingView
                 videos={visibleVideos}
                 cycleGoals={cycleGoals}
-              />
-            )}
-
-            {activeTab === 'insights' && (
-              <InsightsView
-                insights={insights}
-                videos={visibleVideos}
-                topics={visibleTopics}
-                activities={visibleActivities}
-                sessions={sessions}
-                taskTimers={visibleTaskTimers}
-                workdaySession={visibleWorkdaySession}
-                onTabChange={setActiveTab}
               />
             )}
 
