@@ -189,6 +189,7 @@ export default function GithubView({
   const [newTopicChannel, setNewTopicChannel] = useState<'LearnDriven' | 'DecodeWorthy' | null>(null);
   const [newTopicStatus, setNewTopicStatus] = useState<'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled'>('topic');
   const [newTopicPriority, setNewTopicPriority] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [newTopicScore, setNewTopicScore] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10>(5);
   const [newTopicDueDate, setNewTopicDueDate] = useState('');
   const todayDateKey = localDateKey();
   const tomorrowDateKey = localDateKey(1);
@@ -238,6 +239,7 @@ export default function GithubView({
     newTopicLane ||
     newTopicStatus !== 'topic' ||
     newTopicPriority !== 1 ||
+    newTopicScore !== 5 ||
     Object.values(eligibility).some(Boolean)
   );
   const addTopicFormRef = useDismissOnOutsideClick<HTMLFormElement>(
@@ -320,6 +322,7 @@ export default function GithubView({
     });
     setNewTopicStatus('topic');
     setNewTopicPriority(1);
+    setNewTopicScore(5);
     setEditingTopicId(null);
   };
 
@@ -387,7 +390,7 @@ export default function GithubView({
         channel: newTopicChannel,
         status: newTopicStatus,
         priority: newTopicPriority,
-        topicScore: 5,
+        topicScore: newTopicScore,
         dueDate: finalDueDate,
         scheduledTime: finalSchedTime,
         format: finalFormat,
@@ -410,6 +413,7 @@ export default function GithubView({
         if (original.channel !== newTopicChannel) changedFields.push('channel');
         if (original.status !== newTopicStatus) changedFields.push('status');
         if (original.priority !== newTopicPriority) changedFields.push('priority');
+        if ((original.topicScore ?? 5) !== newTopicScore) changedFields.push('topic score');
         if (original.dueDate !== finalDueDate) changedFields.push('due date');
         if (original.format !== finalFormat) changedFields.push('content lane');
       }
@@ -439,7 +443,7 @@ export default function GithubView({
         channel: newTopicChannel,
         status: newTopicStatus,
         priority: newTopicPriority,
-        topicScore: 5,
+        topicScore: newTopicScore,
         dueDate: finalDueDate,
         scheduledTime: finalSchedTime,
         format: finalFormat,
@@ -494,6 +498,7 @@ export default function GithubView({
     setNewTopicChannel(topic.channel);
     setNewTopicStatus(topic.status === 'posted' ? 'scheduled' : topic.status);
     setNewTopicPriority(topic.priority);
+    setNewTopicScore((topic.topicScore ?? 5) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10);
     setNewTopicDueDate(topic.dueDate ? topic.dueDate.split('T')[0] : '');
     setNewTopicSchedTime(topic.scheduledTime || '');
     setNewTopicLane(topic.format === 'Short' ? 'Shorts' : topic.format === 'Members' ? 'Members-Only' : 'Long');
@@ -1464,7 +1469,36 @@ export default function GithubView({
                   </div>
                 )}
 
-                <div className="grid grid-cols-3 gap-3 pt-1 border-t border-neutral-900/60">
+                <fieldset className="space-y-1.5 border-t border-neutral-900/60 pt-2">
+                  <legend className="uppercase text-neutral-500">Topic Score</legend>
+                  <div className="grid w-fit grid-cols-10 gap-0.5" role="radiogroup" aria-label="Topic Score">
+                    {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const).map(score => {
+                      const isActive = newTopicScore === score;
+                      return (
+                        <label
+                          key={score}
+                          className={`flex h-5 w-5 cursor-pointer items-center justify-center rounded border text-[8px] font-bold transition ${
+                            isActive
+                              ? 'border-rose-400 bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,.25)]'
+                              : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-700 hover:text-white'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="github-topic-score"
+                            value={score}
+                            checked={isActive}
+                            onChange={() => setNewTopicScore(score)}
+                            className="sr-only"
+                          />
+                          <span aria-hidden="true">{score}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+
+                <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block uppercase text-neutral-500">Priority</label>
                     <div className="flex gap-1.5 mt-1.5">
