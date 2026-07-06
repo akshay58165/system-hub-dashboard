@@ -49,7 +49,6 @@ import { TaskTimerContext } from './contexts/TaskTimerContext';
 
 const GithubView = lazy(() => import('./components/GithubView'));
 const VercelView = lazy(() => import('./components/VercelView'));
-const SupabaseView = lazy(() => import('./components/SupabaseView'));
 const LogsView = lazy(() => import('./components/LogsView'));
 const ContentActivityView = lazy(() => import('./components/ContentActivityView'));
 const LogsTableEditor = lazy(() => import('./components/LogsTableEditor'));
@@ -59,6 +58,7 @@ const PipelineView = lazy(() => import('./components/PipelineView'));
 const VideoLabView = lazy(() => import('./components/VideoLabView'));
 const TodayGoalsView = lazy(() => import('./components/TodayGoalsView'));
 const ForecastingView = lazy(() => import('./components/ForecastingView'));
+const TopicScoreView = lazy(() => import('./components/TopicScoreView'));
 
 // Get or create session ID for the current tab session
 let currentSessionId = '';
@@ -996,6 +996,7 @@ export default function App() {
             channel: v.channelName,
             status: status,
             priority: 3,
+            topicScore: 5,
             dueDate: v.dueDate || v.uploadDate || null,
             createdDate: new Date().toISOString(),
             lastUpdated: new Date().toISOString(),
@@ -2500,7 +2501,7 @@ export default function App() {
                 }`}
               >
                 <Database className="h-3.5 w-3.5" />
-                <span>Action Hub</span>
+                <span>Score</span>
               </button>
 
               <button
@@ -2740,24 +2741,8 @@ export default function App() {
             )}
 
             {activeTab === 'actionhub' && (
-              <SupabaseView 
-                supabase={supabaseProject} 
-                onAddEvent={addEvent} 
-                onUpdateSupabase={handleUpdateSupabase}
+              <TopicScoreView
                 topics={visibleTopics}
-                setTopics={setTopics}
-                activities={visibleActivities}
-                setActivities={setActivities}
-                cycleGoals={cycleGoals}
-                setCycleGoals={setCycleGoals}
-                aiPresets={visibleAiPresets}
-                setAiPresets={setAiPresets}
-                aiUsage={aiUsage}
-                setAiUsage={setAiUsage}
-                onDeleteContentItem={requestDeleteContentItem}
-                onDeleteContentItems={requestDeleteContentItems}
-                onDeleteActivity={requestDeleteActivity}
-                onDeletePreset={requestDeletePreset}
               />
             )}
 

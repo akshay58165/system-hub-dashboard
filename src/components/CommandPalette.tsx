@@ -74,8 +74,8 @@ export default function CommandPalette({
       },
       {
         id: 'cmd-nav-actionhub',
-        title: 'Open Action Hub explorer',
-        subtitle: 'Query tables, view auth users, and execute SQL statements',
+        title: 'Open Score dashboard',
+        subtitle: 'Review topic rankings and score distribution',
         category: 'Command',
         icon: <Database className="h-4 w-4 text-emerald-500" />,
         action: () => onTabChange('actionhub'),

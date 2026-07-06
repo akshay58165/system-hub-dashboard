@@ -16,6 +16,7 @@ interface TopicCreateModalProps {
 }
 
 type Lane = 'Shorts' | 'Long' | 'Members-Only';
+type TopicScore = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 type Eligibility = {
   neutral: boolean;
   productTag: boolean;
@@ -88,6 +89,7 @@ export default function TopicCreateModal({
   const [lane, setLane] = useState<Lane | null>(null);
   const [status, setStatus] = useState<'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted'>('topic');
   const [priority, setPriority] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [topicScore, setTopicScore] = useState<TopicScore>(5);
   const [dueDate, setDueDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
   const [eligibility, setEligibility] = useState<Eligibility>(emptyEligibility);
@@ -101,6 +103,7 @@ export default function TopicCreateModal({
     lane,
     status,
     priority,
+    topicScore,
     dueDate,
     scheduleTime,
     eligibility
@@ -110,7 +113,7 @@ export default function TopicCreateModal({
     ? currentSnapshot !== initialSnapshotRef.current
     : Boolean(
         name.trim() || description.trim() || channel || lane || status !== 'topic' || priority !== 1 ||
-        dueDate || scheduleTime || Object.values(eligibility).some(Boolean)
+        topicScore !== 5 || dueDate || scheduleTime || Object.values(eligibility).some(Boolean)
       );
   const modalRef = useDismissOnOutsideClick<HTMLFormElement>(isOpen, !hasUnsavedInput, onClose);
 
@@ -124,6 +127,7 @@ export default function TopicCreateModal({
     const initialLane = laneFromFormat(topicToEdit?.format);
     const initialStatus = topicToEdit?.status ?? 'topic';
     const initialPriority = topicToEdit?.priority ?? 1;
+    const initialTopicScore = (topicToEdit?.topicScore ?? 5) as TopicScore;
     const initialDueDate = dateOnlyFromIso(topicToEdit?.dueDate);
     const initialTime = topicToEdit?.scheduledTime || timeOnlyFromIso(topicToEdit?.dueDate) || '';
 
@@ -133,6 +137,7 @@ export default function TopicCreateModal({
     setLane(initialLane);
     setStatus(initialStatus);
     setPriority(initialPriority);
+    setTopicScore(initialTopicScore);
     setDueDate(initialDueDate);
     setScheduleTime(initialTime);
     setEligibility(emptyEligibility);
@@ -143,6 +148,7 @@ export default function TopicCreateModal({
       lane: initialLane,
       status: initialStatus,
       priority: initialPriority,
+      topicScore: initialTopicScore,
       dueDate: initialDueDate,
       scheduleTime: initialTime,
       eligibility: emptyEligibility
@@ -227,6 +233,7 @@ export default function TopicCreateModal({
       channel,
       status,
       priority,
+      topicScore,
       dueDate: finalDueDate,
       scheduledTime: scheduleTime || (status === 'scheduled' ? finalTime : undefined),
       format: finalFormat,
@@ -370,6 +377,13 @@ export default function TopicCreateModal({
                     {([1, 2, 3, 4, 5] as const).map(value => <button key={value} type="button" onClick={() => setPriority(value)} className={`flex h-6 w-6 items-center justify-center rounded border text-[9px] font-bold ${priority === value ? 'border-rose-400 bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,.3)]' : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-700'}`}>{value}</button>)}
                   </div>
                 </div>
+                <label className="block uppercase text-neutral-500">Topic Score
+                  <select value={topicScore} onChange={event => setTopicScore(Number(event.target.value) as TopicScore)} className="mt-1 h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 text-xs normal-case text-white outline-none">
+                    {([1,2,3,4,5,6,7,8,9,10] as const).map(value => (
+                      <option key={value} value={value}>{value} {value <= 3 ? '- low' : value >= 8 ? '- excellent' : ''}</option>
+                    ))}
+                  </select>
+                </label>
                 <label className="block uppercase text-neutral-500">Due Date
                   <span className="relative mt-1 block">
                     <input type="date" value={dueDate} onChange={event => setDueDate(event.target.value)} className="h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 text-[10px] normal-case text-white outline-none" />

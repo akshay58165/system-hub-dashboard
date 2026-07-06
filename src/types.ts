@@ -147,6 +147,7 @@ export interface Topic {
   channel: 'LearnDriven' | 'DecodeWorthy';
   status: 'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted';
   priority: 1 | 2 | 3 | 4 | 5;
+  topicScore?: number;
   dueDate: string | null;
   createdDate: string;
   lastUpdated: string;

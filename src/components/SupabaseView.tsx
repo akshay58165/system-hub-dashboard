@@ -104,6 +104,7 @@ export default function SupabaseView({
   const [newTopicLane, setNewTopicLane] = useState<'Shorts' | 'Long' | 'Members-Only' | null>(null);
   const [newTopicStatus, setNewTopicStatus] = useState<Topic['status']>('topic');
   const [newTopicPriority, setNewTopicPriority] = useState<Topic['priority']>(1);
+  const [newTopicScore, setNewTopicScore] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10>(5);
   const [newTopicDueDate, setNewTopicDueDate] = useState('');
   const [topicEligibility, setTopicEligibility] = useState({
     neutral: false,
@@ -119,7 +120,7 @@ export default function SupabaseView({
   });
   const createScriptTopicHasInput = Boolean(
     newTopicName.trim() || newTopicDesc.trim() || newTopicChannel || newTopicLane ||
-    newTopicDueDate || newTopicStatus !== 'topic' || newTopicPriority !== 1 ||
+    newTopicDueDate || newTopicStatus !== 'topic' || newTopicPriority !== 1 || newTopicScore !== 5 ||
     Object.values(topicEligibility).some(Boolean)
   );
   const createScriptTopicFormRef = useDismissOnOutsideClick<HTMLFormElement>(
@@ -244,6 +245,7 @@ export default function SupabaseView({
     setNewTopicLane(null);
     setNewTopicStatus('topic');
     setNewTopicPriority(1);
+    setNewTopicScore(5);
     setNewTopicDueDate('');
     setTopicEligibility({
       neutral: false,
@@ -272,6 +274,7 @@ export default function SupabaseView({
       channel: newTopicChannel,
       status: newTopicStatus,
       priority: newTopicPriority,
+      topicScore: newTopicScore,
       dueDate: newTopicDueDate ? new Date(newTopicDueDate).toISOString() : null,
       createdDate: now,
       lastUpdated: now,
@@ -805,6 +808,12 @@ ${task}`;
                           <span className="uppercase text-neutral-500">Priority</span>
                           <select value={newTopicPriority} onChange={event => setNewTopicPriority(Number(event.target.value) as Topic['priority'])} className="w-full bg-neutral-950 border border-neutral-800 rounded px-2 py-2 text-xs text-white">
                             {[1, 2, 3, 4, 5].map(priority => <option key={priority} value={priority}>{priority}</option>)}
+                          </select>
+                        </label>
+                        <label className="space-y-1">
+                          <span className="uppercase text-neutral-500">Topic Score</span>
+                          <select value={newTopicScore} onChange={event => setNewTopicScore(Number(event.target.value) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10)} className="w-full bg-neutral-950 border border-neutral-800 rounded px-2 py-2 text-xs text-white">
+                            {[1,2,3,4,5,6,7,8,9,10].map(score => <option key={score} value={score}>{score}{score <= 3 ? ' - low' : score >= 8 ? ' - excellent' : ''}</option>)}
                           </select>
                         </label>
                         <label className="space-y-1">
