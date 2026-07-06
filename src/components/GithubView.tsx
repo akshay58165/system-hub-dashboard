@@ -189,7 +189,7 @@ export default function GithubView({
   const [newTopicChannel, setNewTopicChannel] = useState<'LearnDriven' | 'DecodeWorthy' | null>(null);
   const [newTopicStatus, setNewTopicStatus] = useState<'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled'>('topic');
   const [newTopicPriority, setNewTopicPriority] = useState<1 | 2 | 3 | 4 | 5>(1);
-  const [newTopicScore, setNewTopicScore] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10>(5);
+  const [newTopicScore, setNewTopicScore] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | undefined>(undefined);
   const [newTopicDueDate, setNewTopicDueDate] = useState('');
   const todayDateKey = localDateKey();
   const tomorrowDateKey = localDateKey(1);
@@ -239,7 +239,7 @@ export default function GithubView({
     newTopicLane ||
     newTopicStatus !== 'topic' ||
     newTopicPriority !== 1 ||
-    newTopicScore !== 5 ||
+    newTopicScore !== undefined ||
     Object.values(eligibility).some(Boolean)
   );
   const addTopicFormRef = useDismissOnOutsideClick<HTMLFormElement>(
@@ -322,7 +322,7 @@ export default function GithubView({
     });
     setNewTopicStatus('topic');
     setNewTopicPriority(1);
-    setNewTopicScore(5);
+    setNewTopicScore(undefined);
     setEditingTopicId(null);
   };
 
@@ -413,7 +413,7 @@ export default function GithubView({
         if (original.channel !== newTopicChannel) changedFields.push('channel');
         if (original.status !== newTopicStatus) changedFields.push('status');
         if (original.priority !== newTopicPriority) changedFields.push('priority');
-        if ((original.topicScore ?? 5) !== newTopicScore) changedFields.push('topic score');
+        if (original.topicScore !== newTopicScore) changedFields.push('topic score');
         if (original.dueDate !== finalDueDate) changedFields.push('due date');
         if (original.format !== finalFormat) changedFields.push('content lane');
       }
@@ -498,7 +498,7 @@ export default function GithubView({
     setNewTopicChannel(topic.channel);
     setNewTopicStatus(topic.status === 'posted' ? 'scheduled' : topic.status);
     setNewTopicPriority(topic.priority);
-    setNewTopicScore((topic.topicScore ?? 5) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10);
+    setNewTopicScore(topic.topicScore as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | undefined);
     setNewTopicDueDate(topic.dueDate ? topic.dueDate.split('T')[0] : '');
     setNewTopicSchedTime(topic.scheduledTime || '');
     setNewTopicLane(topic.format === 'Short' ? 'Shorts' : topic.format === 'Members' ? 'Members-Only' : 'Long');
@@ -752,9 +752,18 @@ export default function GithubView({
                   {topic.revenueLevel}
                 </span>
               )}
-              <span className="px-1.5 py-0.2 bg-rose-950/20 text-rose-300 border border-rose-900/30 rounded text-[9px] font-bold">
-                Score {topic.topicScore ?? 5}
-              </span>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); startEditTopic(topic); }}
+                title={topic.topicScore ? 'Change score' : 'Set a score'}
+                className={`px-1.5 py-0.2 rounded text-[9px] font-bold border transition cursor-pointer ${
+                  topic.topicScore
+                    ? 'bg-rose-950/20 text-rose-300 border-rose-900/30 hover:border-rose-700'
+                    : 'bg-neutral-950 text-neutral-500 border-neutral-800 hover:border-rose-800 hover:text-rose-300'
+                }`}
+              >
+                {topic.topicScore ? `Score ${topic.topicScore}` : 'Unscored'}
+              </button>
               {!topic.inProgress && topic.status !== 'scheduled' && (
                 <button
                   type="button"
@@ -1470,29 +1479,31 @@ export default function GithubView({
                 )}
 
                 <fieldset className="space-y-1.5 border-t border-neutral-900/60 pt-2">
-                  <legend className="uppercase text-neutral-500">Topic Score</legend>
-                  <div className="grid w-fit grid-cols-10 gap-0.5" role="radiogroup" aria-label="Topic Score">
+                  <legend className="uppercase text-neutral-500">
+                    Topic Score
+                    <span className={`ml-1.5 normal-case ${newTopicScore === undefined ? 'text-neutral-500' : 'text-rose-300'}`}>
+                      {newTopicScore === undefined ? '· unscored' : `· ${newTopicScore}/10`}
+                    </span>
+                  </legend>
+                  <div className="grid w-fit grid-cols-10 gap-0.5" aria-label="Topic Score">
                     {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const).map(score => {
                       const isActive = newTopicScore === score;
                       return (
-                        <label
+                        <button
                           key={score}
+                          type="button"
+                          onClick={() => setNewTopicScore(isActive ? undefined : score)}
+                          aria-pressed={isActive}
+                          aria-label={isActive ? `Clear score (currently ${score})` : `Set score to ${score}`}
+                          title={isActive ? 'Tap to clear' : `Set to ${score}`}
                           className={`flex h-5 w-5 cursor-pointer items-center justify-center rounded border text-[8px] font-bold transition ${
                             isActive
                               ? 'border-rose-400 bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,.25)]'
                               : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-700 hover:text-white'
                           }`}
                         >
-                          <input
-                            type="radio"
-                            name="github-topic-score"
-                            value={score}
-                            checked={isActive}
-                            onChange={() => setNewTopicScore(score)}
-                            className="sr-only"
-                          />
-                          <span aria-hidden="true">{score}</span>
-                        </label>
+                          {score}
+                        </button>
                       );
                     })}
                   </div>

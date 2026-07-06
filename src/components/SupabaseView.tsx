@@ -104,7 +104,7 @@ export default function SupabaseView({
   const [newTopicLane, setNewTopicLane] = useState<'Shorts' | 'Long' | 'Members-Only' | null>(null);
   const [newTopicStatus, setNewTopicStatus] = useState<Topic['status']>('topic');
   const [newTopicPriority, setNewTopicPriority] = useState<Topic['priority']>(1);
-  const [newTopicScore, setNewTopicScore] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10>(5);
+  const [newTopicScore, setNewTopicScore] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | undefined>(undefined);
   const [newTopicDueDate, setNewTopicDueDate] = useState('');
   const [topicEligibility, setTopicEligibility] = useState({
     neutral: false,
@@ -120,7 +120,7 @@ export default function SupabaseView({
   });
   const createScriptTopicHasInput = Boolean(
     newTopicName.trim() || newTopicDesc.trim() || newTopicChannel || newTopicLane ||
-    newTopicDueDate || newTopicStatus !== 'topic' || newTopicPriority !== 1 || newTopicScore !== 5 ||
+    newTopicDueDate || newTopicStatus !== 'topic' || newTopicPriority !== 1 || newTopicScore !== undefined ||
     Object.values(topicEligibility).some(Boolean)
   );
   const createScriptTopicFormRef = useDismissOnOutsideClick<HTMLFormElement>(
@@ -245,7 +245,7 @@ export default function SupabaseView({
     setNewTopicLane(null);
     setNewTopicStatus('topic');
     setNewTopicPriority(1);
-    setNewTopicScore(5);
+    setNewTopicScore(undefined);
     setNewTopicDueDate('');
     setTopicEligibility({
       neutral: false,
@@ -264,24 +264,21 @@ export default function SupabaseView({
   const scoreOption = (value: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10) => {
     const isActive = newTopicScore === value;
     return (
-      <label
+      <button
         key={value}
+        type="button"
+        onClick={() => setNewTopicScore(isActive ? undefined : value)}
+        aria-pressed={isActive}
+        aria-label={isActive ? `Clear score (currently ${value})` : `Set score to ${value}`}
+        title={isActive ? 'Tap to clear' : `Set to ${value}`}
         className={`relative flex h-5 w-5 cursor-pointer items-center justify-center rounded border text-[8px] font-bold transition ${
           isActive
             ? 'border-rose-400 bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,.25)]'
             : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-700 hover:text-white'
         }`}
       >
-        <input
-          type="radio"
-          name="new-topic-score"
-          value={value}
-          checked={isActive}
-          onChange={() => setNewTopicScore(value)}
-          className="sr-only"
-        />
-        <span aria-hidden="true">{value}</span>
-      </label>
+        {value}
+      </button>
     );
   };
 

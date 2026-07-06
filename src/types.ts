@@ -148,6 +148,12 @@ export interface Topic {
   status: 'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted';
   priority: 1 | 2 | 3 | 4 | 5;
   topicScore?: number;
+  hookScore?: number;
+  midScore?: number;
+  endScore?: number;
+  scriptQualityScore?: number;
+  scriptAccuracyScore?: number;
+  scriptOriginalityScore?: number;
   dueDate: string | null;
   createdDate: string;
   lastUpdated: string;

@@ -89,7 +89,9 @@ export default function TopicCreateModal({
   const [lane, setLane] = useState<Lane | null>(null);
   const [status, setStatus] = useState<'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted'>('topic');
   const [priority, setPriority] = useState<1 | 2 | 3 | 4 | 5>(1);
-  const [topicScore, setTopicScore] = useState<TopicScore>(5);
+  // Unscored is the honest default — no user tap, no score. A tap sets the
+  // value; tapping the currently-active number clears it back to unscored.
+  const [topicScore, setTopicScore] = useState<TopicScore | undefined>(undefined);
   const [dueDate, setDueDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
   const [eligibility, setEligibility] = useState<Eligibility>(emptyEligibility);
@@ -113,7 +115,7 @@ export default function TopicCreateModal({
     ? currentSnapshot !== initialSnapshotRef.current
     : Boolean(
         name.trim() || description.trim() || channel || lane || status !== 'topic' || priority !== 1 ||
-        topicScore !== 5 || dueDate || scheduleTime || Object.values(eligibility).some(Boolean)
+        topicScore !== undefined || dueDate || scheduleTime || Object.values(eligibility).some(Boolean)
       );
   const modalRef = useDismissOnOutsideClick<HTMLFormElement>(isOpen, !hasUnsavedInput, onClose);
 
@@ -127,7 +129,7 @@ export default function TopicCreateModal({
     const initialLane = laneFromFormat(topicToEdit?.format);
     const initialStatus = topicToEdit?.status ?? 'topic';
     const initialPriority = topicToEdit?.priority ?? 1;
-    const initialTopicScore = (topicToEdit?.topicScore ?? 5) as TopicScore;
+    const initialTopicScore = topicToEdit?.topicScore as TopicScore | undefined;
     const initialDueDate = dateOnlyFromIso(topicToEdit?.dueDate);
     const initialTime = topicToEdit?.scheduledTime || timeOnlyFromIso(topicToEdit?.dueDate) || '';
 
@@ -293,24 +295,21 @@ export default function TopicCreateModal({
   const scoreOption = (value: TopicScore) => {
     const isActive = topicScore === value;
     return (
-      <label
+      <button
         key={value}
+        type="button"
+        onClick={() => setTopicScore(isActive ? undefined : value)}
+        aria-pressed={isActive}
+        aria-label={isActive ? `Clear score (currently ${value})` : `Set score to ${value}`}
+        title={isActive ? 'Tap to clear' : `Set to ${value}`}
         className={`relative flex h-5 w-5 cursor-pointer items-center justify-center rounded border text-[8px] font-bold transition ${
           isActive
             ? 'border-rose-400 bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,.25)]'
             : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-700 hover:text-white'
         }`}
       >
-        <input
-          type="radio"
-          name="topic-score"
-          value={value}
-          checked={isActive}
-          onChange={() => setTopicScore(value)}
-          className="sr-only"
-        />
-        <span aria-hidden="true">{value}</span>
-      </label>
+        {value}
+      </button>
     );
   };
 
@@ -402,8 +401,13 @@ export default function TopicCreateModal({
                   </div>
                 </div>
                 <fieldset className="space-y-1">
-                  <legend className="block uppercase text-neutral-500">Topic Score</legend>
-                  <div className="grid w-fit grid-cols-10 gap-0.5" role="radiogroup" aria-label="Topic Score">
+                  <legend className="block uppercase text-neutral-500">
+                    Topic Score
+                    <span className={`ml-1.5 normal-case ${topicScore === undefined ? 'text-neutral-500' : 'text-rose-300'}`}>
+                      {topicScore === undefined ? '· unscored' : `· ${topicScore}/10`}
+                    </span>
+                  </legend>
+                  <div className="grid w-fit grid-cols-10 gap-0.5" aria-label="Topic Score">
                     {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const).map(scoreOption)}
                   </div>
                 </fieldset>

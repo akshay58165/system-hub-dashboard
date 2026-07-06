@@ -996,7 +996,6 @@ export default function App() {
             channel: v.channelName,
             status: status,
             priority: 3,
-            topicScore: 5,
             dueDate: v.dueDate || v.uploadDate || null,
             createdDate: new Date().toISOString(),
             lastUpdated: new Date().toISOString(),
@@ -2743,6 +2742,7 @@ export default function App() {
             {activeTab === 'actionhub' && (
               <TopicScoreView
                 topics={visibleTopics}
+                setTopics={setTopics}
               />
             )}
 
