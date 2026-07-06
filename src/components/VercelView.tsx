@@ -109,7 +109,7 @@ const WORKFLOW_LABELS: Record<WorkflowStage, Record<WorkflowState, string>> = {
 };
 
 export function WorkflowStatusButton({
-  stage, state, onQuickPress, onLongPress, onReset, labelOverride, disabled, blinkClass, controlId, isGoalStage }: {
+  stage, state, onQuickPress, onLongPress, onReset, labelOverride, disabled, blinkClass, controlId, isGoalStage, tapResetsCompleted }: {
   stage: WorkflowStage;
   state: WorkflowState;
   onQuickPress: () => void;
@@ -120,6 +120,7 @@ export function WorkflowStatusButton({
   blinkClass?: string;
   controlId?: string;
   isGoalStage?: boolean;
+  tapResetsCompleted?: boolean;
 }) {
   const longPressFired = useRef(false);
   const [isHolding, setIsHolding] = useState(false);
@@ -136,7 +137,13 @@ export function WorkflowStatusButton({
     event.stopPropagation();
     const wasLongPress = longPressFired.current;
     setIsHolding(false);
-    if (!wasLongPress && state !== 'completed') onQuickPress();
+    if (!wasLongPress) {
+      if (state === 'completed') {
+        if (tapResetsCompleted) onReset();
+      } else {
+        onQuickPress();
+      }
+    }
   };
 
   const handleAnimationEnd = (event: React.AnimationEvent) => {
@@ -603,33 +610,20 @@ export default function VercelView({
       timestamp: new Date().toISOString(),
     }, ...prev]);
 
-    // Auto-link with workday session goals
-    if (workdaySession && setWorkdaySession) {
+    // Completing a stage that the user *explicitly* added as today's goal
+    // still surfaces the break prompt. Starting a stage never auto-creates
+    // a goal — goals are only what the user chose in the workday setup.
+    if (workdaySession && targetState === 'completed') {
       const goalTargetMap: Record<string, 'hooked' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted'> = {
         hook: 'hooked', script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted'
       };
       const goalTarget = goalTargetMap[targetStage];
-
-      if (targetState === 'in-progress') {
-        const alreadyHasGoal = (workdaySession.goals || []).some(
-          g => g.topicId === topic.id && g.targetStatus === goalTarget
-        );
-        if (!alreadyHasGoal) {
-          const stamp = new Date().toISOString();
-          setWorkdaySession(prev => prev ? {
-            ...prev,
-            goals: [...(prev.goals || []), { id: `goal-auto-${Date.now()}`, topicId: topic.id, targetStatus: goalTarget, addedAt: stamp }],
-            updatedAt: stamp
-          } : prev);
-        }
-      } else if (targetState === 'completed') {
-        const matchingGoal = (workdaySession.goals || []).find(
-          g => g.topicId === topic.id && g.targetStatus === goalTarget
-        );
-        if (matchingGoal) {
-          const durationMs = Date.now() - new Date(matchingGoal.addedAt).getTime();
-          setBreakPrompt({ topicName: topic.name, stage: targetStage, durationMs });
-        }
+      const matchingGoal = (workdaySession.goals || []).find(
+        g => g.topicId === topic.id && g.targetStatus === goalTarget
+      );
+      if (matchingGoal) {
+        const durationMs = Date.now() - new Date(matchingGoal.addedAt).getTime();
+        setBreakPrompt({ topicName: topic.name, stage: targetStage, durationMs });
       }
     }
   };

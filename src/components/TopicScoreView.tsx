@@ -597,20 +597,6 @@ export default function TopicScoreView({
                     {shootAllowed
                       ? <span className="rounded border border-emerald-600 bg-emerald-500 px-2 py-1 font-bold text-black">Shoot ✓</span>
                       : <span className="rounded border border-neutral-800 bg-neutral-900 px-2 py-1 font-bold text-neutral-400">Shoot ✕</span>}
-                    {activeTimer && (() => {
-                      const activeStageTimers = taskTimers?.filter(t => t.topicId === topic.id && t.stage === activeTimer.stage) || [];
-                      const activeMs = activeStageTimers.reduce((total, timer) => total + timer.accumulatedActiveMs + (
-                        timer.status === 'running' && timer.activeSince ? Math.max(0, now - new Date(timer.activeSince).getTime()) : 0
-                      ), 0);
-                      const timeLabel = activeMs > 0
-                        ? `[${String(Math.floor(activeMs / 3600000)).padStart(2, '0')}:${String(Math.floor(activeMs / 60000) % 60).padStart(2, '0')}:${String(Math.floor(activeMs / 1000) % 60).padStart(2, '0')}]`
-                        : '';
-                      return (
-                        <span className={`rounded border px-2 py-1 font-bold animate-pulse ${activeTimer.status === 'paused' ? 'border-amber-600 bg-amber-500/20 text-amber-300' : 'border-emerald-600 bg-emerald-500/20 text-emerald-300'}`}>
-                          {activeTimer.status === 'paused' ? 'PAUSED' : (activeTimer.stage === 'hook' ? 'HOOKING' : activeTimer.stage === 'script' ? 'SCRIPTING' : activeTimer.stage === 'shoot' ? 'SHOOTING' : activeTimer.stage === 'edit' ? 'EDITING' : activeTimer.stage === 'schedule' ? 'SCHEDULING' : 'POSTING')} {timeLabel}
-                        </span>
-                      );
-                    })()}
                     <span className="ml-1 rounded border border-neutral-800 bg-neutral-900 px-2 py-1 font-bold text-neutral-400">{isExpanded ? '−' : '+'}</span>
                   </div>
                 </button>
@@ -621,38 +607,55 @@ export default function TopicScoreView({
                     unlocked, the three script scores decide shoot eligibility. */}
                 <div className="mt-3 space-y-3">
                   <div className="rounded-lg border border-neutral-800 bg-neutral-950/40 p-3">
-                    <div className="mb-2 flex items-center text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-mono">
-                      Topic stage (Topic · Hook)
+                    <div className="mb-2 flex items-center justify-between gap-2 font-mono">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Topic stage (Topic · Hook)</span>
                       {onStartTaskTimer && topicPassed && (
-                        <div className="scale-90 origin-left">
-                          <WorkflowStatusButton
-                            stage="hook"
-                            state={hookState}
-                            onQuickPress={() => {
-                              if (hookState !== 'in-progress') {
-                                if (onStartTaskTimer) onStartTaskTimer(topic.id, 'hook');
-                              } else {
-                                if (liveHookTimer?.status === 'running') {
-                                  if (onPauseTaskTimer) onPauseTaskTimer('manual');
-                                } else if (liveHookTimer?.status === 'paused') {
-                                  if (onResumeTaskTimer) onResumeTaskTimer('manual');
+                        <div className="flex items-center gap-2 text-[9px] text-neutral-500 normal-case">
+                          <span>Tap to start · Hold to complete</span>
+                          <div className="[&_button]:!text-[10px] [&_button]:!px-3 [&_button]:!py-1 [&_button]:!rounded-md">
+                            <WorkflowStatusButton
+                              stage="hook"
+                              state={hookState}
+                              tapResetsCompleted
+                              onQuickPress={() => {
+                                if (hookState !== 'in-progress') {
+                                  if (onStartTaskTimer) onStartTaskTimer(topic.id, 'hook');
+                                } else {
+                                  if (liveHookTimer?.status === 'running') {
+                                    if (onPauseTaskTimer) onPauseTaskTimer('manual');
+                                  } else if (liveHookTimer?.status === 'paused') {
+                                    if (onResumeTaskTimer) onResumeTaskTimer('manual');
+                                  }
                                 }
-                              }
-                            }}
-                            onLongPress={() => {
-                              if (liveHookTimer && onStopTaskTimer) onStopTaskTimer('done');
-                              setTopics(prev => prev.map(t => {
-                                if (t.id !== topic.id) return t;
-                                return { 
-                                  ...t, 
-                                  status: 'hooked', 
-                                  workflowStatuses: { ...t.workflowStatuses, hook: 'completed' },
-                                  lastUpdated: new Date().toISOString()
-                                };
-                              }));
-                            }}
-                            onReset={() => {}}
-                          />
+                              }}
+                              onLongPress={() => {
+                                if (liveHookTimer && onStopTaskTimer) onStopTaskTimer('done');
+                                setTopics(prev => prev.map(t => {
+                                  if (t.id !== topic.id) return t;
+                                  return {
+                                    ...t,
+                                    status: 'hooked',
+                                    workflowStatuses: { ...t.workflowStatuses, hook: 'completed' },
+                                    lastUpdated: new Date().toISOString()
+                                  };
+                                }));
+                              }}
+                              onReset={() => {
+                                if (liveHookTimer && onStopTaskTimer) onStopTaskTimer('deferred');
+                                setTopics(prev => prev.map(t => {
+                                  if (t.id !== topic.id) return t;
+                                  const ws = { ...(t.workflowStatuses || {}) };
+                                  delete ws.hook;
+                                  return {
+                                    ...t,
+                                    status: t.status === 'hooked' ? 'topic' : t.status,
+                                    workflowStatuses: ws,
+                                    lastUpdated: new Date().toISOString()
+                                  };
+                                }));
+                              }}
+                            />
+                          </div>
                         </div>
                       )}
                     </div>
@@ -678,13 +681,16 @@ export default function TopicScoreView({
 
                   <div className="rounded-lg border border-neutral-800 bg-neutral-950/40 p-3">
                     <div className="mb-2 flex items-center justify-between font-mono">
-                      <span className="flex items-center text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                      <span className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
                         Script stage (Quality · Accuracy · Originality)
                         {onStartTaskTimer && !scriptLocked && (
-                          <div className="scale-90 origin-left">
+                          <span className="flex items-center gap-2 text-[9px] text-neutral-500 normal-case">
+                            <span>Tap to start · Hold to complete</span>
+                            <span className="[&_button]:!text-[10px] [&_button]:!px-3 [&_button]:!py-1 [&_button]:!rounded-md">
                             <WorkflowStatusButton
                               stage="script"
                               state={scriptState}
+                              tapResetsCompleted
                               onQuickPress={() => {
                                 if (scriptState !== 'in-progress') {
                                   if (onStartTaskTimer) onStartTaskTimer(topic.id, 'script');
@@ -700,17 +706,31 @@ export default function TopicScoreView({
                                 if (liveScriptTimer && onStopTaskTimer) onStopTaskTimer('done');
                                 setTopics(prev => prev.map(t => {
                                   if (t.id !== topic.id) return t;
-                                  return { 
-                                    ...t, 
-                                    status: 'scripted', 
+                                  return {
+                                    ...t,
+                                    status: 'scripted',
                                     workflowStatuses: { ...t.workflowStatuses, hook: 'completed', script: 'completed' },
                                     lastUpdated: new Date().toISOString()
                                   };
                                 }));
                               }}
-                              onReset={() => {}}
+                              onReset={() => {
+                                if (liveScriptTimer && onStopTaskTimer) onStopTaskTimer('deferred');
+                                setTopics(prev => prev.map(t => {
+                                  if (t.id !== topic.id) return t;
+                                  const ws = { ...(t.workflowStatuses || {}) };
+                                  delete ws.script;
+                                  return {
+                                    ...t,
+                                    status: t.status === 'scripted' ? 'hooked' : t.status,
+                                    workflowStatuses: ws,
+                                    lastUpdated: new Date().toISOString()
+                                  };
+                                }));
+                              }}
                             />
-                          </div>
+                            </span>
+                          </span>
                         )}
                       </span>
                       <span className={`text-[10px] font-bold ${scriptAvg === null ? 'text-neutral-500' : 'text-white'}`}>
