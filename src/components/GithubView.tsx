@@ -1794,7 +1794,7 @@ export default function GithubView({
                           <User className="h-3 w-3" />
                           {activity.author}
                         </span>
-                        <span className="text-neutral-600">â€¢</span>
+                        <span className="text-neutral-600"> - </span>
                         <span className="text-neutral-500 font-mono italic">
                           {formatTimeAgo(activity.timestamp)}
                         </span>
