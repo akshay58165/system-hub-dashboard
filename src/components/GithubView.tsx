@@ -739,7 +739,7 @@ export default function GithubView({
               )}
               {topic.isDemo && (
                 <span className="px-1.5 py-0.2 bg-amber-950/20 text-amber-400 border border-amber-900/30 rounded text-[9px] font-bold">
-                  Demo â€¢ Deletable
+                  Demo Deletable
                 </span>
               )}
               {topic.revenueLevel && (
@@ -747,6 +747,9 @@ export default function GithubView({
                   {topic.revenueLevel}
                 </span>
               )}
+              <span className="px-1.5 py-0.2 bg-rose-950/20 text-rose-300 border border-rose-900/30 rounded text-[9px] font-bold">
+                Score {topic.topicScore ?? 5}
+              </span>
               {!topic.inProgress && topic.status !== 'scheduled' && (
                 <button
                   type="button"
@@ -782,7 +785,7 @@ export default function GithubView({
                   className="px-1.5 py-0.2 bg-blue-950/45 hover:bg-blue-900/20 text-blue-400 border border-blue-900/40 hover:border-blue-500 hover:text-white rounded text-[8px] font-mono transition cursor-pointer select-none"
                   title="Send to Progress section"
                 >
-                  Start Pipeline â†’
+                  Start Pipeline
                 </button>
               )}
               {(topic.inProgress || topic.status === 'scheduled' || topic.status === 'posted') && (
@@ -796,7 +799,7 @@ export default function GithubView({
                   className="px-1.5 py-0.2 bg-amber-950/35 hover:bg-amber-900/25 text-amber-400 border border-amber-900/40 hover:border-amber-500 rounded text-[8px] font-mono transition cursor-pointer"
                   title="Open edit, delete, reset, and status controls"
                 >
-                  Manage â†’
+                  Manage
                 </button>
               )}
             </div>
@@ -1701,7 +1704,7 @@ export default function GithubView({
                         You have {criticalTopics.length} topics due within 24 hours or overdue. Click to highlight them.
                       </p>
                     </div>
-                    <span className="ml-auto text-red-700 transition group-hover:text-red-300">â†—</span>
+                    <ChevronRight className="ml-auto h-4 w-4 text-red-700 transition group-hover:text-red-300" />
                   </button>
                 ) : (
                   <div className="p-3 bg-emerald-950/10 border border-emerald-900/40 text-emerald-400 rounded-lg flex items-start gap-2">
