@@ -290,21 +290,27 @@ export default function TopicCreateModal({
     </label>
   );
 
-  const scoreButton = (value: TopicScore) => {
+  const scoreOption = (value: TopicScore) => {
     const isActive = topicScore === value;
     return (
-      <button
+      <label
         key={value}
-        type="button"
-        onClick={() => setTopicScore(value)}
-        className={`flex h-5 w-5 items-center justify-center rounded border text-[8px] font-bold transition ${
+        className={`relative flex h-5 w-5 cursor-pointer items-center justify-center rounded border text-[8px] font-bold transition ${
           isActive
             ? 'border-rose-400 bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,.25)]'
             : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-700 hover:text-white'
         }`}
       >
-        {value}
-      </button>
+        <input
+          type="radio"
+          name="topic-score"
+          value={value}
+          checked={isActive}
+          onChange={() => setTopicScore(value)}
+          className="sr-only"
+        />
+        <span aria-hidden="true">{value}</span>
+      </label>
     );
   };
 
@@ -395,12 +401,12 @@ export default function TopicCreateModal({
                     {([1, 2, 3, 4, 5] as const).map(value => <button key={value} type="button" onClick={() => setPriority(value)} className={`flex h-6 w-6 items-center justify-center rounded border text-[9px] font-bold ${priority === value ? 'border-rose-400 bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,.3)]' : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-700'}`}>{value}</button>)}
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <span className="block uppercase text-neutral-500">Topic Score</span>
-                  <div className="grid w-fit grid-cols-10 gap-0.5">
-                    {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const).map(scoreButton)}
+                <fieldset className="space-y-1">
+                  <legend className="block uppercase text-neutral-500">Topic Score</legend>
+                  <div className="grid w-fit grid-cols-10 gap-0.5" role="radiogroup" aria-label="Topic Score">
+                    {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const).map(scoreOption)}
                   </div>
-                </div>
+                </fieldset>
                 <label className="block uppercase text-neutral-500">Due Date
                   <span className="relative mt-1 block">
                     <input type="date" value={dueDate} onChange={event => setDueDate(event.target.value)} className="h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 text-[10px] normal-case text-white outline-none" />

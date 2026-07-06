@@ -261,21 +261,27 @@ export default function SupabaseView({
     });
   };
 
-  const scoreButton = (value: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10) => {
+  const scoreOption = (value: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10) => {
     const isActive = newTopicScore === value;
     return (
-      <button
+      <label
         key={value}
-        type="button"
-        onClick={() => setNewTopicScore(value)}
-        className={`flex h-5 w-5 items-center justify-center rounded border text-[8px] font-bold transition ${
+        className={`relative flex h-5 w-5 cursor-pointer items-center justify-center rounded border text-[8px] font-bold transition ${
           isActive
             ? 'border-rose-400 bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,.25)]'
             : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-700 hover:text-white'
         }`}
       >
-        {value}
-      </button>
+        <input
+          type="radio"
+          name="new-topic-score"
+          value={value}
+          checked={isActive}
+          onChange={() => setNewTopicScore(value)}
+          className="sr-only"
+        />
+        <span aria-hidden="true">{value}</span>
+      </label>
     );
   };
 
@@ -828,12 +834,12 @@ ${task}`;
                             {[1, 2, 3, 4, 5].map(priority => <option key={priority} value={priority}>{priority}</option>)}
                           </select>
                         </label>
-                        <div className="space-y-1">
-                          <span className="uppercase text-neutral-500">Topic Score</span>
-                          <div className="grid w-fit grid-cols-10 gap-0.5">
-                            {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const).map(scoreButton)}
+                        <fieldset className="space-y-1">
+                          <legend className="uppercase text-neutral-500">Topic Score</legend>
+                          <div className="grid w-fit grid-cols-10 gap-0.5" role="radiogroup" aria-label="Topic Score">
+                            {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const).map(scoreOption)}
                           </div>
-                        </div>
+                        </fieldset>
                         <label className="space-y-1">
                           <span className="uppercase text-neutral-500">Due Date</span>
                           <input type="date" value={newTopicDueDate} onChange={event => setNewTopicDueDate(event.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded px-2 py-2 text-xs text-white" />
