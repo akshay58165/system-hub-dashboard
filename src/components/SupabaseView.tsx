@@ -261,6 +261,24 @@ export default function SupabaseView({
     });
   };
 
+  const scoreButton = (value: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10) => {
+    const isActive = newTopicScore === value;
+    return (
+      <button
+        key={value}
+        type="button"
+        onClick={() => setNewTopicScore(value)}
+        className={`flex h-8 items-center justify-center rounded border text-[10px] font-bold transition ${
+          isActive
+            ? 'border-rose-400 bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,.25)]'
+            : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-700 hover:text-white'
+        }`}
+      >
+        {value}
+      </button>
+    );
+  };
+
   const handleCreateScriptTopic = (event: React.FormEvent) => {
     event.preventDefault();
     if (!newTopicName.trim() || !newTopicChannel || !newTopicLane) return;
@@ -810,12 +828,16 @@ ${task}`;
                             {[1, 2, 3, 4, 5].map(priority => <option key={priority} value={priority}>{priority}</option>)}
                           </select>
                         </label>
-                        <label className="space-y-1">
+                        <div className="space-y-1">
                           <span className="uppercase text-neutral-500">Topic Score</span>
-                          <select value={newTopicScore} onChange={event => setNewTopicScore(Number(event.target.value) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10)} className="w-full bg-neutral-950 border border-neutral-800 rounded px-2 py-2 text-xs text-white">
-                            {[1,2,3,4,5,6,7,8,9,10].map(score => <option key={score} value={score}>{score}{score <= 3 ? ' - low' : score >= 8 ? ' - excellent' : ''}</option>)}
-                          </select>
-                        </label>
+                          <div className="grid grid-cols-5 gap-1.5">
+                            {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const).map(scoreButton)}
+                          </div>
+                          <div className="flex justify-between text-[9px] font-mono text-neutral-500">
+                            <span>1 = low</span>
+                            <span>10 = excellent</span>
+                          </div>
+                        </div>
                         <label className="space-y-1">
                           <span className="uppercase text-neutral-500">Due Date</span>
                           <input type="date" value={newTopicDueDate} onChange={event => setNewTopicDueDate(event.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded px-2 py-2 text-xs text-white" />

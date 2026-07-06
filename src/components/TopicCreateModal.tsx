@@ -290,6 +290,24 @@ export default function TopicCreateModal({
     </label>
   );
 
+  const scoreButton = (value: TopicScore) => {
+    const isActive = topicScore === value;
+    return (
+      <button
+        key={value}
+        type="button"
+        onClick={() => setTopicScore(value)}
+        className={`flex h-8 items-center justify-center rounded border text-[10px] font-bold transition ${
+          isActive
+            ? 'border-rose-400 bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,.25)]'
+            : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-700 hover:text-white'
+        }`}
+      >
+        {value}
+      </button>
+    );
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -377,13 +395,16 @@ export default function TopicCreateModal({
                     {([1, 2, 3, 4, 5] as const).map(value => <button key={value} type="button" onClick={() => setPriority(value)} className={`flex h-6 w-6 items-center justify-center rounded border text-[9px] font-bold ${priority === value ? 'border-rose-400 bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,.3)]' : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-700'}`}>{value}</button>)}
                   </div>
                 </div>
-                <label className="block uppercase text-neutral-500">Topic Score
-                  <select value={topicScore} onChange={event => setTopicScore(Number(event.target.value) as TopicScore)} className="mt-1 h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 text-xs normal-case text-white outline-none">
-                    {([1,2,3,4,5,6,7,8,9,10] as const).map(value => (
-                      <option key={value} value={value}>{value} {value <= 3 ? '- low' : value >= 8 ? '- excellent' : ''}</option>
-                    ))}
-                  </select>
-                </label>
+                <div className="space-y-1">
+                  <span className="block uppercase text-neutral-500">Topic Score</span>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const).map(scoreButton)}
+                  </div>
+                  <div className="flex justify-between text-[9px] font-mono text-neutral-500">
+                    <span>1 = low</span>
+                    <span>10 = excellent</span>
+                  </div>
+                </div>
                 <label className="block uppercase text-neutral-500">Due Date
                   <span className="relative mt-1 block">
                     <input type="date" value={dueDate} onChange={event => setDueDate(event.target.value)} className="h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 text-[10px] normal-case text-white outline-none" />
