@@ -268,7 +268,7 @@ export default function SupabaseView({
         key={value}
         type="button"
         onClick={() => setNewTopicScore(value)}
-        className={`flex h-8 items-center justify-center rounded border text-[10px] font-bold transition ${
+        className={`flex h-6 w-6 items-center justify-center rounded-md border text-[9px] font-bold transition ${
           isActive
             ? 'border-rose-400 bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,.25)]'
             : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-700 hover:text-white'
@@ -830,12 +830,8 @@ ${task}`;
                         </label>
                         <div className="space-y-1">
                           <span className="uppercase text-neutral-500">Topic Score</span>
-                          <div className="grid grid-cols-5 gap-1.5">
+                          <div className="grid w-fit grid-cols-10 gap-1">
                             {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const).map(scoreButton)}
-                          </div>
-                          <div className="flex justify-between text-[9px] font-mono text-neutral-500">
-                            <span>1 = low</span>
-                            <span>10 = excellent</span>
                           </div>
                         </div>
                         <label className="space-y-1">
