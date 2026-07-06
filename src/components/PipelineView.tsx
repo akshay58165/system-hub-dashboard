@@ -33,6 +33,7 @@ interface PipelineViewProps {
   activeSubView?: 'videos' | 'topics';
   setActiveSubView?: (subView: 'videos' | 'topics') => void;
   onDeleteContentItem?: (itemId: string, label: string, topicName?: string) => void;
+  onEditTopic?: (topic: Topic) => void;
 }
 
 const STAGES = ['Topic', 'Script', 'Shoot', 'Edit', 'Thumbnail', 'Schedule', 'Published'] as const;
@@ -159,7 +160,8 @@ export default function PipelineView({
   setWorkdaySession,
   activeSubView: propActiveSubView,
   setActiveSubView: propSetActiveSubView,
-  onDeleteContentItem
+  onDeleteContentItem,
+  onEditTopic
 }: PipelineViewProps) {
   const [localSubView, setLocalSubView] = useState<'videos' | 'topics'>('videos');
   const activeSubView = propActiveSubView || localSubView;
@@ -745,6 +747,8 @@ export default function PipelineView({
           cycleGoals={cycleGoals}
           workdaySession={workdaySession}
           setWorkdaySession={setWorkdaySession}
+          onDeleteContentItem={onDeleteContentItem}
+          onEditTopic={onEditTopic}
         />
       )}
 

@@ -778,11 +778,16 @@ export default function VercelView({
   };
 
   // Filtered topics
+  // Scheduled/posted topics move to the "Scheduled & Completed Video Ledger"
+  // section below, so exclude them from the main topic-controls list.
   const filteredTopics = useMemo(() => {
     return topics
       .filter(t => selectedChannel === 'Later'
         ? Boolean(t.savedForLater)
-        : !t.savedForLater && (selectedChannel === 'All' || t.channel === selectedChannel))
+        : !t.savedForLater
+          && (selectedChannel === 'All' || t.channel === selectedChannel)
+          && t.status !== 'scheduled'
+          && t.status !== 'posted')
       .sort((a, b) => {
         if (topicSortOrder === 'goals') {
           const goalIds = new Set((workdaySession?.goals || []).map(g => g.topicId));
@@ -1673,8 +1678,8 @@ export default function VercelView({
 
             <div className="space-y-3">
               {(() => {
-                const scheduledItems = topics.filter(t => t.inProgress && t.status === 'scheduled');
-                const postedItems = topics.filter(t => t.inProgress && t.status === 'posted');
+                const scheduledItems = topics.filter(t => t.status === 'scheduled');
+                const postedItems = topics.filter(t => t.status === 'posted');
 
                 if (scheduledItems.length === 0 && postedItems.length === 0) {
                   return (
@@ -1689,13 +1694,28 @@ export default function VercelView({
                     {scheduledItems.length > 0 && (
                       <div className="space-y-2">
                         <div className="text-[9px] uppercase font-bold text-purple-400 tracking-wider font-mono">Scheduled Releases</div>
-                        {scheduledItems.map(topic => (
-                          <div 
+                        {scheduledItems.map(topic => {
+                          const dueMs = topic.dueDate ? new Date(topic.dueDate).getTime() : null;
+                          const remainingMs = dueMs !== null ? Math.max(0, dueMs - now.getTime()) : null;
+                          const isImminent = remainingMs !== null && remainingMs <= 60 * 60 * 1000;
+                          let countdown = '';
+                          if (remainingMs !== null) {
+                            const secs = Math.floor(remainingMs / 1000);
+                            const d = Math.floor(secs / 86400);
+                            const h = Math.floor((secs % 86400) / 3600);
+                            const m = Math.floor((secs % 3600) / 60);
+                            const s = secs % 60;
+                            countdown = d > 0
+                              ? `${d}d ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m`
+                              : `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                          }
+                          return (
+                          <div
                             key={topic.id}
                             className="p-3 bg-neutral-900/20 border border-neutral-850 rounded-lg space-y-2 font-mono text-[10px]"
                           >
-                            <div className="flex justify-between items-start">
-                              <div>
+                            <div className="flex justify-between items-start gap-2">
+                              <div className="min-w-0">
                                 <span className="text-xs font-bold block text-neutral-200">
                                   {topic.name}
                                 </span>
@@ -1711,9 +1731,24 @@ export default function VercelView({
                                 </div>
                               </div>
 
-                              <span className="px-1.5 py-0.5 rounded border text-[8px] uppercase font-bold border-purple-900/40 text-purple-400 bg-purple-950/20">
-                                Scheduled
-                              </span>
+                              <div className="flex flex-col items-end gap-1 shrink-0">
+                                <span className="px-1.5 py-0.5 rounded border text-[8px] uppercase font-bold border-purple-900/40 text-purple-400 bg-purple-950/20">
+                                  Scheduled
+                                </span>
+                                {countdown && (
+                                  <div
+                                    className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] font-bold tabular-nums ${
+                                      isImminent
+                                        ? 'border-rose-900/50 bg-rose-950/25 text-rose-300 animate-pulse'
+                                        : 'border-purple-900/40 bg-purple-950/15 text-purple-300'
+                                    }`}
+                                    title={`Auto-posts at ${new Date(topic.dueDate!).toLocaleString()}`}
+                                  >
+                                    <Clock className="h-2.5 w-2.5" />
+                                    <span>Posts in {countdown}</span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-2 text-neutral-500 text-[8px] pt-1">
@@ -1724,7 +1759,8 @@ export default function VercelView({
                               </div>
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
 

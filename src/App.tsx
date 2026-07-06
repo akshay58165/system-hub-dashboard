@@ -2081,7 +2081,16 @@ export default function App() {
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      setTimeStr(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      const weekday = now.toLocaleDateString([], { weekday: 'long' });
+      const day = now.getDate();
+      const suffix = (day % 10 === 1 && day !== 11) ? 'st'
+        : (day % 10 === 2 && day !== 12) ? 'nd'
+        : (day % 10 === 3 && day !== 13) ? 'rd'
+        : 'th';
+      const month = now.toLocaleDateString([], { month: 'long' });
+      const year = now.getFullYear();
+      const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      setTimeStr(`${weekday} ${day}${suffix} ${month} ${year} ${time}`);
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
@@ -2364,16 +2373,16 @@ export default function App() {
           {/* Real-time UTC metrics / clock */}
           <div className="flex items-center gap-4 shrink-0 font-mono text-[11px] text-neutral-400">
             <div className="flex items-center gap-1.5 text-neutral-500 bg-neutral-900 border border-neutral-850 px-2.5 py-1 rounded-lg">
-              <Clock className="h-3.5 w-3.5" />
-              <span>{timeStr || 'Loading...'}</span>
-            </div>
-
-            <div className="hidden lg:flex items-center gap-1.5 text-neutral-400">
-              <span className="relative flex h-2 w-2">
+              <span
+                className="relative flex h-2 w-2"
+                title={syncError ? `Cloud Sync Error: ${syncError}` : 'Cloud Sync Active'}
+                aria-label={syncError ? 'Cloud sync error' : 'Cloud sync active'}
+              >
                 <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${syncError ? 'bg-red-400' : 'bg-emerald-400'}`}></span>
                 <span className={`relative inline-flex rounded-full h-2 w-2 ${syncError ? 'bg-red-500' : 'bg-emerald-500'}`}></span>
               </span>
-              <span>{syncError ? 'Cloud Sync Error' : 'Cloud Sync Active'}</span>
+              <Clock className="h-3.5 w-3.5" />
+              <span>{timeStr || 'Loading...'}</span>
             </div>
 
             {/* Supabase Sync Auth Control - header only renders once `user` is set */}
@@ -2678,7 +2687,6 @@ export default function App() {
             {activeTab === 'videolab' && (
               <VideoLabView
                 videos={visibleVideos}
-                setVideos={setVideos}
                 selectedVideoId={selectedVideoId}
                 setSelectedVideoId={setSelectedVideoId}
                 topics={visibleTopics}

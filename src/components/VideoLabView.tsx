@@ -1,13 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Calendar as CalendarIcon, 
-  LayoutGrid, 
-  Layers, 
-  Clock, 
-  ChevronLeft, 
-  ChevronRight, 
-  Plus, 
+import {
+  Calendar as CalendarIcon,
+  LayoutGrid,
+  Layers,
+  Clock,
+  ChevronLeft,
+  ChevronRight,
   Trash2,
   Flame,
   Target,
@@ -19,7 +18,6 @@ import { VideoRecord, Topic, CycleGoal } from '../types';
 
 interface VideoLabProps {
   videos: VideoRecord[];
-  setVideos: React.Dispatch<React.SetStateAction<VideoRecord[]>>;
   selectedVideoId: string | null;
   setSelectedVideoId: (id: string) => void;
   topics: Topic[];
@@ -110,10 +108,9 @@ const getTopicArchiveDateStr = (topic: Topic) => {
   );
 };
 
-export default function VideoLabView({ 
-  videos, 
-  setVideos, 
-  selectedVideoId, 
+export default function VideoLabView({
+  videos,
+  selectedVideoId,
   setSelectedVideoId,
   topics,
   cycleGoals,
@@ -136,13 +133,6 @@ export default function VideoLabView({
     });
   };
 
-  // Form states for adding new mock video
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-  const [newChannel, setNewChannel] = useState<'LearnDriven' | 'DecodeWorthy'>('LearnDriven');
-  const [newFormat, setNewFormat] = useState<'Short' | 'Long' | 'Members'>('Short');
-  const [newDate, setNewDate] = useState(() => new Date().toISOString().split('T')[0]);
-
   // Parse publish date safely from video
   const parseVideoDateStr = (v: VideoRecord): string => {
     const rawDate = v.uploadDate || v.dueDate || v.publishTime || '';
@@ -150,51 +140,53 @@ export default function VideoLabView({
     return rawDate.split('T')[0];
   };
 
-  // Merge pipeline topics (scheduled or posted) and the videos array
+  // Merge pipeline topics (scheduled or posted) and the videos array into
+  // one list, keyed by id. Videos are bidirectionally synced from topics
+  // (see the sync effects in App.tsx), so the same id can appear on both
+  // sides. When both exist, the topic wins because it carries the richer
+  // metadata (revenueLevel, priority, category, real schedule fields);
+  // otherwise the video is used as-is.
   const combinedPosts = useMemo(() => {
-    const posts: UnifiedPost[] = [];
-    
-    // Add history from videos
+    const byId = new Map<string, UnifiedPost>();
+
     videos.forEach(v => {
       const dateStr = parseVideoDateStr(v);
-      if (dateStr) {
-        posts.push({
-          id: v.id,
-          title: v.title,
-          channelName: v.channelName,
-          format: v.format,
-          dateStr: dateStr,
-          source: 'video',
-          state: 'published',
-          time: displayTime(v.publishTime || v.uploadDate),
-          contentType: v.contentType || v.category || 'Unclassified',
-          revenueLevel: v.tags?.revenuePotential || 'Not tagged'
-        });
-      }
+      if (!dateStr) return;
+      byId.set(v.id, {
+        id: v.id,
+        title: v.title,
+        channelName: v.channelName,
+        format: v.format,
+        dateStr,
+        source: 'video',
+        state: 'published',
+        time: displayTime(v.publishTime || v.uploadDate),
+        contentType: v.contentType || v.category || 'Unclassified',
+        revenueLevel: v.tags?.revenuePotential || 'Not tagged'
+      });
     });
 
-    // Add active pipeline topics
     topics.forEach(t => {
-      if (t.status === 'posted' || t.status === 'scheduled') {
-        const dateStr = getTopicArchiveDateStr(t);
-        if (!dateStr) return;
-        posts.push({
-          id: t.id,
-          title: t.name,
-          channelName: t.channel,
-          format: t.format || 'Long', // Default to Long if undefined
-          dateStr,
-          source: 'pipeline',
-          state: t.status === 'posted' ? 'published' : 'scheduled',
-          time: displayTime(t.postedAt || t.scheduledTime || t.dueDate || t.createdDate || t.lastUpdated),
-          contentType: t.category || 'Unclassified',
-          revenueLevel: t.revenueLevel || 'Not tagged',
-          priority: t.priority
-        });
-      }
+      if (t.status !== 'posted' && t.status !== 'scheduled') return;
+      const dateStr = getTopicArchiveDateStr(t);
+      if (!dateStr) return;
+      // Overwrite any video entry with the same id — topic is the authority.
+      byId.set(t.id, {
+        id: t.id,
+        title: t.name,
+        channelName: t.channel,
+        format: t.format || 'Long',
+        dateStr,
+        source: 'pipeline',
+        state: t.status === 'posted' ? 'published' : 'scheduled',
+        time: displayTime(t.postedAt || t.scheduledTime || t.dueDate || t.createdDate || t.lastUpdated),
+        contentType: t.category || 'Unclassified',
+        revenueLevel: t.revenueLevel || 'Not tagged',
+        priority: t.priority
+      });
     });
 
-    return posts;
+    return Array.from(byId.values());
   }, [videos, topics]);
 
   // Group combined posts by YYYY-MM-DD
@@ -334,40 +326,8 @@ export default function VideoLabView({
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  // Add mock video record helper
-  const handleAddVideo = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim()) return;
-
-    const mockRecord: VideoRecord = {
-      id: `mock-vid-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-      channelName: newChannel,
-      title: newTitle.trim(),
-      format: newFormat,
-      contentType: 'Grid Simulated',
-      topic: newTitle.trim(),
-      pipelineStage: 'Published',
-      uploadDate: new Date(newDate).toISOString(),
-      scriptStatus: 'completed',
-      shootStatus: 'completed',
-      editStatus: 'completed',
-      thumbnailStatus: 'completed',
-      scheduleStatus: 'completed',
-      publishedStatus: 'completed',
-      productionEffortHours: 2,
-      tags: {
-        topicType: 'Simulation', hookType: 'Unspecified', contentStructure: 'Unspecified',
-        productionStyle: 'Unspecified', audienceIntent: 'Unspecified', difficulty: 'Unspecified',
-        evergreenPotential: 'Medium', revenuePotential: 'Medium', subscriberPotential: 'Medium', repeatability: 'Medium'
-      }
-    };
-
-    setVideos(prev => [mockRecord, ...prev]);
-    setNewTitle('');
-    setShowAddForm(false);
-  };
-
-  // Delete video (if mock/video database item)
+  // Delete a video record (only pipeline-sourced records exist here — no
+  // synthetic entries are creatable from this view).
   const handleDeletePost = (post: UnifiedPost) => {
     onDeleteContentItem?.(post.id, post.title, post.title);
   };
@@ -431,9 +391,6 @@ export default function VideoLabView({
       </div>
     );
   };
-
-  // Helper alias for map rendering callback
-  const p = { channelName: 'LearnDriven' as const, format: 'Short' as const };
 
   return (
     <div className="space-y-6 font-mono text-zinc-300 relative">
@@ -627,95 +584,7 @@ export default function VideoLabView({
                 </div>
               )}
             </div>
-
-            <button
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="bg-indigo-900/30 hover:bg-indigo-900/50 border border-indigo-800/40 text-indigo-400 text-[10px] px-3 py-1.5 rounded uppercase font-bold flex items-center gap-1.5 transition duration-300"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>Simulate Upload</span>
-            </button>
           </div>
-
-          {/* Quick Simulation Form Overlay */}
-          <AnimatePresence>
-            {showAddForm && (
-              <motion.form
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                onSubmit={handleAddVideo}
-                className="bg-zinc-950 border border-indigo-950 p-4 rounded-lg space-y-4 overflow-hidden"
-              >
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-zinc-300 uppercase font-bold">Video Title</label>
-                    <input 
-                      type="text" 
-                      value={newTitle}
-                      onChange={e => setNewTitle(e.target.value)}
-                      placeholder="Enter title..."
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-600"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-zinc-300 uppercase font-bold">Channel</label>
-                    <select
-                      value={newChannel}
-                      onChange={e => setNewChannel(e.target.value as any)}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-600"
-                    >
-                      <option value="LearnDriven">LearnDriven</option>
-                      <option value="DecodeWorthy">DecodeWorthy</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-zinc-300 uppercase font-bold">Format Type</label>
-                    <select
-                      value={newFormat}
-                      onChange={e => setNewFormat(e.target.value as any)}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-600"
-                    >
-                      <option value="Short">Short</option>
-                      <option value="Long">Long</option>
-                      <option value="Members">Members Only</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-4 pt-2 border-t border-zinc-900">
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-zinc-300 uppercase font-bold">Release Date</label>
-                    <input 
-                      type="date" 
-                      value={newDate}
-                      onChange={e => setNewDate(e.target.value)}
-                      className="bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-600 font-sans"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowAddForm(false)}
-                      className="px-3 py-1.5 text-[11px] uppercase font-bold text-zinc-400 hover:text-zinc-200"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] px-4 py-1.5 rounded uppercase"
-                    >
-                      Add to Grid
-                    </button>
-                  </div>
-                </div>
-              </motion.form>
-            )}
-          </AnimatePresence>
 
           {/* VIEW: CALENDAR */}
           {viewMode === 'calendar' && (
@@ -925,7 +794,7 @@ export default function VideoLabView({
                   if (dayPosts.length === 0) {
                     return (
                         <div className="text-center py-8 text-zinc-400 text-[11px] border border-dashed border-zinc-900 rounded-lg">
-                        No videos published on this day. Use "Simulate Upload" to add some!
+                        No videos published on this day. Complete a topic through the pipeline to fill this date.
                       </div>
                     );
                   }
@@ -955,7 +824,7 @@ export default function VideoLabView({
                                   type="button"
                                   onClick={() => handleDeletePost(post)}
                                   className="text-zinc-400 hover:text-red-400 p-0.5"
-                                  title={post.source === 'pipeline' ? 'Delete pipeline record' : 'Remove mock record'}
+                                  title="Delete video record"
                                 >
                                   <Trash2 className="h-3 w-3" />
                                 </button>
@@ -1023,14 +892,6 @@ export default function VideoLabView({
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-[2px]" style={{ backgroundColor: getFormatColor('DecodeWorthy', 'Short') }} />
                      <span className="text-[10px] text-zinc-300">Short Video (#8b5cf6)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-[2px]" style={{ backgroundColor: getFormatColor('DecodeWorthy', 'Long') }} />
-                     <span className="text-[10px] text-zinc-300">Long Video (#4f46e5)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-[2px]" style={{ backgroundColor: getFormatColor('DecodeWorthy', 'Members') }} />
-                     <span className="text-[10px] text-zinc-300">Members Only (#06b6d4)</span>
                   </div>
                 </div>
               </div>
