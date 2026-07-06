@@ -122,39 +122,108 @@ function readinessTone(status: ReadinessStatus): string {
   }
 }
 
+type ScoreTier = 'topic' | 'hook' | 'script';
+
+// Tier markers rendered beneath specific buttons so the user can see
+// what each number earns them (Pass threshold, A, A+, etc.) — a visual
+// target for what to aim at.
+const TIER_MARKERS: Record<ScoreTier, Record<number, { label: string; tone: 'emerald' | 'cyan' | 'amber' | 'rose' }>> = {
+  topic: {
+    6:  { label: 'B · Pass',   tone: 'cyan' },
+    8:  { label: 'A',          tone: 'emerald' },
+    10: { label: 'A+',         tone: 'emerald' }
+  },
+  hook: {
+    5:  { label: 'Low H',      tone: 'amber' },
+    8:  { label: 'H3 · Pass',  tone: 'cyan' },
+    9:  { label: 'H2',         tone: 'emerald' },
+    10: { label: 'H10',        tone: 'emerald' }
+  },
+  script: {
+    8:  { label: 'Pass',       tone: 'cyan' },
+    9:  { label: 'Strong',     tone: 'emerald' },
+    10: { label: 'Perfect',    tone: 'emerald' }
+  }
+};
+
+const PASS_THRESHOLD: Record<ScoreTier, number> = { topic: 6, hook: 8, script: 8 };
+
+function markerToneClass(tone: 'emerald' | 'cyan' | 'amber' | 'rose') {
+  return tone === 'emerald' ? 'text-emerald-300 border-emerald-600/50'
+    : tone === 'cyan' ? 'text-cyan-300 border-cyan-600/50'
+    : tone === 'amber' ? 'text-amber-300 border-amber-600/50'
+    : 'text-rose-300 border-rose-600/50';
+}
+
 // Compact one-tap 1–10 button strip. Tapping the active number clears the
 // score (undefined) so unscored stays honestly unscored.
 function ScorePicker({
   value,
   onChange,
-  compact
+  compact,
+  tier
 }: {
   value: number | undefined;
   onChange: (next: number | undefined) => void;
   compact?: boolean;
+  tier?: ScoreTier;
 }) {
+  const markers = tier ? TIER_MARKERS[tier] : {};
+  const pass = tier ? PASS_THRESHOLD[tier] : null;
   return (
-    <div className={`flex items-center ${compact ? 'gap-0.5' : 'gap-1'}`}>
-      {Array.from({ length: 10 }, (_, i) => i + 1).map(n => {
-        const active = value === n;
-        return (
-          <button
-            key={n}
-            type="button"
-            onClick={() => onChange(active ? undefined : n)}
-            aria-pressed={active}
-            aria-label={active ? `Clear score (currently ${n})` : `Set score to ${n}`}
-            title={active ? 'Tap to clear' : `Set to ${n}`}
-            className={`flex-1 ${compact ? 'h-6 text-[10px]' : 'h-7 text-[11px]'} rounded font-mono font-bold transition cursor-pointer ${
-              active
-                ? `${activeBg(n)} text-black`
-                : 'bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border border-neutral-850'
-            }`}
-          >
-            {n}
-          </button>
-        );
-      })}
+    <div className="space-y-1">
+      <div className={`flex items-stretch ${compact ? 'gap-0.5' : 'gap-1'}`}>
+        {Array.from({ length: 10 }, (_, i) => i + 1).map(n => {
+          const active = value === n;
+          const isPass = pass !== null && n === pass;
+          const belowPass = pass !== null && n < pass;
+          const marker = markers[n];
+          return (
+            <button
+              key={n}
+              type="button"
+              onClick={() => onChange(active ? undefined : n)}
+              aria-pressed={active}
+              aria-label={active ? `Clear score (currently ${n})` : `Set score to ${n}${marker ? ` (${marker.label})` : ''}`}
+              title={marker ? `${n} — ${marker.label}` : (active ? 'Tap to clear' : `Set to ${n}`)}
+              className={`flex-1 ${compact ? 'h-6 text-[10px]' : 'h-7 text-[11px]'} rounded font-mono font-bold transition cursor-pointer ${
+                active
+                  ? `${activeBg(n)} text-black`
+                  : belowPass
+                    ? 'bg-neutral-900 hover:bg-neutral-800 text-neutral-500 border border-neutral-850'
+                    : isPass
+                      ? 'bg-neutral-900 hover:bg-neutral-800 text-cyan-200 border border-dashed border-cyan-600/60'
+                      : marker
+                        ? `bg-neutral-900 hover:bg-neutral-800 border ${markerToneClass(marker.tone)}`
+                        : 'bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border border-neutral-850'
+              }`}
+            >
+              {n}
+            </button>
+          );
+        })}
+      </div>
+      {tier && (
+        <div className={`flex items-stretch ${compact ? 'gap-0.5' : 'gap-1'}`}>
+          {Array.from({ length: 10 }, (_, i) => i + 1).map(n => {
+            const marker = markers[n];
+            return (
+              <div key={n} className="flex-1 text-center">
+                {marker ? (
+                  <span className={`inline-block text-[8px] font-mono font-bold uppercase tracking-wider ${
+                    marker.tone === 'emerald' ? 'text-emerald-400'
+                    : marker.tone === 'cyan' ? 'text-cyan-400'
+                    : marker.tone === 'amber' ? 'text-amber-400'
+                    : 'text-rose-400'
+                  }`}>
+                    {marker.label}
+                  </span>
+                ) : <span>&nbsp;</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -194,6 +263,7 @@ function Pill({
 export default function TopicScoreView({ topics, setTopics }: TopicScoreViewProps) {
   const [filter, setFilter] = useState<FilterTab>('all');
   const [sort, setSort] = useState<SortMode>('totalDesc');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const updateScore = (topicId: string, field: ScoreField, nextScore: number | undefined) => {
     setTopics(prev => prev.map(t =>
@@ -389,9 +459,15 @@ export default function TopicScoreView({ topics, setTopics }: TopicScoreViewProp
             // Hook. So only lock the script trio, not Hook.
             const hookLocked = !topicPassed;
 
+            const isExpanded = expandedId === topic.id;
             return (
               <div key={topic.id} className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(isExpanded ? null : topic.id)}
+                  aria-expanded={isExpanded}
+                  className="flex w-full flex-wrap items-start justify-between gap-3 text-left cursor-pointer"
+                >
                   <div className="flex min-w-0 items-center gap-2">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-neutral-800 bg-neutral-900 text-xs font-bold text-neutral-300">
                       {index + 1}
@@ -419,12 +495,14 @@ export default function TopicScoreView({ topics, setTopics }: TopicScoreViewProp
                     {shootAllowed
                       ? <span className="rounded border border-emerald-600 bg-emerald-500 px-2 py-1 font-bold text-black">Shoot ✓</span>
                       : <span className="rounded border border-neutral-800 bg-neutral-900 px-2 py-1 font-bold text-neutral-400">Shoot ✕</span>}
+                    <span className="ml-1 rounded border border-neutral-800 bg-neutral-900 px-2 py-1 font-bold text-neutral-400">{isExpanded ? '−' : '+'}</span>
                   </div>
-                </div>
+                </button>
 
+                {isExpanded && (
+                <div>
                 {/* Topic + Hook decide whether the script is unlocked. Once
-                    unlocked, the three script scores decide shoot eligibility.
-                    Everything is visible by default — no hidden expand. */}
+                    unlocked, the three script scores decide shoot eligibility. */}
                 <div className="mt-3 space-y-3">
                   <div className="rounded-lg border border-neutral-800 bg-neutral-950/40 p-3">
                     <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-mono">Topic stage (Topic · Hook)</div>
@@ -434,6 +512,7 @@ export default function TopicScoreView({ topics, setTopics }: TopicScoreViewProp
                         value={topic[SCORE_FIELDS[0].key] as number | undefined}
                         onChange={n => updateScore(topic.id, SCORE_FIELDS[0].key, n)}
                         accent="rose"
+                        tier="topic"
                       />
                       <ScoreRow
                         label={SCORE_FIELDS[1].label}
@@ -442,6 +521,7 @@ export default function TopicScoreView({ topics, setTopics }: TopicScoreViewProp
                         disabled={hookLocked}
                         disabledHint="Requires Topic Score 6+"
                         accent="cyan"
+                        tier="hook"
                       />
                     </div>
                   </div>
@@ -463,6 +543,7 @@ export default function TopicScoreView({ topics, setTopics }: TopicScoreViewProp
                           disabled={scriptLocked}
                           disabledHint="Requires Topic Score 6+ and Hook Score 8+"
                           accent="cyan"
+                          tier="script"
                         />
                       ))}
                     </div>
@@ -488,6 +569,8 @@ export default function TopicScoreView({ topics, setTopics }: TopicScoreViewProp
                     <p className="mt-1 text-[11px] font-mono text-cyan-100/85">{nextAction}</p>
                   </div>
                 </div>
+                </div>
+                )}
               </div>
             );
           })}
@@ -597,7 +680,8 @@ function ScoreRow({
   onChange,
   disabled,
   disabledHint,
-  accent
+  accent,
+  tier
 }: {
   label: string;
   value: number | undefined;
@@ -605,6 +689,7 @@ function ScoreRow({
   disabled?: boolean;
   disabledHint?: string;
   accent?: 'rose' | 'cyan';
+  tier?: ScoreTier;
 }) {
   return (
     <div className={`rounded-lg border p-2.5 ${disabled ? 'border-neutral-900 bg-neutral-950/40 opacity-70' : accent === 'cyan' ? 'border-cyan-900/30 bg-cyan-950/10' : 'border-rose-900/30 bg-rose-950/10'}`}>
@@ -623,7 +708,7 @@ function ScoreRow({
         </div>
       ) : (
         <div className="mt-1.5">
-          <ScorePicker value={value} onChange={onChange} compact />
+          <ScorePicker value={value} onChange={onChange} compact tier={tier} />
         </div>
       )}
     </div>
