@@ -8,14 +8,16 @@ import {
   Layers,
   ListChecks,
   Lock,
+  Play,
   ShieldAlert,
   Sparkles,
+  Square,
   Star,
   Target,
   Zap
 } from 'lucide-react';
 import { BarChart, Bar, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis, Cell } from 'recharts';
-import type { Topic } from '../types';
+import type { Topic, TaskTimerRecord, TaskTimerStage } from '../types';
 import {
   getAllowedForShootTopics,
   getBlockedReasons,
@@ -33,10 +35,83 @@ import {
   type ReadinessStatus,
   type WeaknessCategory
 } from '../services/topicScoring';
+import { getTopicWorkflowState } from '../services/topicWorkflow';
+import { WorkflowStatusButton } from './VercelView';
 
 interface TopicScoreViewProps {
   topics: Topic[];
   setTopics: React.Dispatch<React.SetStateAction<Topic[]>>;
+  taskTimers?: TaskTimerRecord[];
+  onStartTaskTimer?: (topicId: string, stage: TaskTimerStage) => void;
+  onStopTaskTimer?: (endReason: 'done' | 'deferred', productivityScore?: number) => void;
+  onPauseTaskTimer?: (source?: 'manual') => void;
+  onResumeTaskTimer?: (source?: 'manual') => void;
+}
+
+function TimerButton({
+  label,
+  runningLabel,
+  activeTimer,
+  onStart,
+  onStop
+}: {
+  label: string;
+  runningLabel: string;
+  activeTimer?: TaskTimerRecord;
+  onStart: () => void;
+  onStop: () => void;
+}) {
+  const timeoutRef = React.useRef<number | null>(null);
+  const [now, setNow] = useState(Date.now());
+
+  React.useEffect(() => {
+    if (!activeTimer || activeTimer.status !== 'running') return;
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [activeTimer]);
+
+  const startPress = () => {
+    timeoutRef.current = window.setTimeout(() => {
+      onStop();
+      timeoutRef.current = null;
+    }, 500);
+  };
+
+  const cancelPress = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+      if (!activeTimer) onStart();
+    }
+  };
+
+  const isRunning = activeTimer?.status === 'running';
+
+  const formatDuration = (ms: number) => {
+    const seconds = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
+  const activeMs = activeTimer
+    ? activeTimer.accumulatedActiveMs + (activeTimer.status === 'running' && activeTimer.activeSince ? Math.max(0, now - new Date(activeTimer.activeSince).getTime()) : 0)
+    : 0;
+
+  return (
+    <button
+      type="button"
+      onPointerDown={startPress}
+      onPointerUp={cancelPress}
+      onPointerLeave={cancelPress}
+      className={`ml-2 flex h-5 items-center gap-1.5 rounded-full px-2.5 text-[9px] font-bold uppercase tracking-wider transition ${isRunning ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'}`}
+    >
+      {isRunning ? <Square className="h-2.5 w-2.5" /> : <Play className="h-2.5 w-2.5" />}
+      {isRunning ? `${runningLabel} [${formatDuration(activeMs)}]` : label}
+    </button>
+  );
 }
 
 type ScoreField =
@@ -260,10 +335,25 @@ function Pill({
 
 // ---------------- Component ----------------
 
-export default function TopicScoreView({ topics, setTopics }: TopicScoreViewProps) {
+export default function TopicScoreView({
+  topics,
+  setTopics,
+  taskTimers,
+  onStartTaskTimer,
+  onStopTaskTimer,
+  onPauseTaskTimer,
+  onResumeTaskTimer
+}: TopicScoreViewProps) {
   const [filter, setFilter] = useState<FilterTab>('all');
   const [sort, setSort] = useState<SortMode>('totalDesc');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const [now, setNow] = useState(Date.now());
+  React.useEffect(() => {
+    if (!taskTimers?.some(t => t.status === 'running')) return;
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [taskTimers]);
 
   const updateScore = (topicId: string, field: ScoreField, nextScore: number | undefined) => {
     setTopics(prev => prev.map(t =>
@@ -459,6 +549,18 @@ export default function TopicScoreView({ topics, setTopics }: TopicScoreViewProp
             // Hook. So only lock the script trio, not Hook.
             const hookLocked = !topicPassed;
 
+            const activeTimer = taskTimers?.find(t => t.topicId === topic.id && t.status === 'running');
+            
+            const hookStageTimers = taskTimers?.filter(t => t.topicId === topic.id && t.stage === 'hook') || [];
+            const liveHookTimer = hookStageTimers.find(timer => timer.status === 'running' || timer.status === 'paused');
+            const hookBaseState = getTopicWorkflowState(topic, 'hook');
+            const hookState = (liveHookTimer?.status === 'running' || liveHookTimer?.status === 'paused') ? 'in-progress' : hookBaseState;
+
+            const scriptStageTimers = taskTimers?.filter(t => t.topicId === topic.id && t.stage === 'script') || [];
+            const liveScriptTimer = scriptStageTimers.find(timer => timer.status === 'running' || timer.status === 'paused');
+            const scriptBaseState = getTopicWorkflowState(topic, 'script');
+            const scriptState = (liveScriptTimer?.status === 'running' || liveScriptTimer?.status === 'paused') ? 'in-progress' : scriptBaseState;
+
             const isExpanded = expandedId === topic.id;
             return (
               <div key={topic.id} className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4">
@@ -495,6 +597,20 @@ export default function TopicScoreView({ topics, setTopics }: TopicScoreViewProp
                     {shootAllowed
                       ? <span className="rounded border border-emerald-600 bg-emerald-500 px-2 py-1 font-bold text-black">Shoot ✓</span>
                       : <span className="rounded border border-neutral-800 bg-neutral-900 px-2 py-1 font-bold text-neutral-400">Shoot ✕</span>}
+                    {activeTimer && (() => {
+                      const activeStageTimers = taskTimers?.filter(t => t.topicId === topic.id && t.stage === activeTimer.stage) || [];
+                      const activeMs = activeStageTimers.reduce((total, timer) => total + timer.accumulatedActiveMs + (
+                        timer.status === 'running' && timer.activeSince ? Math.max(0, now - new Date(timer.activeSince).getTime()) : 0
+                      ), 0);
+                      const timeLabel = activeMs > 0
+                        ? `[${String(Math.floor(activeMs / 3600000)).padStart(2, '0')}:${String(Math.floor(activeMs / 60000) % 60).padStart(2, '0')}:${String(Math.floor(activeMs / 1000) % 60).padStart(2, '0')}]`
+                        : '';
+                      return (
+                        <span className={`rounded border px-2 py-1 font-bold animate-pulse ${activeTimer.status === 'paused' ? 'border-amber-600 bg-amber-500/20 text-amber-300' : 'border-emerald-600 bg-emerald-500/20 text-emerald-300'}`}>
+                          {activeTimer.status === 'paused' ? 'PAUSED' : (activeTimer.stage === 'hook' ? 'HOOKING' : activeTimer.stage === 'script' ? 'SCRIPTING' : activeTimer.stage === 'shoot' ? 'SHOOTING' : activeTimer.stage === 'edit' ? 'EDITING' : activeTimer.stage === 'schedule' ? 'SCHEDULING' : 'POSTING')} {timeLabel}
+                        </span>
+                      );
+                    })()}
                     <span className="ml-1 rounded border border-neutral-800 bg-neutral-900 px-2 py-1 font-bold text-neutral-400">{isExpanded ? '−' : '+'}</span>
                   </div>
                 </button>
@@ -505,7 +621,41 @@ export default function TopicScoreView({ topics, setTopics }: TopicScoreViewProp
                     unlocked, the three script scores decide shoot eligibility. */}
                 <div className="mt-3 space-y-3">
                   <div className="rounded-lg border border-neutral-800 bg-neutral-950/40 p-3">
-                    <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-mono">Topic stage (Topic · Hook)</div>
+                    <div className="mb-2 flex items-center text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-mono">
+                      Topic stage (Topic · Hook)
+                      {onStartTaskTimer && topicPassed && (
+                        <div className="scale-90 origin-left">
+                          <WorkflowStatusButton
+                            stage="hook"
+                            state={hookState}
+                            onQuickPress={() => {
+                              if (hookState !== 'in-progress') {
+                                if (onStartTaskTimer) onStartTaskTimer(topic.id, 'hook');
+                              } else {
+                                if (liveHookTimer?.status === 'running') {
+                                  if (onPauseTaskTimer) onPauseTaskTimer('manual');
+                                } else if (liveHookTimer?.status === 'paused') {
+                                  if (onResumeTaskTimer) onResumeTaskTimer('manual');
+                                }
+                              }
+                            }}
+                            onLongPress={() => {
+                              if (liveHookTimer && onStopTaskTimer) onStopTaskTimer('done');
+                              setTopics(prev => prev.map(t => {
+                                if (t.id !== topic.id) return t;
+                                return { 
+                                  ...t, 
+                                  status: 'hooked', 
+                                  workflowStatuses: { ...t.workflowStatuses, hook: 'completed' },
+                                  lastUpdated: new Date().toISOString()
+                                };
+                              }));
+                            }}
+                            onReset={() => {}}
+                          />
+                        </div>
+                      )}
+                    </div>
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                       <ScoreRow
                         label={SCORE_FIELDS[0].label}
@@ -528,7 +678,41 @@ export default function TopicScoreView({ topics, setTopics }: TopicScoreViewProp
 
                   <div className="rounded-lg border border-neutral-800 bg-neutral-950/40 p-3">
                     <div className="mb-2 flex items-center justify-between font-mono">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Script stage (Quality · Accuracy · Originality)</span>
+                      <span className="flex items-center text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                        Script stage (Quality · Accuracy · Originality)
+                        {onStartTaskTimer && !scriptLocked && (
+                          <div className="scale-90 origin-left">
+                            <WorkflowStatusButton
+                              stage="script"
+                              state={scriptState}
+                              onQuickPress={() => {
+                                if (scriptState !== 'in-progress') {
+                                  if (onStartTaskTimer) onStartTaskTimer(topic.id, 'script');
+                                } else {
+                                  if (liveScriptTimer?.status === 'running') {
+                                    if (onPauseTaskTimer) onPauseTaskTimer('manual');
+                                  } else if (liveScriptTimer?.status === 'paused') {
+                                    if (onResumeTaskTimer) onResumeTaskTimer('manual');
+                                  }
+                                }
+                              }}
+                              onLongPress={() => {
+                                if (liveScriptTimer && onStopTaskTimer) onStopTaskTimer('done');
+                                setTopics(prev => prev.map(t => {
+                                  if (t.id !== topic.id) return t;
+                                  return { 
+                                    ...t, 
+                                    status: 'scripted', 
+                                    workflowStatuses: { ...t.workflowStatuses, hook: 'completed', script: 'completed' },
+                                    lastUpdated: new Date().toISOString()
+                                  };
+                                }));
+                              }}
+                              onReset={() => {}}
+                            />
+                          </div>
+                        )}
+                      </span>
                       <span className={`text-[10px] font-bold ${scriptAvg === null ? 'text-neutral-500' : 'text-white'}`}>
                         Avg {scriptAvg === null ? '—' : scriptAvg.toFixed(1)}
                       </span>
@@ -690,6 +874,7 @@ function ScoreRow({
   disabledHint?: string;
   accent?: 'rose' | 'cyan';
   tier?: ScoreTier;
+  key?: string;
 }) {
   return (
     <div className={`rounded-lg border p-2.5 ${disabled ? 'border-neutral-900 bg-neutral-950/40 opacity-70' : accent === 'cyan' ? 'border-cyan-900/30 bg-cyan-950/10' : 'border-rose-900/30 bg-rose-950/10'}`}>

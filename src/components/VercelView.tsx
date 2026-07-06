@@ -85,7 +85,7 @@ const topicLevel = (topic: Topic) => {
   return Number.isFinite(parsed) ? parsed : -1;
 };
 
-const workRemaining = (topic: Topic) => ({ topic: 5, scripted: 4, shot: 3, edited: 2, scheduled: 1, posted: 0 } as const)[topic.status];
+const workRemaining = (topic: Topic) => ({ topic: 6, hooked: 5, scripted: 4, shot: 3, edited: 2, scheduled: 1, posted: 0 } as const)[topic.status];
 
 const workloadScore = (topic: Topic) => {
   const due = topicDueTime(topic);
@@ -96,10 +96,11 @@ const workloadScore = (topic: Topic) => {
   return (remaining * 100_000) / Math.max(1, hours);
 };
 
-type WorkflowStage = 'script' | 'shoot' | 'edit' | 'schedule' | 'post';
+type WorkflowStage = 'hook' | 'script' | 'shoot' | 'edit' | 'schedule' | 'post';
 type WorkflowState = 'pending' | 'in-progress' | 'completed';
 
 const WORKFLOW_LABELS: Record<WorkflowStage, Record<WorkflowState, string>> = {
+  hook: { pending: 'Hook', 'in-progress': 'Hooking', completed: 'Hooked' },
   script: { pending: 'Script', 'in-progress': 'Scripting', completed: 'Scripted' },
   shoot: { pending: 'Shoot', 'in-progress': 'Shooting', completed: 'Shot' },
   edit: { pending: 'Edit', 'in-progress': 'Editing', completed: 'Edited' },
@@ -107,7 +108,8 @@ const WORKFLOW_LABELS: Record<WorkflowStage, Record<WorkflowState, string>> = {
   post: { pending: 'Post', 'in-progress': 'Posting', completed: 'Posted' },
 };
 
-function WorkflowStatusButton({ stage, state, onQuickPress, onLongPress, onReset, labelOverride, disabled, blinkClass, controlId, isGoalStage }: {
+export function WorkflowStatusButton({
+  stage, state, onQuickPress, onLongPress, onReset, labelOverride, disabled, blinkClass, controlId, isGoalStage }: {
   stage: WorkflowStage;
   state: WorkflowState;
   onQuickPress: () => void;
@@ -551,10 +553,10 @@ export default function VercelView({
 
   const handleTransitionToStage = (topic: Topic, targetStage: WorkflowStage, targetState: WorkflowState) => {
     const completedStatusByStage: Record<WorkflowStage, Topic['status']> = {
-      script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted'
+      hook: 'hooked', script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted'
     };
 
-    const stagesOrder: WorkflowStage[] = ['script', 'shoot', 'edit', 'schedule', 'post'];
+    const stagesOrder: WorkflowStage[] = ['hook', 'script', 'shoot', 'edit', 'schedule', 'post'];
     const targetIdx = stagesOrder.indexOf(targetStage);
 
     setTopics(prev => prev.map(item => {
@@ -603,8 +605,8 @@ export default function VercelView({
 
     // Auto-link with workday session goals
     if (workdaySession && setWorkdaySession) {
-      const goalTargetMap: Record<string, 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted'> = {
-        script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted'
+      const goalTargetMap: Record<string, 'hooked' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted'> = {
+        hook: 'hooked', script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted'
       };
       const goalTarget = goalTargetMap[targetStage];
 
@@ -671,9 +673,9 @@ export default function VercelView({
   };
 
   const resetWorkflowStage = (topic: Topic, targetStage: WorkflowStage) => {
-    const stagesOrder: WorkflowStage[] = ['script', 'shoot', 'edit', 'schedule', 'post'];
+    const stagesOrder: WorkflowStage[] = ['hook', 'script', 'shoot', 'edit', 'schedule', 'post'];
     const completedStatusByStage: Record<WorkflowStage, Topic['status']> = {
-      script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted'
+      hook: 'hooked', script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted'
     };
     const targetIndex = stagesOrder.indexOf(targetStage);
 
@@ -782,12 +784,17 @@ export default function VercelView({
   // section below, so exclude them from the main topic-controls list.
   const filteredTopics = useMemo(() => {
     return topics
-      .filter(t => selectedChannel === 'Later'
-        ? Boolean(t.savedForLater)
-        : !t.savedForLater
+      .filter(t => {
+        const hasActiveTimer = taskTimer?.timers.some(timer => timer.topicId === t.id && (timer.status === 'running' || timer.status === 'paused')) ?? false;
+        if (hasActiveTimer) return true;
+        
+        if (selectedChannel === 'Later') return Boolean(t.savedForLater);
+        
+        return !t.savedForLater
           && (selectedChannel === 'All' || t.channel === selectedChannel)
           && t.status !== 'scheduled'
-          && t.status !== 'posted')
+          && t.status !== 'posted';
+      })
       .sort((a, b) => {
         if (topicSortOrder === 'goals') {
           const goalIds = new Set((workdaySession?.goals || []).map(g => g.topicId));
@@ -1404,8 +1411,7 @@ export default function VercelView({
 
                       {/* Interactive Stage Recording Buttons */}
                       <div className="flex flex-wrap gap-1.5 pt-1.5 border-t border-neutral-900">
-                        {(['script', 'shoot', 'edit', 'schedule', 'post'] as WorkflowStage[]).map(stage => {
-                          const state = getWorkflowState(topic, stage);
+                        {(['hook', 'script', 'shoot', 'edit', 'schedule', 'post'] as WorkflowStage[]).map(stage => {
                           const stageTimers = taskTimer?.timers.filter(timer => timer.topicId === topic.id && timer.stage === stage) || [];
                           // Only surface the LIVE/PAUSED chip while a workday session is
                           // active. Once the day is stopped/reset the chip should disappear;
@@ -1414,6 +1420,13 @@ export default function VercelView({
                           const liveStageTimer = hasActiveWorkday
                             ? stageTimers.find(timer => timer.status === 'running' || timer.status === 'paused')
                             : undefined;
+                          
+                          // If there's an active timer running/paused for this stage, visually force it to in-progress
+                          const baseState = getWorkflowState(topic, stage);
+                          const state = (liveStageTimer?.status === 'running' || liveStageTimer?.status === 'paused') 
+                            ? 'in-progress' 
+                            : baseState;
+
                           const stageActiveMs = stageTimers.reduce((total, timer) => total + timer.accumulatedActiveMs + (
                             timer.status === 'running' && timer.activeSince ? Math.max(0, now.getTime() - new Date(timer.activeSince).getTime()) : 0
                           ), 0);
@@ -1423,10 +1436,10 @@ export default function VercelView({
                           let labelOverride = undefined;
                           let isDisabled = false;
 
-                          const stagesOrder: WorkflowStage[] = ['script', 'shoot', 'edit', 'schedule', 'post'];
-                          const goalStageForControl: Record<WorkflowStage, NonNullable<WorkdaySession['goals']>[number]['targetStatus']> = { script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted' };
+                          const stagesOrder: WorkflowStage[] = ['hook', 'script', 'shoot', 'edit', 'schedule', 'post'];
+                          const goalStageForControl: Record<WorkflowStage, NonNullable<WorkdaySession['goals']>[number]['targetStatus']> = { hook: 'hooked', script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted' };
                           const isGoalTarget = topicGoal?.targetStatus === goalStageForControl[stage];
-                          const goalStatusOrder = ['topic', 'scripted', 'shot', 'edited', 'scheduled', 'posted'];
+                          const goalStatusOrder = ['topic', 'hooked', 'scripted', 'shot', 'edited', 'scheduled', 'posted'];
                           const isGoalStage = topicGoal && goalStatusOrder.indexOf(goalStageForControl[stage]) <= goalStatusOrder.indexOf(topicGoal.targetStatus) && goalStatusOrder.indexOf(goalStageForControl[stage]) > goalStatusOrder.indexOf(topic.status);
                           const stageIndex = stagesOrder.indexOf(stage);
                           const previousStage = stageIndex > 0 ? stagesOrder[stageIndex - 1] : null;
@@ -1484,7 +1497,16 @@ export default function VercelView({
                                     setSchedulingTopicId(topic.id);
                                     handleTransitionToStage(topic, 'schedule', 'in-progress');
                                   } else {
-                                    handleTransitionToStage(topic, stage, 'in-progress');
+                                    if (state !== 'in-progress') {
+                                      handleTransitionToStage(topic, stage, 'in-progress');
+                                      taskTimer?.startTimer(topic.id, stage);
+                                    } else {
+                                      if (liveStageTimer?.status === 'running') {
+                                        taskTimer?.pauseActiveTaskTimer('manual');
+                                      } else if (liveStageTimer?.status === 'paused') {
+                                        taskTimer?.resumeActiveTaskTimer('manual');
+                                      }
+                                    }
                                   }
                                 }}
                                 onLongPress={() => {

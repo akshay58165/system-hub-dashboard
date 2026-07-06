@@ -12,10 +12,11 @@ import {
   Scissors,
   Sparkles,
   Youtube,
+  Zap,
 } from 'lucide-react';
 import type { SessionRecord, TaskTimerRecord, Topic, TopicActivity, VideoRecord, WorkdaySession } from '../types';
 
-type PipelineNodeKey = 'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted';
+type PipelineNodeKey = 'topic' | 'hooked' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted';
 
 interface ProductionPipelineMapProps {
   topics: Topic[];
@@ -27,12 +28,13 @@ interface ProductionPipelineMapProps {
   focusTopic: Topic | null;
   dueSoonCount?: number;
   firstAttentionTopicId?: string;
-  firstAttentionAction?: 'script' | 'shoot' | 'edit' | 'schedule' | 'post' | 'unblock';
-  onOpenPipeline: (topicId?: string, action?: 'script' | 'shoot' | 'edit' | 'schedule' | 'post' | 'unblock') => void;
+  firstAttentionAction?: 'hook' | 'script' | 'shoot' | 'edit' | 'schedule' | 'post' | 'unblock';
+  onOpenPipeline: (topicId?: string, action?: 'hook' | 'script' | 'shoot' | 'edit' | 'schedule' | 'post' | 'unblock') => void;
 }
 
-const stageAction: Record<PipelineNodeKey, 'script' | 'shoot' | 'edit' | 'schedule' | 'post' | undefined> = {
-  topic: 'script',
+const stageAction: Record<PipelineNodeKey, 'hook' | 'script' | 'shoot' | 'edit' | 'schedule' | 'post' | undefined> = {
+  topic: 'hook',
+  hooked: 'script',
   scripted: 'shoot',
   shot: 'edit',
   edited: 'schedule',
@@ -50,6 +52,7 @@ type NodeTone = {
 
 const toneMap: Record<PipelineNodeKey, NodeTone> = {
   topic:     { badge: 'text-cyan-300',    border: 'border-cyan-900/40',    fill: 'bg-cyan-500/[.05]',    ring: 'shadow-[0_0_30px_rgba(34,211,238,0.10)]',  bar: 'bg-cyan-400' },
+  hooked:    { badge: 'text-blue-300',    border: 'border-blue-900/40',    fill: 'bg-blue-500/[.05]',    ring: 'shadow-[0_0_30px_rgba(59,130,246,0.10)]',  bar: 'bg-blue-400' },
   scripted:  { badge: 'text-violet-300',  border: 'border-violet-900/40',  fill: 'bg-violet-500/[.05]',  ring: 'shadow-[0_0_30px_rgba(167,139,250,0.10)]', bar: 'bg-violet-400' },
   shot:      { badge: 'text-amber-300',   border: 'border-amber-900/40',   fill: 'bg-amber-500/[.05]',   ring: 'shadow-[0_0_30px_rgba(251,191,36,0.10)]',  bar: 'bg-amber-400' },
   edited:    { badge: 'text-emerald-300', border: 'border-emerald-900/40', fill: 'bg-emerald-500/[.05]', ring: 'shadow-[0_0_30px_rgba(52,211,153,0.10)]',  bar: 'bg-emerald-400' },
@@ -57,10 +60,11 @@ const toneMap: Record<PipelineNodeKey, NodeTone> = {
   posted:    { badge: 'text-rose-300',    border: 'border-rose-900/40',    fill: 'bg-rose-500/[.05]',    ring: 'shadow-[0_0_30px_rgba(244,63,94,0.10)]',   bar: 'bg-rose-400' },
 };
 
-const stageOrder: Topic['status'][] = ['topic', 'scripted', 'shot', 'edited', 'scheduled', 'posted'];
+const stageOrder: Topic['status'][] = ['topic', 'hooked', 'scripted', 'shot', 'edited', 'scheduled', 'posted'];
 
 const timerStageForNode: Record<PipelineNodeKey, TaskTimerRecord['stage'] | null> = {
   topic: null,
+  hooked: 'hook',
   scripted: 'script',
   shot: 'shoot',
   edited: 'edit',
@@ -69,7 +73,8 @@ const timerStageForNode: Record<PipelineNodeKey, TaskTimerRecord['stage'] | null
 };
 
 const nextActionForStage: Record<PipelineNodeKey, string> = {
-  topic: 'Write the script',
+  topic: 'Write the hook',
+  hooked: 'Write the script',
   scripted: 'Record the video',
   shot: 'Edit the cut',
   edited: 'Lock a release time',
@@ -170,7 +175,7 @@ export default function ProductionPipelineMap({
   const totalOverdue = topics.filter(t => t.dueDate && new Date(t.dueDate).getTime() < now && t.status !== 'posted').length;
 
   const focusNode: PipelineNodeKey = activeTaskTimer
-    ? (({ script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted' } as const)[activeTaskTimer.stage])
+    ? (({ hook: 'hooked', script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted' } as const)[activeTaskTimer.stage])
     : (focusTopic?.status ?? 'topic');
 
   const nodes = useMemo(() => {
@@ -189,7 +194,7 @@ export default function ProductionPipelineMap({
       oldestAgeDays?: number;
       nextAction: string;
       focusTopicId?: string;
-      focusAction?: 'script' | 'shoot' | 'edit' | 'schedule' | 'post' | 'unblock';
+      focusAction?: 'hook' | 'script' | 'shoot' | 'edit' | 'schedule' | 'post' | 'unblock';
       icon: React.ComponentType<{ className?: string }>;
       tone: NodeTone;
     }>(status => {
@@ -205,7 +210,7 @@ export default function ProductionPipelineMap({
       const firstOverdue = bucket.filter(t => t.dueDate && new Date(t.dueDate).getTime() < now)
         .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())[0];
       const focus = firstBlocked ?? firstOverdue ?? oldest;
-      const focusAction: 'script' | 'shoot' | 'edit' | 'schedule' | 'post' | 'unblock' | undefined = focus
+      const focusAction: 'hook' | 'script' | 'shoot' | 'edit' | 'schedule' | 'post' | 'unblock' | undefined = focus
         ? (firstBlocked ? 'unblock' : stageAction[status])
         : undefined;
 
@@ -216,7 +221,7 @@ export default function ProductionPipelineMap({
 
       return {
         key: status,
-        title: ({ topic: 'Ideas', scripted: 'Scripts', shot: 'Shoots', edited: 'Edits', scheduled: 'Scheduled', posted: 'Published' } as const)[status],
+        title: ({ topic: 'Ideas', hooked: 'Hooks', scripted: 'Scripts', shot: 'Shoots', edited: 'Edits', scheduled: 'Scheduled', posted: 'Published' } as const)[status],
         count: bucket.length,
         blocked,
         overdue,
@@ -228,7 +233,7 @@ export default function ProductionPipelineMap({
         nextAction: nextActionForStage[status],
         focusTopicId: focus?.id,
         focusAction,
-        icon: ({ topic: Lightbulb, scripted: PenLine, shot: Camera, edited: Scissors, scheduled: CalendarDays, posted: Youtube } as const)[status],
+        icon: ({ topic: Lightbulb, hooked: Zap, scripted: PenLine, shot: Camera, edited: Scissors, scheduled: CalendarDays, posted: Youtube } as const)[status],
         tone: toneMap[status],
       };
     });

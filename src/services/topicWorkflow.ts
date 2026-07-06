@@ -1,11 +1,12 @@
 import { Topic } from '../types';
 
-export type TopicWorkflowStage = 'script' | 'shoot' | 'edit' | 'schedule' | 'post';
+export type TopicWorkflowStage = 'hook' | 'script' | 'shoot' | 'edit' | 'schedule' | 'post';
 export type TopicWorkflowState = 'pending' | 'in-progress' | 'completed';
 
-export const TOPIC_WORKFLOW_STAGES: TopicWorkflowStage[] = ['script', 'shoot', 'edit', 'schedule', 'post'];
+export const TOPIC_WORKFLOW_STAGES: TopicWorkflowStage[] = ['hook', 'script', 'shoot', 'edit', 'schedule', 'post'];
 
 const COMPLETED_STATUS: Record<TopicWorkflowStage, Topic['status']> = {
+  hook: 'hooked',
   script: 'scripted',
   shoot: 'shot',
   edit: 'edited',
@@ -14,6 +15,7 @@ const COMPLETED_STATUS: Record<TopicWorkflowStage, Topic['status']> = {
 };
 
 const LABELS: Record<TopicWorkflowStage, Record<TopicWorkflowState, string>> = {
+  hook: { pending: 'Hook', 'in-progress': 'Hooking', completed: 'Hooked' },
   script: { pending: 'Script', 'in-progress': 'Scripting', completed: 'Scripted' },
   shoot: { pending: 'Shoot', 'in-progress': 'Shooting', completed: 'Shot' },
   edit: { pending: 'Edit', 'in-progress': 'Editing', completed: 'Edited' },
@@ -25,7 +27,7 @@ export function getTopicWorkflowState(topic: Topic, stage: TopicWorkflowStage): 
   const explicitState = topic.workflowStatuses?.[stage];
   if (explicitState) return explicitState;
 
-  const legacyOrder: Topic['status'][] = ['topic', 'scripted', 'shot', 'edited', 'scheduled', 'posted'];
+  const legacyOrder: Topic['status'][] = ['topic', 'hooked', 'scripted', 'shot', 'edited', 'scheduled', 'posted'];
   return legacyOrder.indexOf(topic.status) >= legacyOrder.indexOf(COMPLETED_STATUS[stage])
     ? 'completed'
     : 'pending';
@@ -46,5 +48,5 @@ export function getTopicCurrentWorkflow(topic: Topic) {
     return { stage: completedStage, state: 'completed' as const, label: LABELS[completedStage].completed };
   }
 
-  return { stage: 'script' as const, state: 'pending' as const, label: 'Topic' };
+  return { stage: 'hook' as const, state: 'pending' as const, label: 'Topic' };
 }

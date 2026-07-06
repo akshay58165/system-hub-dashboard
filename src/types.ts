@@ -145,7 +145,7 @@ export interface Topic {
   name: string;
   description: string;
   channel: 'LearnDriven' | 'DecodeWorthy';
-  status: 'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted';
+  status: 'topic' | 'hooked' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted';
   priority: 1 | 2 | 3 | 4 | 5;
   topicScore?: number;
   hookScore?: number;
@@ -166,7 +166,7 @@ export interface Topic {
   format?: 'Short' | 'Long' | 'Members';
   category?: string;
   isDemo?: boolean;
-  workflowStatuses?: Partial<Record<'script' | 'shoot' | 'edit' | 'schedule' | 'post', 'pending' | 'in-progress' | 'completed'>>;
+  workflowStatuses?: Partial<Record<'hook' | 'script' | 'shoot' | 'edit' | 'schedule' | 'post', 'pending' | 'in-progress' | 'completed'>>;
   // Set when a topic is explicitly marked stuck (past due, work can't
   // proceed for a known reason) rather than silently left to scream a
   // missed-deadline countdown forever. Cleared via the Unblock action.
@@ -223,28 +223,25 @@ export interface WorkdaySession {
   goals?: Array<{
     id: string;
     topicId: string;
-    targetStatus: 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted';
+    targetStatus: 'hooked' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted';
     addedAt: string;
   }>;
   // Goals explicitly removed by the user before completion (or whose topic
-  // was deleted out from under them) — a live goal is gone the instant this
-  // happens, per the topic-instance integrity rule, but the fact that it was
-  // dropped is real history worth keeping for the session record. Snapshots
-  // topicName/targetStatus at the moment of drop since this is a log entry,
   // not a live reference (same reasoning as TopicActivity.topicName).
   droppedGoals?: Array<{
     id: string;
     topicId: string;
     topicName: string;
-    targetStatus: 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted';
+    targetStatus: 'hooked' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted';
     droppedAt: string;
   }>;
+  sessionNote?: string;
 }
 
 export interface SessionGoalOutcome {
   topicId: string;
   topicName: string;
-  targetStatus: 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted';
+  targetStatus: 'hooked' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted';
 }
 
 // A permanent, archived record of one completed workday session — written
@@ -266,6 +263,7 @@ export interface SessionRecord {
   droppedGoals: SessionGoalOutcome[];
   pendingGoals: SessionGoalOutcome[];
   taskTimers?: TaskTimerRecord[];
+  sessionNote?: string;
 }
 
 export interface VideoRecord {
@@ -467,7 +465,7 @@ export interface MonthForecast {
   requiredUploads: number;
   riskOfMissingConsistency: 'Low' | 'Medium' | 'High';
 }
-export type TaskTimerStage = 'script' | 'shoot' | 'edit' | 'schedule' | 'post';
+export type TaskTimerStage = 'hook' | 'script' | 'shoot' | 'edit' | 'schedule' | 'post';
 
 export interface TaskTimerRecord {
   id: string;

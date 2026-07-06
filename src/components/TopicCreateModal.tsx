@@ -65,9 +65,9 @@ function timeOnlyFromIso(value?: string | null) {
 }
 
 function createWorkflowStatuses(status: Topic['status']) {
-  const stageIndex = { topic: -1, scripted: 0, shot: 1, edited: 2, scheduled: 3, posted: 4 }[status];
-  const workflowStatuses: Partial<Record<'script' | 'shoot' | 'edit' | 'schedule' | 'post', 'completed'>> = {};
-  (['script', 'shoot', 'edit', 'schedule', 'post'] as const).forEach((stage, index) => {
+  const stageIndex = { topic: -1, hooked: 0, scripted: 1, shot: 2, edited: 3, scheduled: 4, posted: 5 }[status];
+  const workflowStatuses: Partial<Record<'hook' | 'script' | 'shoot' | 'edit' | 'schedule' | 'post', 'completed'>> = {};
+  (['hook', 'script', 'shoot', 'edit', 'schedule', 'post'] as const).forEach((stage, index) => {
     if (index <= stageIndex) workflowStatuses[stage] = 'completed';
   });
   return workflowStatuses;
@@ -87,7 +87,7 @@ export default function TopicCreateModal({
   const [description, setDescription] = useState('');
   const [channel, setChannel] = useState<'LearnDriven' | 'DecodeWorthy' | null>(null);
   const [lane, setLane] = useState<Lane | null>(null);
-  const [status, setStatus] = useState<'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted'>('topic');
+  const [status, setStatus] = useState<'topic' | 'hooked' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted'>('topic');
   const [priority, setPriority] = useState<1 | 2 | 3 | 4 | 5>(1);
   // Unscored is the honest default — no user tap, no score. A tap sets the
   // value; tapping the currently-active number clears it back to unscored.
@@ -375,7 +375,7 @@ export default function TopicCreateModal({
                 </div>
                 <label className="block uppercase text-neutral-500">Current Production Stage
                   <select value={status} onChange={event => setStatus(event.target.value as typeof status)} className="mt-1 h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 text-xs normal-case text-white outline-none">
-                    <option value="topic">Topic</option><option value="scripted">Scripted</option><option value="shot">Shot</option><option value="edited">Edited</option><option value="scheduled">Scheduled</option><option value="posted">Posted</option>
+                    <option value="topic">Topic</option><option value="hooked">Hooked</option><option value="scripted">Scripted</option><option value="shot">Shot</option><option value="edited">Edited</option><option value="scheduled">Scheduled</option><option value="posted">Posted</option>
                   </select>
                 </label>
               </div>

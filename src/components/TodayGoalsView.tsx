@@ -20,9 +20,9 @@ interface TodayGoalsViewProps {
   onRemoveGoal?: (goalId: string) => void;
 }
 
-const goalStages = ['scripted', 'shot', 'edited', 'scheduled', 'posted'] as const;
+const goalStages = ['hooked', 'scripted', 'shot', 'edited', 'scheduled', 'posted'] as const;
 const stageOrder = ['topic', ...goalStages] as const;
-const stageLabel: Record<string, string> = { topic: 'topic', scripted: 'script', shot: 'shoot', edited: 'edit', scheduled: 'schedule', posted: 'post' };
+const stageLabel: Record<string, string> = { topic: 'topic', hooked: 'hook', scripted: 'script', shot: 'shoot', edited: 'edit', scheduled: 'schedule', posted: 'post' };
 const stagesBetween = (from: string, to: string) => {
   const start = stageOrder.indexOf(from as typeof stageOrder[number]);
   const end = stageOrder.indexOf(to as typeof stageOrder[number]);
@@ -31,8 +31,8 @@ const stagesBetween = (from: string, to: string) => {
 };
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const PRODUCTIVITY_PROMPT_THRESHOLD_MS = 10 * 60 * 1000;
-const taskStageLabels: Record<TaskTimerStage, string> = { script: 'Scripting', shoot: 'Shooting', edit: 'Editing', schedule: 'Scheduling', post: 'Publishing' };
-const nextTaskStage: Record<Topic['status'], TaskTimerStage | null> = { topic: 'script', scripted: 'shoot', shot: 'edit', edited: 'schedule', scheduled: 'post', posted: null };
+const taskStageLabels: Record<TaskTimerStage, string> = { hook: 'Hooking', script: 'Scripting', shoot: 'Shooting', edit: 'Editing', schedule: 'Scheduling', post: 'Publishing' };
+const nextTaskStage: Record<Topic['status'], TaskTimerStage | null> = { topic: 'hook', hooked: 'script', scripted: 'shoot', shot: 'edit', edited: 'schedule', scheduled: 'post', posted: null };
 const formatDuration = (ms: number) => {
   const seconds = Math.max(0, Math.floor(ms / 1000));
   return `${String(Math.floor(seconds / 3600)).padStart(2, '0')}:${String(Math.floor((seconds % 3600) / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
@@ -81,7 +81,7 @@ function GoalTrail({
 export default function TodayGoalsView({ topics, session, setSession, onEndSession, taskTimers, onStartTaskTimer, onPauseTaskTimer, onResumeTaskTimer, onStopTaskTimer, onPauseMainTimer, onResumeMainTimer, sessions, onRemoveGoal }: TodayGoalsViewProps) {
   const [now, setNow] = useState(Date.now());
   const [topicId, setTopicId] = useState('');
-  const [target, setTarget] = useState<typeof goalStages[number]>('scripted');
+  const [target, setTarget] = useState<typeof goalStages[number]>('hooked');
   const [sortBy, setSortBy] = useState<'priority' | 'due' | 'stage'>('priority');
   const [channelFilter, setChannelFilter] = useState<'All' | 'LearnDriven' | 'DecodeWorthy'>('All');
   const [showEndConfirmation, setShowEndConfirmation] = useState(false);
@@ -342,7 +342,7 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
                   </div>
 
                   <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                    {(['script', 'shoot', 'edit', 'schedule', 'post'] as TaskTimerStage[]).map(stage => {
+                    {(['hook', 'script', 'shoot', 'edit', 'schedule', 'post'] as TaskTimerStage[]).map(stage => {
                       const sessions = topicTimers.filter(timer => timer.stage === stage);
                       const activeMs = sessions.reduce((total, timer) => total + timerActiveMs(timer), 0);
                       const pausedMs = sessions.reduce((total, timer) => total + timerPausedMs(timer), 0);

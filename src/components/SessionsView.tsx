@@ -34,12 +34,12 @@ const formatDuration = (ms: number) => {
   const minutes = totalMinutes % 60;
   return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 };
-const stageLabels: Record<TaskTimerStage, string> = { script: 'Scripting', shoot: 'Shooting', edit: 'Editing', schedule: 'Scheduling', post: 'Publishing' };
-const stageShortLabels: Record<TaskTimerStage, string> = { script: 'Script', shoot: 'Shoot', edit: 'Edit', schedule: 'Schedule', post: 'Post' };
+const stageLabels: Record<TaskTimerStage, string> = { hook: 'Hooking', script: 'Scripting', shoot: 'Shooting', edit: 'Editing', schedule: 'Scheduling', post: 'Publishing' };
+const stageShortLabels: Record<TaskTimerStage, string> = { hook: 'Hook', script: 'Script', shoot: 'Shoot', edit: 'Edit', schedule: 'Schedule', post: 'Post' };
 // Stages surfaced to the Task filter. "post" is intentionally excluded —
 // the app auto-posts a scheduled topic once its release time passes, so no
 // user-tracked timer ever exists for that stage.
-const stageOrder: TaskTimerStage[] = ['script', 'shoot', 'edit', 'schedule'];
+const stageOrder: TaskTimerStage[] = ['hook', 'script', 'shoot', 'edit', 'schedule'];
 
 // A single timer rendered as a card. Shared by all three views so the metrics
 // mean the same thing everywhere — session-based, topic-based, task-based all
@@ -249,7 +249,7 @@ export default function SessionsView({ sessions, embedded = false }: SessionsVie
           {([
             { id: 'session', label: 'By Session', icon: Clock3, hint: 'Diary of every completed workday' },
             { id: 'topic', label: 'By Topic', icon: Layers, hint: 'Group every task by the topic it belonged to' },
-            { id: 'task', label: 'By Task', icon: ListChecks, hint: 'Filter by production stage (script, shoot, edit…)' }
+            { id: 'task', label: 'By Task', icon: ListChecks, hint: 'Filter by production stage (hook, script, shoot, edit…)' }
           ] as const).map(option => {
             const Icon = option.icon;
             const isActive = viewMode === option.id;
@@ -348,10 +348,21 @@ export default function SessionsView({ sessions, embedded = false }: SessionsVie
               >
                 {/* Date + time range */}
                 <div className="min-w-[160px] shrink-0">
-                  <div className="text-sm font-bold text-white leading-tight">{new Date(session.startedAt).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</div>
-                  <div className="mt-0.5 font-mono text-[11px] text-neutral-500">
-                    {new Date(session.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}–{new Date(session.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
+                  {session.sessionNote ? (
+                    <>
+                      <div className="text-sm font-bold text-white leading-tight">{session.sessionNote}</div>
+                      <div className="mt-0.5 font-mono text-[11px] text-neutral-500">
+                        {new Date(session.startedAt).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} · {new Date(session.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}–{new Date(session.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-sm font-bold text-white leading-tight">{new Date(session.startedAt).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+                      <div className="mt-0.5 font-mono text-[11px] text-neutral-500">
+                        {new Date(session.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}–{new Date(session.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Inline stats — no card grid, just labeled numbers on one row */}

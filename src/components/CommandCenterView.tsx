@@ -21,7 +21,7 @@ interface CommandCenterViewProps {
   scorecard: any;
   activities: TopicActivity[];
   onTabChange: (tab: string) => void;
-  onOpenTopicPipeline: (topicId?: string, action?: 'script' | 'shoot' | 'edit' | 'schedule' | 'post' | 'unblock') => void;
+  onOpenTopicPipeline: (topicId?: string, action?: 'hook' | 'script' | 'shoot' | 'edit' | 'schedule' | 'post' | 'unblock') => void;
   setSelectedVideoId: (videoId: string | null) => void;
 }
 
@@ -68,6 +68,7 @@ const nextActionForTopic = (topic: Topic) => {
   const workflow = getTopicCurrentWorkflow(topic);
   if (workflow.state === 'in-progress') {
     return ({
+      hook: 'Finish the hook, then hold Hook to mark it Hooked',
       script: 'Finish the script, then hold Script to mark it Scripted',
       shoot: 'Finish recording, then hold Shoot to mark it Shot',
       edit: 'Finish the edit, then hold Edit to mark it Edited',
@@ -76,7 +77,8 @@ const nextActionForTopic = (topic: Topic) => {
     } as const)[workflow.stage];
   }
   return ({
-    topic: topic.inProgress ? 'Start scripting - click Script' : 'Start the pipeline, then begin scripting',
+    topic: topic.inProgress ? 'Start hooking - click Hook' : 'Start the pipeline, then begin hooking',
+    hooked: 'Start scripting - click Script',
     scripted: 'Start recording - click Shoot',
     shot: 'Start post-production - click Edit',
     edited: 'Set the publish date and time - click Schedule',
@@ -85,11 +87,11 @@ const nextActionForTopic = (topic: Topic) => {
   } as const)[topic.status];
 };
 
-const actionTargetForTopic = (topic: Topic): 'script' | 'shoot' | 'edit' | 'schedule' | 'post' | 'unblock' => {
+const actionTargetForTopic = (topic: Topic): 'hook' | 'script' | 'shoot' | 'edit' | 'schedule' | 'post' | 'unblock' => {
   if (topic.blockedReason) return 'unblock';
   const workflow = getTopicCurrentWorkflow(topic);
   if (workflow.state === 'in-progress') return workflow.stage;
-  return ({ topic: 'script', scripted: 'shoot', shot: 'edit', edited: 'schedule', scheduled: 'post', posted: 'post' } as const)[topic.status];
+  return ({ topic: 'hook', hooked: 'script', scripted: 'shoot', shot: 'edit', edited: 'schedule', scheduled: 'post', posted: 'post' } as const)[topic.status];
 };
 
 export default function CommandCenterView({
@@ -387,49 +389,7 @@ export default function CommandCenterView({
             </div>
             <button onClick={() => onOpenTopicPipeline()} className="flex items-center gap-1 font-mono text-[10px] text-rose-400 hover:text-rose-300">Open pipeline <ArrowUpRight className="h-3 w-3" /></button>
           </div>
-          {visibleAttentionItems.length > 0 ? (
-            <div className="mb-4 space-y-2">
-              {visibleAttentionItems.map((topic, index) => {
-                const isBlocked = Boolean(topic.blockedReason);
-                const isOverdue = Boolean(topic.dueDate && timeValue(topic.dueDate) < Date.now());
-                const isDueSoon = Boolean(topic.dueDate && !isOverdue && timeValue(topic.dueDate) <= Date.now() + 24 * 36e5);
-                const actionTarget = actionTargetForTopic(topic);
-                return (
-                  <button
-                    key={topic.id}
-                    type="button"
-                    onClick={() => openTopic(topic)}
-                    title={`Open ${topic.name}`}
-                    className={`flex w-full items-start gap-3 rounded-xl border p-3.5 text-left transition ${
-                      isBlocked || isOverdue
-                        ? 'border-rose-950/50 bg-rose-950/5 hover:border-rose-900/60 hover:bg-rose-950/10'
-                        : isDueSoon
-                          ? 'border-amber-950/40 bg-amber-950/5 hover:border-amber-900/50 hover:bg-amber-950/10'
-                          : 'border-neutral-850 bg-neutral-900/30 hover:border-neutral-700 hover:bg-neutral-900/50'
-                    } cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-400`}
-                  >
-                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-neutral-950 font-mono text-[10px] text-neutral-500">0{index + 1}</span>
-                    <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${isBlocked ? 'bg-rose-500 shadow-[0_0_9px_#f43f5e]' : isOverdue ? 'bg-rose-400' : isDueSoon ? 'bg-amber-400 shadow-[0_0_9px_#f59e0b]' : 'bg-neutral-500'}`} />
-                    <span className="min-w-0 flex-1">
-                      <span className="flex flex-wrap items-center gap-1.5">
-                        <span className="truncate text-xs font-semibold text-neutral-200">{topic.name}</span>
-                        {isOverdue && <span className="rounded bg-rose-950/60 px-1.5 py-0.5 font-mono text-[7px] font-bold uppercase text-rose-300 border border-rose-900/40">Overdue</span>}
-                        {isDueSoon && !isOverdue && <span className="rounded bg-amber-950/40 px-1.5 py-0.5 font-mono text-[7px] font-bold uppercase text-amber-300 border border-amber-900/30">Due Soon</span>}
-                        {isBlocked && <span className="rounded bg-rose-950/60 px-1.5 py-0.5 font-mono text-[7px] font-bold uppercase text-rose-400 border border-rose-900/40">Blocked</span>}
-                      </span>
-                      <span className="mt-1 block text-[10px] font-medium text-rose-300">
-                        <span className="mr-1 font-mono text-[8px] uppercase tracking-wider text-neutral-600">Next</span>{nextActionForTopic(topic)}
-                      </span>
-                    </span>
-                    <span className="mt-1 rounded border border-rose-900/40 bg-rose-950/20 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-rose-200">
-                      Open
-                    </span>
-                    <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-neutral-700 transition group-hover:text-rose-400" />
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
+
           <div className="space-y-2.5">
             {model.queue.length === 0 ? (
               <div className="flex items-center gap-3 rounded-xl border border-emerald-900/30 bg-emerald-950/10 p-4"><ShieldCheck className="h-5 w-5 text-emerald-400" /><div><div className="text-sm font-semibold text-emerald-300">No open topics</div><div className="text-[11px] text-neutral-500">Everything is published. Add a topic to start the next cycle.</div></div></div>
@@ -457,6 +417,7 @@ export default function CommandCenterView({
                     {/* Title + urgent/goal badges */}
                     <span className="flex flex-wrap items-center gap-1.5">
                       <span className="truncate text-xs font-semibold text-neutral-200">{topic.name}</span>
+                      {topic.topicScore != null && <span className="rounded bg-neutral-900/60 px-1.5 py-0.5 font-mono text-[8px] font-bold text-neutral-300 border border-neutral-800">{topic.topicScore}/10</span>}
                       {isOverdue && <span className="rounded bg-rose-950/60 px-1.5 py-0.5 font-mono text-[7px] font-bold uppercase text-rose-300 border border-rose-900/40">Overdue</span>}
                       {isDueSoon && !isOverdue && <span className="rounded bg-amber-950/40 px-1.5 py-0.5 font-mono text-[7px] font-bold uppercase text-amber-300 border border-amber-900/30">Due Soon</span>}
                       {isGoal && <span className="rounded bg-purple-950/40 px-1.5 py-0.5 font-mono text-[7px] font-bold uppercase text-purple-300 border border-purple-900/40">Today Goal</span>}

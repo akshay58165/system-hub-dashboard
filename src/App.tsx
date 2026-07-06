@@ -281,7 +281,7 @@ function buildArchivedSessionRecord(
   taskTimers: TaskTimerRecord[],
   endedAtIso: string
 ): SessionRecord {
-  const stageOrder: Topic['status'][] = ['topic', 'scripted', 'shot', 'edited', 'scheduled', 'posted'];
+  const stageOrder: Topic['status'][] = ['topic', 'hooked', 'scripted', 'shot', 'edited', 'scheduled', 'posted'];
   const achievedGoals: SessionGoalOutcome[] = [];
   const pendingGoals: SessionGoalOutcome[] = [];
   const endedAt = new Date(endedAtIso).getTime();
@@ -323,6 +323,7 @@ function buildArchivedSessionRecord(
     productivityPercent: finalActiveMs ? Math.min(100, (finalProductiveMs / finalActiveMs) * 100) : 100,
     accumulatedPausedMs: finalPausedMs,
     breaksCount: current.breaksCount || 0,
+    sessionNote: current.sessionNote,
     achievedGoals,
     droppedGoals,
     pendingGoals,
@@ -407,16 +408,17 @@ function mergeTaskTimersByNewest(
   );
 }
 
-const workflowStageNames = ['script', 'shoot', 'edit', 'schedule', 'post'] as const;
+const workflowStageNames = ['hook', 'script', 'shoot', 'edit', 'schedule', 'post'] as const;
 
 function workflowStatusesForTopicStatus(status: Topic['status']) {
   const completedThrough = {
     topic: -1,
-    scripted: 0,
-    shot: 1,
-    edited: 2,
-    scheduled: 3,
-    posted: 4
+    hooked: 0,
+    scripted: 1,
+    shot: 2,
+    edited: 3,
+    scheduled: 4,
+    posted: 5
   }[status];
 
   return workflowStageNames.reduce((acc, stage, index) => {
@@ -426,7 +428,7 @@ function workflowStatusesForTopicStatus(status: Topic['status']) {
 }
 
 function isWorkflowInProgressStatus(status: Topic['status']) {
-  return status === 'scripted' || status === 'shot' || status === 'edited';
+  return status === 'hooked' || status === 'scripted' || status === 'shot' || status === 'edited';
 }
 
 export default function App() {
@@ -1906,8 +1908,86 @@ export default function App() {
   // inner timer can ever be eligible to resume.
   const startTaskTimer = (topicId: string, stage: TaskTimerStage) => {
     const topic = topics.find(t => t.id === topicId);
-    if (!topic || !workdaySession || workdaySession.status !== 'running') return;
+    if (!topic) return;
     const stamp = new Date().toISOString();
+    
+    // Auto-create/start session and ensure goal exists
+    const activeSessionId = (workdaySession && workdaySession.status === 'running') ? workdaySession.startedAt : stamp;
+    
+    setWorkdaySession(prev => {
+      let next = prev;
+      if (!next || next.status !== 'running') {
+        next = next ? { ...next, status: 'running', activeSince: stamp } : {
+          dateKey: todayKey(),
+          targetMinutes: 8 * 60,
+          startedAt: stamp,
+          activeSince: stamp,
+          pausedAt: null,
+          accumulatedActiveMs: 0,
+          productiveActiveMs: 0,
+          productivityRatings: [],
+          accumulatedPausedMs: 0,
+          status: 'running',
+          updatedAt: stamp,
+          goals: []
+        };
+      }
+      
+      const targetMap: Record<TaskTimerStage, 'hooked' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted'> = {
+        hook: 'hooked', script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted'
+      };
+      const targetStatus = targetMap[stage];
+      
+      const goalExists = next.goals.some(g => g.topicId === topicId && g.targetStatus === targetStatus);
+      if (!goalExists) {
+        next = {
+          ...next,
+          goals: [...next.goals, {
+            id: `goal-${Date.now()}-${topicId}`,
+            topicId,
+            targetStatus,
+            completed: false
+          }]
+        };
+      }
+      return next;
+    });
+
+    setTopics(prev => prev.map(item => {
+      if (item.id !== topicId) return item;
+
+      const completedStatusByStage: Record<TaskTimerStage, Topic['status']> = {
+        hook: 'hooked', script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted'
+      };
+      const stagesOrder: TaskTimerStage[] = ['hook', 'script', 'shoot', 'edit', 'schedule', 'post'];
+      const targetIdx = stagesOrder.indexOf(stage);
+
+      const updatedStatuses: Record<string, 'pending' | 'in-progress' | 'completed'> = { ...item.workflowStatuses };
+      
+      stagesOrder.forEach((stg, idx) => {
+        if (idx < targetIdx) {
+          updatedStatuses[stg] = 'completed';
+        } else if (idx === targetIdx) {
+          updatedStatuses[stg] = 'in-progress';
+        } else {
+          delete updatedStatuses[stg];
+        }
+      });
+
+      let newStatus: Topic['status'] = 'topic';
+      if (targetIdx > 0) {
+        newStatus = completedStatusByStage[stagesOrder[targetIdx - 1]];
+      }
+
+      return {
+        ...item,
+        status: newStatus,
+        inProgress: true,
+        workflowStatuses: updatedStatuses,
+        lastUpdated: new Date().toISOString()
+      };
+    }));
+
     setTaskTimers(prev => {
       const existing = prev.find(tt => (tt.status === 'running' || tt.status === 'paused') && tt.topicId === topicId && tt.stage === stage);
       if (existing?.status === 'running') return prev;
@@ -1943,7 +2023,7 @@ export default function App() {
         status: 'running',
         startedAt: stamp, activeSince: stamp, pausedAt: null,
         accumulatedActiveMs: 0, accumulatedPausedMs: 0, breaksCount: 0,
-        workdaySessionId: workdaySession.startedAt,
+        workdaySessionId: activeSessionId,
         dateKey: todayKey(),
       };
       return [...settled, newTimer];
@@ -2743,6 +2823,11 @@ export default function App() {
               <TopicScoreView
                 topics={visibleTopics}
                 setTopics={setTopics}
+                taskTimers={visibleTaskTimers}
+                onStartTaskTimer={startTaskTimer}
+                onStopTaskTimer={stopActiveTaskTimer}
+                onPauseTaskTimer={pauseActiveTaskTimer}
+                onResumeTaskTimer={resumeActiveTaskTimer}
               />
             )}
 

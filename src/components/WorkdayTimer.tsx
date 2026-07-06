@@ -30,9 +30,9 @@ const formatDuration = (milliseconds: number) => {
 
 const todayKey = () => new Date().toLocaleDateString('en-CA');
 
-const goalStages = ['scripted', 'shot', 'edited', 'scheduled', 'posted'] as const;
+const goalStages = ['hooked', 'scripted', 'shot', 'edited', 'scheduled', 'posted'] as const;
 const stageOrder = ['topic', ...goalStages] as const;
-const stageLabel: Record<string, string> = { topic: 'topic', scripted: 'script', shot: 'shoot', edited: 'edit', scheduled: 'schedule', posted: 'post' };
+const stageLabel: Record<string, string> = { topic: 'topic', hooked: 'hook', scripted: 'script', shot: 'shoot', edited: 'edit', scheduled: 'schedule', posted: 'post' };
 const stagesBetween = (from: string, to: string) => {
   const start = stageOrder.indexOf(from as typeof stageOrder[number]);
   const end = stageOrder.indexOf(to as typeof stageOrder[number]);
@@ -78,7 +78,7 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
   const [draftGoals, setDraftGoals] = useState<NonNullable<WorkdaySession['goals']>>([]);
   const [showGoals, setShowGoals] = useState(false);
   const [goalTopicId, setGoalTopicId] = useState('');
-  const [goalTarget, setGoalTarget] = useState<typeof goalStages[number]>('scripted');
+  const [goalTarget, setGoalTarget] = useState<typeof goalStages[number]>('hooked');
   const [lastGoalAdded, setLastGoalAdded] = useState('');
   const [topicPickerOpen, setTopicPickerOpen] = useState(false);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
@@ -87,6 +87,8 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
   const [isStartingDay, setIsStartingDay] = useState(false);
   const [pendingGoalsFromLastSession, setPendingGoalsFromLastSession] = useState<{ topicId: string; targetStatus: typeof goalStages[number] }[]>([]);
   const [showPendingReview, setShowPendingReview] = useState(false);
+  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [noteInput, setNoteInput] = useState('');
   const startTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -265,7 +267,7 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
   };
 
   const topicGuidance = (topic: Topic) => {
-    const nextAction = ({ topic: 'Start scripting', scripted: 'Record the video', shot: 'Begin editing', edited: 'Set the release schedule', scheduled: 'Ready to publish', posted: 'Complete' } as const)[topic.status];
+    const nextAction = ({ topic: 'Write the hook', hooked: 'Start scripting', scripted: 'Record the video', shot: 'Begin editing', edited: 'Set the release schedule', scheduled: 'Ready to publish', posted: 'Complete' } as const)[topic.status];
     if (topic.blockedReason) return { label: 'Blocked now', detail: topic.blockedReason, action: `Unblock, then ${nextAction.toLowerCase()}`, tone: 'border-rose-800/60 bg-rose-950/25 text-rose-300', dot: 'bg-rose-400 animate-pulse' };
     if (!topic.dueDate) return { label: 'No deadline', detail: `${workRemaining(topic)} stages remain`, action: nextAction, tone: 'border-neutral-800 bg-neutral-900/50 text-neutral-400', dot: 'bg-neutral-600' };
     const datePart = topic.dueDate.split('T')[0];
@@ -279,7 +281,7 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
   };
 
   function workRemaining(topic: Topic) {
-    return ({ topic: 5, scripted: 4, shot: 3, edited: 2, scheduled: 1, posted: 0 } as const)[topic.status];
+    return ({ topic: 6, hooked: 5, scripted: 4, shot: 3, edited: 2, scheduled: 1, posted: 0 } as const)[topic.status];
   }
 
   const priorityDetails = (priority: Topic['priority']) => ({
@@ -416,7 +418,22 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-neutral-900"><div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all" style={{ width: `${metrics.progress}%` }} /></div>
             <div className="mt-3 grid grid-cols-2 gap-2 text-center sm:grid-cols-4"><div className="rounded-lg bg-neutral-900/60 p-2"><div className="text-xs font-bold text-emerald-300">{metrics.progress.toFixed(1)}%</div><div className="mt-1 text-[7px] uppercase text-neutral-600">quota filled</div></div><div className="rounded-lg bg-neutral-900/60 p-2"><div className="text-xs font-bold text-cyan-300">{formatDuration(metrics.remaining)}</div><div className="mt-1 text-[7px] uppercase text-neutral-600">remaining</div></div><div className="rounded-lg bg-neutral-900/60 p-2"><div className="text-xs font-bold text-purple-300">{metrics.productivePercent.toFixed(0)}%</div><div className="mt-1 text-[7px] uppercase text-neutral-600">productive</div></div><div className="rounded-lg bg-neutral-900/60 p-2"><div className="text-xs font-bold text-amber-300">{formatDuration(metrics.paused)}</div><div className="mt-1 text-[7px] uppercase text-neutral-600">paused</div></div></div>
             <div className="mt-4 rounded-xl border border-neutral-900 bg-neutral-900/25 p-3">
-              <div className="flex items-center justify-between"><div className="flex items-center gap-2 text-[10px] font-bold text-neutral-300"><Target className="h-3.5 w-3.5 text-purple-400" />Today&apos;s topic goals</div><button onClick={() => { setShowGoals(true); setGoalTopicId(''); setEditingGoalId(null); setLastGoalAdded(''); }} className="flex items-center gap-1 rounded-md border border-purple-900/50 bg-purple-950/25 px-2 py-1 text-[8px] font-bold text-purple-300 hover:border-purple-700"><Plus className="h-3 w-3" />Add goal</button></div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[10px] font-bold text-neutral-300">
+                  <Target className="h-3.5 w-3.5 text-purple-400" />
+                  {session.sessionNote && !(session.goals || []).filter(goal => topics.some(t => t.id === goal.topicId)).length ? 'Session Note' : "Today's topic goals"}
+                </div>
+                <div className="flex gap-2">
+                  {!(session.goals || []).filter(goal => topics.some(t => t.id === goal.topicId)).length && !session.sessionNote && (
+                    <button onClick={() => { setIsEditingNote(true); setNoteInput(''); }} className="flex items-center gap-1 rounded-md border border-neutral-700/50 bg-neutral-800/25 px-2 py-1 text-[8px] font-bold text-neutral-300 hover:border-neutral-500">
+                      <Plus className="h-3 w-3" />Add note
+                    </button>
+                  )}
+                  <button onClick={() => { setShowGoals(true); setGoalTopicId(''); setEditingGoalId(null); setLastGoalAdded(''); }} className="flex items-center gap-1 rounded-md border border-purple-900/50 bg-purple-950/25 px-2 py-1 text-[8px] font-bold text-purple-300 hover:border-purple-700">
+                    <Plus className="h-3 w-3" />Add goal
+                  </button>
+                </div>
+              </div>
               {(session.goals || []).filter(goal => topics.some(t => t.id === goal.topicId)).length ? <div className="mt-2 space-y-2">{(session.goals || []).map(goal => {
                 const topic = topics.find(t => t.id === goal.topicId);
                 if (!topic) return null;
@@ -424,7 +441,36 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
                 const priority = priorityDetails(topic.priority);
                 const guidance = topicGuidance(topic);
                 return <div key={goal.id} className={`rounded-lg border p-2.5 ${editingGoalId === goal.id ? 'border-purple-600 bg-purple-950/15 shadow-[0_0_16px_rgba(168,85,247,.12)]' : 'border-neutral-900 bg-neutral-950/70'}`}><div className="flex items-start gap-2"><span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${complete ? 'border-emerald-500 bg-emerald-500 text-black' : 'border-neutral-700 text-transparent'}`}><Check className="h-3 w-3" /></span><span className="min-w-0 flex-1"><span className={`block text-[9px] font-semibold ${complete ? 'text-neutral-500 line-through' : 'text-neutral-100'}`}>{topic.name}</span><GoalTrail stages={stagesBetween(topic.status, goal.targetStatus)} tone={complete ? 'emerald' : 'cyan'} /><span className="mt-1 flex flex-wrap items-center gap-1"><span className={`rounded border px-1.5 py-0.5 text-[7px] font-bold uppercase ${priority.style}`}>P{topic.priority} · {priority.label}</span><span className={`rounded border px-1.5 py-0.5 text-[7px] font-bold uppercase ${guidance.tone}`}>{guidance.label}</span></span></span><span className="flex shrink-0 gap-1"><button onClick={() => { setEditingGoalId(goal.id); setGoalTopicId(goal.topicId); setGoalTarget(goal.targetStatus); setShowGoals(true); }} className="rounded border border-neutral-800 p-1 text-neutral-500 hover:border-purple-700 hover:text-purple-300" aria-label={`Edit goal for ${topic.name}`}><Pencil className="h-3 w-3" /></button><button onClick={() => removeGoal(goal.id)} className="rounded border border-neutral-800 p-1 text-neutral-600 hover:border-rose-800 hover:text-rose-400" aria-label={`Remove goal for ${topic.name}`}><Trash2 className="h-3 w-3" /></button></span></div></div>;
-              })}</div> : <div className="mt-2 text-[8px] text-neutral-600">Optional - no topic goal set.</div>}
+              })}</div> : session.sessionNote ? (
+                <div className="mt-2 rounded-lg border border-neutral-800 bg-neutral-900/40 p-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-[10px] text-neutral-200 leading-relaxed">{session.sessionNote}</span>
+                    <button onClick={() => { setIsEditingNote(true); setNoteInput(session.sessionNote || ''); }} className="rounded border border-neutral-800 p-1 text-neutral-500 hover:border-neutral-500 hover:text-white" aria-label="Edit note"><Pencil className="h-3 w-3" /></button>
+                  </div>
+                </div>
+              ) : <div className="mt-2 text-[8px] text-neutral-600">Optional - no topic goal set.</div>}
+              {isEditingNote && (
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={noteInput}
+                    onChange={e => setNoteInput(e.target.value)}
+                    placeholder="Enter session title or note..."
+                    className="flex-1 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1 text-[10px] text-white focus:border-cyan-500 focus:outline-none"
+                    autoFocus
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        setSession(s => s ? { ...s, sessionNote: noteInput } : s);
+                        setIsEditingNote(false);
+                      } else if (e.key === 'Escape') {
+                        setIsEditingNote(false);
+                      }
+                    }}
+                  />
+                  <button onClick={() => { setSession(s => s ? { ...s, sessionNote: noteInput } : s); setIsEditingNote(false); }} className="rounded-md bg-cyan-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-cyan-500">Save</button>
+                  <button onClick={() => setIsEditingNote(false)} className="rounded-md border border-neutral-700 px-2 py-1 text-[10px] text-neutral-400 hover:text-white">Cancel</button>
+                </div>
+              )}
             </div>
             {metrics.remaining > 0 && metrics.remaining < ONE_HOUR_MS && (
               <div className="mt-3 rounded-lg border border-amber-800/50 bg-amber-950/15 p-2.5">
