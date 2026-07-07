@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Check, Clock3, Pause, Play, Plus, RotateCcw, SlidersHorizontal, Square, Target, Trash2 } from 'lucide-react';
-import type { SessionRecord, TaskTimerRecord, TaskTimerStage, Topic, WorkdaySession } from '../types';
+import { ArrowRight, Check, Clock3, Pause, Play, Plus, RotateCcw, Route, SlidersHorizontal, Square, Target, Trash2 } from 'lucide-react';
+import type { SessionRecord, SideWorkEntry, TaskTimerRecord, TaskTimerStage, Topic, WorkdaySession } from '../types';
 import EndSessionModal from './EndSessionModal';
 import SessionsView from './SessionsView';
 
@@ -11,7 +11,7 @@ interface TodayGoalsViewProps {
   onEndSession: () => void;
   taskTimers: TaskTimerRecord[];
   onStartTaskTimer: (topicId: string, stage: TaskTimerStage) => void;
-  onPauseTaskTimer: (productivityScore?: number) => void;
+  onPauseTaskTimer: (productivityScore?: number, sideWork?: { description: string; linkedTo: 'topic' | 'session' }) => void;
   onResumeTaskTimer: () => void;
   onStopTaskTimer: (endReason: 'done' | 'deferred', productivityScore?: number) => void;
   onPauseMainTimer: () => void;
@@ -88,6 +88,12 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
   const [showTaskProductivityPrompt, setShowTaskProductivityPrompt] = useState(false);
   const [taskProductivity, setTaskProductivity] = useState(7);
   const [pendingTaskTimer, setPendingTaskTimer] = useState<TaskTimerRecord | null>(null);
+  // "Side work" = off-stage work done during the pause (e.g. "Exploring hook
+  // types for the website"). Captured in the pause modal and linked to the
+  // topic or the session as a separately-tracked bucket.
+  const [isSideWork, setIsSideWork] = useState(false);
+  const [sideWorkDesc, setSideWorkDesc] = useState('');
+  const [sideWorkLink, setSideWorkLink] = useState<'topic' | 'session'>('topic');
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
@@ -210,17 +216,43 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
   const timerPausedMs = (timer: TaskTimerRecord) => timer.accumulatedPausedMs + (
     timer.status === 'paused' && timer.pausedAt ? Math.max(0, now - new Date(timer.pausedAt).getTime()) : 0
   );
+  // Live duration of a single side-work entry — ticks while still open (endedAt null).
+  const sideWorkMs = (entry: SideWorkEntry) => entry.accumulatedMs + (
+    entry.endedAt === null ? Math.max(0, now - new Date(entry.startedAt).getTime()) : 0
+  );
   const requestTaskPause = (timer: TaskTimerRecord) => {
     if (!timer || timer.status !== 'running') return;
     const activeMs = timerActiveMs(timer);
     if (activeMs >= PRODUCTIVITY_PROMPT_THRESHOLD_MS) {
       setTaskProductivity(7);
       setPendingTaskTimer(timer);
+      setIsSideWork(false);
+      setSideWorkDesc('');
+      setSideWorkLink('topic');
       setShowTaskProductivityPrompt(true);
       return;
     }
     onPauseTaskTimer(10);
   };
+  const confirmTaskPause = () => {
+    const description = sideWorkDesc.trim();
+    onPauseTaskTimer(
+      taskProductivity,
+      isSideWork && description ? { description, linkedTo: sideWorkLink } : undefined
+    );
+    setShowTaskProductivityPrompt(false);
+    setPendingTaskTimer(null);
+  };
+
+  // Side work linked to the session as a whole (general day work, not a topic),
+  // newest first. Scoped to the current workday session's timers.
+  const sessionSideWork = session
+    ? taskTimers
+        .filter(timer => !timer.workdaySessionId || timer.workdaySessionId === session.startedAt)
+        .flatMap(timer => (timer.sideWork || []).filter(entry => entry.linkedTo === 'session'))
+        .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
+    : [];
+  const sessionSideWorkMs = sessionSideWork.reduce((total, entry) => total + sideWorkMs(entry), 0);
 
   if (!session) return <div className="space-y-5 pb-10"><div><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-purple-400"><Clock3 className="h-4 w-4" />Work intelligence</div><h1 className="mt-2 text-2xl font-bold text-white">Sessions</h1><p className="mt-1 text-sm text-neutral-400">Live work tracking and complete session history.</p></div><div className="rounded-2xl border border-dashed border-neutral-800 bg-neutral-950/50 p-7 text-center"><Target className="mx-auto h-7 w-7 text-purple-400" /><h2 className="mt-3 text-sm font-bold text-white">No active session</h2><p className="mt-1 text-[10px] text-neutral-400">Start the day from the header to begin tracking goals, stages, active time, pauses, and breaks.</p></div><SessionsView sessions={sessions} embedded /></div>;
 
@@ -299,6 +331,11 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
           const ratedTimers = topicTimers.filter(timer => timer.productivityScore);
           const averageProductivity = ratedTimers.length ? ratedTimers.reduce((total, timer) => total + (timer.productivityScore || 0), 0) / ratedTimers.length * 10 : null;
           const suggestedStage = nextTaskStage[topic.status];
+          // Side work explicitly linked to THIS topic, newest first.
+          const topicSideWork = topicTimers
+            .flatMap(timer => (timer.sideWork || []).filter(entry => entry.linkedTo === 'topic'))
+            .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
+          const topicSideWorkMs = topicSideWork.reduce((total, entry) => total + sideWorkMs(entry), 0);
           const light = goalLight(topic, goal.targetStatus);
           return <div key={goal.id} className={`rounded-xl border p-4 transition-shadow ${done ? 'border-emerald-900/40 bg-emerald-950/10' : 'border-neutral-850 bg-neutral-900/25'} ${light.glow}`}>
             <div className="flex items-start gap-3">
@@ -356,6 +393,24 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
                     })}
                   </div>
                 </div>
+
+                {topicSideWork.length > 0 && (
+                  <div className="mt-3 rounded-xl border border-cyan-900/40 bg-cyan-950/10 p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-[10px] font-bold uppercase text-cyan-300"><Route className="h-3.5 w-3.5" />Side work</div>
+                      <span className="font-mono text-[10px] font-bold text-cyan-300">{formatDuration(topicSideWorkMs)}</span>
+                    </div>
+                    <div className="mt-2 space-y-1.5">
+                      {topicSideWork.map(entry => (
+                        <div key={entry.id} className="flex items-center justify-between gap-3 rounded-lg border border-neutral-900 bg-neutral-950/60 px-2.5 py-1.5">
+                          <span className="min-w-0 flex-1 truncate text-[11px] text-neutral-200">{entry.description}</span>
+                          <span className={`shrink-0 font-mono text-[10px] font-bold ${entry.endedAt === null ? 'text-emerald-300' : 'text-neutral-400'}`}>{formatDuration(sideWorkMs(entry))}{entry.endedAt === null ? ' ·' : ''}</span>
+                          {entry.endedAt === null && <span className="shrink-0 text-[8px] font-bold uppercase tracking-wider text-emerald-400">Live</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <button onClick={() => removeGoal(goal.id)} className="text-neutral-700 hover:text-rose-400 shrink-0"><Trash2 className="h-4 w-4" /></button>
             </div>
@@ -365,6 +420,29 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
 
       <div className="h-fit rounded-2xl border border-purple-900/30 bg-neutral-950/70 p-5"><div className="flex items-center gap-2 text-sm font-bold text-white"><Plus className="h-4 w-4 text-purple-400" />Add a goal</div><p className="mt-1 text-[10px] text-neutral-400">Scheduled and posted topics are excluded.</p><div className="mt-4 space-y-3"><label className="block text-[10px] font-bold uppercase text-neutral-400">Ranked topic<select value={topicId} onChange={event => chooseTopic(event.target.value)} className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2.5 text-[10px] font-semibold text-white"><option value="">Select topic</option>{ranked.map(topic => <option key={topic.id} value={topic.id}>P{topic.priority} - {topic.name} - {topic.status}</option>)}</select></label>{selected && <div className="rounded-lg bg-neutral-900/60 p-3"><div className="truncate text-[10px] font-semibold text-white">{selected.name}</div><div className="mt-1 text-[10px] uppercase text-neutral-400">{selected.channel} - current {selected.status}{selected.dueDate ? ` - due ${new Date(selected.dueDate).toLocaleDateString()}` : ''}</div></div>}<label className="block text-[10px] font-bold uppercase text-neutral-400">Milestone<select disabled={!selected} value={target} onChange={event => setTarget(event.target.value as typeof goalStages[number])} className="mt-1 w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2.5 text-[10px] capitalize text-white disabled:opacity-40">{targets.map(stage => <option key={stage} value={stage}>{stageLabel[stage] || stage}</option>)}</select></label><button disabled={!selected} onClick={addGoal} className="w-full rounded-lg bg-purple-500 py-2.5 text-[10px] font-bold text-black hover:bg-purple-400 disabled:opacity-40">Add today&apos;s goal</button></div></div>
     </section>
+    {sessionSideWork.length > 0 && (
+      <section className="rounded-2xl border border-cyan-900/40 bg-cyan-950/10 p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-bold text-white"><Route className="h-4 w-4 text-cyan-400" />Session side work</div>
+            <p className="mt-1 text-[10px] text-neutral-400">Off-stage work logged this session, not tied to a single topic.</p>
+          </div>
+          <div className="text-right">
+            <div className="font-mono text-lg font-black text-cyan-300">{formatDuration(sessionSideWorkMs)}</div>
+            <div className="text-[10px] uppercase text-neutral-400">Total</div>
+          </div>
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {sessionSideWork.map(entry => (
+            <div key={entry.id} className="flex items-center justify-between gap-3 rounded-lg border border-neutral-900 bg-neutral-950/60 px-3 py-2">
+              <span className="min-w-0 flex-1 truncate text-[11px] text-neutral-200">{entry.description}</span>
+              <span className={`shrink-0 font-mono text-[10px] font-bold ${entry.endedAt === null ? 'text-emerald-300' : 'text-neutral-400'}`}>{formatDuration(sideWorkMs(entry))}</span>
+              {entry.endedAt === null && <span className="shrink-0 text-[8px] font-bold uppercase tracking-wider text-emerald-400">Live</span>}
+            </div>
+          ))}
+        </div>
+      </section>
+    )}
     <section className="border-t border-neutral-900 pt-5"><div className="mb-4"><h2 className="text-sm font-bold text-white">Completed session history</h2><p className="mt-1 text-[10px] text-neutral-400">Every saved day with goal outcomes, task-stage timelines, active work, pauses, breaks, and productivity.</p></div><SessionsView sessions={sessions} embedded /></section>
     {showTaskProductivityPrompt && pendingTaskTimer && (
       <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
@@ -399,17 +477,65 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
             </p>
           </div>
 
+          {/* Side work — off-stage work done during the pause. Its own clock runs
+              while paused; time is recorded separately, not folded into stage stats. */}
+          <div className="mt-4 rounded-xl border border-cyan-900/40 bg-cyan-950/10 p-3">
+            <label className="flex cursor-pointer items-start gap-2.5">
+              <input
+                type="checkbox"
+                checked={isSideWork}
+                onChange={e => setIsSideWork(e.target.checked)}
+                className="mt-0.5 h-3.5 w-3.5 accent-cyan-400"
+              />
+              <span>
+                <span className="flex items-center gap-1.5 text-[11px] font-bold text-cyan-200"><Route className="h-3.5 w-3.5" />Working on something else?</span>
+                <span className="mt-0.5 block text-[9px] text-neutral-500">Not a break — log off-stage work and its time gets tracked separately.</span>
+              </span>
+            </label>
+
+            {isSideWork && (
+              <div className="mt-3 space-y-2.5">
+                <input
+                  type="text"
+                  autoFocus
+                  value={sideWorkDesc}
+                  onChange={e => setSideWorkDesc(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && sideWorkDesc.trim()) confirmTaskPause(); }}
+                  placeholder="e.g. Exploring hook types for the website"
+                  className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-[11px] text-white outline-none placeholder:text-neutral-600 focus:border-cyan-700"
+                />
+                <div>
+                  <div className="text-[9px] uppercase tracking-wider text-neutral-500">Link this to</div>
+                  <div className="mt-1.5 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSideWorkLink('topic')}
+                      className={`rounded-lg border px-2 py-2 text-left transition ${sideWorkLink === 'topic' ? 'border-cyan-600/70 bg-cyan-500/15 text-cyan-100' : 'border-neutral-800 bg-neutral-900/50 text-neutral-400 hover:border-neutral-700'}`}
+                    >
+                      <div className="text-[10px] font-bold">This topic</div>
+                      <div className="mt-0.5 truncate text-[9px] text-neutral-500">{pendingTaskTimer?.topicName}</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSideWorkLink('session')}
+                      className={`rounded-lg border px-2 py-2 text-left transition ${sideWorkLink === 'session' ? 'border-cyan-600/70 bg-cyan-500/15 text-cyan-100' : 'border-neutral-800 bg-neutral-900/50 text-neutral-400 hover:border-neutral-700'}`}
+                    >
+                      <div className="text-[10px] font-bold">The session</div>
+                      <div className="mt-0.5 text-[9px] text-neutral-500">General day work</div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="mt-4 flex gap-2">
             <button
               type="button"
-              onClick={() => {
-                onPauseTaskTimer(taskProductivity);
-                setShowTaskProductivityPrompt(false);
-                setPendingTaskTimer(null);
-              }}
+              onClick={confirmTaskPause}
               className="flex-1 rounded-xl bg-amber-400 py-2.5 text-xs font-bold text-black hover:bg-amber-300"
             >
-              Pause work
+              {isSideWork && sideWorkDesc.trim() ? 'Pause & log side work' : 'Pause work'}
             </button>
             <button
               type="button"

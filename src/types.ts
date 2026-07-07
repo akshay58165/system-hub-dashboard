@@ -468,6 +468,22 @@ export interface MonthForecast {
 }
 export type TaskTimerStage = 'hook' | 'script' | 'shoot' | 'edit' | 'schedule' | 'post';
 
+// Off-stage work logged when a stage timer is paused — e.g. "Exploring hook
+// types for the website" while the Script timer is paused. It runs its own
+// clock during the pause and is finalized when the stage resumes (or stops).
+// Kept as a SEPARATE bucket: its time is recorded and shown, but never folded
+// into the stage's Active/Productivity numbers, so stage stats stay honest.
+export interface SideWorkEntry {
+  id: string;
+  description: string;
+  // 'topic' → attributed to the paused timer's topic; 'session' → general
+  // day-level work not tied to that topic.
+  linkedTo: 'topic' | 'session';
+  startedAt: string;
+  endedAt: string | null;      // null while still running (stage still paused)
+  accumulatedMs: number;
+}
+
 export interface TaskTimerRecord {
   id: string;
   topicId: string;
@@ -488,4 +504,6 @@ export interface TaskTimerRecord {
   pauseSource?: 'manual' | 'day';
   workdaySessionId?: string;
   dateKey: string;             // YYYY-MM-DD for archival scoping
+  /** Off-stage work logged while this timer was paused (see SideWorkEntry). */
+  sideWork?: SideWorkEntry[];
 }

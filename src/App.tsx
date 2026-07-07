@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { supabase } from './services/supabase';
 
-import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, TopicSortMode, CycleGoal, WorkdaySession, SessionRecord, SessionGoalOutcome, VideoRecord, Experiment, CreatorInsight, ScorecardState, AiRulePreset, AiUsageStats, TaskTimerRecord, TaskTimerStage } from './types';
+import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, TopicSortMode, CycleGoal, WorkdaySession, SessionRecord, SessionGoalOutcome, VideoRecord, Experiment, CreatorInsight, ScorecardState, AiRulePreset, AiUsageStats, TaskTimerRecord, TaskTimerStage, SideWorkEntry } from './types';
 import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, normalizeCommittedTombstones, prepareLocalTopicMutation, topicCollectionsEqual, visibleCreatorTopics } from './lib/topicSync';
 import { normalizeScorecard, rolloverScorecard } from './services/scorecardStorage';
 import { 
@@ -250,13 +250,34 @@ function sessionRecordRevisionMs(session: SessionRecord) {
   );
 }
 
+// Finalize any still-running side-work entry (endedAt === null) across the
+// given timers, stamping each with its final duration. Idempotent — entries
+// already closed are left untouched. Called whenever the user leaves the
+// paused state (resume/start/stop) or the day ends, so a side-work clock never
+// keeps ticking past the moment real work resumes.
+function closeOpenSideWork(timers: TaskTimerRecord[], stampMs: number): TaskTimerRecord[] {
+  return timers.map(timer => {
+    if (!timer.sideWork?.some(entry => entry.endedAt === null)) return timer;
+    return {
+      ...timer,
+      sideWork: timer.sideWork.map(entry => entry.endedAt === null
+        ? {
+            ...entry,
+            endedAt: new Date(stampMs).toISOString(),
+            accumulatedMs: entry.accumulatedMs + Math.max(0, stampMs - new Date(entry.startedAt).getTime())
+          }
+        : entry)
+    };
+  });
+}
+
 function finalizeTaskTimersForSession(
   timers: TaskTimerRecord[],
   session: WorkdaySession,
   endedAtIso: string
 ) {
   const endedAt = new Date(endedAtIso).getTime();
-  return timers.map(timer => {
+  return closeOpenSideWork(timers, endedAt).map(timer => {
     const belongsToSession = timer.workdaySessionId === session.startedAt || (!timer.workdaySessionId && timer.dateKey === session.dateKey);
     if (!belongsToSession || (timer.status !== 'running' && timer.status !== 'paused')) return timer;
     return {
@@ -1965,13 +1986,16 @@ export default function App() {
       };
     }));
 
-    setTaskTimers(prev => {
+    setTaskTimers(prevRaw => {
+      const end = new Date(stamp).getTime();
+      // Starting/resuming a stage IS returning to real work — close any
+      // side-work clock that was running during a pause first.
+      const prev = closeOpenSideWork(prevRaw, end);
       const existing = prev.find(tt => (tt.status === 'running' || tt.status === 'paused') && tt.topicId === topicId && tt.stage === stage);
       if (existing?.status === 'running') return prev;
       // Auto-pause any other running task timer (different topic/stage) so it
       // can be resumed later — do NOT complete it. Paused timers stay paused.
       // This applies whether we're starting a fresh timer OR resuming a paused one.
-      const end = new Date(stamp).getTime();
       const settled = prev.map(tt => {
         if (tt.status !== 'running' || tt.id === existing?.id) return tt;
         return {
@@ -2068,8 +2092,46 @@ export default function App() {
     }));
   };
 
-  const resumeActiveTaskTimer = (pauseSource?: 'manual' | 'day') => {
+  // Pause the running stage timer AND optionally open a side-work clock for
+  // off-stage work done during the pause (see SideWorkEntry). When side work is
+  // logged the pause is NOT counted as a break — the user isn't resting, they're
+  // doing other tracked work — matching how "I paused, but not for a break" reads.
+  const pauseActiveTaskTimerWithDetails = (
+    productivityScore?: number,
+    sideWork?: { description: string; linkedTo: 'topic' | 'session' }
+  ) => {
+    const description = sideWork?.description.trim();
+    const logSideWork = Boolean(description);
     setTaskTimers(prev => prev.map(tt => {
+      if (tt.status !== 'running') return tt;
+      const stamp = new Date();
+      const newEntry: SideWorkEntry | null = logSideWork
+        ? {
+            id: `sw-${Date.now()}-${tt.id}`,
+            description: description!,
+            linkedTo: sideWork!.linkedTo,
+            startedAt: stamp.toISOString(),
+            endedAt: null,
+            accumulatedMs: 0
+          }
+        : null;
+      return {
+        ...tt,
+        status: 'paused' as const,
+        accumulatedActiveMs: tt.accumulatedActiveMs + (tt.activeSince ? Math.max(0, stamp.getTime() - new Date(tt.activeSince).getTime()) : 0),
+        activeSince: null,
+        pausedAt: stamp.toISOString(),
+        breaksCount: logSideWork ? tt.breaksCount : tt.breaksCount + 1,
+        pauseSource: 'manual' as const,
+        productivityScore: productivityScore ?? tt.productivityScore,
+        sideWork: newEntry ? [...(tt.sideWork || []), newEntry] : tt.sideWork,
+      };
+    }));
+  };
+
+  const resumeActiveTaskTimer = (pauseSource?: 'manual' | 'day') => {
+    const resumeMs = Date.now();
+    setTaskTimers(prev => closeOpenSideWork(prev, resumeMs).map(tt => {
       if (tt.status !== 'paused') return tt;
       if (pauseSource && tt.pauseSource !== pauseSource) return tt;
       const stamp = new Date();
@@ -2086,7 +2148,7 @@ export default function App() {
 
   const completeTaskTimerStage = (topicId: string, stage: TaskTimerStage) => {
     const stamp = new Date().toISOString();
-    setTaskTimers(prev => prev.map(tt => {
+    setTaskTimers(prev => closeOpenSideWork(prev, new Date(stamp).getTime()).map(tt => {
       if (tt.topicId !== topicId || tt.stage !== stage || (tt.status !== 'running' && tt.status !== 'paused')) return tt;
       const end = new Date(stamp).getTime();
       return {
@@ -2104,7 +2166,7 @@ export default function App() {
 
   const stopActiveTaskTimer = (endReason: 'done' | 'deferred', productivityScore?: number) => {
     const stamp = new Date().toISOString();
-    setTaskTimers(prev => prev.map(tt => {
+    setTaskTimers(prev => closeOpenSideWork(prev, new Date(stamp).getTime()).map(tt => {
       if (tt.status !== 'running' && tt.status !== 'paused') return tt;
       const finalActive = tt.accumulatedActiveMs + (tt.status === 'running' && tt.activeSince ? Math.max(0, new Date(stamp).getTime() - new Date(tt.activeSince).getTime()) : 0);
       const finalPaused = tt.accumulatedPausedMs + (tt.status === 'paused' && tt.pausedAt ? Math.max(0, new Date(stamp).getTime() - new Date(tt.pausedAt).getTime()) : 0);
@@ -2127,6 +2189,9 @@ export default function App() {
 
   // When main timer is paused → also pause any running task timer
   const handleMainTimerPause = () => {
+    // Pausing the whole day ends any side-work clock left running on an
+    // already-paused stage timer (pauseActiveTaskTimer only touches running ones).
+    setTaskTimers(prev => closeOpenSideWork(prev, Date.now()));
     pauseActiveTaskTimer('day');
     setWorkdaySession(current => {
       if (!current || current.status !== 'running' || !current.activeSince) return current;
@@ -2756,7 +2821,7 @@ export default function App() {
                 onEndSession={endWorkdaySessionWithTaskTimers}
                 taskTimers={visibleTaskTimers}
                 onStartTaskTimer={startTaskTimer}
-                onPauseTaskTimer={() => pauseActiveTaskTimer('manual')}
+                onPauseTaskTimer={pauseActiveTaskTimerWithDetails}
                 onResumeTaskTimer={() => resumeActiveTaskTimer()}
                 onStopTaskTimer={stopActiveTaskTimer}
                 onPauseMainTimer={handleMainTimerPause}

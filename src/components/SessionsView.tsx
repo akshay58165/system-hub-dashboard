@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { CalendarDays, Check, ChevronDown, Clock3, Coffee, Flame, Layers, ListChecks, Target, Timer, Trash2, TrendingUp, Zap } from 'lucide-react';
+import { CalendarDays, Check, ChevronDown, Clock3, Coffee, Flame, Layers, ListChecks, Route, Target, Timer, Trash2, TrendingUp, Zap } from 'lucide-react';
 import type { SessionRecord, TaskTimerRecord, TaskTimerStage } from '../types';
 
 interface SessionsViewProps {
@@ -93,6 +93,30 @@ function TimerCard({ timer, session, headline }: TimerCardProps) {
           <div className="font-mono text-sm font-bold text-purple-300">{timer.productivityScore ? `${timer.productivityScore * 10}%` : '--'}</div>
           <div className="mt-0.5 text-[10px] uppercase tracking-wider text-neutral-500">Productive</div>
         </div>
+      </div>
+      <SideWorkList entries={timer.sideWork} />
+    </div>
+  );
+}
+
+// Archived side work for a single timer — off-stage work logged while the
+// stage was paused. Shown as its own bucket so it never inflates stage stats.
+function SideWorkList({ entries }: { entries?: TaskTimerRecord['sideWork'] }) {
+  if (!entries || entries.length === 0) return null;
+  const total = entries.reduce((sum, entry) => sum + entry.accumulatedMs, 0);
+  return (
+    <div className="mt-3 rounded-lg border border-cyan-900/40 bg-cyan-950/10 p-2.5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-cyan-300"><Route className="h-3 w-3" />Side work</div>
+        <span className="font-mono text-[10px] font-bold text-cyan-300">{formatDuration(total)}</span>
+      </div>
+      <div className="mt-1.5 space-y-1">
+        {entries.map(entry => (
+          <div key={entry.id} className="flex items-center justify-between gap-2 text-[11px]">
+            <span className="min-w-0 flex-1 truncate text-neutral-300">{entry.description}</span>
+            <span className="shrink-0 font-mono text-[10px] text-neutral-500">{formatDuration(entry.accumulatedMs)}{entry.linkedTo === 'session' ? ' · session' : ''}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -418,6 +442,7 @@ export default function SessionsView({ sessions, embedded = false }: SessionsVie
                               <span>Started {new Date(timer.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                               <span>{timer.completedAt ? `Ended ${new Date(timer.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Still active'}</span>
                             </div>
+                            <SideWorkList entries={timer.sideWork} />
                           </div>
                         ))}
                       </div>
