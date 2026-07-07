@@ -455,13 +455,9 @@ export default function TopicScoreView({
             const blockers = getBlockedReasons(topic);
             const shootAllowed = isShootAllowed(topic);
             const scriptAvg = getScriptAverage(topic);
-            const topicPassed = typeof topic.topicScore === 'number' && topic.topicScore >= 6;
-            // Script stage unlocks only when Topic ≥ 6 AND Hook ≥ 8.
-            const scriptLocked = !isScriptUnlocked(topic);
-            // Hook can be scored the moment Topic passes — you can't judge a
-            // hook you haven't scored yet, but you don't need Hook to score
-            // Hook. So only lock the script trio, not Hook.
-            const hookLocked = !topicPassed;
+            // Thresholds are advisory now — every score is always editable so
+            // you can jump ahead. The Pass/Low/H/A+ badges and readiness label
+            // still reflect whether the threshold is met.
 
 
 
@@ -526,8 +522,6 @@ export default function TopicScoreView({
                         label={SCORE_FIELDS[1].label}
                         value={topic[SCORE_FIELDS[1].key] as number | undefined}
                         onChange={n => updateScore(topic.id, SCORE_FIELDS[1].key, n)}
-                        disabled={hookLocked}
-                        disabledHint="Requires Topic Score 6+"
                         accent="cyan"
                         tier="hook"
                       />
@@ -550,8 +544,6 @@ export default function TopicScoreView({
                           label={f.label}
                           value={topic[f.key] as number | undefined}
                           onChange={n => updateScore(topic.id, f.key, n)}
-                          disabled={scriptLocked}
-                          disabledHint="Requires Topic Score 6+ and Hook Score 8+"
                           accent="cyan"
                           tier="script"
                         />
