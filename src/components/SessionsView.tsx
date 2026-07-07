@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { CalendarDays, Check, ChevronDown, Clock3, Coffee, Flame, Layers, ListChecks, Route, Target, Timer, Trash2, TrendingUp, Zap } from 'lucide-react';
-import type { SessionRecord, TaskTimerRecord, TaskTimerStage } from '../types';
+import type { SessionRecord, SittingSegment, TaskTimerRecord, TaskTimerStage } from '../types';
 
 interface SessionsViewProps {
   sessions: SessionRecord[];
@@ -40,6 +40,20 @@ const stageShortLabels: Record<TaskTimerStage, string> = { hook: 'Hook', script:
 // the app auto-posts a scheduled topic once its release time passes, so no
 // user-tracked timer ever exists for that stage.
 const stageOrder: TaskTimerStage[] = ['hook', 'script', 'shoot', 'edit', 'schedule'];
+
+// Return the sittings for a timer. New timers store an explicit
+// segments[] array — one entry per sitting. Older archived records don't,
+// so we synthesize a single sitting sized to the timer's total active time
+// so historic data still renders honestly (no double-counting).
+function getSittings(timer: TaskTimerRecord): SittingSegment[] {
+  if (timer.segments && timer.segments.length > 0) return timer.segments;
+  return [{
+    id: `legacy-${timer.id}`,
+    startedAt: timer.startedAt,
+    endedAt: timer.completedAt ?? null,
+    activeMs: timer.accumulatedActiveMs,
+  }];
+}
 
 // A single timer rendered as a card. Shared by all three views so the metrics
 // mean the same thing everywhere — session-based, topic-based, task-based all
@@ -94,7 +108,38 @@ function TimerCard({ timer, session, headline }: TimerCardProps) {
           <div className="mt-0.5 text-[10px] uppercase tracking-wider text-neutral-500">Productive</div>
         </div>
       </div>
+      <TimerSittingsList timer={timer} />
       <SideWorkList entries={timer.sideWork} />
+    </div>
+  );
+}
+
+// Per-sitting timeline for a single timer. Skipped when the timer is one
+// long uninterrupted sitting — no point rendering a one-row breakdown.
+function TimerSittingsList({ timer }: { timer: TaskTimerRecord }) {
+  const sittings = getSittings(timer);
+  if (sittings.length <= 1) return null;
+  return (
+    <div className="mt-3 rounded-lg border border-cyan-900/40 bg-cyan-950/10 p-2.5">
+      <div className="flex items-center justify-between">
+        <div className="text-[10px] font-bold uppercase text-cyan-300">Sittings ({sittings.length})</div>
+        <span className="font-mono text-[10px] font-bold text-cyan-300">{formatDuration(sittings.reduce((sum, s) => sum + s.activeMs, 0))}</span>
+      </div>
+      <div className="mt-1.5 space-y-1">
+        {sittings.map((segment, i) => {
+          const startedAt = new Date(segment.startedAt);
+          const endedAt = segment.endedAt ? new Date(segment.endedAt) : null;
+          return (
+            <div key={segment.id} className="flex items-center justify-between gap-2 text-[11px]">
+              <span className="min-w-0 flex-1 truncate font-mono text-neutral-400">
+                #{i + 1} {startedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {endedAt ? `–${endedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ' (open)'}
+              </span>
+              <span className="shrink-0 font-mono text-[10px] font-bold text-emerald-300">{formatDuration(segment.activeMs)}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -180,7 +225,16 @@ export default function SessionsView({ sessions, embedded = false }: SessionsVie
 
   // Group by topic — key on topicId (stable across renames), display the
   // most recent snapshot of topicName. Roll-ups (totals, stage count, last
-  // touched) are computed from the same flatTimers source of truth.
+  // touched) are computed from the same flatTimers source of truth. Now
+  // also builds per-stage sub-rollups so a single topic card can answer:
+  // how much time on each stage, how many sittings, and how long each
+  // individual sitting was — across every session the topic touched.
+  type StageRollup = {
+    stage: TaskTimerStage;
+    totalActiveMs: number;
+    sittings: Array<{ segment: SittingSegment; timer: TaskTimerRecord; session: SessionRecord }>;
+    timerCount: number;
+  };
   const topicGroups = useMemo(() => {
     const map = new Map<string, {
       topicId: string;
@@ -188,6 +242,8 @@ export default function SessionsView({ sessions, embedded = false }: SessionsVie
       entries: Array<{ timer: TaskTimerRecord; session: SessionRecord }>;
       totalActiveMs: number;
       stages: Set<TaskTimerStage>;
+      stageRollups: Map<TaskTimerStage, StageRollup>;
+      totalSittings: number;
       lastStartedAt: number;
     }>();
     flatTimers.forEach(({ timer, session }) => {
@@ -197,17 +253,39 @@ export default function SessionsView({ sessions, embedded = false }: SessionsVie
         entries: [],
         totalActiveMs: 0,
         stages: new Set<TaskTimerStage>(),
+        stageRollups: new Map<TaskTimerStage, StageRollup>(),
+        totalSittings: 0,
         lastStartedAt: 0
       };
       existing.entries.push({ timer, session });
       existing.totalActiveMs += timer.accumulatedActiveMs;
       existing.stages.add(timer.stage);
+      const sittings = getSittings(timer);
+      existing.totalSittings += sittings.length;
+      const rollup = existing.stageRollups.get(timer.stage) ?? {
+        stage: timer.stage,
+        totalActiveMs: 0,
+        sittings: [],
+        timerCount: 0
+      };
+      rollup.totalActiveMs += timer.accumulatedActiveMs;
+      rollup.timerCount += 1;
+      sittings.forEach(segment => rollup.sittings.push({ segment, timer, session }));
+      existing.stageRollups.set(timer.stage, rollup);
+
       const startedMs = new Date(timer.startedAt).getTime();
       if (startedMs > existing.lastStartedAt) {
         existing.lastStartedAt = startedMs;
         existing.topicName = timer.topicName; // freshest snapshot wins
       }
       map.set(timer.topicId, existing);
+    });
+    // Sort each stage's sittings chronologically so the display reads
+    // top-to-bottom as the order they happened.
+    map.forEach(entry => {
+      entry.stageRollups.forEach(rollup => {
+        rollup.sittings.sort((a, b) => new Date(a.segment.startedAt).getTime() - new Date(b.segment.startedAt).getTime());
+      });
     });
     return Array.from(map.values()).sort((a, b) => b.lastStartedAt - a.lastStartedAt);
   }, [flatTimers]);
@@ -515,7 +593,7 @@ export default function SessionsView({ sessions, embedded = false }: SessionsVie
                     <div className="text-base font-bold text-white truncate">{group.topicName}</div>
                     <div className="mt-1 text-xs text-neutral-500 font-mono">
                       Last touched {new Date(group.lastStartedAt).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
-                      {' · '}{group.entries.length} timer{group.entries.length === 1 ? '' : 's'} across {group.stages.size} stage{group.stages.size === 1 ? '' : 's'}
+                      {' · '}{group.stages.size} stage{group.stages.size === 1 ? '' : 's'} · {group.totalSittings} sitting{group.totalSittings === 1 ? '' : 's'}
                     </div>
                   </div>
                   <div className="flex items-center gap-4 font-mono text-xs">
@@ -527,11 +605,64 @@ export default function SessionsView({ sessions, embedded = false }: SessionsVie
                     </div>
                   </div>
                 </div>
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  {group.entries.map(({ timer, session }) => (
-                    <TimerCard key={`${session.id}:${timer.id}`} timer={timer} session={session} headline="stage" />
-                  ))}
+
+                {/* Per-stage rollup with per-sitting breakdown. Ordered by
+                    production stage (hook → post) so the topic reads like a
+                    left-to-right timeline of what got done. */}
+                <div className="mt-3 space-y-3">
+                  {stageOrder.filter(s => group.stageRollups.has(s)).map(stage => {
+                    const rollup = group.stageRollups.get(stage)!;
+                    return (
+                      <div key={stage} className="rounded-lg border border-neutral-800 bg-neutral-950/40 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-900 pb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="rounded border border-cyan-800/60 bg-cyan-950/40 px-2 py-1 text-[10px] font-bold uppercase text-cyan-200">{stageLabels[stage]}</span>
+                            <span className="font-mono text-[11px] text-neutral-500">
+                              {rollup.sittings.length} sitting{rollup.sittings.length === 1 ? '' : 's'}
+                              {rollup.timerCount > 1 ? ` · across ${rollup.timerCount} sessions` : ''}
+                            </span>
+                          </div>
+                          <span className="font-mono text-xs font-bold text-emerald-300">{formatDuration(rollup.totalActiveMs)}</span>
+                        </div>
+                        <div className="mt-2 space-y-1">
+                          {rollup.sittings.map(({ segment, session }, index) => {
+                            const startedAt = new Date(segment.startedAt);
+                            const endedAt = segment.endedAt ? new Date(segment.endedAt) : null;
+                            const dateLabel = startedAt.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                            const startTime = startedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            const endTime = endedAt ? endedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+                            return (
+                              <div key={segment.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-neutral-900 bg-neutral-950/70 px-2.5 py-1.5">
+                                <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
+                                  <span className="rounded bg-neutral-900 px-1.5 py-0.5 text-[9px] font-bold text-neutral-400">#{index + 1}</span>
+                                  <span className="text-neutral-300">{dateLabel}</span>
+                                  <span className="text-neutral-500">{startTime}–{endTime}</span>
+                                  <span className="text-[9px] uppercase text-neutral-600" title={new Date(session.startedAt).toLocaleString()}>
+                                    {new Date(session.startedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })} session
+                                  </span>
+                                </div>
+                                <span className="font-mono text-[11px] font-bold text-emerald-300">{formatDuration(segment.activeMs)}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
+
+                {/* Per-timer detail cards remain accessible for anyone who
+                    wants the paused/breaks/productivity slice per session. */}
+                <details className="mt-3 group">
+                  <summary className="cursor-pointer text-[10px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-300">
+                    Per-session detail ({group.entries.length} timer{group.entries.length === 1 ? '' : 's'})
+                  </summary>
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    {group.entries.map(({ timer, session }) => (
+                      <TimerCard key={`${session.id}:${timer.id}`} timer={timer} session={session} headline="stage" />
+                    ))}
+                  </div>
+                </details>
               </div>
             ))}
           </div>

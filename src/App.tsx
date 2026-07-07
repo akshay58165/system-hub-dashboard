@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { supabase } from './services/supabase';
 
-import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, TopicSortMode, CycleGoal, WorkdaySession, SessionRecord, SessionGoalOutcome, VideoRecord, Experiment, CreatorInsight, ScorecardState, AiRulePreset, AiUsageStats, TaskTimerRecord, TaskTimerStage, SideWorkEntry } from './types';
+import { GitHubRepo, VercelProject, SupabaseProject, SystemEvent, Topic, TopicActivity, TopicSortMode, CycleGoal, WorkdaySession, SessionRecord, SessionGoalOutcome, VideoRecord, Experiment, CreatorInsight, ScorecardState, AiRulePreset, AiUsageStats, TaskTimerRecord, TaskTimerStage, SideWorkEntry, SittingSegment } from './types';
 import { mergeRemoteWithPendingTopics, mergeTopicsByNewest, normalizeCommittedTombstones, prepareLocalTopicMutation, topicCollectionsEqual, visibleCreatorTopics } from './lib/topicSync';
 import { normalizeScorecard, rolloverScorecard } from './services/scorecardStorage';
 import { 
@@ -271,6 +271,35 @@ function closeOpenSideWork(timers: TaskTimerRecord[], stampMs: number): TaskTime
   });
 }
 
+// Close the currently-open sitting segment on a timer (the last one with
+// endedAt === null), stamping its final activeMs. Idempotent — a timer with
+// no open segment (or no segments at all) is returned unchanged.
+function closeOpenSegment(timer: TaskTimerRecord, stampMs: number): TaskTimerRecord {
+  const segments = timer.segments;
+  if (!segments || segments.length === 0) return timer;
+  const last = segments[segments.length - 1];
+  if (last.endedAt !== null) return timer;
+  const elapsed = Math.max(0, stampMs - new Date(last.startedAt).getTime());
+  const closed: SittingSegment = {
+    ...last,
+    endedAt: new Date(stampMs).toISOString(),
+    activeMs: last.activeMs + elapsed,
+  };
+  return { ...timer, segments: [...segments.slice(0, -1), closed] };
+}
+
+// Append a fresh open sitting segment (for a start or resume) so the next
+// pause/stop has something to close.
+function openNewSegment(timer: TaskTimerRecord, startedAtIso: string): TaskTimerRecord {
+  const newSegment: SittingSegment = {
+    id: `seg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    startedAt: startedAtIso,
+    endedAt: null,
+    activeMs: 0,
+  };
+  return { ...timer, segments: [...(timer.segments || []), newSegment] };
+}
+
 function finalizeTaskTimersForSession(
   timers: TaskTimerRecord[],
   session: WorkdaySession,
@@ -280,12 +309,15 @@ function finalizeTaskTimersForSession(
   return closeOpenSideWork(timers, endedAt).map(timer => {
     const belongsToSession = timer.workdaySessionId === session.startedAt || (!timer.workdaySessionId && timer.dateKey === session.dateKey);
     if (!belongsToSession || (timer.status !== 'running' && timer.status !== 'paused')) return timer;
+    // Also settle the last sitting (endedAt=null) so archived history holds
+    // an honest per-sitting timeline instead of one dangling open segment.
+    const withSegment = timer.status === 'running' ? closeOpenSegment(timer, endedAt) : timer;
     return {
-      ...timer,
+      ...withSegment,
       status: 'completed' as const,
       completedAt: endedAtIso,
-      accumulatedActiveMs: timer.accumulatedActiveMs + (timer.status === 'running' && timer.activeSince ? Math.max(0, endedAt - new Date(timer.activeSince).getTime()) : 0),
-      accumulatedPausedMs: timer.accumulatedPausedMs + (timer.status === 'paused' && timer.pausedAt ? Math.max(0, endedAt - new Date(timer.pausedAt).getTime()) : 0),
+      accumulatedActiveMs: withSegment.accumulatedActiveMs + (timer.status === 'running' && timer.activeSince ? Math.max(0, endedAt - new Date(timer.activeSince).getTime()) : 0),
+      accumulatedPausedMs: withSegment.accumulatedPausedMs + (timer.status === 'paused' && timer.pausedAt ? Math.max(0, endedAt - new Date(timer.pausedAt).getTime()) : 0),
       activeSince: null,
       pausedAt: null,
       endReason: 'deferred' as const
@@ -1998,10 +2030,12 @@ export default function App() {
       // This applies whether we're starting a fresh timer OR resuming a paused one.
       const settled = prev.map(tt => {
         if (tt.status !== 'running' || tt.id === existing?.id) return tt;
+        // Close this timer's current sitting so its history stays honest.
+        const closed = closeOpenSegment(tt, end);
         return {
-          ...tt,
+          ...closed,
           status: 'paused' as const,
-          accumulatedActiveMs: tt.accumulatedActiveMs + (tt.activeSince ? Math.max(0, end - new Date(tt.activeSince).getTime()) : 0),
+          accumulatedActiveMs: closed.accumulatedActiveMs + (tt.activeSince ? Math.max(0, end - new Date(tt.activeSince).getTime()) : 0),
           activeSince: null,
           pausedAt: stamp,
           breaksCount: tt.breaksCount + 1,
@@ -2009,16 +2043,16 @@ export default function App() {
         };
       });
       if (existing?.status === 'paused') {
-        return settled.map(tt => tt.id === existing.id ? {
+        return settled.map(tt => tt.id === existing.id ? openNewSegment({
           ...tt,
           status: 'running' as const,
           accumulatedPausedMs: tt.accumulatedPausedMs + (tt.pausedAt ? Math.max(0, end - new Date(tt.pausedAt).getTime()) : 0),
           activeSince: stamp,
           pausedAt: null,
           pauseSource: undefined
-        } : tt);
+        }, stamp) : tt);
       }
-      const newTimer: TaskTimerRecord = {
+      const baseTimer: TaskTimerRecord = {
         id: `tt-${Date.now()}-${topicId}-${stage}`,
         topicId, topicName: topic.name, stage,
         status: 'running',
@@ -2027,6 +2061,8 @@ export default function App() {
         workdaySessionId: workdaySession ? workdaySession.startedAt : stamp,
         dateKey: todayKey(),
       };
+      // First sitting starts now, ends on the first pause/stop.
+      const newTimer = openNewSegment(baseTimer, stamp);
       return [...settled, newTimer];
     });
     // Log activity
@@ -2079,10 +2115,11 @@ export default function App() {
     setTaskTimers(prev => prev.map(tt => {
       if (tt.status !== 'running') return tt;
       const stamp = new Date();
+      const closed = closeOpenSegment(tt, stamp.getTime());
       return {
-        ...tt,
+        ...closed,
         status: 'paused' as const,
-        accumulatedActiveMs: tt.accumulatedActiveMs + (tt.activeSince ? Math.max(0, stamp.getTime() - new Date(tt.activeSince).getTime()) : 0),
+        accumulatedActiveMs: closed.accumulatedActiveMs + (tt.activeSince ? Math.max(0, stamp.getTime() - new Date(tt.activeSince).getTime()) : 0),
         activeSince: null,
         pausedAt: stamp.toISOString(),
         breaksCount: tt.breaksCount + 1,
@@ -2105,6 +2142,7 @@ export default function App() {
     setTaskTimers(prev => prev.map(tt => {
       if (tt.status !== 'running') return tt;
       const stamp = new Date();
+      const closed = closeOpenSegment(tt, stamp.getTime());
       const newEntry: SideWorkEntry | null = logSideWork
         ? {
             id: `sw-${Date.now()}-${tt.id}`,
@@ -2116,15 +2154,15 @@ export default function App() {
           }
         : null;
       return {
-        ...tt,
+        ...closed,
         status: 'paused' as const,
-        accumulatedActiveMs: tt.accumulatedActiveMs + (tt.activeSince ? Math.max(0, stamp.getTime() - new Date(tt.activeSince).getTime()) : 0),
+        accumulatedActiveMs: closed.accumulatedActiveMs + (tt.activeSince ? Math.max(0, stamp.getTime() - new Date(tt.activeSince).getTime()) : 0),
         activeSince: null,
         pausedAt: stamp.toISOString(),
         breaksCount: logSideWork ? tt.breaksCount : tt.breaksCount + 1,
         pauseSource: 'manual' as const,
         productivityScore: productivityScore ?? tt.productivityScore,
-        sideWork: newEntry ? [...(tt.sideWork || []), newEntry] : tt.sideWork,
+        sideWork: newEntry ? [...(closed.sideWork || []), newEntry] : closed.sideWork,
       };
     }));
   };
@@ -2135,14 +2173,14 @@ export default function App() {
       if (tt.status !== 'paused') return tt;
       if (pauseSource && tt.pauseSource !== pauseSource) return tt;
       const stamp = new Date();
-      return {
+      return openNewSegment({
         ...tt,
         status: 'running' as const,
         accumulatedPausedMs: tt.accumulatedPausedMs + (tt.pausedAt ? Math.max(0, stamp.getTime() - new Date(tt.pausedAt).getTime()) : 0),
         activeSince: stamp.toISOString(),
         pausedAt: null,
         pauseSource: undefined,
-      };
+      }, stamp.toISOString());
     }));
   };
 
@@ -2151,12 +2189,13 @@ export default function App() {
     setTaskTimers(prev => closeOpenSideWork(prev, new Date(stamp).getTime()).map(tt => {
       if (tt.topicId !== topicId || tt.stage !== stage || (tt.status !== 'running' && tt.status !== 'paused')) return tt;
       const end = new Date(stamp).getTime();
+      const closed = tt.status === 'running' ? closeOpenSegment(tt, end) : tt;
       return {
-        ...tt,
+        ...closed,
         status: 'completed' as const,
         completedAt: stamp,
-        accumulatedActiveMs: tt.accumulatedActiveMs + (tt.status === 'running' && tt.activeSince ? Math.max(0, end - new Date(tt.activeSince).getTime()) : 0),
-        accumulatedPausedMs: tt.accumulatedPausedMs + (tt.status === 'paused' && tt.pausedAt ? Math.max(0, end - new Date(tt.pausedAt).getTime()) : 0),
+        accumulatedActiveMs: closed.accumulatedActiveMs + (tt.status === 'running' && tt.activeSince ? Math.max(0, end - new Date(tt.activeSince).getTime()) : 0),
+        accumulatedPausedMs: closed.accumulatedPausedMs + (tt.status === 'paused' && tt.pausedAt ? Math.max(0, end - new Date(tt.pausedAt).getTime()) : 0),
         activeSince: null,
         pausedAt: null,
         endReason: 'done' as const
@@ -2168,9 +2207,10 @@ export default function App() {
     const stamp = new Date().toISOString();
     setTaskTimers(prev => closeOpenSideWork(prev, new Date(stamp).getTime()).map(tt => {
       if (tt.status !== 'running' && tt.status !== 'paused') return tt;
-      const finalActive = tt.accumulatedActiveMs + (tt.status === 'running' && tt.activeSince ? Math.max(0, new Date(stamp).getTime() - new Date(tt.activeSince).getTime()) : 0);
-      const finalPaused = tt.accumulatedPausedMs + (tt.status === 'paused' && tt.pausedAt ? Math.max(0, new Date(stamp).getTime() - new Date(tt.pausedAt).getTime()) : 0);
-      return { ...tt, status: 'completed' as const, completedAt: stamp, activeSince: null, pausedAt: null, accumulatedActiveMs: finalActive, accumulatedPausedMs: finalPaused, endReason, productivityScore };
+      const closed = tt.status === 'running' ? closeOpenSegment(tt, new Date(stamp).getTime()) : tt;
+      const finalActive = closed.accumulatedActiveMs + (tt.status === 'running' && tt.activeSince ? Math.max(0, new Date(stamp).getTime() - new Date(tt.activeSince).getTime()) : 0);
+      const finalPaused = closed.accumulatedPausedMs + (tt.status === 'paused' && tt.pausedAt ? Math.max(0, new Date(stamp).getTime() - new Date(tt.pausedAt).getTime()) : 0);
+      return { ...closed, status: 'completed' as const, completedAt: stamp, activeSince: null, pausedAt: null, accumulatedActiveMs: finalActive, accumulatedPausedMs: finalPaused, endReason, productivityScore };
     }));
     // Log activity
     const active = taskTimers.find(tt => tt.status === 'running' || tt.status === 'paused');

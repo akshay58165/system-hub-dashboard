@@ -468,6 +468,18 @@ export interface MonthForecast {
 }
 export type TaskTimerStage = 'hook' | 'script' | 'shoot' | 'edit' | 'schedule' | 'post';
 
+// One "sitting" on a stage — a single continuous stretch of active work,
+// from a start/resume to the next pause/stop. Populated by every timer
+// created after the sittings-tracking rollout; older records may omit it,
+// in which case the whole timer is treated as one big sitting.
+export interface SittingSegment {
+  id: string;
+  startedAt: string;
+  // null while this sitting is still the currently-running one.
+  endedAt: string | null;
+  activeMs: number;
+}
+
 // Off-stage work logged when a stage timer is paused — e.g. "Exploring hook
 // types for the website" while the Script timer is paused. It runs its own
 // clock during the pause and is finalized when the stage resumes (or stops).
@@ -506,4 +518,7 @@ export interface TaskTimerRecord {
   dateKey: string;             // YYYY-MM-DD for archival scoping
   /** Off-stage work logged while this timer was paused (see SideWorkEntry). */
   sideWork?: SideWorkEntry[];
+  /** One entry per sitting (start→pause). See SittingSegment. Older records
+   *  may not have this — treat them as a single sitting sized to the total. */
+  segments?: SittingSegment[];
 }
