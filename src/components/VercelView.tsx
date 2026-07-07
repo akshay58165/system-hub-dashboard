@@ -1483,8 +1483,8 @@ export default function VercelView({
                                 disabled={isDisabled}
                                 labelOverride={labelOverride}
                                 onQuickPress={() => {
-                                  taskTimer?.startTimer(topic.id, stage);
                                   if (stage === 'schedule') {
+                                    taskTimer?.startTimer(topic.id, stage);
                                     const defaultTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
                                     setSchedDate(topic.dueDate ? topic.dueDate.split('T')[0] : new Date().toISOString().split('T')[0]);
                                     setSchedTime(topic.scheduledTime || defaultTime);
@@ -1493,7 +1493,6 @@ export default function VercelView({
                                   } else {
                                     if (state !== 'in-progress') {
                                       handleTransitionToStage(topic, stage, 'in-progress');
-                                      taskTimer?.startTimer(topic.id, stage);
                                     } else {
                                       if (liveStageTimer?.status === 'running') {
                                         taskTimer?.pauseActiveTaskTimer('manual');

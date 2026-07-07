@@ -1917,47 +1917,8 @@ export default function App() {
     if (!topic) return;
     const stamp = new Date().toISOString();
     
-    // Auto-create/start session and ensure goal exists
-    const activeSessionId = (workdaySession && workdaySession.status === 'running') ? workdaySession.startedAt : stamp;
-    
-    setWorkdaySession(prev => {
-      let next = prev;
-      if (!next || next.status !== 'running') {
-        next = next ? { ...next, status: 'running', activeSince: stamp } : {
-          dateKey: todayKey(),
-          targetMinutes: 8 * 60,
-          startedAt: stamp,
-          activeSince: stamp,
-          pausedAt: null,
-          accumulatedActiveMs: 0,
-          productiveActiveMs: 0,
-          productivityRatings: [],
-          accumulatedPausedMs: 0,
-          status: 'running',
-          updatedAt: stamp,
-          goals: []
-        };
-      }
-      
-      const targetMap: Record<TaskTimerStage, 'hooked' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted'> = {
-        hook: 'hooked', script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted'
-      };
-      const targetStatus = targetMap[stage];
-      
-      const goalExists = next.goals.some(g => g.topicId === topicId && g.targetStatus === targetStatus);
-      if (!goalExists) {
-        next = {
-          ...next,
-          goals: [...next.goals, {
-            id: `goal-${Date.now()}-${topicId}`,
-            topicId,
-            targetStatus,
-            completed: false
-          }]
-        };
-      }
-      return next;
-    });
+    // Only start a task timer if a workday session is already running
+    if (!workdaySession || workdaySession.status !== 'running') return;
 
     setTopics(prev => prev.map(item => {
       if (item.id !== topicId) return item;
@@ -2029,7 +1990,7 @@ export default function App() {
         status: 'running',
         startedAt: stamp, activeSince: stamp, pausedAt: null,
         accumulatedActiveMs: 0, accumulatedPausedMs: 0, breaksCount: 0,
-        workdaySessionId: activeSessionId,
+        workdaySessionId: (workdaySession && workdaySession.status === 'running') ? workdaySession.startedAt : stamp,
         dateKey: todayKey(),
       };
       return [...settled, newTimer];
@@ -2829,11 +2790,6 @@ export default function App() {
               <TopicScoreView
                 topics={visibleTopics}
                 setTopics={setTopics}
-                taskTimers={visibleTaskTimers}
-                onStartTaskTimer={startTaskTimer}
-                onStopTaskTimer={stopActiveTaskTimer}
-                onPauseTaskTimer={pauseActiveTaskTimer}
-                onResumeTaskTimer={resumeActiveTaskTimer}
               />
             )}
 
