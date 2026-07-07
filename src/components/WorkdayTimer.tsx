@@ -213,13 +213,9 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
   };
 
   const endSession = () => {
-    // Stopping mid-work: the final active segment (last resume → now) still
-    // needs a productivity score, just like every pause segment does.
-    if (session?.status === 'running' && session.activeSince) {
-      setProductivityPromptMode('stop');
-      setShowProductivityPrompt(true);
-      return;
-    }
+    // The end-session modal now carries its own productivity slider that
+    // scores the final active segment, so we go straight there — no extra
+    // productivity popup on top of it.
     setPendingFinalScore(undefined);
     setShowEndConfirmation(true);
   };
@@ -571,11 +567,11 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
           completedGoals={(session?.goals || []).filter(goal => goalComplete(goal.topicId, goal.targetStatus)).length}
           totalGoals={(session?.goals || []).length}
           onCancel={() => { setShowEndConfirmation(false); setPendingFinalScore(undefined); }}
-          onConfirm={() => {
+          onConfirm={(finalScore) => {
             const goals = session?.goals || [];
             const incomplete = goals.filter(g => !goalComplete(g.topicId, g.targetStatus)).map(g => ({ topicId: g.topicId, targetStatus: g.targetStatus }));
             setShowEndConfirmation(false);
-            onEndSession(pendingFinalScore);
+            onEndSession(finalScore);
             setPendingFinalScore(undefined);
             setShowPanel(false);
             if (incomplete.length) { setPendingGoalsFromLastSession(incomplete); setShowPendingReview(true); }

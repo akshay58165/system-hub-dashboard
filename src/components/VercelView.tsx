@@ -1515,10 +1515,15 @@ export default function VercelView({
                                         taskTimer?.addStageGoal(topic.id, stage);
                                       }
                                     } else {
+                                      // Toggle the running/paused stage timer via the context's
+                                      // actual method names — the old pauseActiveTaskTimer /
+                                      // resumeActiveTaskTimer names don't exist on the context, so
+                                      // the click was silently no-op and breaksCount never grew
+                                      // (which is why the sittings ×N badge got stuck).
                                       if (liveStageTimer?.status === 'running') {
-                                        taskTimer?.pauseActiveTaskTimer('manual');
+                                        taskTimer?.pauseTimer();
                                       } else if (liveStageTimer?.status === 'paused') {
-                                        taskTimer?.resumeActiveTaskTimer('manual');
+                                        taskTimer?.resumeTimer();
                                       }
                                     }
                                   }
