@@ -250,6 +250,9 @@ export default function VercelView({
     () => setIsTopicSortOpen(false)
   );
   const [breakPrompt, setBreakPrompt] = useState<{ topicName: string; stage: string; durationMs: number } | null>(null);
+  // Set when a stage is clicked while the workday timer is paused: offer to
+  // resume so the task is counted in the session/goal, or just change the stage.
+  const [resumePrompt, setResumePrompt] = useState<{ topic: Topic; stage: WorkflowStage } | null>(null);
   const [schedulingTopicId, setSchedulingTopicId] = useState<string | null>(null);
   const [schedDate, setSchedDate] = useState('');
   const [schedTime, setSchedTime] = useState('');
@@ -1492,7 +1495,19 @@ export default function VercelView({
                                     handleTransitionToStage(topic, 'schedule', 'in-progress');
                                   } else {
                                     if (state !== 'in-progress') {
+                                      // Timer paused → ask whether to resume so this
+                                      // task can be counted in the session and goal.
+                                      // (The stage still changes on decline.)
+                                      if (workdaySession?.status === 'paused') {
+                                        setResumePrompt({ topic, stage });
+                                        return;
+                                      }
                                       handleTransitionToStage(topic, stage, 'in-progress');
+                                      taskTimer?.startTimer(topic.id, stage);
+                                      // Timer running → clicking a stage makes it a goal.
+                                      if (workdaySession?.status === 'running') {
+                                        taskTimer?.addStageGoal(topic.id, stage);
+                                      }
                                     } else {
                                       if (liveStageTimer?.status === 'running') {
                                         taskTimer?.pauseActiveTaskTimer('manual');
@@ -2123,6 +2138,58 @@ export default function VercelView({
                   className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-500"
                 >
                   <Play className="h-4 w-4" />Continue
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        </AnimatePresence>,
+        document.body
+      )}
+
+      {/* Stage clicked while the workday timer is paused */}
+      {resumePrompt && createPortal(
+        <AnimatePresence>
+          <motion.div
+            className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-sm rounded-2xl border border-amber-900/60 bg-neutral-950 p-6 shadow-[0_0_60px_rgba(245,158,11,.12)] text-center"
+            >
+              <Pause className="mx-auto h-9 w-9 text-amber-400" />
+              <h3 className="mt-3 text-base font-bold text-white">Timer is paused</h3>
+              <p className="mt-1 text-xs text-neutral-400">
+                Resume the timer so <span className="text-amber-200 font-semibold">{resumePrompt.topic.name}</span> — {WORKFLOW_LABELS[resumePrompt.stage]['in-progress']} is counted in this session and added as a goal?
+              </p>
+              <div className="mt-5 grid grid-cols-1 gap-2">
+                <button
+                  onClick={() => {
+                    const { topic, stage } = resumePrompt;
+                    taskTimer?.resumeWorkdayAndStart(topic.id, stage);
+                    handleTransitionToStage(topic, stage, 'in-progress');
+                    taskTimer?.addStageGoal(topic.id, stage);
+                    setResumePrompt(null);
+                  }}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-500"
+                >
+                  <Play className="h-4 w-4" />Resume &amp; count it
+                </button>
+                <button
+                  onClick={() => {
+                    const { topic, stage } = resumePrompt;
+                    handleTransitionToStage(topic, stage, 'in-progress');
+                    setResumePrompt(null);
+                  }}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-neutral-800 py-3 text-sm font-bold text-neutral-300 hover:bg-neutral-900/50"
+                >
+                  Just change the stage
+                </button>
+                <button
+                  onClick={() => setResumePrompt(null)}
+                  className="mt-1 text-center text-[10px] text-neutral-500 hover:text-white"
+                >
+                  Cancel
                 </button>
               </div>
             </motion.div>

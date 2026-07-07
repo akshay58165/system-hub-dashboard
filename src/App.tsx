@@ -279,7 +279,10 @@ function buildArchivedSessionRecord(
   current: WorkdaySession,
   topics: Topic[],
   taskTimers: TaskTimerRecord[],
-  endedAtIso: string
+  endedAtIso: string,
+  // Productivity score (1–10) the user gave for the final active segment when
+  // stopping the timer. When absent, an active-at-stop segment counts as 100%.
+  finalProductivityScore?: number
 ): SessionRecord {
   const stageOrder: Topic['status'][] = ['topic', 'hooked', 'scripted', 'shot', 'edited', 'scheduled', 'posted'];
   const achievedGoals: SessionGoalOutcome[] = [];
@@ -307,8 +310,13 @@ function buildArchivedSessionRecord(
   }));
   const finalizedTimers = finalizeTaskTimersForSession(taskTimers, current, endedAtIso);
 
+  // The final active segment (last resume → stop) is scored just like a pause
+  // segment: it contributes to productive time at score/10, not a flat 100%.
+  const finalSegmentMultiplier = typeof finalProductivityScore === 'number'
+    ? finalProductivityScore / 10
+    : 1;
   const finalActiveMs = current.accumulatedActiveMs + activeCarry;
-  const finalProductiveMs = (current.productiveActiveMs ?? current.accumulatedActiveMs) + activeCarry;
+  const finalProductiveMs = (current.productiveActiveMs ?? current.accumulatedActiveMs) + activeCarry * finalSegmentMultiplier;
   const finalPausedMs = current.accumulatedPausedMs + pausedCarry;
 
   return {
@@ -781,12 +789,12 @@ export default function App() {
   // SessionRecord — every session becomes a real history entry, regardless
   // of how it ends (ran out of time, manually ended, etc.), instead of
   // silently discarding the day's record the way "reset" used to.
-  const endWorkdaySession = () => {
+  const endWorkdaySession = (finalProductivityScore?: number) => {
     const current = workdaySession;
     if (!current) return;
     const now = new Date();
     const endedAtIso = now.toISOString();
-    const record = buildArchivedSessionRecord(current, topics, taskTimers, endedAtIso);
+    const record = buildArchivedSessionRecord(current, topics, taskTimers, endedAtIso, finalProductivityScore);
     const nextSessions = [record, ...sessions];
     const nextTaskTimers = finalizeTaskTimersForSession(taskTimers, current, endedAtIso);
 
@@ -986,8 +994,9 @@ export default function App() {
         const t = topicMap.get(v.id);
 
         // Map Video pipelineStage to Topic status
-        let status: 'topic' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted' = 'topic';
-        if (v.pipelineStage === 'Script') status = 'scripted';
+        let status: 'topic' | 'hooked' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted' = 'topic';
+        if (v.pipelineStage === 'Hook') status = 'hooked';
+        else if (v.pipelineStage === 'Script') status = 'scripted';
         else if (v.pipelineStage === 'Shoot') status = 'shot';
         else if (v.pipelineStage === 'Edit' || v.pipelineStage === 'Thumbnail') status = 'edited';
         else if (v.pipelineStage === 'Schedule') status = 'scheduled';
@@ -1912,13 +1921,17 @@ export default function App() {
 
   // Start a new task timer. A previous task session is deferred so only one
   // inner timer can ever be eligible to resume.
-  const startTaskTimer = (topicId: string, stage: TaskTimerStage) => {
+  // `force` is used by the "resume the paused workday?" flow: the workday is
+  // being resumed in the same user action, so the not-yet-committed 'paused'
+  // status must not block the task from starting.
+  const startTaskTimer = (topicId: string, stage: TaskTimerStage, opts?: { force?: boolean }) => {
     const topic = topics.find(t => t.id === topicId);
     if (!topic) return;
     const stamp = new Date().toISOString();
-    
-    // Only start a task timer if a workday session is already running
-    if (!workdaySession || workdaySession.status !== 'running') return;
+
+    // Only start a task timer if a workday session is already running (or is
+    // being resumed right now via `force`).
+    if (!opts?.force && (!workdaySession || workdaySession.status !== 'running')) return;
 
     setTopics(prev => prev.map(item => {
       if (item.id !== topicId) return item;
@@ -1990,7 +2003,7 @@ export default function App() {
         status: 'running',
         startedAt: stamp, activeSince: stamp, pausedAt: null,
         accumulatedActiveMs: 0, accumulatedPausedMs: 0, breaksCount: 0,
-        workdaySessionId: (workdaySession && workdaySession.status === 'running') ? workdaySession.startedAt : stamp,
+        workdaySessionId: workdaySession ? workdaySession.startedAt : stamp,
         dateKey: todayKey(),
       };
       return [...settled, newTimer];
@@ -2002,6 +2015,37 @@ export default function App() {
       action: `Started ${stage} session timer`,
       author: 'You', timestamp: stamp, topicId, targetTab: 'pipeline', targetSubView: 'topics'
     }, ...prev]);
+  };
+
+  // Ensure the running workday has a goal for this topic aimed at the clicked
+  // stage. Clicking a stage while the timer is running IS the goal — each click
+  // sets (or advances) the topic's single goal to that stage, so it flows into
+  // the session's achieved/pending goal tally and shows the goal arrow.
+  const addStageGoal = (topicId: string, stage: TaskTimerStage) => {
+    const targetMap: Record<TaskTimerStage, NonNullable<WorkdaySession['goals']>[number]['targetStatus']> = {
+      hook: 'hooked', script: 'scripted', shoot: 'shot', edit: 'edited', schedule: 'scheduled', post: 'posted'
+    };
+    const targetStatus = targetMap[stage];
+    const stamp = new Date().toISOString();
+    setWorkdaySession(current => {
+      if (!current) return current;
+      const goals = current.goals || [];
+      const existing = goals.find(goal => goal.topicId === topicId);
+      // Already aimed at this exact stage — nothing to do.
+      if (existing && existing.targetStatus === targetStatus) return current;
+      const nextGoals = existing
+        ? goals.map(goal => goal.topicId === topicId ? { ...goal, targetStatus, addedAt: stamp } : goal)
+        : [...goals, { id: `goal-${Date.now()}-${topicId}`, topicId, targetStatus, addedAt: stamp }];
+      return { ...current, goals: nextGoals, updatedAt: stamp };
+    });
+  };
+
+  // The Pipeline "resume the paused workday?" confirmation: resume the workday
+  // clock (and any day-paused task timers) and immediately begin counting the
+  // clicked stage as a task in this session.
+  const resumeWorkdayAndStartTask = (topicId: string, stage: TaskTimerStage) => {
+    handleMainTimerResume();
+    startTaskTimer(topicId, stage, { force: true });
   };
 
   const pauseActiveTaskTimer = (pauseSourceOrProductivity?: 'manual' | 'day' | number, maybeProductivityScore?: number) => {
@@ -2114,8 +2158,8 @@ export default function App() {
   };
 
   // When main session ends → complete any running/paused task timers
-  const endWorkdaySessionWithTaskTimers = () => {
-    endWorkdaySession();
+  const endWorkdaySessionWithTaskTimers = (finalProductivityScore?: number) => {
+    endWorkdaySession(finalProductivityScore);
   };
 
   // Derived: the single active task timer (running or paused, most recent)
@@ -2694,7 +2738,9 @@ export default function App() {
                 pauseTimer: pauseActiveTaskTimer,
                 resumeTimer: resumeActiveTaskTimer,
                 stopTimer: stopActiveTaskTimer,
-                completeStageTimer: completeTaskTimerStage
+                completeStageTimer: completeTaskTimerStage,
+                addStageGoal: addStageGoal,
+                resumeWorkdayAndStart: resumeWorkdayAndStartTask
               }}>
                 <PipelineView
                   videos={visibleVideos}
