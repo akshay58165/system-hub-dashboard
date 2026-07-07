@@ -1430,6 +1430,12 @@ export default function VercelView({
                           const stageTimeLabel = stageActiveMs > 0
                             ? `${String(Math.floor(stageActiveMs / 3600000)).padStart(2, '0')}:${String(Math.floor(stageActiveMs / 60000) % 60).padStart(2, '0')}:${String(Math.floor(stageActiveMs / 1000) % 60).padStart(2, '0')}`
                             : '';
+                          // "Sittings" = one continuous stretch of active work.
+                          // Each timer starts as 1 sitting; every pause+resume
+                          // adds another. Summed across every timer this topic
+                          // has for the stage, so it carries across sessions
+                          // (deferred timers stay counted in the total).
+                          const stageSittings = stageTimers.reduce((total, timer) => total + timer.breaksCount + 1, 0);
                           let labelOverride = undefined;
                           let isDisabled = false;
 
@@ -1577,6 +1583,14 @@ export default function VercelView({
                                   <span className={`font-mono text-[7px] ${liveStageTimer?.status === 'running' ? 'text-emerald-300' : liveStageTimer?.status === 'paused' ? 'text-amber-300' : 'text-neutral-600'}`}>
                                     {liveStageTimer?.status === 'running' ? 'LIVE ' : liveStageTimer?.status === 'paused' ? 'PAUSED ' : ''}{stageTimeLabel}
                                   </span>
+                                  {stageSittings > 1 && (
+                                    <span
+                                      title={`${stageSittings} sittings on this stage — each pause split the work.`}
+                                      className="rounded border border-cyan-900/50 bg-cyan-950/30 px-1 py-[1px] font-mono text-[7px] font-bold text-cyan-300"
+                                    >
+                                      ×{stageSittings}
+                                    </span>
+                                  )}
                                   {liveStageTimer?.status === 'running' && (
                                     <button
                                       type="button"
