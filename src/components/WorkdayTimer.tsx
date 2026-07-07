@@ -11,6 +11,11 @@ interface WorkdayTimerProps {
   setSession: React.Dispatch<React.SetStateAction<WorkdaySession | null>>;
   topics: Topic[];
   onEndSession: (finalProductivityScore?: number) => void;
+  // Discard the day without archiving — drops task timers, clears the
+  // workday, and pushes the null state to Supabase. Without this the
+  // discard is a local-only setSession(null) and the next sync restores
+  // the session (which is why the timer used to "keep running").
+  onDiscardSession: () => void;
   onOpenTopic?: (topicId: string) => void;
   onExternalPause?: () => void;
   onExternalResume?: () => void;
@@ -68,7 +73,7 @@ function GoalTrail({
   );
 }
 
-export default function WorkdayTimer({ session, setSession, topics, onEndSession, onOpenTopic, onExternalPause, onExternalResume, onRemoveGoal }: WorkdayTimerProps) {
+export default function WorkdayTimer({ session, setSession, topics, onEndSession, onDiscardSession, onOpenTopic, onExternalPause, onExternalResume, onRemoveGoal }: WorkdayTimerProps) {
   const [now, setNow] = useState(Date.now());
   const [showSetup, setShowSetup] = useState(false);
   const [showPanel, setShowPanel] = useState(false);
@@ -579,8 +584,8 @@ export default function WorkdayTimer({ session, setSession, topics, onEndSession
           onDiscard={() => {
             setShowEndConfirmation(false);
             setPendingFinalScore(undefined);
-            setSession(null);
             setShowPanel(false);
+            onDiscardSession();
           }}
         />,
         document.body

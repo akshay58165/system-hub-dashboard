@@ -9,6 +9,9 @@ interface TodayGoalsViewProps {
   session: WorkdaySession | null;
   setSession: React.Dispatch<React.SetStateAction<WorkdaySession | null>>;
   onEndSession: (finalProductivityScore?: number) => void;
+  // Full discard: clears workday, drops task timers for the day, and
+  // persists the null state to Supabase so remote sync doesn't restore.
+  onDiscardSession: () => void;
   taskTimers: TaskTimerRecord[];
   onStartTaskTimer: (topicId: string, stage: TaskTimerStage) => void;
   onPauseTaskTimer: (productivityScore?: number, sideWork?: { description: string; linkedTo: 'topic' | 'session' }) => void;
@@ -78,7 +81,7 @@ function GoalTrail({
   );
 }
 
-export default function TodayGoalsView({ topics, session, setSession, onEndSession, taskTimers, onStartTaskTimer, onPauseTaskTimer, onResumeTaskTimer, onStopTaskTimer, onPauseMainTimer, onResumeMainTimer, sessions, onRemoveGoal }: TodayGoalsViewProps) {
+export default function TodayGoalsView({ topics, session, setSession, onEndSession, onDiscardSession, taskTimers, onStartTaskTimer, onPauseTaskTimer, onResumeTaskTimer, onStopTaskTimer, onPauseMainTimer, onResumeMainTimer, sessions, onRemoveGoal }: TodayGoalsViewProps) {
   const [now, setNow] = useState(Date.now());
   const [topicId, setTopicId] = useState('');
   const [target, setTarget] = useState<typeof goalStages[number]>('hooked');
@@ -257,7 +260,7 @@ export default function TodayGoalsView({ topics, session, setSession, onEndSessi
   if (!session) return <div className="space-y-5 pb-10"><div><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-purple-400"><Clock3 className="h-4 w-4" />Work intelligence</div><h1 className="mt-2 text-2xl font-bold text-white">Sessions</h1><p className="mt-1 text-sm text-neutral-400">Live work tracking and complete session history.</p></div><div className="rounded-2xl border border-dashed border-neutral-800 bg-neutral-950/50 p-7 text-center"><Target className="mx-auto h-7 w-7 text-purple-400" /><h2 className="mt-3 text-sm font-bold text-white">No active session</h2><p className="mt-1 text-[10px] text-neutral-400">Start the day from the header to begin tracking goals, stages, active time, pauses, and breaks.</p></div><SessionsView sessions={sessions} embedded /></div>;
 
   return <div className="space-y-5 pb-10">
-    <EndSessionModal isOpen={showEndConfirmation} activeMs={metrics.active} pausedMs={metrics.paused} completedGoals={completedCount} totalGoals={liveGoals.length} onCancel={() => setShowEndConfirmation(false)} onConfirm={score => { setShowEndConfirmation(false); onEndSession(score); }} onDiscard={() => { setShowEndConfirmation(false); setSession(null); }} />
+    <EndSessionModal isOpen={showEndConfirmation} activeMs={metrics.active} pausedMs={metrics.paused} completedGoals={completedCount} totalGoals={liveGoals.length} onCancel={() => setShowEndConfirmation(false)} onConfirm={score => { setShowEndConfirmation(false); onEndSession(score); }} onDiscard={() => { setShowEndConfirmation(false); onDiscardSession(); }} />
     <section className="rounded-2xl border border-purple-900/35 bg-[linear-gradient(120deg,rgba(20,10,32,.95),rgba(4,16,20,.95))] p-5 md:p-6">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div>

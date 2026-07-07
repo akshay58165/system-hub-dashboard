@@ -839,6 +839,34 @@ export default function App() {
   // SessionRecord — every session becomes a real history entry, regardless
   // of how it ends (ran out of time, manually ended, etc.), instead of
   // silently discarding the day's record the way "reset" used to.
+  // "Discard without saving" — the day is thrown away, so we don't archive
+  // anything. But we still need to (1) drop this workday's task timers so
+  // they stop ticking, (2) push the null workday to Supabase, and (3) stamp
+  // lastWorkdayEndAtRef so the next remote-state merge doesn't happily
+  // rehydrate the session we just told the user is gone.
+  const discardWorkdaySession = () => {
+    const current = workdaySession;
+    if (!current) return;
+    const now = new Date();
+    // Drop every timer that belonged to this discarded workday — timers
+    // from other sessions must stay untouched.
+    const nextTaskTimers = taskTimers.filter(timer =>
+      timer.workdaySessionId !== current.startedAt
+      && !(!timer.workdaySessionId && timer.dateKey === current.dateKey)
+    );
+    lastWorkdayEndAtRef.current = now.getTime();
+    suppressNextSaveRef.current = true;
+    setTaskTimers(nextTaskTimers);
+    setWorkdaySession(null);
+    saveQueueRef.current = saveQueueRef.current
+      .catch(() => undefined)
+      .then(() => saveStateToSupabase(topics, activities, cycleGoals, null, sessions, scorecard, videos, experiments, insights, aiPresets, aiUsage, nextTaskTimers))
+      .catch(error => {
+        console.error('Failed to save discarded session:', error);
+        setSyncError(error instanceof Error ? error.message : 'Failed to save discarded session.');
+      });
+  };
+
   const endWorkdaySession = (finalProductivityScore?: number) => {
     const current = workdaySession;
     if (!current) return;
@@ -2697,7 +2725,7 @@ export default function App() {
               </button>
             </div>
 
-            <WorkdayTimer session={visibleWorkdaySession} setSession={setWorkdaySession} topics={visibleTopics} onEndSession={endWorkdaySessionWithTaskTimers} onOpenTopic={(topicId) => { setPipelineSubView('topics'); setActiveTab('pipeline'); const focusTarget = () => { const card = document.getElementById(`topic-control-${topicId}`); if (card) { highlightCommandDestination(card); return; } if (attempts < 12) { attempts++; window.setTimeout(focusTarget, 100); } }; let attempts = 0; window.setTimeout(focusTarget, 250); }} onExternalPause={handleMainTimerPause} onExternalResume={handleMainTimerResume} />
+            <WorkdayTimer session={visibleWorkdaySession} setSession={setWorkdaySession} topics={visibleTopics} onEndSession={endWorkdaySessionWithTaskTimers} onDiscardSession={discardWorkdaySession} onOpenTopic={(topicId) => { setPipelineSubView('topics'); setActiveTab('pipeline'); const focusTarget = () => { const card = document.getElementById(`topic-control-${topicId}`); if (card) { highlightCommandDestination(card); return; } if (attempts < 12) { attempts++; window.setTimeout(focusTarget, 100); } }; let attempts = 0; window.setTimeout(focusTarget, 250); }} onExternalPause={handleMainTimerPause} onExternalResume={handleMainTimerResume} />
 
             <motion.button
               whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(59, 130, 246, 0.6)' }}
@@ -2859,6 +2887,7 @@ export default function App() {
                 session={visibleWorkdaySession}
                 setSession={setWorkdaySession}
                 onEndSession={endWorkdaySessionWithTaskTimers}
+                onDiscardSession={discardWorkdaySession}
                 taskTimers={visibleTaskTimers}
                 onStartTaskTimer={startTaskTimer}
                 onPauseTaskTimer={pauseActiveTaskTimerWithDetails}
