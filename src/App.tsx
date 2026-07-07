@@ -9,14 +9,12 @@ import {
   Settings, 
   Bell, 
   Activity, 
-  Clock, 
-  TrendingUp, 
-  Cpu, 
+  Clock,
+  Cpu,
   Github,
   Wifi,
   ExternalLink,
   Laptop,
-  Trophy,
   CheckCircle2,
   Lock,
   Plus,
@@ -57,7 +55,6 @@ const CommandCenterView = lazy(() => import('./components/CommandCenterView'));
 const PipelineView = lazy(() => import('./components/PipelineView'));
 const VideoLabView = lazy(() => import('./components/VideoLabView'));
 const TodayGoalsView = lazy(() => import('./components/TodayGoalsView'));
-const ForecastingView = lazy(() => import('./components/ForecastingView'));
 const TopicScoreView = lazy(() => import('./components/TopicScoreView'));
 
 // Get or create session ID for the current tab session
@@ -445,7 +442,7 @@ export default function App() {
     localStorage.removeItem('unicorn_openai_api_key');
   }, []);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score' | 'pipeline' | 'videolab' | 'topicintel' | 'forecasting' | 'experiments' | 'sessions'>(() => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score' | 'pipeline' | 'videolab' | 'topicintel' | 'experiments' | 'sessions'>(() => {
     const savedTab = localStorage.getItem('unicorn_active_tab') as any;
     return savedTab === 'insights' ? 'overview' : savedTab || 'overview';
   });
@@ -2520,6 +2517,18 @@ export default function App() {
               </button>
 
               <button
+                onClick={() => setActiveTab('topics')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
+                  activeTab === 'topics'
+                    ? 'bg-neutral-900 border border-neutral-850 text-blue-400'
+                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
+                }`}
+              >
+                <GitBranch className="h-3.5 w-3.5" />
+                <span>Topics</span>
+              </button>
+
+              <button
                 onClick={() => {
                   setPipelineSubView('topics');
                   setActiveTab('pipeline');
@@ -2535,15 +2544,15 @@ export default function App() {
               </button>
 
               <button
-                onClick={() => setActiveTab('videolab')}
+                onClick={() => setActiveTab('actionhub')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
-                  activeTab === 'videolab'
-                    ? 'bg-neutral-900 border border-neutral-850 text-blue-400'
+                  activeTab === 'actionhub'
+                    ? 'bg-neutral-900 border border-neutral-850 text-emerald-400'
                     : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
                 }`}
               >
-                <Clapperboard className="h-3.5 w-3.5 text-blue-400" />
-                <span>Video Lab</span>
+                <Database className="h-3.5 w-3.5" />
+                <span>Score</span>
               </button>
 
               <button
@@ -2559,39 +2568,15 @@ export default function App() {
               </button>
 
               <button
-                onClick={() => setActiveTab('forecasting')}
+                onClick={() => setActiveTab('videolab')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
-                  activeTab === 'forecasting'
-                    ? 'bg-neutral-900 border border-neutral-850 text-emerald-400'
-                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
-                }`}
-              >
-                <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
-                <span>Forecasting</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('topics')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
-                  activeTab === 'topics'
+                  activeTab === 'videolab'
                     ? 'bg-neutral-900 border border-neutral-850 text-blue-400'
                     : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
                 }`}
               >
-                <GitBranch className="h-3.5 w-3.5" />
-                <span>Topics</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('actionhub')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
-                  activeTab === 'actionhub'
-                    ? 'bg-neutral-900 border border-neutral-850 text-emerald-400'
-                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
-                }`}
-              >
-                <Database className="h-3.5 w-3.5" />
-                <span>Score</span>
+                <Clapperboard className="h-3.5 w-3.5 text-blue-400" />
+                <span>Video Lab</span>
               </button>
 
               <button
@@ -2604,18 +2589,6 @@ export default function App() {
               >
                 <Terminal className="h-3.5 w-3.5" />
                 <span>Logs</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('score')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
-                  activeTab === 'score'
-                    ? 'bg-neutral-900 border border-neutral-850 text-rose-400'
-                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
-                }`}
-              >
-                <Trophy className="h-3.5 w-3.5" />
-                <span>Well-Being</span>
               </button>
             </div>
 
@@ -2790,13 +2763,6 @@ export default function App() {
                 onResumeMainTimer={handleMainTimerResume}
                 sessions={sessions}
                 onRemoveGoal={requestDeleteGoal}
-              />
-            )}
-
-            {activeTab === 'forecasting' && (
-              <ForecastingView
-                videos={visibleVideos}
-                cycleGoals={cycleGoals}
               />
             )}
 
