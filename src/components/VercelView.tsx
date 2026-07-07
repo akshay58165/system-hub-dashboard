@@ -1551,6 +1551,15 @@ export default function VercelView({
                                         taskTimer?.pauseTimer();
                                       } else if (liveStageTimer?.status === 'paused') {
                                         taskTimer?.resumeTimer();
+                                      } else {
+                                        // Stage is in-progress from a persisted workflow
+                                        // status (e.g. left over from a previous session)
+                                        // but no live timer exists — the click should still
+                                        // start a fresh timer so it can actually be tracked.
+                                        taskTimer?.startTimer(topic.id, stage);
+                                        if (workdaySession?.status === 'running') {
+                                          taskTimer?.addStageGoal(topic.id, stage);
+                                        }
                                       }
                                     }
                                   }
