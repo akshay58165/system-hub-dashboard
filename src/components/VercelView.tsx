@@ -1406,17 +1406,44 @@ export default function VercelView({
                         </div>
                       )}
 
+                      {/* Topic-level total time — sums every task timer this
+                          topic has across every stage, plus a live tick for the
+                          currently-running stage. Shows the running total for
+                          "how long has this topic taken so far", independent of
+                          whether a workday session is active. */}
+                      {(() => {
+                        const allTopicTimers = taskTimer?.timers.filter(t => t.topicId === topic.id) || [];
+                        if (allTopicTimers.length === 0) return null;
+                        const topicTotalMs = allTopicTimers.reduce((total, t) => total + t.accumulatedActiveMs + (
+                          t.status === 'running' && t.activeSince ? Math.max(0, now.getTime() - new Date(t.activeSince).getTime()) : 0
+                        ), 0);
+                        const topicTotalSittings = allTopicTimers.reduce((total, t) => total + t.breaksCount + 1, 0);
+                        const stagesTouched = new Set(allTopicTimers.map(t => t.stage)).size;
+                        const anyRunning = allTopicTimers.some(t => t.status === 'running');
+                        const anyPaused = allTopicTimers.some(t => t.status === 'paused');
+                        const format = (ms: number) => `${String(Math.floor(ms / 3600000)).padStart(2, '0')}:${String(Math.floor(ms / 60000) % 60).padStart(2, '0')}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
+                        return (
+                          <div className="flex flex-wrap items-center gap-2 pt-1.5 border-t border-neutral-900 font-mono text-[9px]">
+                            <span className="text-[8px] uppercase tracking-wider text-neutral-500">Topic total</span>
+                            <span className={`font-bold ${anyRunning ? 'text-emerald-300' : anyPaused ? 'text-amber-300' : 'text-neutral-300'}`}>{format(topicTotalMs)}</span>
+                            <span className="text-neutral-600">·</span>
+                            <span className="text-cyan-300 font-bold">{topicTotalSittings}</span>
+                            <span className="text-neutral-500">sitting{topicTotalSittings === 1 ? '' : 's'}</span>
+                            <span className="text-neutral-600">·</span>
+                            <span className="text-neutral-500">{stagesTouched} of 6 stages</span>
+                          </div>
+                        );
+                      })()}
+
                       {/* Interactive Stage Recording Buttons */}
                       <div className="flex flex-wrap gap-1.5 pt-1.5 border-t border-neutral-900">
                         {(['hook', 'script', 'shoot', 'edit', 'schedule', 'post'] as WorkflowStage[]).map(stage => {
                           const stageTimers = taskTimer?.timers.filter(timer => timer.topicId === topic.id && timer.stage === stage) || [];
-                          // Only surface the LIVE/PAUSED chip while a workday session is
-                          // active. Once the day is stopped/reset the chip should disappear;
-                          // the accumulated total keeps showing as historic time.
-                          const hasActiveWorkday = Boolean(workdaySession && workdaySession.status !== 'completed');
-                          const liveStageTimer = hasActiveWorkday
-                            ? stageTimers.find(timer => timer.status === 'running' || timer.status === 'paused')
-                            : undefined;
+                          // Stage tracking works regardless of workday state — a
+                          // running/paused timer surfaces its LIVE/PAUSED chip and
+                          // pause button so a stage can be tracked with or without
+                          // a workday session, with or without a goal set.
+                          const liveStageTimer = stageTimers.find(timer => timer.status === 'running' || timer.status === 'paused');
                           
                           // If there's an active timer running/paused for this stage, visually force it to in-progress
                           const baseState = getWorkflowState(topic, stage);
