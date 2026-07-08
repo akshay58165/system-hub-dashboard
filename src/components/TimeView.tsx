@@ -45,7 +45,7 @@ interface TimeViewProps {
   onDeleteTimer: (timerId: string) => void;
 }
 
-type SortMode = TopicSortMode | 'newest' | 'time-desc' | 'time-asc' | 'running-first';
+type SortMode = TopicSortMode | 'newest' | 'time-desc' | 'time-asc' | 'running-first' | 'last-worked-on' | 'posted-first';
 
 const SORT_LABELS: Partial<Record<SortMode, string>> = {
   'newest': 'Newest first',
@@ -58,6 +58,8 @@ const SORT_LABELS: Partial<Record<SortMode, string>> = {
   'workload': 'Highest workload',
   'time-desc': 'Most time spent',
   'time-asc': 'Least time spent',
+  'last-worked-on': 'Last worked on',
+  'posted-first': 'Posted first',
 };
 
 const STATUS_LEVEL: Record<Topic['status'], number> = {
@@ -87,6 +89,8 @@ export default function TimeView({
 }: TimeViewProps) {
   const [sortMode, setSortMode] = useState<SortMode>('newest');
   const [sortOpen, setSortOpen] = useState(false);
+  const [filterMode, setFilterMode] = useState<'all' | 'active' | 'paused' | 'in-progress' | 'scheduled' | 'posted' | 'idea' | 'has-time' | 'no-time'>('all');
+  const [filterOpen, setFilterOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -109,8 +113,24 @@ export default function TimeView({
     });
   }, [topics, taskTimers, now]);
 
+  const filtered = useMemo(() => {
+    return perTopic.filter(row => {
+      switch (filterMode) {
+        case 'all': return true;
+        case 'active': return row.anyRunning;
+        case 'paused': return row.anyPaused && !row.anyRunning;
+        case 'in-progress': return row.topic.status !== 'topic' && row.topic.status !== 'posted';
+        case 'scheduled': return row.topic.status === 'scheduled';
+        case 'posted': return row.topic.status === 'posted';
+        case 'idea': return row.topic.status === 'topic';
+        case 'has-time': return row.totalMs > 0;
+        case 'no-time': return row.totalMs === 0;
+      }
+    });
+  }, [perTopic, filterMode]);
+
   const sorted = useMemo(() => {
-    const rows = [...perTopic];
+    const rows = [...filtered];
     switch (sortMode) {
       case 'newest':
         rows.sort((a, b) => new Date(b.topic.createdDate).getTime() - new Date(a.topic.createdDate).getTime());
@@ -149,11 +169,28 @@ export default function TimeView({
       case 'workload':
         rows.sort((a, b) => (6 - STATUS_LEVEL[a.topic.status]) - (6 - STATUS_LEVEL[b.topic.status]));
         break;
+      case 'posted-first':
+        rows.sort((a, b) => (b.topic.status === 'posted' ? 1 : 0) - (a.topic.status === 'posted' ? 1 : 0));
+        break;
       default:
         rows.sort((a, b) => new Date(b.topic.createdDate).getTime() - new Date(a.topic.createdDate).getTime());
     }
     return rows;
-  }, [perTopic, sortMode]);
+  }, [filtered, sortMode]);
+
+  const lastWorkedOnMs = (row: typeof perTopic[number]) => {
+    return row.timers.reduce((max, t) => {
+      const stamps = [t.completedAt, t.pausedAt, t.activeSince, t.startedAt].filter(Boolean) as string[];
+      return stamps.reduce((m, s) => Math.max(m, new Date(s).getTime()), max);
+    }, 0);
+  };
+  // Extra sort case handled via post-process for "last-worked-on"
+  const finalSorted = useMemo(() => {
+    if (sortMode === 'last-worked-on' as SortMode) {
+      return [...sorted].sort((a, b) => lastWorkedOnMs(b) - lastWorkedOnMs(a));
+    }
+    return sorted;
+  }, [sorted, sortMode]);
 
   // Aggregate insights — total time per stage across all topics
   const stageAggregate = useMemo(() => {
@@ -209,27 +246,51 @@ export default function TimeView({
           </h1>
           <p className="text-[10px] text-neutral-500 mt-1">Per-stage stopwatches, sittings, and insights across every topic.</p>
         </div>
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setSortOpen(o => !o)}
-            className="flex items-center gap-1 px-2.5 py-1 rounded border border-neutral-800 bg-neutral-950 text-[10px] text-neutral-300 hover:border-neutral-700"
-          >
-            <span>Sort: {SORT_LABELS[sortMode]}</span>
-            <ChevronDown className="h-3 w-3" />
-          </button>
-          {sortOpen && (
-            <div className="absolute right-0 mt-1 z-10 w-44 rounded border border-neutral-800 bg-neutral-950 shadow-xl py-1">
-              {(['newest', 'due-date', 'running-first', 'time-desc', 'time-asc', 'progress-most', 'progress-least', 'workload'] as SortMode[]).map(opt => (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => { setSortMode(opt); setSortOpen(false); }}
-                  className={`block w-full text-left px-2 py-1 text-[10px] hover:bg-neutral-900 ${sortMode === opt ? 'text-purple-300' : 'text-neutral-300'}`}
-                >{SORT_LABELS[opt]}</button>
-              ))}
-            </div>
-          )}
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => { setFilterOpen(o => !o); setSortOpen(false); }}
+              className="flex items-center gap-1 px-2.5 py-1 rounded border border-neutral-800 bg-neutral-950 text-[11px] text-neutral-200 hover:border-neutral-700"
+            >
+              <span>Filter: {({ all: 'All', active: 'Active (running)', paused: 'Paused', 'in-progress': 'In progress', scheduled: 'Scheduled', posted: 'Posted', idea: 'Idea only', 'has-time': 'Has time', 'no-time': 'No time yet' } as const)[filterMode]}</span>
+              <ChevronDown className="h-3 w-3" />
+            </button>
+            {filterOpen && (
+              <div className="absolute right-0 mt-1 z-10 w-44 rounded border border-neutral-800 bg-neutral-950 shadow-xl py-1">
+                {(['all', 'active', 'paused', 'in-progress', 'idea', 'scheduled', 'posted', 'has-time', 'no-time'] as const).map(opt => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => { setFilterMode(opt); setFilterOpen(false); }}
+                    className={`block w-full text-left px-2 py-1 text-[11px] hover:bg-neutral-900 ${filterMode === opt ? 'text-purple-300' : 'text-neutral-200'}`}
+                  >{({ all: 'All', active: 'Active (running)', paused: 'Paused', 'in-progress': 'In progress', scheduled: 'Scheduled', posted: 'Posted', idea: 'Idea only', 'has-time': 'Has time', 'no-time': 'No time yet' } as const)[opt]}</button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => { setSortOpen(o => !o); setFilterOpen(false); }}
+              className="flex items-center gap-1 px-2.5 py-1 rounded border border-neutral-800 bg-neutral-950 text-[11px] text-neutral-200 hover:border-neutral-700"
+            >
+              <span>Sort: {SORT_LABELS[sortMode]}</span>
+              <ChevronDown className="h-3 w-3" />
+            </button>
+            {sortOpen && (
+              <div className="absolute right-0 mt-1 z-10 w-44 rounded border border-neutral-800 bg-neutral-950 shadow-xl py-1">
+                {(['newest', 'due-date', 'last-worked-on', 'running-first', 'time-desc', 'time-asc', 'progress-most', 'progress-least', 'workload', 'posted-first'] as SortMode[]).map(opt => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => { setSortMode(opt); setSortOpen(false); }}
+                    className={`block w-full text-left px-2 py-1 text-[11px] hover:bg-neutral-900 ${sortMode === opt ? 'text-purple-300' : 'text-neutral-200'}`}
+                  >{SORT_LABELS[opt]}</button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -280,12 +341,12 @@ export default function TimeView({
 
       {/* Topic list */}
       <div className="space-y-2">
-        {sorted.length === 0 && (
+        {finalSorted.length === 0 && (
           <div className="text-center py-6 text-neutral-500 text-[10px] border border-dashed border-neutral-800 rounded-lg">
             No topics yet. Add one from the Pipeline.
           </div>
         )}
-        {sorted.map(row => {
+        {finalSorted.map(row => {
           const t = row.topic;
           const isOpen = expanded === t.id;
           return (
@@ -307,24 +368,24 @@ export default function TimeView({
                     Created {new Date(t.createdDate).toLocaleDateString()} · Due {t.dueDate ? new Date(t.dueDate).toLocaleDateString() : 'None'}
                   </div>
                 </div>
-                <div className="flex items-center gap-3 shrink-0 font-mono">
+                <div className="flex items-center gap-3 shrink-0 font-sans">
                   {STAGES.map(s => (
                     <div key={s} className="text-center min-w-[3.5rem]">
-                      <div className="text-[8px] uppercase text-neutral-500">{STAGE_LABEL[s]}</div>
-                      <div className={`text-[10px] font-bold ${row.perStage[s].running ? 'text-emerald-300' : row.perStage[s].paused ? 'text-amber-300' : row.perStage[s].done ? 'text-neutral-400' : 'text-neutral-600'}`}>
+                      <div className="text-[10px] uppercase text-neutral-200 font-semibold tracking-wide">{STAGE_LABEL[s]}</div>
+                      <div className={`text-[12px] font-mono font-semibold ${row.perStage[s].running ? 'text-emerald-300' : row.perStage[s].paused ? 'text-amber-300' : row.perStage[s].done ? 'text-neutral-100' : 'text-neutral-500'}`}>
                         {row.perStage[s].ms > 0 ? formatShort(row.perStage[s].ms) : '—'}
                       </div>
-                      <div className="text-[8px] text-cyan-500">
+                      <div className="text-[10px] font-mono text-cyan-300 font-semibold">
                         {row.perStage[s].sittings > 0 ? `×${row.perStage[s].sittings}` : ''}
                       </div>
                     </div>
                   ))}
                   <div className="text-center min-w-[3.5rem] pl-2 border-l border-neutral-800">
-                    <div className="text-[8px] uppercase text-neutral-500">Total</div>
-                    <div className="text-[11px] font-bold text-white">{row.totalMs > 0 ? formatShort(row.totalMs) : '—'}</div>
-                    <div className="text-[8px] text-neutral-500">{row.totalSittings} sittings</div>
+                    <div className="text-[10px] uppercase text-neutral-200 font-semibold tracking-wide">Total</div>
+                    <div className="text-[13px] font-mono font-bold text-white">{row.totalMs > 0 ? formatShort(row.totalMs) : '—'}</div>
+                    <div className="text-[10px] text-neutral-400">{row.totalSittings} sittings</div>
                   </div>
-                  <ChevronDown className={`h-3 w-3 text-neutral-500 transition ${isOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`h-3.5 w-3.5 text-neutral-300 transition ${isOpen ? 'rotate-180' : ''}`} />
                 </div>
               </button>
 

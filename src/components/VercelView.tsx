@@ -1707,60 +1707,21 @@ export default function VercelView({
                                 disabled={isDisabled}
                                 labelOverride={labelOverride}
                                 onQuickPress={() => {
+                                  // Only schedule/post reach this block (hook/script/shoot/edit
+                                  // returned early with StageStopwatch). Neither runs a stopwatch:
+                                  // Schedule opens the params form; Post is auto-driven by the
+                                  // countdown to the scheduled time.
                                   if (stage === 'schedule') {
-                                    taskTimer?.startTimer(topic.id, stage);
                                     const defaultTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
                                     setSchedDate(topic.dueDate ? topic.dueDate.split('T')[0] : new Date().toISOString().split('T')[0]);
                                     setSchedTime(topic.scheduledTime || defaultTime);
                                     setSchedulingTopicId(topic.id);
                                     handleTransitionToStage(topic, 'schedule', 'in-progress');
-                                  } else {
-                                    if (state !== 'in-progress') {
-                                      // Timer paused → ask whether to resume so this
-                                      // task can be counted in the session and goal.
-                                      // (The stage still changes on decline.)
-                                      if (workdaySession?.status === 'paused') {
-                                        setResumePrompt({ topic, stage });
-                                        return;
-                                      }
-                                      handleTransitionToStage(topic, stage, 'in-progress');
-                                      taskTimer?.startTimer(topic.id, stage);
-                                      // Timer running → clicking a stage makes it a goal.
-                                      if (workdaySession?.status === 'running') {
-                                        taskTimer?.addStageGoal(topic.id, stage);
-                                      }
-                                    } else {
-                                      // Toggle the running/paused stage timer via the context's
-                                      // actual method names — the old pauseActiveTaskTimer /
-                                      // resumeActiveTaskTimer names don't exist on the context, so
-                                      // the click was silently no-op and breaksCount never grew
-                                      // (which is why the sittings ×N badge got stuck).
-                                      if (liveStageTimer?.status === 'running') {
-                                        taskTimer?.pauseTimer();
-                                      } else if (liveStageTimer?.status === 'paused') {
-                                        taskTimer?.resumeTimer();
-                                      } else {
-                                        // Stage is in-progress from a persisted workflow
-                                        // status (e.g. left over from a previous session)
-                                        // but no live timer exists — the click should still
-                                        // start a fresh timer so it can actually be tracked.
-                                        taskTimer?.startTimer(topic.id, stage);
-                                        if (workdaySession?.status === 'running') {
-                                          taskTimer?.addStageGoal(topic.id, stage);
-                                        }
-                                      }
-                                    }
                                   }
                                 }}
                                 onLongPress={() => {
-                                  if (stage === 'schedule') {
-                                    if (state === 'in-progress') {
-                                      completeSchedule(topic);
-                                      taskTimer?.completeStageTimer(topic.id, stage);
-                                    }
-                                  } else {
-                                    handleTransitionToStage(topic, stage, 'completed');
-                                    taskTimer?.completeStageTimer(topic.id, stage);
+                                  if (stage === 'schedule' && state === 'in-progress') {
+                                    completeSchedule(topic);
                                   }
                                 }}
                                 onReset={() => resetWorkflowStage(topic, stage)}
@@ -1807,43 +1768,8 @@ export default function VercelView({
                                   </motion.div>
                                 );
                               })()}
-                              {(liveStageTimer || stageTimeLabel) && (
-                                <div className="flex items-center gap-1">
-                                  <span className={`font-mono text-[7px] ${liveStageTimer?.status === 'running' ? 'text-emerald-300' : liveStageTimer?.status === 'paused' ? 'text-amber-300' : 'text-neutral-600'}`}>
-                                    {liveStageTimer?.status === 'running' ? 'LIVE ' : liveStageTimer?.status === 'paused' ? 'PAUSED ' : ''}{stageTimeLabel}
-                                  </span>
-                                  {stageSittings > 1 && (
-                                    <span
-                                      title={`${stageSittings} sittings on this stage — each pause split the work.`}
-                                      className="rounded border border-cyan-900/50 bg-cyan-950/30 px-1 py-[1px] font-mono text-[7px] font-bold text-cyan-300"
-                                    >
-                                      ×{stageSittings}
-                                    </span>
-                                  )}
-                                  {liveStageTimer?.status === 'running' && (
-                                    <button
-                                      type="button"
-                                      onClick={(event) => { event.stopPropagation(); taskTimer?.pauseTimer(); }}
-                                      title="Pause this task timer"
-                                      aria-label="Pause this task timer"
-                                      className="flex h-3.5 w-3.5 items-center justify-center rounded border border-amber-800/60 bg-amber-500/10 text-amber-300 transition hover:border-amber-500 hover:bg-amber-500/25"
-                                    >
-                                      <Pause className="h-2 w-2 fill-current" />
-                                    </button>
-                                  )}
-                                  {liveStageTimer?.status === 'paused' && (
-                                    <button
-                                      type="button"
-                                      onClick={(event) => { event.stopPropagation(); taskTimer?.startTimer(topic.id, stage); }}
-                                      title="Resume this task timer"
-                                      aria-label="Resume this task timer"
-                                      className="flex h-3.5 w-3.5 items-center justify-center rounded border border-emerald-800/60 bg-emerald-500/15 text-emerald-300 transition hover:border-emerald-500 hover:bg-emerald-500/30"
-                                    >
-                                      <Play className="h-2 w-2 fill-current" />
-                                    </button>
-                                  )}
-                                </div>
-                              )}
+                              {/* No live-timer badge for Schedule/Post — the countdown
+                                  in the button labelOverride is the only status they show. */}
                             </div>
                           );
                         })}
