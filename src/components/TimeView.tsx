@@ -69,7 +69,12 @@ function stageTotals(timers: TaskTimerRecord[], nowMs: number, stage: TaskTimerS
   const ms = relevant.reduce((sum, t) => sum + t.accumulatedActiveMs + (
     t.status === 'running' && t.activeSince ? Math.max(0, nowMs - new Date(t.activeSince).getTime()) : 0
   ), 0);
-  const sittings = relevant.reduce((sum, t) => sum + t.breaksCount + 1, 0);
+  const sittings = relevant.reduce((sum, t) => {
+    if (t.segments && t.segments.length > 0) return sum + t.segments.length;
+    if (t.status === 'paused') return sum + t.breaksCount;
+    if (t.status === 'running' || t.status === 'completed') return sum + t.breaksCount + 1;
+    return sum;
+  }, 0);
   const running = relevant.some(t => t.status === 'running');
   const paused = relevant.some(t => t.status === 'paused');
   const done = relevant.some(t => t.status === 'completed' && t.endReason === 'done');
@@ -156,7 +161,12 @@ export default function TimeView({
       const ms = taskTimers.filter(t => t.stage === stage).reduce((sum, t) => sum + t.accumulatedActiveMs + (
         t.status === 'running' && t.activeSince ? Math.max(0, now - new Date(t.activeSince).getTime()) : 0
       ), 0);
-      const sittings = taskTimers.filter(t => t.stage === stage).reduce((sum, t) => sum + t.breaksCount + 1, 0);
+      const sittings = taskTimers.filter(t => t.stage === stage).reduce((sum, t) => {
+        if (t.segments && t.segments.length > 0) return sum + t.segments.length;
+        if (t.status === 'paused') return sum + t.breaksCount;
+        if (t.status === 'running' || t.status === 'completed') return sum + t.breaksCount + 1;
+        return sum;
+      }, 0);
       const uniqueTopics = new Set(taskTimers.filter(t => t.stage === stage).map(t => t.topicId)).size;
       return { stage, ms, sittings, uniqueTopics };
     });
@@ -387,7 +397,12 @@ export default function TimeView({
                               <span className="uppercase text-[9px] font-bold text-neutral-400 min-w-[3rem]">{STAGE_LABEL[timer.stage]}</span>
                               <span className="text-neutral-300 font-mono">{formatHMS(timer.accumulatedActiveMs)}</span>
                               <span className="text-neutral-600">·</span>
-                              <span className="text-neutral-500 text-[9px]">{new Date(timer.startedAt).toLocaleDateString()} · {timer.breaksCount + 1} sitting{timer.breaksCount === 0 ? '' : 's'}</span>
+                              {(() => {
+                                const n = timer.segments && timer.segments.length > 0
+                                  ? timer.segments.length
+                                  : timer.status === 'paused' ? timer.breaksCount : timer.breaksCount + 1;
+                                return <span className="text-neutral-500 text-[9px]">{new Date(timer.startedAt).toLocaleDateString()} · {n} sitting{n === 1 ? '' : 's'}</span>;
+                              })()}
                               <span className={`px-1 rounded text-[8px] ${timer.status === 'running' ? 'text-emerald-300 border border-emerald-900' : timer.status === 'paused' ? 'text-amber-300 border border-amber-900' : 'text-neutral-500 border border-neutral-800'}`}>{timer.status}</span>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">

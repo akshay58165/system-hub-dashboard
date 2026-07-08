@@ -169,10 +169,19 @@ export function StageStopwatch({
   const activeMs = timers.reduce((sum, t) => sum + t.accumulatedActiveMs + (
     t.status === 'running' && t.activeSince ? Math.max(0, nowMs - new Date(t.activeSince).getTime()) : 0
   ), 0);
-  // A "sitting" is one start→pause/done stretch. Each timer starts as one
-  // sitting; every pause+resume adds another. Sum across all timers so multi-day
-  // work is honestly counted.
-  const sittings = timers.reduce((sum, t) => sum + (t.status === 'completed' || t.status === 'running' || t.status === 'paused' ? t.breaksCount + 1 : 0), 0);
+  // A "sitting" is one start→(pause|done) stretch. It's counted when it starts,
+  // not when it pauses — so a single start→pause is 1 sitting, and only a
+  // resume adds another. `segments.length` (populated on every start/resume via
+  // openNewSegment) is the authoritative count. Older records without segments
+  // fall back to a start-based derivation: running/completed contribute
+  // breaksCount+1 (the currently/last-running sitting), paused contributes
+  // breaksCount (the sitting that just ended, no new one opened yet).
+  const sittings = timers.reduce((sum, t) => {
+    if (t.segments && t.segments.length > 0) return sum + t.segments.length;
+    if (t.status === 'paused') return sum + t.breaksCount;
+    if (t.status === 'running' || t.status === 'completed') return sum + t.breaksCount + 1;
+    return sum;
+  }, 0);
 
   const labels = STAGE_LABELS_STOPWATCH[stage];
   const label = labels[state];
@@ -1567,7 +1576,12 @@ export default function VercelView({
                         const topicTotalMs = allTopicTimers.reduce((total, t) => total + t.accumulatedActiveMs + (
                           t.status === 'running' && t.activeSince ? Math.max(0, now.getTime() - new Date(t.activeSince).getTime()) : 0
                         ), 0);
-                        const topicTotalSittings = allTopicTimers.reduce((total, t) => total + t.breaksCount + 1, 0);
+                        const topicTotalSittings = allTopicTimers.reduce((total, t) => {
+                          if (t.segments && t.segments.length > 0) return total + t.segments.length;
+                          if (t.status === 'paused') return total + t.breaksCount;
+                          if (t.status === 'running' || t.status === 'completed') return total + t.breaksCount + 1;
+                          return total;
+                        }, 0);
                         const stagesTouched = new Set(allTopicTimers.map(t => t.stage)).size;
                         const anyRunning = allTopicTimers.some(t => t.status === 'running');
                         const anyPaused = allTopicTimers.some(t => t.status === 'paused');
