@@ -941,15 +941,18 @@ export default function VercelView({
   const filteredTopics = useMemo(() => {
     return topics
       .filter(t => {
+        // Scheduled/posted topics ALWAYS live in the ledger, never in the
+        // active controls list — a leftover live timer on the schedule stage
+        // must not resurrect them here.
+        if (t.status === 'scheduled' || t.status === 'posted') return false;
+
+        if (selectedChannel === 'Later') return Boolean(t.savedForLater);
+
         const hasActiveTimer = taskTimer?.timers.some(timer => timer.topicId === t.id && (timer.status === 'running' || timer.status === 'paused')) ?? false;
         if (hasActiveTimer) return true;
-        
-        if (selectedChannel === 'Later') return Boolean(t.savedForLater);
-        
+
         return !t.savedForLater
-          && (selectedChannel === 'All' || t.channel === selectedChannel)
-          && t.status !== 'scheduled'
-          && t.status !== 'posted';
+          && (selectedChannel === 'All' || t.channel === selectedChannel);
       })
       .sort((a, b) => {
         if (topicSortOrder === 'goals') {
@@ -1941,9 +1944,27 @@ export default function VercelView({
                               </div>
 
                               <div className="flex flex-col items-end gap-1 shrink-0">
-                                <span className="px-1.5 py-0.5 rounded border text-[8px] uppercase font-bold border-purple-900/40 text-purple-400 bg-purple-950/20">
-                                  Scheduled
-                                </span>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (onEditTopic) { onEditTopic(topic); return; }
+                                      const initial = { ...topic };
+                                      if (!initial.scheduledTime) initial.scheduledTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
+                                      const d = initial.dueDate ? new Date(initial.dueDate) : new Date();
+                                      setEditCalendarMonth({ month: d.getMonth(), year: d.getFullYear() });
+                                      setEditCalendarOpen(false);
+                                      setEditingTopic(initial);
+                                    }}
+                                    className="p-1 rounded border border-neutral-800 text-neutral-400 hover:text-blue-300 hover:border-blue-800 transition"
+                                    title="Edit topic — every field is editable"
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </button>
+                                  <span className="px-1.5 py-0.5 rounded border text-[8px] uppercase font-bold border-purple-900/40 text-purple-400 bg-purple-950/20">
+                                    Scheduled
+                                  </span>
+                                </div>
                                 {countdown && (
                                   <div
                                     className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] font-bold tabular-nums ${
@@ -1998,9 +2019,27 @@ export default function VercelView({
                                 </div>
                               </div>
 
-                              <span className="px-1.5 py-0.5 rounded border text-[8px] uppercase font-bold border-emerald-900/30 text-emerald-400 bg-emerald-950/20">
-                                Live
-                              </span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (onEditTopic) { onEditTopic(topic); return; }
+                                    const initial = { ...topic };
+                                    if (!initial.scheduledTime) initial.scheduledTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
+                                    const d = initial.dueDate ? new Date(initial.dueDate) : new Date();
+                                    setEditCalendarMonth({ month: d.getMonth(), year: d.getFullYear() });
+                                    setEditCalendarOpen(false);
+                                    setEditingTopic(initial);
+                                  }}
+                                  className="p-1 rounded border border-neutral-800 text-neutral-400 hover:text-blue-300 hover:border-blue-800 transition"
+                                  title="Edit topic — every field is editable"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </button>
+                                <span className="px-1.5 py-0.5 rounded border text-[8px] uppercase font-bold border-emerald-900/30 text-emerald-400 bg-emerald-950/20">
+                                  Live
+                                </span>
+                              </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-2 text-neutral-500 text-[8px] pt-1">
