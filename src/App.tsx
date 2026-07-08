@@ -2271,6 +2271,35 @@ export default function App() {
     setTaskTimers(prev => prev.filter(tt => tt.id !== timerId));
   };
 
+  // Replace every timer for a topic+stage with a single manual entry sized to
+  // `activeMs`. Used by the topic editor to overwrite the stored stage total.
+  // Passing activeMs=0 wipes the stage's timers without adding a new one.
+  const replaceStageTime = (topicId: string, stage: TaskTimerStage, activeMs: number) => {
+    const topic = topics.find(t => t.id === topicId);
+    if (!topic) return;
+    const nowIso = new Date().toISOString();
+    const clean = Math.max(0, Math.floor(activeMs));
+    setTaskTimers(prev => {
+      const others = prev.filter(tt => !(tt.topicId === topicId && tt.stage === stage));
+      if (clean === 0) return others;
+      const seg: SittingSegment = { id: `seg-manual-${Date.now()}`, startedAt: nowIso, endedAt: nowIso, activeMs: clean };
+      const newTimer: TaskTimerRecord = {
+        id: `tt-manual-${Date.now()}-${topicId}-${stage}`,
+        topicId, topicName: topic.name, stage,
+        status: 'completed',
+        startedAt: nowIso, completedAt: nowIso,
+        activeSince: null, pausedAt: null,
+        accumulatedActiveMs: clean,
+        accumulatedPausedMs: 0,
+        breaksCount: 0,
+        endReason: 'done',
+        dateKey: todayKey(),
+        segments: [seg],
+      };
+      return [...others, newTimer];
+    });
+  };
+
   const stopActiveTaskTimer = (endReason: 'done' | 'deferred', productivityScore?: number) => {
     const stamp = new Date().toISOString();
     setTaskTimers(prev => closeOpenSideWork(prev, new Date(stamp).getTime()).map(tt => {
@@ -3065,6 +3094,8 @@ export default function App() {
           onAddEvent={addEvent}
           setActiveTab={setActiveTab}
           setPipelineSubView={setPipelineSubView}
+          taskTimers={visibleTaskTimers}
+          onReplaceStageTime={replaceStageTime}
         />
       )}
 

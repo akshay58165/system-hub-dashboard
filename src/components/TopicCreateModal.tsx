@@ -2,7 +2,30 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Calendar, Plus, X } from 'lucide-react';
 import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
-import type { SystemEvent, Topic, TopicActivity } from '../types';
+import type { SystemEvent, Topic, TopicActivity, TaskTimerRecord, TaskTimerStage } from '../types';
+
+const STAGE_TIMING_KEYS: TaskTimerStage[] = ['hook', 'script', 'shoot', 'edit'];
+const STAGE_TIMING_LABEL: Record<TaskTimerStage, string> = {
+  hook: 'Hook', script: 'Script', shoot: 'Shoot', edit: 'Edit', schedule: 'Schedule', post: 'Post'
+};
+
+function msToHMS(ms: number) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+function hmsToMs(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return 0;
+  const parts = trimmed.split(':').map(p => p.trim());
+  if (parts.some(p => p === '' || !/^\d+$/.test(p))) return null;
+  const nums = parts.map(p => parseInt(p, 10));
+  let h = 0, m = 0, s = 0;
+  if (nums.length === 1) m = nums[0];
+  else if (nums.length === 2) { m = nums[0]; s = nums[1]; }
+  else if (nums.length === 3) { h = nums[0]; m = nums[1]; s = nums[2]; }
+  else return null;
+  return ((h * 60 + m) * 60 + s) * 1000;
+}
 
 interface TopicCreateModalProps {
   isOpen: boolean;
@@ -13,6 +36,8 @@ interface TopicCreateModalProps {
   onAddEvent: (evt: SystemEvent) => void;
   setActiveTab: (tab: string) => void;
   setPipelineSubView: (subView: 'videos' | 'topics') => void;
+  taskTimers?: TaskTimerRecord[];
+  onReplaceStageTime?: (topicId: string, stage: TaskTimerStage, activeMs: number) => void;
 }
 
 type Lane = 'Shorts' | 'Long' | 'Members-Only';
@@ -81,7 +106,9 @@ export default function TopicCreateModal({
   setActivities,
   onAddEvent,
   setActiveTab,
-  setPipelineSubView
+  setPipelineSubView,
+  taskTimers = [],
+  onReplaceStageTime
 }: TopicCreateModalProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -95,6 +122,12 @@ export default function TopicCreateModal({
   const [dueDate, setDueDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
   const [eligibility, setEligibility] = useState<Eligibility>(emptyEligibility);
+  const [stageTimes, setStageTimes] = useState<Record<TaskTimerStage, string>>({
+    hook: '00:00:00', script: '00:00:00', shoot: '00:00:00', edit: '00:00:00', schedule: '00:00:00', post: '00:00:00'
+  });
+  const initialStageTimesRef = useRef<Record<TaskTimerStage, string>>({
+    hook: '00:00:00', script: '00:00:00', shoot: '00:00:00', edit: '00:00:00', schedule: '00:00:00', post: '00:00:00'
+  });
   const initialSnapshotRef = useRef('');
   const isEditing = Boolean(topicToEdit);
 
@@ -111,8 +144,9 @@ export default function TopicCreateModal({
     eligibility
   });
 
+  const stageTimesChanged = STAGE_TIMING_KEYS.some(stage => stageTimes[stage] !== initialStageTimesRef.current[stage]);
   const hasUnsavedInput = isEditing
-    ? currentSnapshot !== initialSnapshotRef.current
+    ? (currentSnapshot !== initialSnapshotRef.current || stageTimesChanged)
     : Boolean(
         name.trim() || description.trim() || channel || lane || status !== 'topic' || priority !== 1 ||
         topicScore !== undefined || dueDate || scheduleTime || Object.values(eligibility).some(Boolean)
@@ -143,6 +177,22 @@ export default function TopicCreateModal({
     setDueDate(initialDueDate);
     setScheduleTime(initialTime);
     setEligibility(emptyEligibility);
+    // Populate stage timings from taskTimers (sum of accumulatedActiveMs per stage
+    // for this topic). Editing these fields overwrites the stored total for that
+    // stage — the modal is the authoritative editor for scheduled/posted topics.
+    const initTimings: Record<TaskTimerStage, string> = {
+      hook: '00:00:00', script: '00:00:00', shoot: '00:00:00', edit: '00:00:00', schedule: '00:00:00', post: '00:00:00'
+    };
+    if (topicToEdit) {
+      STAGE_TIMING_KEYS.forEach(stage => {
+        const ms = taskTimers
+          .filter(t => t.topicId === topicToEdit.id && t.stage === stage)
+          .reduce((s, t) => s + t.accumulatedActiveMs, 0);
+        initTimings[stage] = msToHMS(ms);
+      });
+    }
+    setStageTimes(initTimings);
+    initialStageTimesRef.current = { ...initTimings };
     initialSnapshotRef.current = JSON.stringify({
       name: (topicToEdit?.name ?? '').trim(),
       description: topicToEdit?.description ?? '',
@@ -270,6 +320,17 @@ export default function TopicCreateModal({
         type: 'success',
         message: `Topic Engine: ${topicToEdit ? 'Updated' : 'Added'} topic "${topic.name}" under ${topic.channel}${finalRevenueLevel ? ` (${finalRevenueLevel})` : ''}`,
         timestamp: new Date().toISOString()
+      });
+    }
+
+    // Apply any per-stage timing overrides. Only stages that changed relative
+    // to what was loaded are pushed — untouched fields stay untouched.
+    if (topicToEdit && onReplaceStageTime) {
+      STAGE_TIMING_KEYS.forEach(stage => {
+        if (stageTimes[stage] === initialStageTimesRef.current[stage]) return;
+        const ms = hmsToMs(stageTimes[stage]);
+        if (ms === null) return; // silently ignore invalid input
+        onReplaceStageTime(topicToEdit.id, stage, ms);
       });
     }
 
@@ -426,6 +487,32 @@ export default function TopicCreateModal({
                 <button type="button" onClick={() => setDueDate(localDateKey())} className={`rounded border px-2 py-1 text-[9px] ${dueDate === localDateKey() ? 'border-purple-500 bg-purple-950/40 text-purple-300' : 'border-neutral-900 bg-neutral-950 text-neutral-500 hover:text-white'}`}>Today</button>
                 <button type="button" onClick={() => setDueDate(localDateKey(1))} className={`rounded border px-2 py-1 text-[9px] ${dueDate === localDateKey(1) ? 'border-yellow-500 bg-yellow-950/40 text-yellow-300' : 'border-neutral-900 bg-neutral-950 text-neutral-500 hover:text-white'}`}>Tomorrow</button>
               </div>
+
+              {topicToEdit && (
+                <div className="space-y-2 border-t border-neutral-900/60 pt-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block uppercase text-neutral-500">Stage timings</label>
+                    <span className="font-mono text-[8px] normal-case text-neutral-600">HH:MM:SS · overwrites the total</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {STAGE_TIMING_KEYS.map(stage => (
+                      <label key={stage} className="block">
+                        <span className="block text-[8px] font-bold uppercase tracking-wider text-neutral-400">{STAGE_TIMING_LABEL[stage]}</span>
+                        <input
+                          type="text"
+                          value={stageTimes[stage]}
+                          onChange={event => setStageTimes(prev => ({ ...prev, [stage]: event.target.value }))}
+                          placeholder="00:00:00"
+                          className="mt-1 h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 font-mono text-[10px] tabular-nums text-white outline-none focus:border-neutral-700"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <p className="font-sans text-[8px] normal-case text-neutral-600">
+                    Editing a stage's total replaces every recorded sitting for that stage with a single manual entry. Leave a field unchanged to keep its existing history.
+                  </p>
+                </div>
+              )}
 
               <button type="submit" disabled={!name.trim() || !channel} className="flex w-full items-center justify-center gap-1.5 rounded bg-rose-500 py-2 text-[10px] font-bold text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-40">
                 <Plus className="h-3.5 w-3.5" /> {topicToEdit ? 'Save Changes' : 'Add Topic'}
