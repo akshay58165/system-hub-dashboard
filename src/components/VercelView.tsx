@@ -39,7 +39,7 @@ import {
   Tooltip, 
   CartesianGrid 
 } from 'recharts';
-import { Topic, TopicActivity, SystemEvent, CycleGoal, WorkdaySession } from '../types';
+import { Topic, TopicActivity, SystemEvent, CycleGoal, WorkdaySession, TaskTimerRecord } from '../types';
 import { getTopicCurrentWorkflow, getTopicWorkflowState } from '../services/topicWorkflow';
 import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
 import { useTaskTimers } from '../contexts/TaskTimerContext';
@@ -107,6 +107,156 @@ const WORKFLOW_LABELS: Record<WorkflowStage, Record<WorkflowState, string>> = {
   schedule: { pending: 'Schedule', 'in-progress': 'Scheduling', completed: 'Scheduled' },
   post: { pending: 'Post', 'in-progress': 'Posting', completed: 'Posted' },
 };
+
+// Format ms → HH:MM:SS
+function formatHMS(ms: number) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+
+// Parse "HH:MM:SS" or "MM:SS" or "M" (minutes) into ms.
+function parseTimeInput(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const parts = trimmed.split(':').map(p => p.trim());
+  if (parts.some(p => p === '' || !/^\d+$/.test(p))) return null;
+  const nums = parts.map(p => parseInt(p, 10));
+  let h = 0, m = 0, s = 0;
+  if (nums.length === 1) m = nums[0];
+  else if (nums.length === 2) { m = nums[0]; s = nums[1]; }
+  else if (nums.length === 3) { h = nums[0]; m = nums[1]; s = nums[2]; }
+  else return null;
+  return ((h * 60 + m) * 60 + s) * 1000;
+}
+
+const STAGE_LABELS_STOPWATCH: Record<WorkflowStage, { idle: string; running: string; paused: string; done: string }> = {
+  hook:    { idle: 'Hook',    running: 'Hooking',    paused: 'Resume hooking',    done: 'Hooked' },
+  script:  { idle: 'Script',  running: 'Scripting',  paused: 'Resume scripting',  done: 'Scripted' },
+  shoot:   { idle: 'Shoot',   running: 'Shooting',   paused: 'Resume shooting',   done: 'Shot' },
+  edit:    { idle: 'Edit',    running: 'Editing',    paused: 'Resume editing',    done: 'Edited' },
+  schedule:{ idle: 'Schedule',running: 'Scheduling', paused: 'Resume scheduling', done: 'Scheduled' },
+  post:    { idle: 'Post',    running: 'Posting',    paused: 'Resume posting',    done: 'Posted' },
+};
+
+interface StageStopwatchProps {
+  key?: React.Key;
+  topicId: string;
+  stage: WorkflowStage;
+  timers: TaskTimerRecord[];
+  nowMs: number;
+  onStart: () => void;
+  onPause: () => void;
+  onDone: () => void;
+  onAddManual: (ms: number) => void;
+  disabled?: boolean;
+}
+
+export function StageStopwatch({
+  topicId, stage, timers, nowMs,
+  onStart, onPause, onDone, onAddManual, disabled
+}: StageStopwatchProps) {
+  void topicId;
+  const live = timers.find(t => t.status === 'running' || t.status === 'paused');
+  const anyDone = timers.some(t => t.status === 'completed' && t.endReason === 'done');
+  const state: 'idle' | 'running' | 'paused' | 'done' = live?.status === 'running'
+    ? 'running'
+    : live?.status === 'paused'
+      ? 'paused'
+      : anyDone
+        ? 'done'
+        : 'idle';
+
+  const activeMs = timers.reduce((sum, t) => sum + t.accumulatedActiveMs + (
+    t.status === 'running' && t.activeSince ? Math.max(0, nowMs - new Date(t.activeSince).getTime()) : 0
+  ), 0);
+  // A "sitting" is one start→pause/done stretch. Each timer starts as one
+  // sitting; every pause+resume adds another. Sum across all timers so multi-day
+  // work is honestly counted.
+  const sittings = timers.reduce((sum, t) => sum + (t.status === 'completed' || t.status === 'running' || t.status === 'paused' ? t.breaksCount + 1 : 0), 0);
+
+  const labels = STAGE_LABELS_STOPWATCH[stage];
+  const label = labels[state];
+
+  const stateColor = state === 'running'
+    ? 'border-emerald-500/60 bg-emerald-950/30 text-emerald-200'
+    : state === 'paused'
+      ? 'border-amber-500/60 bg-amber-950/30 text-amber-200'
+      : state === 'done'
+        ? 'border-neutral-800 bg-neutral-900/40 text-neutral-500'
+        : 'border-neutral-800 bg-neutral-950 text-neutral-300';
+
+  const handlePencil = () => {
+    const raw = window.prompt(`Enter time spent on ${stage} (HH:MM:SS or M):`, '00:30:00');
+    if (raw === null) return;
+    const ms = parseTimeInput(raw);
+    if (ms === null) { window.alert('Could not parse time. Use HH:MM:SS, MM:SS, or minutes.'); return; }
+    onAddManual(ms);
+  };
+
+  return (
+    <div className={`flex flex-col items-stretch gap-1 rounded-md border px-1.5 py-1 min-w-[7.5rem] ${stateColor}`}>
+      <div className="flex items-center justify-between gap-1">
+        <span className="text-[9px] font-bold uppercase tracking-wider">{label}</span>
+        <button
+          type="button"
+          onClick={handlePencil}
+          title="Add time manually"
+          className="p-0.5 rounded border border-neutral-800 text-neutral-500 hover:text-blue-300 hover:border-blue-700 transition"
+        >
+          <Pencil className="h-2.5 w-2.5" />
+        </button>
+      </div>
+      <div className="flex items-center justify-between gap-1 font-mono text-[10px] tabular-nums">
+        <span className={state === 'running' ? 'text-emerald-300 font-bold' : state === 'paused' ? 'text-amber-300 font-bold' : 'text-neutral-400'}>
+          {formatHMS(activeMs)}
+        </span>
+        {sittings > 0 && (
+          <span title={`${sittings} sitting${sittings === 1 ? '' : 's'}`} className="text-[8px] px-1 rounded border border-cyan-900/50 bg-cyan-950/25 text-cyan-300">×{sittings}</span>
+        )}
+      </div>
+      <div className="flex items-center gap-1">
+        {state === 'done' ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={onStart}
+            title="Reopen — start a fresh sitting on this stage"
+            className="flex-1 rounded border border-neutral-800 bg-neutral-950 px-1 py-0.5 text-[8px] font-bold uppercase text-neutral-400 hover:text-emerald-300 hover:border-emerald-800 transition"
+          >Reopen</button>
+        ) : (
+          <>
+            <button
+              type="button"
+              disabled={disabled || state === 'running'}
+              onClick={onStart}
+              title={state === 'idle' ? 'Start' : state === 'paused' ? 'Resume' : 'Running'}
+              className="flex-1 rounded border border-emerald-800/60 bg-emerald-500/10 px-1 py-0.5 text-[8px] font-bold uppercase text-emerald-300 hover:bg-emerald-500/25 hover:border-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center justify-center gap-0.5"
+            >
+              <Play className="h-2 w-2 fill-current" />
+              {state === 'paused' ? 'Resume' : 'Start'}
+            </button>
+            <button
+              type="button"
+              disabled={disabled || state !== 'running'}
+              onClick={onPause}
+              title="Pause"
+              className="rounded border border-amber-800/60 bg-amber-500/10 px-1 py-0.5 text-[8px] font-bold uppercase text-amber-300 hover:bg-amber-500/25 hover:border-amber-500 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-0.5"
+            >
+              <Pause className="h-2 w-2 fill-current" />
+            </button>
+            <button
+              type="button"
+              disabled={disabled || state === 'idle'}
+              onClick={onDone}
+              title="Mark done"
+              className="rounded border border-blue-800/60 bg-blue-500/10 px-1 py-0.5 text-[8px] font-bold uppercase text-blue-300 hover:bg-blue-500/25 hover:border-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            >Done</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function WorkflowStatusButton({
   stage, state, onQuickPress, onLongPress, onReset, labelOverride, disabled, blinkClass, controlId, isGoalStage, tapResetsCompleted }: {
@@ -1439,6 +1589,30 @@ export default function VercelView({
                       <div className="flex flex-wrap gap-1.5 pt-1.5 border-t border-neutral-900">
                         {(['hook', 'script', 'shoot', 'edit', 'schedule', 'post'] as WorkflowStage[]).map(stage => {
                           const stageTimers = taskTimer?.timers.filter(timer => timer.topicId === topic.id && timer.stage === stage) || [];
+                          // New per-stage stopwatch UI for the 4 authoring stages.
+                          // Schedule/Post stay as status-only WorkflowStatusButton
+                          // (rendered by the block below).
+                          if (stage === 'hook' || stage === 'script' || stage === 'shoot' || stage === 'edit') {
+                            return (
+                              <StageStopwatch
+                                key={stage}
+                                topicId={topic.id}
+                                stage={stage}
+                                timers={stageTimers}
+                                nowMs={now.getTime()}
+                                onStart={() => {
+                                  handleTransitionToStage(topic, stage, 'in-progress');
+                                  taskTimer?.startTimer(topic.id, stage);
+                                }}
+                                onPause={() => { taskTimer?.pauseTimer(); }}
+                                onDone={() => {
+                                  handleTransitionToStage(topic, stage, 'completed');
+                                  taskTimer?.completeStageTimer(topic.id, stage);
+                                }}
+                                onAddManual={(ms) => { taskTimer?.addManualStageTime(topic.id, stage, ms); }}
+                              />
+                            );
+                          }
                           // Stage tracking works regardless of workday state — a
                           // running/paused timer surfaces its LIVE/PAUSED chip and
                           // pause button so a stage can be tracked with or without

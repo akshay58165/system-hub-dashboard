@@ -55,6 +55,7 @@ const CommandCenterView = lazy(() => import('./components/CommandCenterView'));
 const PipelineView = lazy(() => import('./components/PipelineView'));
 const VideoLabView = lazy(() => import('./components/VideoLabView'));
 const TodayGoalsView = lazy(() => import('./components/TodayGoalsView'));
+const TimeView = lazy(() => import('./components/TimeView'));
 const TopicScoreView = lazy(() => import('./components/TopicScoreView'));
 
 // Get or create session ID for the current tab session
@@ -2007,9 +2008,10 @@ export default function App() {
     if (!topic) return;
     const stamp = new Date().toISOString();
 
-    // Only start a task timer if a workday session is already running (or is
-    // being resumed right now via `force`).
-    if (!opts?.force && (!workdaySession || workdaySession.status !== 'running')) return;
+    // Stage stopwatches run independently of any workday/session concept —
+    // the workday gate was removed when the per-stage stopwatch model was
+    // introduced. `opts.force` is kept for callers that still pass it.
+    void opts;
 
     setTopics(prev => prev.map(item => {
       if (item.id !== topicId) return item;
@@ -2229,6 +2231,44 @@ export default function App() {
         endReason: 'done' as const
       };
     }));
+  };
+
+  // Add a manual chunk of time to a stage — a completed synthetic timer
+  // that shows up in the stage totals just like a real live-tracked one.
+  const addManualStageTime = (topicId: string, stage: TaskTimerStage, activeMs: number) => {
+    if (!Number.isFinite(activeMs) || activeMs <= 0) return;
+    const topic = topics.find(t => t.id === topicId);
+    if (!topic) return;
+    const nowIso = new Date().toISOString();
+    const seg: SittingSegment = { id: `seg-manual-${Date.now()}`, startedAt: nowIso, endedAt: nowIso, activeMs };
+    const newTimer: TaskTimerRecord = {
+      id: `tt-manual-${Date.now()}-${topicId}-${stage}`,
+      topicId, topicName: topic.name, stage,
+      status: 'completed',
+      startedAt: nowIso, completedAt: nowIso,
+      activeSince: null, pausedAt: null,
+      accumulatedActiveMs: activeMs,
+      accumulatedPausedMs: 0,
+      breaksCount: 0,
+      endReason: 'done',
+      dateKey: todayKey(),
+      segments: [seg],
+    };
+    setTaskTimers(prev => [...prev, newTimer]);
+    setActivities(prev => [{
+      id: `act-manual-${Date.now()}`,
+      topicName: topic.name, channel: topic.channel,
+      action: `Manual time entry: ${Math.round(activeMs / 60000)} min on ${stage}`,
+      author: 'You', timestamp: nowIso, topicId, targetTab: 'pipeline', targetSubView: 'topics'
+    }, ...prev]);
+  };
+
+  const updateStageTimer = (timerId: string, patch: Partial<TaskTimerRecord>) => {
+    setTaskTimers(prev => prev.map(tt => tt.id === timerId ? { ...tt, ...patch } : tt));
+  };
+
+  const deleteStageTimer = (timerId: string) => {
+    setTaskTimers(prev => prev.filter(tt => tt.id !== timerId));
   };
 
   const stopActiveTaskTimer = (endReason: 'done' | 'deferred', productivityScore?: number) => {
@@ -2697,7 +2737,7 @@ export default function App() {
                 }`}
               >
                 <Clock className="h-3.5 w-3.5 text-purple-400" />
-                <span>Sessions</span>
+                <span>Time</span>
               </button>
 
               <button
@@ -2725,7 +2765,10 @@ export default function App() {
               </button>
             </div>
 
-            <WorkdayTimer session={visibleWorkdaySession} setSession={setWorkdaySession} topics={visibleTopics} onEndSession={endWorkdaySessionWithTaskTimers} onDiscardSession={discardWorkdaySession} onOpenTopic={(topicId) => { setPipelineSubView('topics'); setActiveTab('pipeline'); const focusTarget = () => { const card = document.getElementById(`topic-control-${topicId}`); if (card) { highlightCommandDestination(card); return; } if (attempts < 12) { attempts++; window.setTimeout(focusTarget, 100); } }; let attempts = 0; window.setTimeout(focusTarget, 250); }} onExternalPause={handleMainTimerPause} onExternalResume={handleMainTimerResume} />
+            {/* Workday timer UI hidden — per-stage stopwatches on the topic card now
+                own all time tracking. WorkdayTimer state is still persisted but
+                nothing renders it. */}
+            {false && (<WorkdayTimer session={visibleWorkdaySession} setSession={setWorkdaySession} topics={visibleTopics} onEndSession={endWorkdaySessionWithTaskTimers} onDiscardSession={discardWorkdaySession} onOpenTopic={() => {}} onExternalPause={handleMainTimerPause} onExternalResume={handleMainTimerResume} />)}
 
             <motion.button
               whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(59, 130, 246, 0.6)' }}
@@ -2846,7 +2889,10 @@ export default function App() {
                 stopTimer: stopActiveTaskTimer,
                 completeStageTimer: completeTaskTimerStage,
                 addStageGoal: addStageGoal,
-                resumeWorkdayAndStart: resumeWorkdayAndStartTask
+                resumeWorkdayAndStart: resumeWorkdayAndStartTask,
+                addManualStageTime,
+                updateStageTimer,
+                deleteStageTimer
               }}>
                 <PipelineView
                   videos={visibleVideos}
@@ -2882,21 +2928,15 @@ export default function App() {
             )}
 
             {activeTab === 'topicintel' && (
-              <TodayGoalsView
+              <TimeView
                 topics={visibleTopics}
-                session={visibleWorkdaySession}
-                setSession={setWorkdaySession}
-                onEndSession={endWorkdaySessionWithTaskTimers}
-                onDiscardSession={discardWorkdaySession}
                 taskTimers={visibleTaskTimers}
-                onStartTaskTimer={startTaskTimer}
-                onPauseTaskTimer={pauseActiveTaskTimerWithDetails}
-                onResumeTaskTimer={() => resumeActiveTaskTimer()}
-                onStopTaskTimer={stopActiveTaskTimer}
-                onPauseMainTimer={handleMainTimerPause}
-                onResumeMainTimer={handleMainTimerResume}
-                sessions={sessions}
-                onRemoveGoal={requestDeleteGoal}
+                onStartTimer={(topicId, stage) => startTaskTimer(topicId, stage)}
+                onPauseTimer={() => pauseActiveTaskTimer()}
+                onCompleteStage={completeTaskTimerStage}
+                onAddManualTime={addManualStageTime}
+                onUpdateTimer={updateStageTimer}
+                onDeleteTimer={deleteStageTimer}
               />
             )}
 
