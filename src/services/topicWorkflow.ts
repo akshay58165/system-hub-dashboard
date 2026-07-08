@@ -24,13 +24,20 @@ const LABELS: Record<TopicWorkflowStage, Record<TopicWorkflowState, string>> = {
 };
 
 export function getTopicWorkflowState(topic: Topic, stage: TopicWorkflowStage): TopicWorkflowState {
-  const explicitState = topic.workflowStatuses?.[stage];
-  if (explicitState) return explicitState;
-
   const legacyOrder: Topic['status'][] = ['topic', 'hooked', 'scripted', 'shot', 'edited', 'scheduled', 'posted'];
-  return legacyOrder.indexOf(topic.status) >= legacyOrder.indexOf(COMPLETED_STATUS[stage])
-    ? 'completed'
-    : 'pending';
+  const statusReached = legacyOrder.indexOf(topic.status) >= legacyOrder.indexOf(COMPLETED_STATUS[stage]);
+
+  const explicitState = topic.workflowStatuses?.[stage];
+  if (explicitState) {
+    // If the topic's status has already reached the completed status for this
+    // stage, the stage IS completed — a stale 'in-progress' workflow flag can
+    // linger from earlier UI interactions and would otherwise mislabel the
+    // chip (e.g. showing "Scheduling" on an already-Scheduled topic).
+    if (statusReached) return 'completed';
+    return explicitState;
+  }
+
+  return statusReached ? 'completed' : 'pending';
 }
 
 export function getTopicCurrentWorkflow(topic: Topic) {

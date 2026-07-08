@@ -1716,7 +1716,13 @@ export default function VercelView({
                                     setSchedDate(topic.dueDate ? topic.dueDate.split('T')[0] : new Date().toISOString().split('T')[0]);
                                     setSchedTime(topic.scheduledTime || defaultTime);
                                     setSchedulingTopicId(topic.id);
-                                    handleTransitionToStage(topic, 'schedule', 'in-progress');
+                                    // Only flip to 'in-progress' if the stage isn't already
+                                    // completed — clicking Schedule on an already-Scheduled
+                                    // topic just opens the form to tweak the datetime; it
+                                    // must NOT revert the state back to Scheduling.
+                                    if (state !== 'completed') {
+                                      handleTransitionToStage(topic, 'schedule', 'in-progress');
+                                    }
                                   }
                                 }}
                                 onLongPress={() => {
