@@ -141,6 +141,115 @@ function LiveDot() {
   );
 }
 
+// Per-day, per-channel publish signal for the current calendar month.
+// One vertical line per day. Colors are meaningful — no synthetic data.
+// - past day, 0 posted, nothing scheduled → red   (missed slot)
+// - any day with 1 posted                → light green
+// - any day with 2 posted                → medium green
+// - any day with 3+ posted               → dark green
+// - future/today day with a scheduled-but-not-yet-posted topic → light green + blink
+// - future/today day with nothing scheduled → neutral gray
+function MonthlyPublishStrip({ topics, nowMs, className }: { topics: Topic[]; nowMs: number; className?: string }) {
+  const nowDate = new Date(nowMs);
+  const year = nowDate.getFullYear();
+  const month = nowDate.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayDay = nowDate.getDate();
+  const monthName = nowDate.toLocaleDateString([], { month: 'long' });
+
+  const dayKey = (isoOrDate: string | Date) => {
+    const d = typeof isoOrDate === 'string' ? new Date(isoOrDate) : isoOrDate;
+    if (d.getFullYear() !== year || d.getMonth() !== month) return -1;
+    return d.getDate();
+  };
+
+  const channels: Array<{ name: 'LearnDriven' | 'DecodeWorthy'; accent: string }> = [
+    { name: 'LearnDriven', accent: 'text-blue-300' },
+    { name: 'DecodeWorthy', accent: 'text-emerald-300' },
+  ];
+
+  return (
+    <div className={`rounded-xl border border-neutral-800/70 bg-neutral-950/70 p-3 ${className ?? ''}`}>
+      <div className="mb-2 flex items-center justify-between">
+        <div className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Publish rhythm · {monthName} {year}</div>
+        <div className="font-mono text-[9px] text-neutral-600">{daysInMonth} days</div>
+      </div>
+      <div className="space-y-2">
+        {channels.map(channel => {
+          const channelTopics = topics.filter(t => t.channel === channel.name);
+          const postedByDay = new Map<number, number>();
+          const scheduledByDay = new Map<number, number>();
+          channelTopics.forEach(t => {
+            if (t.status === 'posted') {
+              const stamp = t.postedAt || t.dueDate;
+              if (!stamp) return;
+              const d = dayKey(stamp);
+              if (d > 0) postedByDay.set(d, (postedByDay.get(d) || 0) + 1);
+            } else if (t.status === 'scheduled' && t.dueDate) {
+              const d = dayKey(t.dueDate);
+              if (d > 0) scheduledByDay.set(d, (scheduledByDay.get(d) || 0) + 1);
+            }
+          });
+          const daysPosted = Array.from(postedByDay.keys()).length;
+          const videosPosted = Array.from(postedByDay.values()).reduce((s, v) => s + v, 0);
+          const daysScheduled = Array.from(scheduledByDay.keys()).length;
+
+          return (
+            <div key={channel.name} className="flex items-center gap-3">
+              <div className="w-24 shrink-0">
+                <div className={`text-[10px] font-bold ${channel.accent}`}>{channel.name}</div>
+                <div className="font-mono text-[8px] text-neutral-500">{daysPosted}d · {videosPosted} vids</div>
+              </div>
+              <div className="flex flex-1 items-center gap-[2px] overflow-hidden rounded-md bg-neutral-950/60 px-1 py-1.5">
+                {Array.from({ length: daysInMonth }, (_, i) => {
+                  const day = i + 1;
+                  const posted = postedByDay.get(day) || 0;
+                  const scheduled = scheduledByDay.get(day) || 0;
+                  const isPast = day < todayDay;
+                  const isToday = day === todayDay;
+
+                  let color = 'bg-neutral-800/70';
+                  let title = `${monthName} ${day}`;
+                  let animate = '';
+
+                  if (posted >= 3) { color = 'bg-emerald-700'; title += ` · ${posted} posted`; }
+                  else if (posted === 2) { color = 'bg-emerald-500'; title += ` · 2 posted`; }
+                  else if (posted === 1) { color = 'bg-emerald-300'; title += ` · 1 posted`; }
+                  else if (scheduled > 0 && !isPast) { color = 'bg-emerald-300/80'; animate = 'animate-pulse'; title += ` · ${scheduled} scheduled`; }
+                  else if (isPast) { color = 'bg-rose-500/70'; title += ` · nothing posted`; }
+                  else { title += ` · empty`; }
+
+                  return (
+                    <div
+                      key={day}
+                      title={title}
+                      className={`h-6 flex-1 min-w-[2px] rounded-sm ${color} ${animate} ${isToday ? 'ring-1 ring-white/40' : ''}`}
+                    />
+                  );
+                })}
+              </div>
+              <div className="w-20 shrink-0 text-right">
+                <div className={`font-mono text-[11px] font-bold ${channel.accent}`}>{videosPosted}</div>
+                <div className="font-mono text-[8px] text-neutral-500">
+                  {daysScheduled > 0 ? `${daysScheduled} scheduled` : `${daysInMonth - todayDay} days left`}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-neutral-900 pt-2 text-[8px] font-mono text-neutral-500">
+        <span className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm bg-rose-500/70" /> missed</span>
+        <span className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm bg-neutral-800/70" /> empty</span>
+        <span className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm bg-emerald-300/80 animate-pulse" /> scheduled</span>
+        <span className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm bg-emerald-300" /> 1 posted</span>
+        <span className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm bg-emerald-500" /> 2 posted</span>
+        <span className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm bg-emerald-700" /> 3+ posted</span>
+      </div>
+    </div>
+  );
+}
+
 export default function ProductionPipelineMap({
   topics,
   videos,
@@ -444,6 +553,14 @@ export default function ProductionPipelineMap({
               </motion.button>
             );
           })}
+          {/* Monthly publish calendar strip — fills the empty grid space to
+              the right of the Published card on wide screens, and wraps to
+              its own row underneath on narrower ones. Real data: each line
+              is one day of the current month; color reflects posted count
+              (topics with status='posted' whose postedAt/dueDate falls on
+              that day) or a blinking marker if a topic is scheduled for
+              that day but not yet posted. */}
+          <MonthlyPublishStrip topics={topics} nowMs={now} className="xl:col-span-5" />
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
