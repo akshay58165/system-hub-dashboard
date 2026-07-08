@@ -58,6 +58,7 @@ interface VercelViewProps {
   setWorkdaySession?: React.Dispatch<React.SetStateAction<WorkdaySession | null>>;
   onEditTopic?: (topic: Topic) => void;
   onDeleteContentItem?: (itemId: string, label: string, topicName?: string) => void;
+  onOpenTopicScore?: (topicId: string) => void;
 }
 
 type TopicSortMode = 'goals' | 'due-date' | 'last-created' | 'level' | 'progress-most' | 'progress-least' | 'workload';
@@ -382,7 +383,8 @@ export default function VercelView({
   workdaySession,
   setWorkdaySession,
   onEditTopic,
-  onDeleteContentItem
+  onDeleteContentItem,
+  onOpenTopicScore
 }: VercelViewProps) {
   const taskTimer = useTaskTimers();
   const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy' | 'Later'>('All');
@@ -1431,6 +1433,18 @@ export default function VercelView({
                             <span className="px-1.5 py-0.2 rounded border text-[8px] uppercase font-bold border-blue-900/40 text-blue-400 bg-blue-950/20">
                               {currentWorkflow.label}
                             </span>
+                            <button
+                              type="button"
+                              onClick={(event) => { event.stopPropagation(); onOpenTopicScore?.(topic.id); }}
+                              title={topic.topicScore ? `Open scorecard · Score ${topic.topicScore}/10` : 'Open scorecard — set a score'}
+                              className={`px-1.5 py-0.2 rounded border text-[8px] uppercase font-bold transition cursor-pointer ${
+                                topic.topicScore
+                                  ? 'border-rose-900/40 bg-rose-950/20 text-rose-300 hover:border-rose-700 hover:text-rose-200'
+                                  : 'border-neutral-800 bg-neutral-950 text-neutral-500 hover:border-rose-800 hover:text-rose-300'
+                              }`}
+                            >
+                              {topic.topicScore ? `Score ${topic.topicScore}` : 'Unscored'}
+                            </button>
                           </div>
                           <div className="text-[8px] text-neutral-600 mt-0.5 truncate">
                             Created {new Date(topic.createdDate).toLocaleDateString()} · Due {topic.dueDate ? new Date(topic.dueDate).toLocaleDateString() : 'None'}

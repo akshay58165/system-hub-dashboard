@@ -899,6 +899,10 @@ export default function App() {
   const [insights, setInsights] = useState<CreatorInsight[]>(initialCreatorInsights);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
   const [topicFormTopic, setTopicFormTopic] = useState<Topic | null>(null);
+  // Set when a pipeline card asks to jump to a specific topic's scorecard.
+  // TopicScoreView reads it, auto-expands + scrolls to that card, then calls
+  // onFocusHandled to clear it so a later tab visit stays neutral.
+  const [scoreFocusTopicId, setScoreFocusTopicId] = useState<string | null>(null);
 
   const pendingDeleteContentIds = useMemo(() => new Set(
     pendingDeleteGroups.flatMap(group => group.items.filter(item => item.kind === 'content').map(item => item.id))
@@ -2941,6 +2945,10 @@ export default function App() {
                   setIsAddFormOpen(true);
                 }}
                 onDeleteContentItem={requestDeleteContentItem}
+                onOpenTopicScore={(topicId) => {
+                  setScoreFocusTopicId(topicId);
+                  setActiveTab('actionhub');
+                }}
               />
             </TaskTimerContext.Provider>
           )}
@@ -2990,9 +2998,9 @@ export default function App() {
             )}
 
             {activeTab === 'progress' && (
-              <VercelView 
-                projects={vercelProjects} 
-                onAddEvent={addEvent} 
+              <VercelView
+                projects={vercelProjects}
+                onAddEvent={addEvent}
                 onUpdateProject={handleUpdateProject}
                 topics={visibleTopics}
                 setTopics={setTopics}
@@ -3001,6 +3009,10 @@ export default function App() {
                 setActiveTab={setActiveTab}
                 cycleGoals={cycleGoals}
                 onDeleteContentItem={requestDeleteContentItem}
+                onOpenTopicScore={(topicId) => {
+                  setScoreFocusTopicId(topicId);
+                  setActiveTab('actionhub');
+                }}
               />
             )}
 
@@ -3008,6 +3020,8 @@ export default function App() {
               <TopicScoreView
                 topics={visibleTopics}
                 setTopics={setTopics}
+                focusTopicId={scoreFocusTopicId}
+                onFocusHandled={() => setScoreFocusTopicId(null)}
               />
             )}
 

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowDownAZ,
   BadgeInfo,
@@ -37,6 +37,11 @@ import {
 interface TopicScoreViewProps {
   topics: Topic[];
   setTopics: React.Dispatch<React.SetStateAction<Topic[]>>;
+  // Auto-expand + scroll into view for this topic when set (used when a
+  // pipeline score chip navigates here). Cleared via onFocusHandled after
+  // it takes effect so a later tab visit doesn't re-fire the scroll.
+  focusTopicId?: string | null;
+  onFocusHandled?: () => void;
 }
 
 
@@ -264,10 +269,32 @@ function Pill({
 export default function TopicScoreView({
   topics,
   setTopics,
+  focusTopicId,
+  onFocusHandled,
 }: TopicScoreViewProps) {
   const [filter, setFilter] = useState<FilterTab>('all');
   const [sort, setSort] = useState<SortMode>('totalDesc');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!focusTopicId) return;
+    setFilter('all');
+    setExpandedId(focusTopicId);
+    // Wait for the auto-expand + list render before scrolling & highlighting.
+    const timeout = window.setTimeout(() => {
+      const el = document.getElementById(`topic-score-${focusTopicId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.animate([
+          { boxShadow: '0 0 0 1px rgba(244,63,94,.15), 0 0 0 rgba(244,63,94,0)' },
+          { boxShadow: '0 0 0 2px rgba(244,63,94,.9), 0 0 32px rgba(244,63,94,.35)' },
+          { boxShadow: '0 0 0 1px rgba(244,63,94,.15), 0 0 0 rgba(244,63,94,0)' }
+        ], { duration: 1600, easing: 'ease-out' });
+      }
+      onFocusHandled?.();
+    }, 220);
+    return () => window.clearTimeout(timeout);
+  }, [focusTopicId, onFocusHandled]);
 
   const updateScore = (topicId: string, field: ScoreField, nextScore: number | undefined) => {
     setTopics(prev => prev.map(t =>
@@ -463,7 +490,7 @@ export default function TopicScoreView({
 
             const isExpanded = expandedId === topic.id;
             return (
-              <div key={topic.id} className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4">
+              <div key={topic.id} id={`topic-score-${topic.id}`} className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4">
                 <button
                   type="button"
                   onClick={() => setExpandedId(isExpanded ? null : topic.id)}
