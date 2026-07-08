@@ -1634,9 +1634,13 @@ export default function VercelView({
                           const liveStageTimer = stageTimers.find(timer => timer.status === 'running' || timer.status === 'paused');
                           
                           // If there's an active timer running/paused for this stage, visually force it to in-progress
+                          // — except for schedule/post, which no longer use stopwatches and
+                          // whose display state must reflect only the topic's real workflow
+                          // (a leftover schedule task timer must not label a Scheduled topic
+                          // as "Scheduling").
                           const baseState = getWorkflowState(topic, stage);
-                          const state = (liveStageTimer?.status === 'running' || liveStageTimer?.status === 'paused') 
-                            ? 'in-progress' 
+                          const state = (stage !== 'schedule' && stage !== 'post') && (liveStageTimer?.status === 'running' || liveStageTimer?.status === 'paused')
+                            ? 'in-progress'
                             : baseState;
 
                           const stageActiveMs = stageTimers.reduce((total, timer) => total + timer.accumulatedActiveMs + (
