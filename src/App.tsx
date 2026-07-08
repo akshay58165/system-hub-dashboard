@@ -2941,19 +2941,22 @@ export default function App() {
             )}
 
             {activeTab === 'topics' && (
-              <GithubView 
-                repos={repos} 
-                onAddEvent={addEvent} 
+              <GithubView
+                repos={repos}
+                onAddEvent={addEvent}
                 onUpdateRepo={handleUpdateRepo}
                 onTriggerDeploy={triggerVercelDeploy}
                 topics={visibleTopics}
                 setTopics={setTopics}
                 activities={visibleActivities}
                 setActivities={setActivities}
+                sortOrder={topicSortOrder}
+                setSortOrder={setTopicSortOrder}
                 setActiveTab={setActiveTab}
                 setPipelineSubView={setPipelineSubView}
                 onDeleteContentItem={requestDeleteContentItem}
                 onDeleteContentItems={requestDeleteContentItems}
+                taskTimers={visibleTaskTimers}
               />
             )}
 

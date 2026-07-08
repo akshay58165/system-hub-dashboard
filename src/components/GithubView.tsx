@@ -28,7 +28,7 @@ import {
   Bookmark,
   X
 } from 'lucide-react';
-import { GitHubRepo, SystemEvent, Topic, TopicActivity, TopicSortMode } from '../types';
+import { GitHubRepo, SystemEvent, Topic, TopicActivity, TopicSortMode, TaskTimerRecord } from '../types';
 import { getTopicCurrentWorkflow, getTopicWorkflowState } from '../services/topicWorkflow';
 import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
 
@@ -49,6 +49,7 @@ interface GithubViewProps {
   setIsAddFormOpen?: (open: boolean) => void;
   setActiveTab?: (tab: string) => void;
   setPipelineSubView?: (subView: 'videos' | 'topics') => void;
+  taskTimers?: TaskTimerRecord[];
 }
 
 // Time formatting helper
@@ -149,7 +150,8 @@ export default function GithubView({
   isAddFormOpen: isAddFormOpenProp,
   setIsAddFormOpen: setIsAddFormOpenProp,
   setActiveTab,
-  setPipelineSubView
+  setPipelineSubView,
+  taskTimers = []
 }: GithubViewProps) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -969,9 +971,10 @@ export default function GithubView({
       </motion.div>
 
       {/* Main Grid: Details */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column (Main content block) */}
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Left Column (Main content block) — widened from col-span-2 → col-span-3
+            to give the topics list breathing room without shrinking the sidebar. */}
+        <div className="lg:col-span-3 space-y-6">
           {/* Info Card (Topic Status Details) */}
           <div className="bg-neutral-900/70 border border-neutral-800/80 rounded-xl p-5 relative overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.025)] hover:border-neutral-700/80 transition duration-300">
             <div className="flex items-start justify-between">
@@ -1117,8 +1120,75 @@ export default function GithubView({
               </div>
             </div>
 
+            {/* Compact insights strip — meaningful stats about the topic system,
+                integrated with the per-stage time tracking. Bookmarked topics
+                are treated as archived (savedForLater) and filtered out of the
+                main list; their count is surfaced here so they're not lost. */}
+            {(() => {
+              const nowMs = now.getTime();
+              const archived = topics.filter(t => t.savedForLater).length;
+              const nonArchived = topics.filter(t => !t.savedForLater);
+              const overdue = nonArchived.filter(t => t.dueDate && new Date(t.dueDate).getTime() < nowMs && t.status !== 'posted').length;
+              const dueSoon = nonArchived.filter(t => {
+                if (!t.dueDate || t.status === 'posted') return false;
+                const diff = new Date(t.dueDate).getTime() - nowMs;
+                return diff > 0 && diff < 48 * 3600 * 1000;
+              }).length;
+              const inFlight = nonArchived.filter(t => t.inProgress).length;
+              const scored = nonArchived.filter(t => t.topicScore).length;
+              const unscored = nonArchived.length - scored;
+              const scoreAvg = scored > 0
+                ? (nonArchived.reduce((s, t) => s + (t.topicScore || 0), 0) / scored)
+                : 0;
+
+              const activeTimers = taskTimers.filter(tt => tt.status === 'running' || tt.status === 'paused');
+              const totalTrackedMs = taskTimers.reduce((s, t) => s + t.accumulatedActiveMs + (
+                t.status === 'running' && t.activeSince ? Math.max(0, nowMs - new Date(t.activeSince).getTime()) : 0
+              ), 0);
+              const postedTopicIds = new Set(nonArchived.filter(t => t.status === 'posted').map(t => t.id));
+              const postedTimeMs = taskTimers.filter(t => postedTopicIds.has(t.topicId)).reduce((s, t) => s + t.accumulatedActiveMs, 0);
+              const avgPerPostedMs = postedTopicIds.size ? postedTimeMs / postedTopicIds.size : 0;
+
+              // Topic that's absorbed the most tracked time (excluding archived)
+              const timeByTopic = new Map<string, number>();
+              taskTimers.forEach(t => {
+                timeByTopic.set(t.topicId, (timeByTopic.get(t.topicId) || 0) + t.accumulatedActiveMs);
+              });
+              let heaviestId: string | null = null;
+              let heaviestMs = 0;
+              timeByTopic.forEach((ms, id) => { if (ms > heaviestMs) { heaviestMs = ms; heaviestId = id; } });
+              const heaviestTopic = heaviestId ? nonArchived.find(t => t.id === heaviestId) : null;
+
+              const fmt = (ms: number) => {
+                const mins = Math.round(ms / 60000);
+                if (mins < 60) return `${mins}m`;
+                const h = Math.floor(mins / 60);
+                const m = mins % 60;
+                return m === 0 ? `${h}h` : `${h}h ${m}m`;
+              };
+
+              const stat = (label: string, value: React.ReactNode, sub: string, tone: string) => (
+                <div className={`rounded-lg border ${tone} px-2.5 py-2 min-w-0`}>
+                  <div className="text-[9px] uppercase tracking-wider text-neutral-400 font-semibold truncate">{label}</div>
+                  <div className="text-sm font-bold text-white mt-0.5 truncate">{value}</div>
+                  <div className="text-[9px] text-neutral-500 mt-0.5 truncate">{sub}</div>
+                </div>
+              );
+
+              return (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-4">
+                  {stat('In flight', inFlight, `${nonArchived.length} live · ${archived} archived`, 'border-blue-900/40 bg-blue-950/15')}
+                  {stat('Overdue', <span className={overdue > 0 ? 'text-rose-300' : 'text-white'}>{overdue}</span>, `${dueSoon} due <48h`, 'border-rose-900/40 bg-rose-950/10')}
+                  {stat('Scoring', `${scored}/${nonArchived.length}`, unscored > 0 ? `${unscored} unscored · avg ${scoreAvg.toFixed(1)}` : `avg ${scoreAvg.toFixed(1)}`, 'border-emerald-900/40 bg-emerald-950/10')}
+                  {stat('Total tracked', fmt(totalTrackedMs), `${activeTimers.length} active timer${activeTimers.length === 1 ? '' : 's'}`, 'border-purple-900/40 bg-purple-950/10')}
+                  {stat('Per posted', fmt(avgPerPostedMs), `${postedTopicIds.size} posted`, 'border-cyan-900/40 bg-cyan-950/10')}
+                  {stat('Heaviest', heaviestTopic ? fmt(heaviestMs) : '—', heaviestTopic ? heaviestTopic.name : 'no time yet', 'border-amber-900/40 bg-amber-950/10')}
+                </div>
+              );
+            })()}
+
             {/* List of Topics */}
-            <div className="space-y-5 max-h-[460px] overflow-y-auto pr-1">
+            <div className="space-y-5 max-h-[640px] overflow-y-auto pr-1">
               <div className="space-y-3">
                 <div className="flex items-center justify-between border-b border-neutral-900 pb-2">
                   <div>
