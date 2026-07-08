@@ -311,13 +311,22 @@ export default function CommandCenterView({
       />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        {[
-          { label: 'Needs attention', value: model.attention.length, note: `${model.blocked.length} blocked`, icon: AlertTriangle, iconClass: 'text-rose-400', action: openAttentionQueue },
-          { label: 'In production', value: model.incomplete.length, note: `${model.scheduled} scheduled`, icon: Layers3, iconClass: 'text-amber-400', action: () => onOpenTopicPipeline() },
-          { label: 'Completion', value: `${model.completion}%`, note: `${model.posted} posted`, icon: Gauge, iconClass: 'text-emerald-400', action: () => onOpenTopicPipeline() },
-          { label: 'Actions today', value: model.actionsToday, note: 'live audit events', icon: Activity, iconClass: 'text-blue-400', action: () => onTabChange('logs') },
-          { label: 'Sessions', value: sessions.length, note: 'completed', icon: Sparkles, iconClass: 'text-purple-400', action: () => onTabChange('sessions') }
-        ].map(card => (
+        {(() => {
+          const now = Date.now();
+          const weekCutoff = now - 7 * 86_400_000;
+          const trackedMsWeek = taskTimers.reduce((s, t) => {
+            if (new Date(t.startedAt).getTime() < weekCutoff) return s;
+            return s + t.accumulatedActiveMs + (t.status === 'running' && t.activeSince ? Math.max(0, now - new Date(t.activeSince).getTime()) : 0);
+          }, 0);
+          const activeTimersNow = taskTimers.filter(t => t.status === 'running' || t.status === 'paused').length;
+          return [
+            { label: 'Needs attention', value: model.attention.length, note: `${model.blocked.length} blocked`, icon: AlertTriangle, iconClass: 'text-rose-400', action: openAttentionQueue },
+            { label: 'In production', value: model.incomplete.length, note: `${model.scheduled} scheduled`, icon: Layers3, iconClass: 'text-amber-400', action: () => onOpenTopicPipeline() },
+            { label: 'Completion', value: `${model.completion}%`, note: `${model.posted} posted`, icon: Gauge, iconClass: 'text-emerald-400', action: () => onOpenTopicPipeline() },
+            { label: 'Actions today', value: model.actionsToday, note: 'live audit events', icon: Activity, iconClass: 'text-blue-400', action: () => onTabChange('logs') },
+            { label: 'Time this week', value: compactDuration(trackedMsWeek), note: `${activeTimersNow} active timer${activeTimersNow === 1 ? '' : 's'}`, icon: Clock3, iconClass: 'text-purple-400', action: () => onTabChange('topicintel') }
+          ];
+        })().map(card => (
           <div
             key={card.label}
             className="relative"
@@ -465,60 +474,55 @@ export default function CommandCenterView({
               </button>
             ))}
           </div>
-          <button type="button" onClick={() => onTabChange('logs')} className="mt-6 block w-full border-t border-neutral-900 pt-4 text-left transition hover:border-cyan-900">
-            <div className="mb-3 flex items-center justify-between"><span className="font-mono text-[9px] uppercase tracking-wider text-neutral-600">7-day action pulse</span><span className="font-mono text-[9px] text-cyan-500">{activities.length} logged</span></div>
-            <div className="flex h-20 items-end gap-2">
-              {model.activityDays.map(day => <div key={day.label} className="flex flex-1 flex-col items-center gap-1"><div className="w-full rounded-t bg-gradient-to-t from-cyan-900/50 to-cyan-400" style={{ height: `${Math.max(5, (day.count / model.maxActivity) * 58)}px` }} /><span className="font-mono text-[8px] text-neutral-600">{day.label}</span></div>)}
-            </div>
-            <div className="mt-4 grid gap-3 xl:grid-cols-[220px_minmax(0,1fr)]">
-              <div className="rounded-xl border border-neutral-900 bg-neutral-950/70 p-3 xl:min-h-[380px]">
+          {/* Time-per-stage pulse — replaces the workday/goal-based execution
+              stack. Derived entirely from the per-stage stopwatch data, which
+              is the real source of truth now that the workday concept is gone. */}
+          {(() => {
+            const now = Date.now();
+            const stageInfo: Array<{ key: 'hook' | 'script' | 'shoot' | 'edit'; label: string; color: string }> = [
+              { key: 'hook', label: 'Hook', color: '#38bdf8' },
+              { key: 'script', label: 'Script', color: '#a855f7' },
+              { key: 'shoot', label: 'Shoot', color: '#f59e0b' },
+              { key: 'edit', label: 'Edit', color: '#10b981' },
+            ];
+            const stageTime = stageInfo.map(s => {
+              const timers = taskTimers.filter(t => t.stage === s.key);
+              const ms = timers.reduce((sum, t) => sum + t.accumulatedActiveMs + (
+                t.status === 'running' && t.activeSince ? Math.max(0, now - new Date(t.activeSince).getTime()) : 0
+              ), 0);
+              const sittings = timers.reduce((sum, t) => {
+                if (t.segments && t.segments.length > 0) return sum + t.segments.length;
+                if (t.status === 'paused') return sum + t.breaksCount;
+                if (t.status === 'running' || t.status === 'completed') return sum + t.breaksCount + 1;
+                return sum;
+              }, 0);
+              return { ...s, ms, sittings, topics: new Set(timers.map(t => t.topicId)).size };
+            });
+            const totalMs = stageTime.reduce((sum, s) => sum + s.ms, 0);
+            const heaviest = [...stageTime].sort((a, b) => b.ms - a.ms)[0];
+            const weekCutoff = now - 7 * 86_400_000;
+            const weekMs = taskTimers.filter(t => new Date(t.startedAt).getTime() >= weekCutoff)
+              .reduce((sum, t) => sum + t.accumulatedActiveMs + (
+                t.status === 'running' && t.activeSince ? Math.max(0, now - new Date(t.activeSince).getTime()) : 0
+              ), 0);
+            return (
+              <button type="button" onClick={() => onTabChange('topicintel')} className="mt-6 block w-full border-t border-neutral-900 pt-4 text-left transition hover:border-cyan-900">
                 <div className="mb-3 flex items-center justify-between">
-                  <div className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">Execution stack</div>
-                  <div className="font-mono text-[8px] font-medium text-neutral-500">week totals</div>
+                  <span className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">Time invested by stage</span>
+                  <span className="font-mono text-[9px] text-cyan-400">{compactDuration(totalMs)} tracked · {compactDuration(weekMs)} this week</span>
                 </div>
-                <div className="flex min-h-[380px] flex-col overflow-hidden rounded-lg border border-neutral-900 bg-neutral-950/80">
-                  <div className="flex flex-1 flex-col justify-between border-b border-neutral-900 bg-emerald-950/10 px-3 py-4">
-                    <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300"><CheckCircle2 className="h-3.5 w-3.5" />Goal execution</div>
-                    <div className="mt-3 text-2xl font-bold text-white">{weekExecution.totals.completedGoals}/{weekExecution.totals.touchedGoals || 0}</div>
-                    <div className="mt-2 font-mono text-[9px] font-medium text-emerald-100/80">completed this week</div>
-                  </div>
-                  <div className="flex flex-1 flex-col justify-between border-b border-neutral-900 bg-cyan-950/10 px-3 py-4">
-                    <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-cyan-300"><Gauge className="h-3.5 w-3.5" />Productivity</div>
-                    <div className="mt-3 text-2xl font-bold text-white">{weekExecution.productivity}%</div>
-                    <div className="mt-2 font-mono text-[9px] font-medium text-cyan-100/80">{compactDuration(weekExecution.totals.productiveMs)} focused</div>
-                  </div>
-                  <div className="flex flex-1 flex-col justify-between bg-purple-950/10 px-3 py-4">
-                    <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-purple-300"><Layers3 className="h-3.5 w-3.5" />Load cleared</div>
-                    <div className="mt-3 text-2xl font-bold text-white">{weekExecution.loadCleared}</div>
-                    <div className="mt-2 font-mono text-[9px] font-medium text-purple-100/80">{weekExecution.totals.droppedGoals} dropped, {weekExecution.totals.pendingGoals} carried</div>
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-xl border border-neutral-900 bg-neutral-950/70 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="font-mono text-[9px] font-medium uppercase tracking-wider text-neutral-400">Goal behavior trend</div>
-                  <div className={`rounded border px-1.5 py-0.5 font-mono text-[8px] uppercase ${weekExecution.productivityMomentum >= 0 ? 'border-emerald-900/40 bg-emerald-950/20 text-emerald-300' : 'border-rose-900/40 bg-rose-950/20 text-rose-300'}`}>
-                    {weekExecution.productivityMomentum >= 0 ? '+' : ''}{weekExecution.productivityMomentum}% vs early week
-                  </div>
-                </div>
-                <div className="mt-1 font-mono text-[8px] font-medium text-neutral-500">{weekExecution.completionRate}% of goal outcomes finished</div>
-                <div className="mt-3 space-y-3">
-                  {[...weekExecution.days].reverse().map(day => {
-                    const dayProductivity = day.activeMs ? Math.round((day.productiveMs / day.activeMs) * 100) : 0;
-                    const goalRate = day.touchedGoals ? Math.round((day.completedGoals / day.touchedGoals) * 100) : 0;
+                <div className="space-y-2.5">
+                  {stageTime.map(s => {
+                    const pct = totalMs > 0 ? (s.ms / totalMs) * 100 : 0;
                     return (
-                      <div key={day.key} className="grid grid-cols-[42px_minmax(0,1fr)_110px] items-center gap-3">
-                        <div className="leading-none">
-                          <div className="font-mono text-[9px] font-medium uppercase tracking-wider text-neutral-300">{day.label}</div>
-                          <div className="font-mono text-[8px] font-medium text-neutral-500">{day.dateLabel}</div>
+                      <div key={s.key} className="grid grid-cols-[70px_minmax(0,1fr)_140px] items-center gap-3">
+                        <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-neutral-200">{s.label}</span>
+                        <div className="h-2.5 overflow-hidden rounded-full bg-neutral-900">
+                          <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.7 }} className="h-full rounded-full" style={{ backgroundColor: s.color, boxShadow: `0 0 10px ${s.color}55` }} />
                         </div>
-                        <div className="relative h-4 overflow-hidden rounded-full bg-neutral-900">
-                          <div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-cyan-900/60 via-cyan-400 to-emerald-300" style={{ width: `${day.activeMs ? Math.max(8, Math.round((day.activeMs / weekExecution.maxActive) * 100)) : 8}%` }} />
-                          <div className="absolute inset-y-0 right-0 rounded-full bg-emerald-400/80" style={{ width: `${Math.max(0, Math.min(100, dayProductivity))}%`, opacity: 0.35 }} />
-                        </div>
-                        <div className="text-right font-mono text-[8px] font-medium text-neutral-400">
-                          <div className="text-neutral-200">{compactDuration(day.activeMs)} · {day.completedGoals} done</div>
-                          <div className="text-neutral-500">{dayProductivity}% prod · {goalRate}% goal hit</div>
+                        <div className="text-right font-mono text-[10px]">
+                          <span className="font-bold text-white">{compactDuration(s.ms)}</span>
+                          <span className="text-neutral-500"> · {s.sittings} sitting{s.sittings === 1 ? '' : 's'} · {s.topics} topic{s.topics === 1 ? '' : 's'}</span>
                         </div>
                       </div>
                     );
@@ -526,21 +530,21 @@ export default function CommandCenterView({
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-2 border-t border-neutral-900 pt-3">
                   <div className="rounded-lg border border-neutral-900 bg-neutral-950/60 px-2 py-1.5">
-                    <div className="font-mono text-[8px] font-medium uppercase tracking-wider text-neutral-500">Avg throughput</div>
-                    <div className="mt-1 text-sm font-bold text-white">{weekExecution.throughput.toFixed(1)}</div>
+                    <div className="font-mono text-[8px] uppercase tracking-wider text-neutral-500">Total tracked</div>
+                    <div className="mt-1 text-sm font-bold text-white">{compactDuration(totalMs)}</div>
                   </div>
                   <div className="rounded-lg border border-neutral-900 bg-neutral-950/60 px-2 py-1.5">
-                    <div className="font-mono text-[8px] font-medium uppercase tracking-wider text-neutral-500">Task timers</div>
-                    <div className="mt-1 text-sm font-bold text-white">{weekExecution.totals.taskTimers}</div>
+                    <div className="font-mono text-[8px] uppercase tracking-wider text-neutral-500">Heaviest stage</div>
+                    <div className="mt-1 text-sm font-bold" style={{ color: heaviest?.ms > 0 ? heaviest.color : '#6b7280' }}>{heaviest && heaviest.ms > 0 ? heaviest.label : '—'}</div>
                   </div>
                   <div className="rounded-lg border border-neutral-900 bg-neutral-950/60 px-2 py-1.5">
-                    <div className="font-mono text-[8px] font-medium uppercase tracking-wider text-neutral-500">Breaks logged</div>
-                    <div className="mt-1 text-sm font-bold text-white">{weekExecution.totals.breaks}</div>
+                    <div className="font-mono text-[8px] uppercase tracking-wider text-neutral-500">Last 7 days</div>
+                    <div className="mt-1 text-sm font-bold text-cyan-300">{compactDuration(weekMs)}</div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </button>
+              </button>
+            );
+          })()}
         </div>
       </section>
 
@@ -579,11 +583,57 @@ export default function CommandCenterView({
       {(warningInsights.length > 0 || sessions.length > 0 || cycleGoals) && (
         <section className="grid gap-5 lg:grid-cols-2">
           <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5"><button type="button" onClick={() => onTabChange('insights')} className="group mb-4 flex w-full items-center justify-between text-left text-sm font-bold text-white"><span className="flex items-center gap-2"><Zap className="h-4 w-4 text-amber-400" /> Strategic watchlist</span><ArrowUpRight className="h-3.5 w-3.5 text-neutral-700 group-hover:text-amber-400" /></button><div className="space-y-2.5">{warningInsights.length ? warningInsights.map(item => <button type="button" onClick={() => onTabChange('insights')} key={item.id} className="group block w-full rounded-xl border border-neutral-900 bg-neutral-900/25 p-3 text-left transition hover:border-amber-900/50"><div className="flex items-center justify-between gap-2 text-xs font-semibold text-neutral-200"><span>{item.title}</span><ArrowUpRight className="h-3 w-3 text-neutral-700 group-hover:text-amber-400" /></div><div className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-neutral-500">{item.description}</div></button>) : <div className="text-[10px] text-neutral-600">No strategic warnings.</div>}</div></div>
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5"><button type="button" onClick={() => onTabChange('sessions')} className="group mb-4 flex w-full items-center justify-between text-left text-sm font-bold text-white"><span className="flex items-center gap-2"><ListTodo className="h-4 w-4 text-purple-400" /> Active initiatives</span><ArrowUpRight className="h-3.5 w-3.5 text-neutral-700 group-hover:text-purple-400" /></button><div className="space-y-2.5">{cycleGoals && <button type="button" onClick={() => onTabChange('actionhub')} className="group block w-full rounded-xl border border-purple-900/25 bg-purple-950/10 p-3 text-left transition hover:border-purple-700/60"><div className="flex items-center justify-between"><span className="text-xs font-semibold text-neutral-200">{cycleGoals.monthName} publishing cycle</span><span className="flex items-center gap-2 font-mono text-[10px] text-purple-300">{cycleDelivered}/{cycleTarget || '-'}<ArrowUpRight className="h-3 w-3" /></span></div><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-neutral-900"><div className="h-full rounded-full bg-gradient-to-r from-purple-600 to-cyan-400" style={{ width: `${cycleProgress}%` }} /></div><div className="mt-1.5 font-mono text-[9px] text-neutral-600">{cycleProgress}% of target delivered</div></button>}{sessions.length > 0 && (() => {
-            const latest = [...sessions].sort((a, b) => new Date(b.endedAt).getTime() - new Date(a.endedAt).getTime())[0];
-            const totalGoals = latest.achievedGoals.length + latest.droppedGoals.length + latest.pendingGoals.length;
-            return <button type="button" onClick={() => onTabChange('sessions')} className="flex w-full items-center justify-between rounded-xl border border-neutral-900 bg-neutral-900/25 p-3 text-left hover:border-purple-900/50"><span><span className="block text-xs font-semibold text-neutral-200">Last session · {new Date(latest.endedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span><span className="mt-1 block text-[10px] text-neutral-500">{latest.achievedGoals.length}/{totalGoals || 0} goals achieved</span></span><ArrowUpRight className="h-3.5 w-3.5 text-purple-400" /></button>;
-          })()}{sessions.length === 0 && !cycleGoals && <div className="text-[10px] text-neutral-600">No sessions recorded yet.</div>}</div></div>
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5">
+            <button type="button" onClick={() => onTabChange('topicintel')} className="group mb-4 flex w-full items-center justify-between text-left text-sm font-bold text-white">
+              <span className="flex items-center gap-2"><ListTodo className="h-4 w-4 text-purple-400" /> Active initiatives</span>
+              <ArrowUpRight className="h-3.5 w-3.5 text-neutral-700 group-hover:text-purple-400" />
+            </button>
+            <div className="space-y-2.5">
+              {cycleGoals && (
+                <button type="button" onClick={() => onTabChange('actionhub')} className="group block w-full rounded-xl border border-purple-900/25 bg-purple-950/10 p-3 text-left transition hover:border-purple-700/60">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-neutral-200">{cycleGoals.monthName} publishing cycle</span>
+                    <span className="flex items-center gap-2 font-mono text-[10px] text-purple-300">{cycleDelivered}/{cycleTarget || '-'}<ArrowUpRight className="h-3 w-3" /></span>
+                  </div>
+                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-neutral-900">
+                    <div className="h-full rounded-full bg-gradient-to-r from-purple-600 to-cyan-400" style={{ width: `${cycleProgress}%` }} />
+                  </div>
+                  <div className="mt-1.5 font-mono text-[9px] text-neutral-600">{cycleProgress}% of target delivered</div>
+                </button>
+              )}
+              {(() => {
+                const now = Date.now();
+                const active = taskTimers.filter(t => t.status === 'running' || t.status === 'paused')
+                  .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())[0];
+                if (active) {
+                  const active_ms = active.accumulatedActiveMs + (active.status === 'running' && active.activeSince ? Math.max(0, now - new Date(active.activeSince).getTime()) : 0);
+                  return (
+                    <button type="button" onClick={() => onOpenTopicPipeline(active.topicId, active.stage)} className="flex w-full items-center justify-between rounded-xl border border-emerald-900/30 bg-emerald-950/10 p-3 text-left hover:border-emerald-700/60">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-semibold text-neutral-100">Live: {active.topicName}</span>
+                        <span className="mt-1 block font-mono text-[10px] text-emerald-300">{active.status === 'running' ? 'Running' : 'Paused'} · {compactDuration(active_ms)} on {active.stage}</span>
+                      </span>
+                      <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-emerald-300" />
+                    </button>
+                  );
+                }
+                const nextDue = topics.filter(t => t.dueDate && t.status !== 'posted')
+                  .sort((a, b) => timeValue(a.dueDate) - timeValue(b.dueDate))[0];
+                if (nextDue) {
+                  return (
+                    <button type="button" onClick={() => onOpenTopicPipeline(nextDue.id, actionTargetForTopic(nextDue))} className="flex w-full items-center justify-between rounded-xl border border-neutral-900 bg-neutral-900/25 p-3 text-left hover:border-amber-900/50">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-semibold text-neutral-100">Nearest deadline · {nextDue.name}</span>
+                        <span className="mt-1 block font-mono text-[10px] text-amber-300">{deadlineText(nextDue.dueDate)}</span>
+                      </span>
+                      <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-amber-300" />
+                    </button>
+                  );
+                }
+                return <div className="text-[10px] text-neutral-600">No live timer, no upcoming deadline. Start a stage stopwatch on any topic.</div>;
+              })()}
+            </div>
+          </div>
         </section>
       )}
     </div>

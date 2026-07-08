@@ -363,86 +363,84 @@ export default function ProductionPipelineMap({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, delay: index * 0.05 }}
-                className={`group relative overflow-hidden rounded-2xl border bg-neutral-950/85 p-4 text-left transition hover:-translate-y-0.5 hover:bg-neutral-900/90 focus-visible:outline-none focus-visible:ring-1 ${node.tone.border} ${active ? `${node.tone.ring} ring-1 ring-white/10` : ''}`}
+                className={`group relative overflow-hidden rounded-xl border bg-neutral-950/85 text-left transition hover:-translate-y-0.5 hover:bg-neutral-900/90 focus-visible:outline-none focus-visible:ring-1 ${node.tone.border} ${active ? `${node.tone.ring} ring-1 ring-white/10` : ''}`}
               >
                 <div className={`pointer-events-none absolute inset-0 ${node.tone.fill}`} />
 
-                {/* Attention / live badges (top-right corner) */}
-                <div className="pointer-events-none absolute right-3 top-3 z-20 flex items-center gap-1.5">
-                  {hasLive && <LiveDot />}
-                  {needsAttention && <AttentionDot />}
-                </div>
-
-                <div className="relative z-10 flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className={`font-mono text-[9px] uppercase tracking-[.24em] ${node.tone.badge}`}>{node.title}</div>
-                    <div className="mt-1 text-2xl font-bold text-white">{node.count}</div>
-                    <div className="mt-0.5 text-[10px] uppercase tracking-wider text-neutral-500">
-                      {node.count === 0 ? 'Empty' : node.count === 1 ? '1 topic' : `${node.count} topics`}
-                    </div>
-                  </div>
-                  <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border ${node.tone.border} bg-black/30 ${node.tone.badge}`}>
+                {/* Header stripe — icon left, big count, badges right */}
+                <div className="relative z-10 flex items-center gap-2.5 border-b border-neutral-900/80 px-3 py-2.5">
+                  <div className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg border ${node.tone.border} bg-black/40 ${node.tone.badge}`}>
                     <Icon className="h-4 w-4" />
                   </div>
+                  <div className="min-w-0 flex-1">
+                    <div className={`font-mono text-[9px] font-semibold uppercase tracking-[.2em] ${node.tone.badge}`}>{node.title}</div>
+                    <div className="mt-0.5 text-lg font-bold leading-none text-white">
+                      {node.count}
+                      <span className="ml-1.5 text-[9px] font-normal uppercase tracking-wider text-neutral-500">
+                        {node.count === 0 ? 'empty' : node.count === 1 ? 'topic' : 'topics'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {hasLive && <LiveDot />}
+                    {needsAttention && <AttentionDot />}
+                  </div>
                 </div>
 
-                {/* Load bar */}
-                <div className="relative z-10 mt-4 h-1.5 overflow-hidden rounded-full bg-neutral-900">
+                {/* Load bar directly under header */}
+                <div className="relative z-10 h-1 overflow-hidden bg-neutral-900/60">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${width}%` }}
                     transition={{ duration: 0.7, ease: 'easeOut' }}
-                    className={`h-full rounded-full ${node.tone.bar} opacity-80`}
+                    className={`h-full ${node.tone.bar} opacity-80`}
                   />
                 </div>
 
-                {/* Actionable rows: only include the ones that matter */}
-                <div className="relative z-10 mt-3 space-y-1.5 text-[10px]">
-                  {node.blocked > 0 && (
-                    <div className="flex items-center gap-1.5 font-semibold text-rose-300">
-                      <AlertTriangle className="h-3 w-3" />
-                      <span>{node.blocked} blocked</span>
+                {/* Body: signals + oldest topic hint */}
+                <div className="relative z-10 space-y-1.5 px-3 py-2.5 text-[10px]">
+                  {(node.blocked > 0 || node.overdue > 0 || hasLive || (node.pausedCount > 0 && !hasLive)) && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {node.blocked > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded border border-rose-900/40 bg-rose-950/25 px-1.5 py-0.5 font-mono text-[9px] font-bold text-rose-300">
+                          <AlertTriangle className="h-2.5 w-2.5" />{node.blocked} blocked
+                        </span>
+                      )}
+                      {node.overdue > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded border border-amber-900/40 bg-amber-950/25 px-1.5 py-0.5 font-mono text-[9px] font-bold text-amber-300">
+                          <Clock3 className="h-2.5 w-2.5" />{node.overdue} overdue
+                        </span>
+                      )}
+                      {hasLive && (
+                        <span className="inline-flex items-center gap-1 rounded border border-emerald-900/40 bg-emerald-950/25 px-1.5 py-0.5 font-mono text-[9px] font-bold text-emerald-300">
+                          <Radio className="h-2.5 w-2.5" />{node.liveCount} live
+                        </span>
+                      )}
+                      {!hasLive && node.pausedCount > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded border border-neutral-800 bg-neutral-900/60 px-1.5 py-0.5 font-mono text-[9px] font-bold text-neutral-300">
+                          {node.pausedCount} paused
+                        </span>
+                      )}
                     </div>
                   )}
-                  {node.overdue > 0 && (
-                    <div className="flex items-center gap-1.5 font-semibold text-amber-300">
-                      <Clock3 className="h-3 w-3" />
-                      <span>{node.overdue} overdue</span>
+                  {node.count === 0 ? (
+                    <div className="text-neutral-500 leading-snug">
+                      <span className={`font-mono text-[8px] font-bold uppercase tracking-wider ${node.tone.badge}`}>Next step</span>
+                      <div className="mt-0.5 text-[10px] text-neutral-400">{node.nextAction}</div>
                     </div>
-                  )}
-                  {hasLive && (
-                    <div className="flex items-center gap-1.5 font-semibold text-emerald-300">
-                      <Radio className="h-3 w-3" />
-                      <span>{node.liveCount} running now</span>
+                  ) : node.oldestName ? (
+                    <div>
+                      <div className="text-[9px] font-mono uppercase tracking-wider text-neutral-500">Oldest</div>
+                      <div className="mt-0.5 truncate text-[11px] font-semibold text-neutral-100">{node.oldestName}</div>
+                      <div className="mt-0.5 text-[9px] text-neutral-500">
+                        {node.oldestAgeDays && node.oldestAgeDays > 0 ? `${node.oldestAgeDays}d in queue` : 'Added today'} · {node.nextAction}
+                      </div>
                     </div>
-                  )}
-                  {!hasLive && node.pausedCount > 0 && (
-                    <div className="flex items-center gap-1.5 text-neutral-400">
-                      <span className="h-1.5 w-1.5 rounded-full bg-neutral-500" />
-                      <span>{node.pausedCount} paused</span>
-                    </div>
-                  )}
-                  {node.stale > 0 && node.blocked === 0 && node.overdue === 0 && (
-                    <div className="flex items-center gap-1.5 text-neutral-500">
-                      <span className="h-1.5 w-1.5 rounded-full bg-neutral-600" />
-                      <span>{node.stale} sitting 3d+</span>
-                    </div>
-                  )}
-                  {node.count === 0 && (
-                    <div className="text-neutral-600">Nothing here — {node.nextAction.toLowerCase()} on any topic to fill this stage.</div>
+                  ) : null}
+                  {node.stale > 0 && node.blocked === 0 && node.overdue === 0 && node.count > 0 && (
+                    <div className="text-[9px] text-neutral-500">{node.stale} sitting 3d+</div>
                   )}
                 </div>
-
-                {/* Oldest topic hint, only when this stage has any topics */}
-                {node.count > 0 && node.oldestName && (
-                  <div className="relative z-10 mt-3 border-t border-neutral-900/80 pt-2">
-                    <div className="text-[9px] uppercase tracking-wider text-neutral-600">Oldest here</div>
-                    <div className="mt-1 truncate text-[11px] font-medium text-neutral-200">{node.oldestName}</div>
-                    <div className="mt-0.5 text-[10px] text-neutral-500">
-                      {node.oldestAgeDays && node.oldestAgeDays > 0 ? `${node.oldestAgeDays}d in queue` : 'Added today'} · {node.nextAction}
-                    </div>
-                  </div>
-                )}
               </motion.button>
             );
           })}
@@ -456,20 +454,36 @@ export default function ProductionPipelineMap({
         </div>
 
         <div className="mt-5 grid gap-3 lg:grid-cols-[1.35fr_.9fr_.9fr]">
-          <div className="rounded-2xl border border-neutral-800/70 bg-neutral-950/75 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Workday timer</div>
-                <div className="mt-1 text-sm font-semibold text-white">{workdayLabel}</div>
+          {(() => {
+            const weekCutoff = now - 7 * 86_400_000;
+            const weekTimers = taskTimers.filter(t => new Date(t.startedAt).getTime() >= weekCutoff);
+            const weekMs = weekTimers.reduce((sum, t) => sum + t.accumulatedActiveMs + (
+              t.status === 'running' && t.activeSince ? Math.max(0, now - new Date(t.activeSince).getTime()) : 0
+            ), 0);
+            const weekSittings = weekTimers.reduce((sum, t) => {
+              if (t.segments && t.segments.length > 0) return sum + t.segments.length;
+              if (t.status === 'paused') return sum + t.breaksCount;
+              if (t.status === 'running' || t.status === 'completed') return sum + t.breaksCount + 1;
+              return sum;
+            }, 0);
+            const weekTopics = new Set(weekTimers.map(t => t.topicId)).size;
+            return (
+              <div className="rounded-2xl border border-neutral-800/70 bg-neutral-950/75 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Time this week</div>
+                    <div className="mt-1 text-sm font-semibold text-white">{formatDuration(weekMs)}</div>
+                  </div>
+                  <Clock3 className="h-5 w-5 text-cyan-300" />
+                </div>
+                <div className="mt-2 text-[11px] text-neutral-400">
+                  {weekTimers.length > 0
+                    ? `${weekSittings} sitting${weekSittings === 1 ? '' : 's'} across ${weekTopics} topic${weekTopics === 1 ? '' : 's'}`
+                    : 'Start a stage stopwatch on any topic to record time.'}
+                </div>
               </div>
-              <Clock3 className="h-5 w-5 text-cyan-300" />
-            </div>
-            <div className="mt-2 text-[11px] text-neutral-400">
-              {workdaySession
-                ? `Started ${new Date(workdaySession.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                : 'Start the day from the header to record time.'}
-            </div>
-          </div>
+            );
+          })()}
 
           <div className="rounded-2xl border border-neutral-800/70 bg-neutral-950/75 p-4">
             <div className="flex items-center justify-between">
