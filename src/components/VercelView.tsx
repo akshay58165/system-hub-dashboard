@@ -417,23 +417,33 @@ export default function VercelView({
 }: VercelViewProps) {
   const taskTimer = useTaskTimers();
   const [selectedChannel, setSelectedChannel] = useState<'All' | 'LearnDriven' | 'DecodeWorthy' | 'Later'>('All');
+  const [expandedTopicIds, setExpandedTopicIds] = useState<Set<string>>(new Set());
+  const toggleTopicExpanded = (id: string) => setExpandedTopicIds(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
   const [topicSortOrder, setTopicSortOrder] = useState<TopicSortMode>('due-date');
   const [isTopicSortOpen, setIsTopicSortOpen] = useState(false);
   // Auto-switch to "Today's goals first" when a workday session has goals,
   // and back to "Due date" when it ends. The ref remembers the last auto-set
   // value so a user's manual change is not clobbered on re-render.
-  const lastAutoSortRef = useRef<TopicSortMode | null>(null);
+  const userTouchedSortRef = useRef(false);
+  const didInitialSortRef = useRef(false);
   useEffect(() => {
+    if (userTouchedSortRef.current) return;
     const hasSessionGoals = Boolean(workdaySession && (workdaySession.goals || []).length);
     const target: TopicSortMode = hasSessionGoals ? 'goals' : 'due-date';
-    if (lastAutoSortRef.current === target) return;
-    // Only override if the current sort matches the previous auto-set value
-    // (i.e. the user hasn't manually chosen something else since).
-    if (lastAutoSortRef.current === null || topicSortOrder === lastAutoSortRef.current) {
+    if (!didInitialSortRef.current || topicSortOrder !== target) {
       setTopicSortOrder(target);
+      didInitialSortRef.current = true;
     }
-    lastAutoSortRef.current = target;
   }, [workdaySession?.startedAt, (workdaySession?.goals || []).length]);
+  const handleUserSortChange = (value: TopicSortMode) => {
+    userTouchedSortRef.current = true;
+    setTopicSortOrder(value);
+    setIsTopicSortOpen(false);
+  };
   const topicSortRef = useDismissOnOutsideClick<HTMLDivElement>(
     isTopicSortOpen,
     true,
@@ -1378,10 +1388,7 @@ export default function VercelView({
                           <button
                             key={value}
                             type="button"
-                            onClick={() => {
-                              setTopicSortOrder(value);
-                              setIsTopicSortOpen(false);
-                            }}
+                            onClick={() => handleUserSortChange(value)}
                             className={`block w-full whitespace-nowrap rounded px-3 py-2 text-left text-[10px] font-mono transition-colors ${
                               value === topicSortOrder
                                 ? 'bg-rose-500/15 text-rose-300'
@@ -1491,6 +1498,15 @@ export default function VercelView({
                           </div>
                         </div>
                           <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => toggleTopicExpanded(topic.id)}
+                            className={`p-1 rounded border transition ${expandedTopicIds.has(topic.id) ? 'border-emerald-800 text-emerald-300' : 'border-neutral-800 text-neutral-400 hover:text-emerald-300 hover:border-emerald-800'}`}
+                            title={expandedTopicIds.has(topic.id) ? 'Collapse timer details' : 'Expand timer details'}
+                            aria-expanded={expandedTopicIds.has(topic.id)}
+                          >
+                            <ChevronDown className={`h-3 w-3 transition-transform ${expandedTopicIds.has(topic.id) ? 'rotate-180' : ''}`} />
+                          </button>
                           <button
                             type="button"
                             onClick={openTopicEditor}
@@ -1628,6 +1644,7 @@ export default function VercelView({
                           "how long has this topic taken so far", independent of
                           whether a workday session is active. */}
                       {(() => {
+                        if (!expandedTopicIds.has(topic.id)) return null;
                         const allTopicTimers = taskTimer?.timers.filter(t => t.topicId === topic.id) || [];
                         if (allTopicTimers.length === 0) return null;
                         const topicTotalMs = allTopicTimers.reduce((total, t) => total + t.accumulatedActiveMs + (
@@ -1663,7 +1680,7 @@ export default function VercelView({
                           // New per-stage stopwatch UI for the 4 authoring stages.
                           // Schedule/Post stay as status-only WorkflowStatusButton
                           // (rendered by the block below).
-                          if (stage === 'hook' || stage === 'script' || stage === 'shoot' || stage === 'edit') {
+                          if ((stage === 'hook' || stage === 'script' || stage === 'shoot' || stage === 'edit') && expandedTopicIds.has(topic.id)) {
                             return (
                               <StageStopwatch
                                 key={stage}
@@ -1785,11 +1802,18 @@ export default function VercelView({
                                     if (state !== 'completed') {
                                       handleTransitionToStage(topic, 'schedule', 'in-progress');
                                     }
+                                  } else if (stage === 'hook' || stage === 'script' || stage === 'shoot' || stage === 'edit') {
+                                    // Collapsed authoring stage: quick tap starts the timer.
+                                    handleTransitionToStage(topic, stage, 'in-progress');
+                                    taskTimer?.startTimer(topic.id, stage);
                                   }
                                 }}
                                 onLongPress={() => {
                                   if (stage === 'schedule' && state === 'in-progress') {
                                     completeSchedule(topic);
+                                  } else if (stage === 'hook' || stage === 'script' || stage === 'shoot' || stage === 'edit') {
+                                    handleTransitionToStage(topic, stage, 'completed');
+                                    taskTimer?.completeStageTimer(topic.id, stage);
                                   }
                                 }}
                                 onReset={() => resetWorkflowStage(topic, stage)}

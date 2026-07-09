@@ -42,6 +42,7 @@ import {
 
 import CommandPalette from './components/CommandPalette';
 import WorkdayTimer from './components/WorkdayTimer';
+import RunningStageBar from './components/RunningStageBar';
 import TopicCreateModal from './components/TopicCreateModal';
 import { TaskTimerContext } from './contexts/TaskTimerContext';
 
@@ -2832,6 +2833,14 @@ export default function App() {
           </div>
         </div>
       </nav>
+
+      <RunningStageBar
+        timers={visibleTaskTimers}
+        topics={visibleTopics}
+        onPause={() => pauseActiveTaskTimer()}
+        onResume={() => resumeActiveTaskTimer()}
+        onDone={(topicId, stage) => completeTaskTimerStage(topicId, stage as any)}
+      />
 
       {/* Primary Application Body */}
       <main className="w-full px-4 sm:px-6 lg:px-8 py-6">
