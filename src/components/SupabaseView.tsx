@@ -16,7 +16,8 @@ import {
   Check,
   Gauge,
   RotateCcw,
-  Pencil
+  Pencil,
+  Calendar
 } from 'lucide-react';
 import { SupabaseProject, SystemEvent, Topic, TopicActivity, CycleGoal, AiRulePreset, AiUsageStats, AiUsageCall } from '../types';
 import { callOpenAI, getChannelSystemPrompt, findScriptSources, fetchRealAccountUsage, RealAccountUsage } from '../services/openai';
@@ -106,6 +107,24 @@ export default function SupabaseView({
   const [newTopicPriority, setNewTopicPriority] = useState<Topic['priority']>(1);
   const [newTopicScore, setNewTopicScore] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | undefined>(undefined);
   const [newTopicDueDate, setNewTopicDueDate] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pickerDate, setPickerDate] = useState(() => {
+    const now = new Date();
+    return { month: now.getMonth(), year: now.getFullYear() };
+  });
+
+  const getScheduledTopicChannelsForDate = (dateStr: string) => {
+    const matchingTopics = topics.filter(t => {
+      if (!t.dueDate) return false;
+      return t.dueDate.split('T')[0] === dateStr;
+    });
+    return {
+      hasLearnDrivenShort: matchingTopics.some(t => t.channel === 'LearnDriven' && t.format === 'Short'),
+      hasDecodeWorthyShort: matchingTopics.some(t => t.channel === 'DecodeWorthy' && t.format === 'Short'),
+      hasLearnDrivenMembers: matchingTopics.some(t => t.channel === 'LearnDriven' && t.format === 'Members'),
+      hasLearnDrivenLong: matchingTopics.some(t => t.channel === 'LearnDriven' && t.format === 'Long'),
+    };
+  };
   const [topicEligibility, setTopicEligibility] = useState({
     neutral: false,
     productTag: false,
@@ -837,10 +856,82 @@ ${task}`;
                             {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const).map(scoreOption)}
                           </div>
                         </fieldset>
-                        <label className="space-y-1">
+                        <div className="space-y-1">
                           <span className="uppercase text-neutral-500">Due Date</span>
-                          <input type="date" value={newTopicDueDate} onChange={event => setNewTopicDueDate(event.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded px-2 py-2 text-xs text-white" />
-                        </label>
+                          <div className="relative">
+                            <div
+                              onClick={() => setShowDatePicker(!showDatePicker)}
+                              className="w-full bg-neutral-950 border border-neutral-800 rounded px-2 py-2 text-xs text-white flex items-center justify-between cursor-pointer select-none"
+                            >
+                              <span className={newTopicDueDate ? 'text-white' : 'text-neutral-500'}>
+                                {newTopicDueDate || 'dd - mm - yyyy'}
+                              </span>
+                              <Calendar className="h-3.5 w-3.5 text-neutral-500" />
+                            </div>
+
+                            {showDatePicker && (
+                              <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowDatePicker(false)} />
+                                <div className="absolute right-0 mt-1.5 w-64 backdrop-blur-md bg-neutral-950/90 border border-neutral-800 rounded-xl p-3 shadow-2xl z-50 font-mono text-[9px] select-none">
+                                  <div className="flex items-center justify-between mb-3 text-neutral-200">
+                                    <span className="font-bold text-[10px] text-neutral-200">
+                                      {(() => {
+                                        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                                        return `${monthNames[pickerDate.month]} ${pickerDate.year}`;
+                                      })()}
+                                    </span>
+                                    <div className="flex gap-1.5">
+                                      <button type="button" onClick={() => setPickerDate(prev => { let m = prev.month - 1, y = prev.year; if (m < 0) { m = 11; y -= 1; } return { month: m, year: y }; })} className="p-1 rounded bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer">&lt;</button>
+                                      <button type="button" onClick={() => setPickerDate(prev => { let m = prev.month + 1, y = prev.year; if (m > 11) { m = 0; y += 1; } return { month: m, year: y }; })} className="p-1 rounded bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer">&gt;</button>
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-7 gap-1 text-center font-bold text-neutral-500 mb-1">
+                                    {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(d => <span key={d}>{d}</span>)}
+                                  </div>
+                                  <div className="grid grid-cols-7 gap-1">
+                                    {(() => {
+                                      const daysInMonth = new Date(pickerDate.year, pickerDate.month + 1, 0).getDate();
+                                      const firstDayIndex = new Date(pickerDate.year, pickerDate.month, 1).getDay();
+                                      const cells = [];
+                                      const todayStr = new Date().toISOString().split('T')[0];
+                                      for (let i = 0; i < firstDayIndex; i++) cells.push(<div key={`empty-${i}`} />);
+                                      for (let day = 1; day <= daysInMonth; day++) {
+                                        const dateStr = `${pickerDate.year}-${String(pickerDate.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                        const { hasLearnDrivenShort, hasDecodeWorthyShort, hasLearnDrivenMembers, hasLearnDrivenLong } = getScheduledTopicChannelsForDate(dateStr);
+                                        const isSelected = newTopicDueDate === dateStr;
+                                        const isToday = dateStr === todayStr;
+                                        cells.push(
+                                          <button key={day} type="button" onClick={() => { setNewTopicDueDate(dateStr); setShowDatePicker(false); }}
+                                            className={`p-1.5 rounded transition relative cursor-pointer ${isSelected ? 'bg-rose-500 text-white font-bold' : isToday ? 'ring-1 ring-neutral-400 text-white font-semibold hover:bg-neutral-900' : 'hover:bg-neutral-900 text-neutral-300'}`}
+                                          >
+                                            {day}
+                                            <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex gap-[2px]">
+                                              {hasLearnDrivenShort && <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#a855f7' }} title="LearnDriven Short" />}
+                                              {hasDecodeWorthyShort && <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#eab308' }} title="DecodeWorthy Short" />}
+                                              {hasLearnDrivenMembers && <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#22c55e' }} title="LearnDriven Members" />}
+                                              {hasLearnDrivenLong && <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#3b82f6' }} title="LearnDriven Long" />}
+                                            </div>
+                                          </button>
+                                        );
+                                      }
+                                      return cells;
+                                    })()}
+                                  </div>
+                                  <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 pt-1.5 border-t border-neutral-900/50 text-[7px] text-neutral-500">
+                                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#a855f7' }} />LD Short</span>
+                                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#eab308' }} />DW Short</span>
+                                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#22c55e' }} />LD Members</span>
+                                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#3b82f6' }} />LD Long</span>
+                                  </div>
+                                  <div className="flex justify-between border-t border-neutral-900 mt-2.5 pt-2">
+                                    <button type="button" onClick={() => { setNewTopicDueDate(''); setShowDatePicker(false); }} className="text-neutral-500 hover:text-neutral-300 transition">Clear</button>
+                                    <button type="button" onClick={() => { const d = new Date(); setNewTopicDueDate(d.toISOString().split('T')[0]); setShowDatePicker(false); }} className="text-blue-400 hover:text-blue-300 transition font-bold">Today</button>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
                         <div className="space-y-1">
                           <span className="uppercase text-neutral-500">Auto Revenue Level</span>
                           <div className="h-[34px] bg-neutral-950/60 border border-neutral-800 rounded px-2.5 flex items-center text-xs font-bold text-emerald-400">{getTopicRevenueLevel() || '-'}</div>

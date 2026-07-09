@@ -31,6 +31,7 @@ interface TopicCreateModalProps {
   isOpen: boolean;
   onClose: () => void;
   topicToEdit?: Topic | null;
+  topics: Topic[];
   setTopics: React.Dispatch<React.SetStateAction<Topic[]>>;
   setActivities: React.Dispatch<React.SetStateAction<TopicActivity[]>>;
   onAddEvent: (evt: SystemEvent) => void;
@@ -102,6 +103,7 @@ export default function TopicCreateModal({
   isOpen,
   onClose,
   topicToEdit,
+  topics,
   setTopics,
   setActivities,
   onAddEvent,
@@ -121,6 +123,24 @@ export default function TopicCreateModal({
   const [topicScore, setTopicScore] = useState<TopicScore | undefined>(undefined);
   const [dueDate, setDueDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pickerDate, setPickerDate] = useState(() => {
+    const now = new Date();
+    return { month: now.getMonth(), year: now.getFullYear() };
+  });
+
+  const getScheduledTopicChannelsForDate = (dateStr: string) => {
+    const matchingTopics = topics.filter(t => {
+      if (!t.dueDate) return false;
+      return t.dueDate.split('T')[0] === dateStr;
+    });
+    return {
+      hasLearnDrivenShort: matchingTopics.some(t => t.channel === 'LearnDriven' && t.format === 'Short'),
+      hasDecodeWorthyShort: matchingTopics.some(t => t.channel === 'DecodeWorthy' && t.format === 'Short'),
+      hasLearnDrivenMembers: matchingTopics.some(t => t.channel === 'LearnDriven' && t.format === 'Members'),
+      hasLearnDrivenLong: matchingTopics.some(t => t.channel === 'LearnDriven' && t.format === 'Long'),
+    };
+  };
   const [eligibility, setEligibility] = useState<Eligibility>(emptyEligibility);
   const [stageTimes, setStageTimes] = useState<Record<TaskTimerStage, string>>({
     hook: '00:00:00', script: '00:00:00', shoot: '00:00:00', edit: '00:00:00', schedule: '00:00:00', post: '00:00:00'
@@ -473,10 +493,153 @@ export default function TopicCreateModal({
                   </div>
                 </fieldset>
                 <label className="block uppercase text-neutral-500">Due Date
-                  <span className="relative mt-1 block">
-                    <input type="date" value={dueDate} onChange={event => setDueDate(event.target.value)} className="h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 text-[10px] normal-case text-white outline-none" />
-                    <Calendar className="pointer-events-none absolute right-2 top-1.5 h-3.5 w-3.5 text-neutral-500" />
-                  </span>
+                  <div className="relative mt-1">
+                    <div
+                      onClick={() => setShowDatePicker(!showDatePicker)}
+                      className="h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 text-[10px] normal-case text-white flex items-center justify-between cursor-pointer select-none"
+                    >
+                      <span className={dueDate ? 'text-white' : 'text-neutral-500'}>
+                        {dueDate || 'dd - mm - yyyy'}
+                      </span>
+                      <Calendar className="h-3.5 w-3.5 text-neutral-500" />
+                    </div>
+
+                    {showDatePicker && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => setShowDatePicker(false)}
+                        />
+                        <div className="absolute right-0 mt-1.5 w-64 backdrop-blur-md bg-neutral-950/90 border border-neutral-800 rounded-xl p-3 shadow-2xl z-50 font-mono text-[9px] select-none">
+                          <div className="flex items-center justify-between mb-3 text-neutral-200">
+                            <span className="font-bold text-[10px] text-neutral-200">
+                              {(() => {
+                                const monthNames = [
+                                  "January", "February", "March", "April", "May", "June",
+                                  "July", "August", "September", "October", "November", "December"
+                                ];
+                                return `${monthNames[pickerDate.month]} ${pickerDate.year}`;
+                              })()}
+                            </span>
+                            <div className="flex gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPickerDate(prev => {
+                                    let newMonth = prev.month - 1;
+                                    let newYear = prev.year;
+                                    if (newMonth < 0) { newMonth = 11; newYear -= 1; }
+                                    return { month: newMonth, year: newYear };
+                                  });
+                                }}
+                                className="p-1 rounded bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer"
+                              >&lt;</button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPickerDate(prev => {
+                                    let newMonth = prev.month + 1;
+                                    let newYear = prev.year;
+                                    if (newMonth > 11) { newMonth = 0; newYear += 1; }
+                                    return { month: newMonth, year: newYear };
+                                  });
+                                }}
+                                className="p-1 rounded bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer"
+                              >&gt;</button>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-7 gap-1 text-center font-bold text-neutral-500 mb-1">
+                            {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(d => (
+                              <span key={d}>{d}</span>
+                            ))}
+                          </div>
+
+                          <div className="grid grid-cols-7 gap-1">
+                            {(() => {
+                              const daysInMonth = new Date(pickerDate.year, pickerDate.month + 1, 0).getDate();
+                              const firstDayIndex = new Date(pickerDate.year, pickerDate.month, 1).getDay();
+                              const cells = [];
+                              const todayStr = new Date().toISOString().split('T')[0];
+
+                              for (let i = 0; i < firstDayIndex; i++) {
+                                cells.push(<div key={`empty-${i}`} />);
+                              }
+
+                              for (let day = 1; day <= daysInMonth; day++) {
+                                const dateStr = `${pickerDate.year}-${String(pickerDate.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                const { hasLearnDrivenShort, hasDecodeWorthyShort, hasLearnDrivenMembers, hasLearnDrivenLong } = getScheduledTopicChannelsForDate(dateStr);
+                                const isSelected = dueDate === dateStr;
+                                const isToday = dateStr === todayStr;
+
+                                cells.push(
+                                  <button
+                                    key={day}
+                                    type="button"
+                                    onClick={() => {
+                                      setDueDate(dateStr);
+                                      setShowDatePicker(false);
+                                    }}
+                                    className={`p-1.5 rounded transition relative cursor-pointer ${
+                                      isSelected
+                                        ? 'bg-rose-500 text-white font-bold'
+                                        : isToday
+                                          ? 'ring-1 ring-neutral-400 text-white font-semibold hover:bg-neutral-900'
+                                          : 'hover:bg-neutral-900 text-neutral-300'
+                                    }`}
+                                  >
+                                    {day}
+                                    <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex gap-[2px]">
+                                      {hasLearnDrivenShort && (
+                                        <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#a855f7' }} title="LearnDriven Short" />
+                                      )}
+                                      {hasDecodeWorthyShort && (
+                                        <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#eab308' }} title="DecodeWorthy Short" />
+                                      )}
+                                      {hasLearnDrivenMembers && (
+                                        <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#22c55e' }} title="LearnDriven Members" />
+                                      )}
+                                      {hasLearnDrivenLong && (
+                                        <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#3b82f6' }} title="LearnDriven Long" />
+                                      )}
+                                    </div>
+                                  </button>
+                                );
+                              }
+
+                              return cells;
+                            })()}
+                          </div>
+
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 pt-1.5 border-t border-neutral-900/50 text-[7px] text-neutral-500">
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#a855f7' }} />LD Short</span>
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#eab308' }} />DW Short</span>
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#22c55e' }} />LD Members</span>
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#3b82f6' }} />LD Long</span>
+                          </div>
+
+                          <div className="flex justify-between border-t border-neutral-900 mt-2.5 pt-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDueDate('');
+                                setShowDatePicker(false);
+                              }}
+                              className="text-neutral-500 hover:text-neutral-300 transition"
+                            >Clear</button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDueDate(localDateKey());
+                                setShowDatePicker(false);
+                              }}
+                              className="text-blue-400 hover:text-blue-300 transition font-bold"
+                            >Today</button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </label>
                 <label className="block uppercase text-neutral-500">Sched Time
                   <input type="time" value={scheduleTime} onChange={event => setScheduleTime(event.target.value)} className="mt-1 h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 text-[10px] normal-case text-white outline-none" />

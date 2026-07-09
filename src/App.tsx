@@ -3103,6 +3103,7 @@ export default function App() {
             setTopicFormTopic(null);
           }}
           topicToEdit={topicFormTopic}
+          topics={topics}
           setTopics={setTopics}
           setActivities={setActivities}
           onAddEvent={addEvent}
