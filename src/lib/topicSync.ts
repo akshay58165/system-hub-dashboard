@@ -69,8 +69,19 @@ export const mergeRemoteWithPendingTopics = (
   // Never infer deletion from absence in a snapshot. Only an explicit
   // tombstone may remove a topic. This lets a healthy client repair an empty
   // or partial snapshot written by a stale tab instead of echoing the loss.
-  void dirtyTopicIds;
-  return mergeTopicsByNewest(remoteTopics, localTopics, deletedTopicIds);
+  const merged = mergeTopicsByNewest(remoteTopics, localTopics, deletedTopicIds);
+  if (dirtyTopicIds.size === 0) return merged;
+  // Any topic the user just edited locally but hasn't been confirmed on the
+  // server yet MUST keep the local version, regardless of what lastUpdated
+  // timestamps say. Otherwise a slightly-off clock or an echo from another
+  // tab can clobber a fresh Save Schedule/Save Edit the moment realtime
+  // fires — the user sees their change appear then vanish.
+  const localById = new Map(localTopics.map(topic => [topic.id, topic]));
+  return merged.map(topic => {
+    if (!dirtyTopicIds.has(topic.id)) return topic;
+    const local = localById.get(topic.id);
+    return local || topic;
+  });
 };
 
 export const topicCollectionsEqual = (left: Topic[], right: Topic[]) => {
