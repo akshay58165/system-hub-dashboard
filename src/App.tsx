@@ -612,6 +612,50 @@ export default function App() {
           ));
           if (missing.length === 0) return;
 
+          const describeTopicDiff = (previousTopic: Topic, nextTopic: Topic): string | null => {
+            const parts: string[] = [];
+            const prettyDate = (iso: string | null | undefined) => iso ? new Date(iso).toLocaleDateString() : '—';
+            if ((previousTopic.name || '') !== (nextTopic.name || '')) parts.push(`Renamed "${previousTopic.name}" → "${nextTopic.name}"`);
+            if ((previousTopic.description || '') !== (nextTopic.description || '')) parts.push('Edited description');
+            if (previousTopic.channel !== nextTopic.channel) parts.push(`Channel ${previousTopic.channel} → ${nextTopic.channel}`);
+            if (previousTopic.format !== nextTopic.format) parts.push(`Format ${previousTopic.format || 'None'} → ${nextTopic.format || 'None'}`);
+            if (previousTopic.category !== nextTopic.category) parts.push(`Category ${previousTopic.category || 'None'} → ${nextTopic.category || 'None'}`);
+            if (previousTopic.priority !== nextTopic.priority) parts.push(`Priority ${previousTopic.priority} → ${nextTopic.priority}`);
+            if ((previousTopic.topicScore ?? null) !== (nextTopic.topicScore ?? null)) {
+              parts.push(nextTopic.topicScore === undefined
+                ? 'Cleared topic score'
+                : previousTopic.topicScore === undefined
+                  ? `Scored ${nextTopic.topicScore}/10`
+                  : `Score ${previousTopic.topicScore} → ${nextTopic.topicScore}`);
+            }
+            if ((previousTopic.explanationDifficulty ?? null) !== (nextTopic.explanationDifficulty ?? null)) {
+              parts.push(nextTopic.explanationDifficulty === undefined
+                ? 'Cleared explanation difficulty'
+                : previousTopic.explanationDifficulty === undefined
+                  ? `Set explanation difficulty ${nextTopic.explanationDifficulty}/10`
+                  : `Difficulty ${previousTopic.explanationDifficulty} → ${nextTopic.explanationDifficulty}`);
+            }
+            if ((previousTopic.revenueLevel || '') !== (nextTopic.revenueLevel || '')) parts.push(`Revenue ${previousTopic.revenueLevel || 'None'} → ${nextTopic.revenueLevel || 'None'}`);
+            if ((previousTopic.dueDate || null) !== (nextTopic.dueDate || null)) parts.push(`Due date ${prettyDate(previousTopic.dueDate)} → ${prettyDate(nextTopic.dueDate)}`);
+            if ((previousTopic.scheduledTime || '') !== (nextTopic.scheduledTime || '')) parts.push(`Scheduled time ${previousTopic.scheduledTime || '—'} → ${nextTopic.scheduledTime || '—'}`);
+            if (Boolean(previousTopic.savedForLater) !== Boolean(nextTopic.savedForLater)) parts.push(nextTopic.savedForLater ? 'Saved for later' : 'Restored from Later');
+            if ((previousTopic.blockedReason || '') !== (nextTopic.blockedReason || '')) {
+              parts.push(nextTopic.blockedReason
+                ? `Blocked: ${nextTopic.blockedReason}`
+                : 'Unblocked');
+            }
+            if (Boolean(previousTopic.autoPostPaused) !== Boolean(nextTopic.autoPostPaused)) parts.push(nextTopic.autoPostPaused ? 'Paused auto-post' : 'Resumed auto-post');
+            const prevWf = previousTopic.workflowStatuses || {};
+            const nextWf = nextTopic.workflowStatuses || {};
+            const stageKeys: Array<'hook' | 'script' | 'shoot' | 'edit' | 'schedule' | 'post'> = ['hook', 'script', 'shoot', 'edit', 'schedule', 'post'];
+            stageKeys.forEach(stage => {
+              const before = prevWf[stage] || 'pending';
+              const after = nextWf[stage] || 'pending';
+              if (before !== after) parts.push(`${stage.charAt(0).toUpperCase() + stage.slice(1)} ${before} → ${after}`);
+            });
+            return parts.length > 0 ? parts.join(' · ') : null;
+          };
+
           const generated = missing.map((change, index): TopicActivity => {
             const previousTopic = change.previous;
             let action = 'Updated topic details';
@@ -619,6 +663,9 @@ export default function App() {
             else if (!previousTopic) action = 'Created topic';
             else if (previousTopic.status !== change.topic.status || previousTopic.inProgress !== change.topic.inProgress) {
               action = `Changed workflow from ${previousTopic.status}${previousTopic.inProgress ? ' (pipeline)' : ''} to ${change.topic.status}${change.topic.inProgress ? ' (pipeline)' : ''}`;
+            } else if (previousTopic) {
+              const diff = describeTopicDiff(previousTopic, change.topic);
+              if (diff) action = diff;
             }
             return {
               id: `act-auto-${Date.now()}-${index}-${change.topic.id}`,
