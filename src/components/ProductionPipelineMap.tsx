@@ -632,6 +632,110 @@ export default function ProductionPipelineMap({
             </div>
           </div>
         </div>
+
+        <div className="mt-5 grid gap-3 lg:grid-cols-2">
+          {(() => {
+            const recent = [...activities]
+              .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+              .slice(0, 3);
+            const rel = (ts: string) => {
+              const diff = now - new Date(ts).getTime();
+              if (diff < 60_000) return `${Math.max(1, Math.floor(diff / 1000))}s ago`;
+              if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+              if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+              return `${Math.floor(diff / 86_400_000)}d ago`;
+            };
+            return (
+              <div className="rounded-2xl border border-neutral-800/70 bg-neutral-950/75 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Last done activity</div>
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(52,211,153,0.85)] animate-pulse" title="Live activity feed" />
+                </div>
+                {recent.length === 0 ? (
+                  <div className="mt-2 text-[11px] text-neutral-500">No activity yet. Actions across the app will surface here.</div>
+                ) : (
+                  <ul className="mt-2 space-y-1.5">
+                    {recent.map((activity, index) => {
+                      const dotClass = index === 0
+                        ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.85)] animate-pulse'
+                        : index === 1
+                          ? 'bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.6)]'
+                          : 'bg-neutral-600';
+                      return (
+                        <li key={activity.id} className="flex items-start gap-2">
+                          <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} aria-hidden="true" />
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-[11px] text-neutral-200" title={`${activity.action} — ${activity.topicName}`}>
+                              <span className="font-semibold">{activity.action}</span>
+                              {activity.topicName ? <span className="text-neutral-500"> · {activity.topicName}</span> : null}
+                            </div>
+                            <div className="text-[9px] text-neutral-500">{activity.channel} · {rel(activity.timestamp)}</div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            );
+          })()}
+
+          {(() => {
+            const stages: Array<'hook' | 'script' | 'shoot' | 'edit'> = ['hook', 'script', 'shoot', 'edit'];
+            const totalByTopicStage = new Map<string, Record<'hook' | 'script' | 'shoot' | 'edit', number>>();
+            taskTimers.forEach(t => {
+              if (t.stage !== 'hook' && t.stage !== 'script' && t.stage !== 'shoot' && t.stage !== 'edit') return;
+              const active = t.accumulatedActiveMs + (t.status === 'running' && t.activeSince ? Math.max(0, now - new Date(t.activeSince).getTime()) : 0);
+              if (active <= 0) return;
+              const bucket = totalByTopicStage.get(t.topicId) || { hook: 0, script: 0, shoot: 0, edit: 0 };
+              bucket[t.stage as 'hook' | 'script' | 'shoot' | 'edit'] += active;
+              totalByTopicStage.set(t.topicId, bucket);
+            });
+            const complete: Record<'hook' | 'script' | 'shoot' | 'edit', number>[] = [];
+            let incompleteCount = 0;
+            totalByTopicStage.forEach(bucket => {
+              if (stages.every(s => bucket[s] > 0)) complete.push(bucket);
+              else incompleteCount += 1;
+            });
+            const avg = (stage: 'hook' | 'script' | 'shoot' | 'edit') => complete.length === 0
+              ? 0
+              : Math.round(complete.reduce((sum, b) => sum + b[stage], 0) / complete.length);
+            const stageMeta: Record<'hook' | 'script' | 'shoot' | 'edit', { label: string; class: string }> = {
+              hook: { label: 'Hook', class: 'text-blue-300' },
+              script: { label: 'Script', class: 'text-violet-300' },
+              shoot: { label: 'Shoot', class: 'text-amber-300' },
+              edit: { label: 'Edit', class: 'text-emerald-300' }
+            };
+            return (
+              <div className="rounded-2xl border border-neutral-800/70 bg-neutral-950/75 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Avg time per stage · 1 video</div>
+                  <span className={`h-2 w-2 rounded-full ${complete.length > 0 ? 'bg-emerald-500 shadow-[0_0_10px_rgba(52,211,153,0.85)]' : 'bg-neutral-700'}`} title={complete.length > 0 ? 'Based on complete topics' : 'No topic yet has all 4 stages tracked'} />
+                </div>
+                {complete.length === 0 ? (
+                  <div className="mt-2 text-[11px] text-neutral-500">
+                    No topic has all 4 stages timed yet. {incompleteCount > 0 ? `${incompleteCount} topic${incompleteCount === 1 ? '' : 's'} with partial data ignored.` : ''}
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-2 grid grid-cols-4 gap-2">
+                      {stages.map(stage => (
+                        <div key={stage} className="rounded border border-neutral-900 bg-neutral-950/60 px-2 py-1.5">
+                          <div className={`text-[8px] uppercase tracking-wider ${stageMeta[stage].class}`}>{stageMeta[stage].label}</div>
+                          <div className="mt-0.5 text-[13px] font-bold text-white tabular-nums">{formatDuration(avg(stage))}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-2 text-[10px] text-neutral-500">
+                      Averaged from <span className="text-emerald-300 font-bold">{complete.length}</span> complete topic{complete.length === 1 ? '' : 's'}
+                      {incompleteCount > 0 && <> · <span className="text-amber-300 font-bold">{incompleteCount}</span> incomplete topic{incompleteCount === 1 ? '' : 's'} excluded</>}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })()}
+        </div>
       </div>
     </section>
   );
