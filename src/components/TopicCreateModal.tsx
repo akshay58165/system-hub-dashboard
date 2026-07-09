@@ -409,7 +409,7 @@ export default function TopicCreateModal({
             initial={{ opacity: 0, y: 8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
-            className="max-h-[calc(100vh-2rem)] w-full max-w-xl overflow-y-auto rounded-xl border border-neutral-800 bg-neutral-950 p-5 shadow-2xl"
+            className="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-xl border border-neutral-800 bg-neutral-950 p-5 shadow-2xl"
           >
             <div className="mb-4 flex items-center justify-between">
               <div>
@@ -474,7 +474,7 @@ export default function TopicCreateModal({
                 </div>
               )}
 
-              <div className="grid grid-cols-1 gap-3 border-t border-neutral-900/60 pt-2 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 border-t border-neutral-900/60 pt-2">
                 <div>
                   <label className="block uppercase text-neutral-500">Priority</label>
                   <div className="mt-1.5 flex gap-1.5">
