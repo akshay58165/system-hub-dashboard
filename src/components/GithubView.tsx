@@ -550,6 +550,7 @@ export default function GithubView({
   const topicLedState = (topic: Topic) => {
     const due = topicDueTime(topic);
     const remaining = workRemaining(topic);
+    if (topic.status === 'scheduled') return { tone: 'scheduled', speed: '0s', active: false, label: 'Scheduled - waiting to publish' };
     if (topic.blockedReason) return { tone: 'blocked', speed: '0.42s', active: true, label: `Blocked - ${topic.blockedReason}` };
     if (due === Number.MAX_SAFE_INTEGER) return { tone: 'idle', speed: '0s', active: false, label: `No deadline - ${remaining} stages remaining` };
     const hours = (due - now.getTime()) / 36e5;
