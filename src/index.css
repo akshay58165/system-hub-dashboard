@@ -111,9 +111,76 @@
 .topic-led--overdue .topic-led__lens {
   background: radial-gradient(circle at 35% 27%, #ffffff 0 20%, #f5f5f5 45%, #d4d4d8 80%, #a1a1aa 100%);
   border-color: rgba(255, 255, 255, .95);
-  filter: brightness(1.2) saturate(1);
-  box-shadow: inset 0 -2px 3px rgba(0, 0, 0, .5), 0 0 8px rgba(255, 255, 255, .9), 0 0 18px rgba(255, 255, 255, .55);
-  animation: none;
+  animation: topic-led-tubelight-start 3.6s steps(1, end) infinite;
+}
+@keyframes topic-led-tubelight-start {
+  /* Dead — starter charging. */
+  0%, 7% {
+    filter: brightness(.12) saturate(.3);
+    box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 1), 0 0 0 rgba(255, 255, 255, 0);
+  }
+  /* First sudden pop. */
+  8%, 9% {
+    filter: brightness(1.9) saturate(1);
+    box-shadow: inset 0 -1px 2px rgba(0, 0, 0, .3), 0 0 10px rgba(255, 255, 255, 1), 0 0 22px rgba(255, 255, 255, .85);
+  }
+  10%, 14% {
+    filter: brightness(.12) saturate(.3);
+    box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 1), 0 0 0 rgba(255, 255, 255, 0);
+  }
+  /* Quick double flicker. */
+  15%, 16% {
+    filter: brightness(2) saturate(1);
+    box-shadow: inset 0 -1px 2px rgba(0, 0, 0, .3), 0 0 12px rgba(255, 255, 255, 1), 0 0 26px rgba(255, 255, 255, .9);
+  }
+  17%, 18% {
+    filter: brightness(.15) saturate(.3);
+    box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 1), 0 0 0 rgba(255, 255, 255, 0);
+  }
+  19%, 20% {
+    filter: brightness(1.8) saturate(1);
+    box-shadow: inset 0 -1px 2px rgba(0, 0, 0, .3), 0 0 10px rgba(255, 255, 255, .95), 0 0 22px rgba(255, 255, 255, .8);
+  }
+  /* Long dark stretch — struggling to hold. */
+  21%, 40% {
+    filter: brightness(.12) saturate(.3);
+    box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 1), 0 0 0 rgba(255, 255, 255, 0);
+  }
+  /* Half-glow trying to sustain. */
+  41%, 46% {
+    filter: brightness(.9) saturate(.85);
+    box-shadow: inset 0 -1px 2px rgba(0, 0, 0, .5), 0 0 4px rgba(255, 255, 255, .55), 0 0 10px rgba(255, 255, 255, .3);
+  }
+  47%, 49% {
+    filter: brightness(.12) saturate(.3);
+    box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 1), 0 0 0 rgba(255, 255, 255, 0);
+  }
+  /* One more sudden flash. */
+  50%, 51% {
+    filter: brightness(2.1) saturate(1);
+    box-shadow: inset 0 -1px 2px rgba(0, 0, 0, .3), 0 0 14px rgba(255, 255, 255, 1), 0 0 28px rgba(255, 255, 255, .95);
+  }
+  52%, 60% {
+    filter: brightness(.12) saturate(.3);
+    box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 1), 0 0 0 rgba(255, 255, 255, 0);
+  }
+  /* Finally catches — full glow with a slight fade tail. */
+  61%, 92% {
+    filter: brightness(1.65) saturate(1);
+    box-shadow: inset 0 -1px 2px rgba(0, 0, 0, .35), 0 0 9px rgba(255, 255, 255, .95), 0 0 20px rgba(255, 255, 255, .7);
+  }
+  /* Blink out to restart the cycle. */
+  93%, 100% {
+    filter: brightness(.12) saturate(.3);
+    box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 1), 0 0 0 rgba(255, 255, 255, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .topic-led--overdue .topic-led__lens {
+    animation: none !important;
+    filter: brightness(1.2) saturate(1);
+    box-shadow: inset 0 -2px 3px rgba(0, 0, 0, .5), 0 0 8px rgba(255, 255, 255, .9), 0 0 18px rgba(255, 255, 255, .55);
+  }
 }
 .topic-led--blue .topic-led__bezel {
   box-shadow: inset 0 1px 1px rgba(255,255,255,.22), inset 0 -2px 3px #000, 0 0 10px rgba(59, 130, 246, .35);
