@@ -209,8 +209,10 @@ export default function GithubView({
       return formattedDue === dateStr;
     });
     return {
-      hasLearnDriven: matchingTopics.some(t => t.channel === 'LearnDriven'),
-      hasDecodeWorthy: matchingTopics.some(t => t.channel === 'DecodeWorthy')
+      hasLearnDrivenShort: matchingTopics.some(t => t.channel === 'LearnDriven' && t.format === 'Short'),
+      hasDecodeWorthyShort: matchingTopics.some(t => t.channel === 'DecodeWorthy' && t.format === 'Short'),
+      hasLearnDrivenMembers: matchingTopics.some(t => t.channel === 'LearnDriven' && t.format === 'Members'),
+      hasLearnDrivenLong: matchingTopics.some(t => t.channel === 'LearnDriven' && t.format === 'Long'),
     };
   };
 
@@ -1683,10 +1685,12 @@ export default function GithubView({
                                   cells.push(<div key={`empty-${i}`} />);
                                 }
 
+                                const todayStr = new Date().toISOString().split('T')[0];
                                 for (let day = 1; day <= daysInMonth; day++) {
                                   const dateStr = `${pickerDate.year}-${String(pickerDate.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                                  const { hasLearnDriven, hasDecodeWorthy } = getScheduledTopicChannelsForDate(dateStr);
+                                  const { hasLearnDrivenShort, hasDecodeWorthyShort, hasLearnDrivenMembers, hasLearnDrivenLong } = getScheduledTopicChannelsForDate(dateStr);
                                   const isSelected = newTopicDueDate === dateStr;
+                                  const isToday = dateStr === todayStr;
 
                                   cells.push(
                                     <button
@@ -1699,16 +1703,24 @@ export default function GithubView({
                                       className={`p-1.5 rounded transition relative cursor-pointer ${
                                         isSelected 
                                           ? 'bg-rose-500 text-white font-bold' 
-                                          : 'hover:bg-neutral-900 text-neutral-300'
+                                          : isToday
+                                            ? 'ring-1 ring-neutral-400 text-white font-semibold hover:bg-neutral-900'
+                                            : 'hover:bg-neutral-900 text-neutral-300'
                                       }`}
                                     >
                                       {day}
-                                      <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex gap-0.5">
-                                        {hasLearnDriven && (
-                                          <span className="w-1 h-1 rounded-full bg-pink-500" />
+                                      <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 flex gap-[2px]">
+                                        {hasLearnDrivenShort && (
+                                          <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#a855f7' }} title="LearnDriven Short" />
                                         )}
-                                        {hasDecodeWorthy && (
-                                          <span className="w-1 h-1 rounded-full bg-blue-500" />
+                                        {hasDecodeWorthyShort && (
+                                          <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#eab308' }} title="DecodeWorthy Short" />
+                                        )}
+                                        {hasLearnDrivenMembers && (
+                                          <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#22c55e' }} title="LearnDriven Members" />
+                                        )}
+                                        {hasLearnDrivenLong && (
+                                          <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#3b82f6' }} title="LearnDriven Long" />
                                         )}
                                       </div>
                                     </button>
@@ -1717,6 +1729,13 @@ export default function GithubView({
 
                                 return cells;
                               })()}
+                            </div>
+
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 pt-1.5 border-t border-neutral-900/50 text-[7px] text-neutral-500">
+                              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#a855f7' }} />LD Short</span>
+                              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#eab308' }} />DW Short</span>
+                              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#22c55e' }} />LD Members</span>
+                              <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#3b82f6' }} />LD Long</span>
                             </div>
 
                             <div className="flex justify-between border-t border-neutral-900 mt-2.5 pt-2">
