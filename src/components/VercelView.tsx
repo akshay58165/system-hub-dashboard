@@ -61,7 +61,7 @@ interface VercelViewProps {
   onOpenTopicScore?: (topicId: string) => void;
 }
 
-type TopicSortMode = 'goals' | 'due-date' | 'last-created' | 'level' | 'progress-most' | 'progress-least' | 'workload';
+type TopicSortMode = 'goals' | 'due-date' | 'last-created' | 'level' | 'progress-most' | 'progress-least' | 'workload' | 'difficulty-high' | 'difficulty-low' | 'score-high';
 
 const topicSortLabels: Record<TopicSortMode, string> = {
   goals: "Today's goals first",
@@ -70,7 +70,10 @@ const topicSortLabels: Record<TopicSortMode, string> = {
   level: 'Level: H to L',
   'progress-most': 'Most work left',
   'progress-least': 'Least work left',
-  workload: 'Workload priority'
+  workload: 'Workload priority',
+  'difficulty-high': 'Difficulty: H to L',
+  'difficulty-low': 'Difficulty: L to H',
+  'score-high': 'Score: H to L'
 };
 
 const topicDueTime = (topic: Topic) => {
@@ -573,16 +576,20 @@ export default function VercelView({
     const stuck = overdue && daysOverdue >= 2;
     const remaining = workRemaining(topic);
     const loadBoost = remaining >= 4 ? 0.82 : remaining >= 2 ? 0.92 : 1;
-    const ledTone = overdue || calendarDaysLeft <= 1
-      ? 'critical'
-      : calendarDaysLeft === 2
-        ? 'danger'
-        : calendarDaysLeft === 3
-          ? 'watch'
-          : calendarDaysLeft < 7
-            ? 'green'
-            : 'blue';
-    const ledSpeed = overdue || calendarDaysLeft <= 1
+    const ledTone = overdue
+      ? 'overdue'
+      : calendarDaysLeft <= 1
+        ? 'critical'
+        : calendarDaysLeft === 2
+          ? 'danger'
+          : calendarDaysLeft === 3
+            ? 'watch'
+            : calendarDaysLeft < 7
+              ? 'green'
+              : 'blue';
+    const ledSpeed = overdue
+      ? '0s'
+      : calendarDaysLeft <= 1
       ? `${Math.max(.38, .58 * loadBoost)}s`
       : calendarDaysLeft === 2
         ? `${.82 * loadBoost}s`
@@ -1018,6 +1025,9 @@ export default function VercelView({
         if (topicSortOrder === 'level') return topicLevel(b) - topicLevel(a) || topicDueTime(a) - topicDueTime(b);
         if (topicSortOrder === 'progress-most') return workRemaining(b) - workRemaining(a) || topicDueTime(a) - topicDueTime(b);
         if (topicSortOrder === 'progress-least') return workRemaining(a) - workRemaining(b) || topicDueTime(a) - topicDueTime(b);
+        if (topicSortOrder === 'difficulty-high') return (b.explanationDifficulty ?? -1) - (a.explanationDifficulty ?? -1) || topicDueTime(a) - topicDueTime(b);
+        if (topicSortOrder === 'difficulty-low') return (a.explanationDifficulty ?? Number.MAX_SAFE_INTEGER) - (b.explanationDifficulty ?? Number.MAX_SAFE_INTEGER) || topicDueTime(a) - topicDueTime(b);
+        if (topicSortOrder === 'score-high') return (b.topicScore ?? -1) - (a.topicScore ?? -1) || topicDueTime(a) - topicDueTime(b);
         return workloadScore(b) - workloadScore(a) || topicDueTime(a) - topicDueTime(b);
       });
   }, [topics, selectedChannel, topicSortOrder, workdaySession?.goals]);
