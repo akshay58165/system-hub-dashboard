@@ -41,6 +41,7 @@ interface TimeViewProps {
   onPauseTimer: () => void;
   onCompleteStage: (topicId: string, stage: TaskTimerStage) => void;
   onAddManualTime: (topicId: string, stage: TaskTimerStage, ms: number) => void;
+  onReplaceTime: (topicId: string, stage: TaskTimerStage, ms: number) => void;
   onUpdateTimer: (timerId: string, patch: Partial<TaskTimerRecord>) => void;
   onDeleteTimer: (timerId: string) => void;
 }
@@ -85,7 +86,7 @@ function stageTotals(timers: TaskTimerRecord[], nowMs: number, stage: TaskTimerS
 
 export default function TimeView({
   topics, taskTimers,
-  onStartTimer, onPauseTimer, onCompleteStage, onAddManualTime, onUpdateTimer, onDeleteTimer
+  onStartTimer, onPauseTimer, onCompleteStage, onAddManualTime, onReplaceTime, onUpdateTimer, onDeleteTimer
 }: TimeViewProps) {
   const [sortMode, setSortMode] = useState<SortMode>('newest');
   const [sortOpen, setSortOpen] = useState(false);
@@ -93,6 +94,8 @@ export default function TimeView({
   const [filterOpen, setFilterOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [editingStageKey, setEditingStageKey] = useState<string | null>(null);
+  const [editingStageValue, setEditingStageValue] = useState('');
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
@@ -402,20 +405,43 @@ export default function TimeView({
                             <button
                               type="button"
                               onClick={() => {
-                                const raw = window.prompt(`Add time for ${s} (HH:MM:SS or minutes):`, '00:30:00');
-                                if (raw === null) return;
-                                const ms = parseTimeInput(raw);
-                                if (ms === null) { window.alert('Could not parse.'); return; }
-                                onAddManualTime(t.id, s, ms);
+                                const stageKey = `${t.id}-${s}`;
+                                setEditingStageKey(stageKey);
+                                setEditingStageValue(formatHMS(info.ms));
                               }}
-                              title="Add time manually"
+                              title="Edit time"
                               className="p-0.5 rounded border border-neutral-800 text-neutral-500 hover:text-blue-300"
                             >
                               <Pencil className="h-2.5 w-2.5" />
                             </button>
                           </div>
                           <div className={`text-[11px] font-mono mt-1 ${info.running ? 'text-emerald-300' : info.paused ? 'text-amber-300' : 'text-neutral-300'}`}>
-                            {formatHMS(info.ms)}
+                            {editingStageKey === `${t.id}-${s}` ? (
+                              <input
+                                type="text"
+                                autoFocus
+                                value={editingStageValue}
+                                onChange={(e) => setEditingStageValue(e.target.value)}
+                                onBlur={() => {
+                                  const ms = parseTimeInput(editingStageValue);
+                                  if (ms !== null) onReplaceTime(t.id, s, ms);
+                                  setEditingStageKey(null);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    const ms = parseTimeInput(editingStageValue);
+                                    if (ms !== null) onReplaceTime(t.id, s, ms);
+                                    setEditingStageKey(null);
+                                  }
+                                  if (e.key === 'Escape') setEditingStageKey(null);
+                                }}
+                                className="w-full bg-neutral-900 border border-blue-600 rounded px-1 py-0.5 text-[11px] font-mono text-white outline-none"
+                                placeholder="HH:MM:SS"
+                              />
+                            ) : (
+                              formatHMS(info.ms)
+                            )}
                           </div>
                           <div className="text-[8px] text-neutral-500 mt-0.5">{info.sittings} sittings</div>
                           <div className="flex gap-1 mt-1.5">

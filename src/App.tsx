@@ -2924,6 +2924,7 @@ export default function App() {
                 addStageGoal: addStageGoal,
                 resumeWorkdayAndStart: resumeWorkdayAndStartTask,
                 addManualStageTime,
+                replaceStageTime,
                 updateStageTimer,
                 deleteStageTimer
               }}>
@@ -2972,6 +2973,7 @@ export default function App() {
                 onPauseTimer={() => pauseActiveTaskTimer()}
                 onCompleteStage={completeTaskTimerStage}
                 onAddManualTime={addManualStageTime}
+                onReplaceTime={replaceStageTime}
                 onUpdateTimer={updateStageTimer}
                 onDeleteTimer={deleteStageTimer}
               />

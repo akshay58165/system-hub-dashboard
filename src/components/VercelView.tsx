@@ -149,12 +149,13 @@ interface StageStopwatchProps {
   onPause: () => void;
   onDone: () => void;
   onAddManual: (ms: number) => void;
+  onReplaceTime: (ms: number) => void;
   disabled?: boolean;
 }
 
 export function StageStopwatch({
   topicId, stage, timers, nowMs,
-  onStart, onPause, onDone, onAddManual, disabled
+  onStart, onPause, onDone, onAddManual, onReplaceTime, disabled
 }: StageStopwatchProps) {
   void topicId;
   const live = timers.find(t => t.status === 'running' || t.status === 'paused');
@@ -195,12 +196,27 @@ export function StageStopwatch({
         ? 'border-neutral-800 bg-neutral-900/40 text-neutral-500'
         : 'border-neutral-800 bg-neutral-950 text-neutral-300';
 
-  const handlePencil = () => {
-    const raw = window.prompt(`Enter time spent on ${stage} (HH:MM:SS or M):`, '00:30:00');
-    if (raw === null) return;
-    const ms = parseTimeInput(raw);
-    if (ms === null) { window.alert('Could not parse time. Use HH:MM:SS, MM:SS, or minutes.'); return; }
-    onAddManual(ms);
+  const [isEditingTime, setIsEditingTime] = useState(false);
+  const [editTimeValue, setEditTimeValue] = useState('');
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePencilClick = () => {
+    setEditTimeValue(formatHMS(activeMs));
+    setIsEditingTime(true);
+    setTimeout(() => editInputRef.current?.select(), 0);
+  };
+
+  const handleEditConfirm = () => {
+    const ms = parseTimeInput(editTimeValue);
+    if (ms !== null) {
+      onReplaceTime(ms);
+    }
+    setIsEditingTime(false);
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); handleEditConfirm(); }
+    if (e.key === 'Escape') { setIsEditingTime(false); }
   };
 
   return (
@@ -209,17 +225,30 @@ export function StageStopwatch({
         <span className="text-[9px] font-bold uppercase tracking-wider">{label}</span>
         <button
           type="button"
-          onClick={handlePencil}
-          title="Add time manually"
+          onClick={handlePencilClick}
+          title="Edit time"
           className="p-0.5 rounded border border-neutral-800 text-neutral-500 hover:text-blue-300 hover:border-blue-700 transition"
         >
           <Pencil className="h-2.5 w-2.5" />
         </button>
       </div>
       <div className="flex items-center justify-between gap-1 font-mono text-[10px] tabular-nums">
-        <span className={state === 'running' ? 'text-emerald-300 font-bold' : state === 'paused' ? 'text-amber-300 font-bold' : 'text-neutral-400'}>
-          {formatHMS(activeMs)}
-        </span>
+        {isEditingTime ? (
+          <input
+            ref={editInputRef}
+            type="text"
+            value={editTimeValue}
+            onChange={(e) => setEditTimeValue(e.target.value)}
+            onBlur={handleEditConfirm}
+            onKeyDown={handleEditKeyDown}
+            className="w-full bg-neutral-900 border border-blue-600 rounded px-1 py-0.5 text-[10px] font-mono text-white outline-none"
+            placeholder="HH:MM:SS"
+          />
+        ) : (
+          <span className={state === 'running' ? 'text-emerald-300 font-bold' : state === 'paused' ? 'text-amber-300 font-bold' : 'text-neutral-400'}>
+            {formatHMS(activeMs)}
+          </span>
+        )}
         {sittings > 0 && (
           <span title={`${sittings} sitting${sittings === 1 ? '' : 's'}`} className="text-[8px] px-1 rounded border border-cyan-900/50 bg-cyan-950/25 text-cyan-300">×{sittings}</span>
         )}
@@ -1652,6 +1681,7 @@ export default function VercelView({
                                   taskTimer?.completeStageTimer(topic.id, stage);
                                 }}
                                 onAddManual={(ms) => { taskTimer?.addManualStageTime(topic.id, stage, ms); }}
+                                onReplaceTime={(ms) => { taskTimer?.replaceStageTime(topic.id, stage, ms); }}
                               />
                             );
                           }
