@@ -2285,8 +2285,27 @@ export default function App() {
     const nowIso = new Date().toISOString();
     const clean = Math.max(0, Math.floor(activeMs));
     setTaskTimers(prev => {
-      const others = prev.filter(tt => !(tt.topicId === topicId && tt.stage === stage));
-      if (clean === 0) return others;
+      // Zero-out any existing timers for this topic+stage instead of deleting
+      // them. A pure delete lets the remote sync merge re-inject the old
+      // records (they still exist in remoteTaskTimers with their original
+      // revision) and the manual edit gets clobbered. By keeping the same id
+      // and bumping completedAt to now, the local wins on
+      // taskTimerRevisionMs — old copy is superseded server-side too.
+      const zeroed = prev.map(tt => tt.topicId === topicId && tt.stage === stage
+        ? {
+            ...tt,
+            status: 'completed' as const,
+            completedAt: nowIso,
+            activeSince: null,
+            pausedAt: null,
+            accumulatedActiveMs: 0,
+            accumulatedPausedMs: 0,
+            breaksCount: 0,
+            segments: [],
+            endReason: 'done' as const
+          }
+        : tt);
+      if (clean === 0) return zeroed;
       const seg: SittingSegment = { id: `seg-manual-${Date.now()}`, startedAt: nowIso, endedAt: nowIso, activeMs: clean };
       const newTimer: TaskTimerRecord = {
         id: `tt-manual-${Date.now()}-${topicId}-${stage}`,
@@ -2301,7 +2320,7 @@ export default function App() {
         dateKey: todayKey(),
         segments: [seg],
       };
-      return [...others, newTimer];
+      return [...zeroed, newTimer];
     });
   };
 
