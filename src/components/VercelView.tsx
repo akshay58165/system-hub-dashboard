@@ -1492,6 +1492,14 @@ export default function VercelView({
                             >
                               {topic.topicScore ? `Score ${topic.topicScore}` : 'Unscored'}
                             </button>
+                            {topic.explanationDifficulty !== undefined && (
+                              <span
+                                title={`Explanation difficulty: ${topic.explanationDifficulty}/10 — how hard to explain to a mass audience`}
+                                className="px-1.5 py-0.2 rounded border text-[8px] uppercase font-bold border-amber-900/40 bg-amber-950/20 text-amber-300"
+                              >
+                                Diff {topic.explanationDifficulty}
+                              </span>
+                            )}
                           </div>
                           <div className="text-[8px] text-neutral-600 mt-0.5 truncate">
                             Created {new Date(topic.createdDate).toLocaleDateString()} · Due {topic.dueDate ? new Date(topic.dueDate).toLocaleDateString() : 'None'}

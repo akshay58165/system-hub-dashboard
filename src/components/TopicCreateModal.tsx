@@ -121,6 +121,7 @@ export default function TopicCreateModal({
   // Unscored is the honest default — no user tap, no score. A tap sets the
   // value; tapping the currently-active number clears it back to unscored.
   const [topicScore, setTopicScore] = useState<TopicScore | undefined>(undefined);
+  const [explanationDifficulty, setExplanationDifficulty] = useState<TopicScore | undefined>(undefined);
   const [dueDate, setDueDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -159,6 +160,7 @@ export default function TopicCreateModal({
     status,
     priority,
     topicScore,
+    explanationDifficulty,
     dueDate,
     scheduleTime,
     eligibility
@@ -169,7 +171,7 @@ export default function TopicCreateModal({
     ? (currentSnapshot !== initialSnapshotRef.current || stageTimesChanged)
     : Boolean(
         name.trim() || description.trim() || channel || lane || status !== 'topic' || priority !== 1 ||
-        topicScore !== undefined || dueDate || scheduleTime || Object.values(eligibility).some(Boolean)
+        topicScore !== undefined || explanationDifficulty !== undefined || dueDate || scheduleTime || Object.values(eligibility).some(Boolean)
       );
   const modalRef = useDismissOnOutsideClick<HTMLFormElement>(isOpen, !hasUnsavedInput, onClose);
 
@@ -184,6 +186,7 @@ export default function TopicCreateModal({
     const initialStatus = topicToEdit?.status ?? 'topic';
     const initialPriority = topicToEdit?.priority ?? 1;
     const initialTopicScore = topicToEdit?.topicScore as TopicScore | undefined;
+    const initialExplanationDifficulty = topicToEdit?.explanationDifficulty as TopicScore | undefined;
     const initialDueDate = dateOnlyFromIso(topicToEdit?.dueDate);
     const initialTime = topicToEdit?.scheduledTime || timeOnlyFromIso(topicToEdit?.dueDate) || '';
 
@@ -194,6 +197,7 @@ export default function TopicCreateModal({
     setStatus(initialStatus);
     setPriority(initialPriority);
     setTopicScore(initialTopicScore);
+    setExplanationDifficulty(initialExplanationDifficulty);
     setDueDate(initialDueDate);
     setScheduleTime(initialTime);
     setEligibility(emptyEligibility);
@@ -221,6 +225,7 @@ export default function TopicCreateModal({
       status: initialStatus,
       priority: initialPriority,
       topicScore: initialTopicScore,
+      explanationDifficulty: initialExplanationDifficulty,
       dueDate: initialDueDate,
       scheduleTime: initialTime,
       eligibility: emptyEligibility
@@ -306,6 +311,7 @@ export default function TopicCreateModal({
       status,
       priority,
       topicScore,
+      explanationDifficulty,
       dueDate: finalDueDate,
       scheduledTime: scheduleTime || (status === 'scheduled' ? finalTime : undefined),
       format: finalFormat,
@@ -492,6 +498,40 @@ export default function TopicCreateModal({
                     {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const).map(scoreOption)}
                   </div>
                 </fieldset>
+              </div>
+
+              <fieldset className="space-y-1 border-t border-neutral-900/60 pt-2">
+                <legend className="block uppercase text-neutral-500">
+                  Explanation Difficulty
+                  <span className={`ml-1.5 normal-case ${explanationDifficulty === undefined ? 'text-neutral-500' : 'text-amber-300'}`}>
+                    {explanationDifficulty === undefined ? '· not set' : `· ${explanationDifficulty}/10`}
+                  </span>
+                  <span className="ml-1.5 normal-case text-neutral-600">— how hard to explain to a mass audience</span>
+                </legend>
+                <div className="grid w-fit grid-cols-10 gap-0.5" aria-label="Explanation Difficulty">
+                  {([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const).map(value => {
+                    const isActive = explanationDifficulty === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setExplanationDifficulty(isActive ? undefined : value)}
+                        aria-pressed={isActive}
+                        title={isActive ? 'Tap to clear' : `Set to ${value}`}
+                        className={`relative flex h-5 w-5 cursor-pointer items-center justify-center rounded border text-[8px] font-bold transition ${
+                          isActive
+                            ? 'border-amber-400 bg-amber-500 text-black shadow-[0_0_8px_rgba(245,158,11,.35)]'
+                            : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-700 hover:text-white'
+                        }`}
+                      >
+                        {value}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
+              <div className="grid grid-cols-2 gap-3">
                 <label className="block uppercase text-neutral-500">Due Date
                   <div className="relative mt-1">
                     <div

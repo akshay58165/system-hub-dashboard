@@ -148,6 +148,7 @@ export interface Topic {
   status: 'topic' | 'hooked' | 'scripted' | 'shot' | 'edited' | 'scheduled' | 'posted';
   priority: 1 | 2 | 3 | 4 | 5;
   topicScore?: number;
+  explanationDifficulty?: number;
   hookScore?: number;
   midScore?: number;
   endScore?: number;
