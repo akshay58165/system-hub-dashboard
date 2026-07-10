@@ -393,7 +393,7 @@ export default function ProductionPipelineMap({
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[500px]">
+            <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[500px] min-w-0 w-full">
               {/* Operational state tile */}
               <button
                 type="button"
@@ -401,7 +401,7 @@ export default function ProductionPipelineMap({
                   if (firstAttentionTopicId) onOpenPipeline(firstAttentionTopicId, firstAttentionAction);
                   else onOpenPipeline();
                 }}
-                className={`group rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 ${opsBorder} ${opsBg}`}
+                className={`group rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 min-w-0 ${opsBorder} ${opsBg}`}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Operational state</span>
@@ -422,7 +422,7 @@ export default function ProductionPipelineMap({
                   else if (focusTopic) onOpenPipeline(focusTopic.id, focusTopic.blockedReason ? 'unblock' : stageAction[focusTopic.status]);
                   else onOpenPipeline();
                 }}
-                className="group rounded-2xl border border-cyan-900/40 bg-cyan-950/20 p-4 text-left transition hover:-translate-y-0.5 hover:border-cyan-700/60"
+                className="group rounded-2xl border border-cyan-900/40 bg-cyan-950/20 p-4 text-left transition hover:-translate-y-0.5 hover:border-cyan-700/60 min-w-0"
               >
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Now working on</span>
@@ -455,8 +455,8 @@ export default function ProductionPipelineMap({
         );
       })()}
 
-      <div className="relative z-10 mt-6 rounded-3xl border border-neutral-800/70 bg-neutral-950/55 p-4 md:p-5">
-        <div className="grid gap-3 xl:grid-cols-6">
+      <div className="relative z-10 mt-6 rounded-3xl border border-neutral-800/70 bg-neutral-950/55 p-4 md:p-5 min-w-0">
+        <div className="grid gap-3 xl:grid-cols-6 min-w-0">
           {nodes.map((node, index) => {
             const active = node.key === focusNode;
             const needsAttention = node.blocked + node.overdue > 0;
@@ -472,7 +472,7 @@ export default function ProductionPipelineMap({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, delay: index * 0.05 }}
-                className={`group relative overflow-hidden rounded-xl border bg-neutral-950/85 text-left transition hover:-translate-y-0.5 hover:bg-neutral-900/90 focus-visible:outline-none focus-visible:ring-1 ${node.tone.border} ${active ? `${node.tone.ring} ring-1 ring-white/10` : ''}`}
+                className={`group relative overflow-hidden rounded-xl border bg-neutral-950/85 text-left transition hover:-translate-y-0.5 hover:bg-neutral-900/90 focus-visible:outline-none focus-visible:ring-1 min-w-0 ${node.tone.border} ${active ? `${node.tone.ring} ring-1 ring-white/10` : ''}`}
               >
                 <div className={`pointer-events-none absolute inset-0 ${node.tone.fill}`} />
 

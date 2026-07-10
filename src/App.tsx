@@ -21,7 +21,9 @@ import {
   LogIn,
   LogOut,
   AlertCircle,
-  Clapperboard
+  Clapperboard,
+  Menu,
+  X
 } from 'lucide-react';
 import { supabase } from './services/supabase';
 
@@ -502,6 +504,7 @@ export default function App() {
     return savedTab === 'insights' ? 'overview' : savedTab || 'overview';
   });
 
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [pipelineSubView, setPipelineSubView] = useState<'videos' | 'topics'>('videos');
   const [topicSortOrder, setTopicSortOrder] = useState<TopicSortMode>('due-date');
   const previousTopicSortUserIdRef = useRef<string | null>(null);
@@ -2775,8 +2778,27 @@ export default function App() {
       {/* Main Tab Controller Bar */}
       <nav className="border-b border-neutral-900 bg-neutral-950/60 backdrop-blur-md sticky top-16 z-30">
         <div className="w-full px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-4 py-2 overflow-x-auto no-scrollbar">
-            <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center justify-between gap-4 py-2 sm:overflow-x-auto sm:no-scrollbar">
+            {/* Mobile: hamburger + active tab label. Desktop: horizontal tab strip. */}
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(true)}
+              className="sm:hidden flex items-center gap-2 px-3 py-1.5 rounded-lg bg-neutral-900/70 border border-neutral-800 text-neutral-200 text-xs font-mono font-semibold"
+              aria-label="Open navigation menu"
+            >
+              <Menu className="h-4 w-4" />
+              <span className="capitalize">
+                {(() => {
+                  const label: Record<string, string> = {
+                    overview: 'Command Center', topics: 'Topics', pipeline: 'Pipeline', actionhub: 'Score',
+                    topicintel: 'Time', videolab: 'Video Lab', logs: 'Logs', progress: 'Progress',
+                    score: 'Score', experiments: 'Experiments', sessions: 'Sessions'
+                  };
+                  return label[activeTab] || activeTab;
+                })()}
+              </span>
+            </button>
+            <div className="hidden sm:flex items-center gap-1 shrink-0">
               <button
                 onClick={() => setActiveTab('overview')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
@@ -2891,7 +2913,7 @@ export default function App() {
                 setTopicFormTopic(null);
                 setIsAddFormOpen(true);
               }}
-              className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-black font-bold font-mono text-[11px] rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+              className="hidden sm:flex px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-black font-bold font-mono text-[11px] rounded-lg items-center gap-1 transition-colors cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
               <span>Add Topic</span>
@@ -2899,6 +2921,94 @@ export default function App() {
           </div>
         </div>
       </nav>
+
+      {/* Mobile navigation drawer — slides in from the left, only rendered
+          when open so no wasted paint on desktop. */}
+      <AnimatePresence>
+        {mobileNavOpen && (
+          <>
+            <motion.div
+              key="mobile-nav-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              onClick={() => setMobileNavOpen(false)}
+              className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm sm:hidden"
+            />
+            <motion.aside
+              key="mobile-nav-drawer"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'tween', duration: 0.22, ease: 'easeOut' }}
+              className="fixed left-0 top-0 bottom-0 z-[71] w-72 max-w-[85vw] bg-neutral-950 border-r border-neutral-800 shadow-2xl flex flex-col sm:hidden"
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-900">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 bg-neutral-900 border border-neutral-800 rounded-lg text-emerald-400 font-bold tracking-tight text-xs font-mono">UNI</span>
+                  <span className="text-sm font-bold text-white">Unicorn's Desk</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileNavOpen(false)}
+                  className="p-1.5 rounded border border-neutral-800 text-neutral-400 hover:text-white"
+                  aria-label="Close menu"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+                {([
+                  { id: 'overview' as const, label: 'Command Center', Icon: Activity, iconClass: 'text-purple-400', activeClass: 'text-white' },
+                  { id: 'topics' as const, label: 'Topics', Icon: GitBranch, iconClass: 'text-blue-400', activeClass: 'text-blue-400' },
+                  { id: 'pipeline' as const, label: 'Pipeline', Icon: Layers, iconClass: 'text-amber-500', activeClass: 'text-amber-400', extra: () => setPipelineSubView('topics') },
+                  { id: 'actionhub' as const, label: 'Score', Icon: Database, iconClass: 'text-emerald-400', activeClass: 'text-emerald-400' },
+                  { id: 'topicintel' as const, label: 'Time', Icon: Clock, iconClass: 'text-purple-400', activeClass: 'text-purple-400' },
+                  { id: 'videolab' as const, label: 'Video Lab', Icon: Clapperboard, iconClass: 'text-blue-400', activeClass: 'text-blue-400' },
+                  { id: 'logs' as const, label: 'Logs', Icon: Terminal, iconClass: 'text-purple-400', activeClass: 'text-purple-400' },
+                ]).map(item => {
+                  const isActive = activeTab === item.id;
+                  const Icon = item.Icon;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        item.extra?.();
+                        setActiveTab(item.id);
+                        setMobileNavOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-mono font-semibold transition ${
+                        isActive
+                          ? `bg-neutral-900 border border-neutral-800 ${item.activeClass}`
+                          : 'text-neutral-400 hover:bg-neutral-900/50 hover:text-white'
+                      }`}
+                    >
+                      <Icon className={`h-4 w-4 ${item.iconClass}`} />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+              <div className="p-3 border-t border-neutral-900">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTopicFormTopic(null);
+                    setIsAddFormOpen(true);
+                    setMobileNavOpen(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-blue-500 hover:bg-blue-600 text-black font-bold font-mono text-xs rounded-lg"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Add Topic</span>
+                </button>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
 
       <RunningStageBar
         timers={visibleTaskTimers}
