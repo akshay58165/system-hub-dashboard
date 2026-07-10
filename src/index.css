@@ -212,6 +212,17 @@ html {
   color-scheme: dark;
 }
 
+/* Mobile: prevent horizontal page scroll and let long words break instead
+   of forcing the layout wider. Desktop styles are untouched — only phones
+   (< 640px, matches Tailwind's `sm:` breakpoint boundary) get this. */
+@media (max-width: 639.98px) {
+  html, body { overflow-x: hidden; }
+  body { overflow-wrap: anywhere; }
+  /* Any inline horizontal chip strip that was fine on desktop must at
+     least be swipeable on mobile, not clip. */
+  .mobile-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+
 /* Custom global scrollbars for a premium dark-mode console look */
 ::-webkit-scrollbar {
   width: 5px;

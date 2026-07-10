@@ -2731,8 +2731,8 @@ export default function App() {
           </div>
 
           {/* Real-time UTC metrics / clock */}
-          <div className="flex items-center gap-4 shrink-0 font-mono text-[11px] text-neutral-400">
-            <div className="flex items-center gap-1.5 text-neutral-500 bg-neutral-900 border border-neutral-850 px-2.5 py-1 rounded-lg">
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0 font-mono text-[11px] text-neutral-400">
+            <div className="flex items-center gap-1.5 text-neutral-500 bg-neutral-900 border border-neutral-850 px-2 sm:px-2.5 py-1 rounded-lg">
               <span
                 className="relative flex h-2 w-2"
                 title={syncError ? `Cloud Sync Error: ${syncError}` : 'Cloud Sync Active'}
@@ -2742,7 +2742,7 @@ export default function App() {
                 <span className={`relative inline-flex rounded-full h-2 w-2 ${syncError ? 'bg-red-500' : 'bg-emerald-500'}`}></span>
               </span>
               <Clock className="h-3.5 w-3.5" />
-              <span>{timeStr || 'Loading...'}</span>
+              <span className="hidden sm:inline">{timeStr || 'Loading...'}</span>
             </div>
 
             {/* Supabase Sync Auth Control - header only renders once `user` is set */}

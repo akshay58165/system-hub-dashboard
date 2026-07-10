@@ -718,7 +718,7 @@ export default function ProductionPipelineMap({
                   </div>
                 ) : (
                   <>
-                    <div className="mt-2 grid grid-cols-4 gap-2">
+                    <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {stages.map(stage => (
                         <div key={stage} className="rounded border border-neutral-900 bg-neutral-950/60 px-2 py-1.5">
                           <div className={`text-[8px] uppercase tracking-wider ${stageMeta[stage].class}`}>{stageMeta[stage].label}</div>

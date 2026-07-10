@@ -423,8 +423,8 @@ export default function PipelineView({
         </div>
 
         {/* Channels Health Status Grid */}
-        <div className="flex gap-4 bg-neutral-900/30 border border-neutral-850 p-2 rounded-lg text-xs font-mono">
-          <div className="flex items-center gap-2 px-2.5 py-1 border-r border-neutral-850">
+        <div className="flex flex-col sm:flex-row gap-1 sm:gap-4 bg-neutral-900/30 border border-neutral-850 p-2 rounded-lg text-xs font-mono w-full lg:w-auto">
+          <div className="flex items-center gap-2 px-2.5 py-1 border-b sm:border-b-0 sm:border-r border-neutral-850">
             <span className="text-neutral-500 font-bold">LearnDriven:</span>
             <span className={pipelineRisk.learnDriven.color}>{pipelineRisk.learnDriven.status}</span>
             <span className="text-neutral-600">({pipelineRisk.learnDriven.count} in dev)</span>

@@ -528,7 +528,7 @@ export default function CommandCenterView({
                     );
                   })}
                 </div>
-                <div className="mt-4 grid grid-cols-3 gap-2 border-t border-neutral-900 pt-3">
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2 border-t border-neutral-900 pt-3">
                   <div className="rounded-lg border border-neutral-900 bg-neutral-950/60 px-2 py-1.5">
                     <div className="font-mono text-[8px] uppercase tracking-wider text-neutral-500">Total tracked</div>
                     <div className="mt-1 text-sm font-bold text-white">{compactDuration(totalMs)}</div>
