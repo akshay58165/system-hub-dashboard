@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, type ReactNode } from 'react';
+import { useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
 import { Clock, ChevronDown, Trash2, Pencil, GitBranch, FileText, Video } from 'lucide-react';
 import type { Topic, TaskTimerRecord, TaskTimerStage, TopicSortMode } from '../types';
 
@@ -108,6 +108,7 @@ export default function TimeView({
   const [now, setNow] = useState(Date.now());
   const [editingStageKey, setEditingStageKey] = useState<string | null>(null);
   const [editingStageValue, setEditingStageValue] = useState('');
+  const autoExpandedLiveId = useRef<string | null>(null);
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
@@ -225,6 +226,19 @@ export default function TimeView({
     }
     return sorted;
   }, [sorted, filtered, sortMode]);
+
+  useEffect(() => {
+    const liveRow = finalSorted.find(row => row.anyRunning);
+    if (!liveRow) {
+      autoExpandedLiveId.current = null;
+      return;
+    }
+
+    if (autoExpandedLiveId.current !== liveRow.topic.id) {
+      autoExpandedLiveId.current = liveRow.topic.id;
+      setExpanded(liveRow.topic.id);
+    }
+  }, [finalSorted]);
 
   // Aggregate insights — total time per stage across all topics
   const stageAggregate = useMemo(() => {
