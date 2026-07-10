@@ -605,12 +605,6 @@ export default function TimeView({
                                   const stageKey = `${t.id}-${s}`;
                                   setEditingSittingsKey(stageKey);
                                   setEditingSittingsValue(String(Math.max(1, info.sittings || 1)));
-                                  return;
-                                  const raw = window.prompt(`Set sittings count for ${STAGE_LABEL[s]} (current: ${info.sittings}). Total time stays the same and is split evenly across the new count.`, String(Math.max(1, info.sittings)));
-                                  if (raw === null) return;
-                                  const n = parseInt(raw.trim(), 10);
-                                  if (!Number.isFinite(n) || n < 1) { window.alert('Enter a whole number ≥ 1.'); return; }
-                                  onSetStageTotals(t.id, s, info.ms, n);
                                 }}
                                 title="Edit sittings count"
                                 className="rounded border border-neutral-800 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-400 hover:border-cyan-500/40 hover:text-cyan-300"
@@ -622,11 +616,13 @@ export default function TimeView({
                             {editingSittingsKey === `${t.id}-${s}` && (
                               <div className="mt-2 flex items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-950/80 px-2 py-2">
                                 <input
-                                  type="number"
-                                  min={1}
+                                  type="text"
+                                  inputMode="numeric"
                                   autoFocus
                                   value={editingSittingsValue}
-                                  onChange={(e) => setEditingSittingsValue(e.target.value)}
+                                  onFocus={(e) => e.currentTarget.select()}
+                                  onClick={(e) => e.currentTarget.select()}
+                                  onChange={(e) => setEditingSittingsValue(e.target.value.replace(/[^\d]/g, ""))}
                                   className="w-20 rounded border border-neutral-800 bg-neutral-900 px-2 py-1 text-[11px] font-mono text-white outline-none"
                                 />
                                 <button
@@ -634,7 +630,7 @@ export default function TimeView({
                                   onClick={() => {
                                     const n = parseInt(editingSittingsValue.trim(), 10);
                                     if (!Number.isFinite(n) || n < 1) {
-                                      window.alert('Enter a whole number >= 1.');
+                                      window.alert("Enter a whole number >= 1.");
                                       return;
                                     }
                                     onSetStageTotals(t.id, s, info.ms, n);
@@ -774,3 +770,5 @@ export default function TimeView({
     </div>
   );
 }
+
+
