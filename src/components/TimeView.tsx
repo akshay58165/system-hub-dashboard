@@ -1,10 +1,19 @@
-import { useMemo, useState, useEffect } from 'react';
-import { Clock, ChevronDown, Trash2, Pencil } from 'lucide-react';
+import { useMemo, useState, useEffect, type ReactNode } from 'react';
+import { Clock, ChevronDown, Trash2, Pencil, GitBranch, FileText, Video } from 'lucide-react';
 import type { Topic, TaskTimerRecord, TaskTimerStage, TopicSortMode } from '../types';
 
 const STAGES: TaskTimerStage[] = ['hook', 'script', 'shoot', 'edit'];
 const STAGE_LABEL: Record<TaskTimerStage, string> = {
   hook: 'Hook', script: 'Script', shoot: 'Shoot', edit: 'Edit', schedule: 'Schedule', post: 'Post'
+};
+
+const STAGE_ICON: Record<TaskTimerStage, ReactNode> = {
+  hook: <GitBranch className="h-4 w-4" />,
+  script: <FileText className="h-4 w-4" />,
+  shoot: <Video className="h-4 w-4" />,
+  edit: <Pencil className="h-4 w-4" />,
+  schedule: <Clock className="h-4 w-4" />,
+  post: <Clock className="h-4 w-4" />,
 };
 
 function formatHMS(ms: number) {
@@ -428,7 +437,7 @@ export default function TimeView({
                 return (
                 <div className="border-t border-neutral-800 bg-neutral-950/70 p-3 space-y-3">
                   <div className="grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-                    <div className={`relative overflow-hidden rounded-2xl border p-5 shadow-[0_0_30px_rgba(0,0,0,0.22)] ${activeTone}`}>
+                    <div className={`relative overflow-hidden rounded-2xl border px-8 py-7 shadow-[0_0_30px_rgba(0,0,0,0.22)] ${activeTone}`}>
                       <div className={`absolute inset-0 pointer-events-none ${activeInfo.running ? 'bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.16),transparent_55%)]' : activeInfo.paused ? 'bg-[radial-gradient(circle_at_top_right,rgba(245,158,11,0.16),transparent_55%)]' : 'bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.04),transparent_55%)]'}`} />
                       <div className="relative flex items-start justify-between gap-4">
                         <div className="min-w-0">
@@ -440,11 +449,11 @@ export default function TimeView({
                               {activeInfo.running ? 'Live stopwatch' : activeInfo.paused ? 'Paused' : 'Stopped'}
                             </span>
                           </div>
-                          <div className="mt-4 flex items-end gap-3">
+                          <div className="mt-5 flex items-end gap-4">
                             <div className={`tabular-nums font-black tracking-tighter leading-none ${activeInfo.running ? 'text-6xl sm:text-7xl lg:text-[7rem]' : 'text-5xl sm:text-6xl lg:text-[6.25rem]'} ${activeInfo.running ? 'text-white' : activeInfo.paused ? 'text-amber-100' : 'text-neutral-100'}`}>
                               {formatHMS(activeInfo.ms)}
                             </div>
-                            <div className="pb-3 text-xs text-neutral-400">
+                            <div className="pb-4 text-xs text-neutral-400">
                               <div className="font-semibold text-neutral-200">{activeInfo.sittings} sittings</div>
                               <div className="mt-1 max-w-[12rem] leading-relaxed">
                                 {activeInfo.running ? 'This stage is currently recording live time.' : activeInfo.paused ? 'Resume it or switch to a different stage.' : 'Ready for a fresh start or a manual time edit.'}
@@ -504,9 +513,9 @@ export default function TimeView({
                         return (
                           <div
                             key={s}
-                            className={`rounded-2xl border p-3 transition-all duration-300 ${isActive ? info.running ? 'border-emerald-500/60 bg-emerald-950/25 shadow-[0_0_20px_rgba(16,185,129,0.08)]' : info.paused ? 'border-amber-500/60 bg-amber-950/20 shadow-[0_0_20px_rgba(245,158,11,0.08)]' : 'border-neutral-700 bg-neutral-900/70' : 'border-neutral-800 bg-neutral-950/85 hover:border-neutral-700'}`}
+                            className={`rounded-2xl border p-4 transition-all duration-300 ${isActive ? info.running ? 'border-emerald-500/60 bg-emerald-950/25 shadow-[0_0_20px_rgba(16,185,129,0.08)]' : info.paused ? 'border-amber-500/60 bg-amber-950/20 shadow-[0_0_20px_rgba(245,158,11,0.08)]' : 'border-neutral-700 bg-neutral-900/70' : 'border-neutral-800 bg-neutral-950/85 hover:border-neutral-700'}`}
                           >
-                            <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <div className={`font-bold uppercase tracking-[0.2em] ${isActive ? 'text-[11px] text-neutral-100' : 'text-[9px] text-neutral-400'}`}>
                                   {STAGE_LABEL[s]}
@@ -542,18 +551,9 @@ export default function TimeView({
                                   )}
                                 </div>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const stageKey = `${t.id}-${s}`;
-                                  setEditingStageKey(stageKey);
-                                  setEditingStageValue(formatHMS(info.ms));
-                                }}
-                                title="Edit time"
-                                className="shrink-0 rounded border border-neutral-800 p-1.5 text-neutral-500 hover:text-blue-300"
-                              >
-                                <Pencil className="h-3 w-3" />
-                              </button>
+                              <div className={`shrink-0 grid h-11 w-11 place-items-center rounded-full border ${isActive ? info.running ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' : info.paused ? 'border-amber-500/40 bg-amber-500/10 text-amber-300' : 'border-neutral-700 bg-neutral-900 text-neutral-300' : 'border-neutral-800 bg-neutral-950 text-neutral-500'}`}>
+                                {STAGE_ICON[s]}
+                              </div>
                             </div>
 
                             <div className="mt-2 flex items-center justify-between gap-2 text-[9px] text-neutral-500">
