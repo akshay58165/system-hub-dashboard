@@ -393,7 +393,7 @@ export default function ProductionPipelineMap({
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[500px] min-w-0 w-full">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:min-w-[500px] min-w-0 w-full">
               {/* Operational state tile */}
               <button
                 type="button"
@@ -401,7 +401,7 @@ export default function ProductionPipelineMap({
                   if (firstAttentionTopicId) onOpenPipeline(firstAttentionTopicId, firstAttentionAction);
                   else onOpenPipeline();
                 }}
-                className={`group rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 min-w-0 ${opsBorder} ${opsBg}`}
+                className={`group rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 min-w-0 w-full ${opsBorder} ${opsBg}`}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Operational state</span>
@@ -422,7 +422,7 @@ export default function ProductionPipelineMap({
                   else if (focusTopic) onOpenPipeline(focusTopic.id, focusTopic.blockedReason ? 'unblock' : stageAction[focusTopic.status]);
                   else onOpenPipeline();
                 }}
-                className="group rounded-2xl border border-cyan-900/40 bg-cyan-950/20 p-4 text-left transition hover:-translate-y-0.5 hover:border-cyan-700/60 min-w-0"
+                className="group rounded-2xl border border-cyan-900/40 bg-cyan-950/20 p-4 text-left transition hover:-translate-y-0.5 hover:border-cyan-700/60 min-w-0 w-full"
               >
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Now working on</span>
@@ -456,7 +456,7 @@ export default function ProductionPipelineMap({
       })()}
 
       <div className="relative z-10 mt-6 rounded-3xl border border-neutral-800/70 bg-neutral-950/55 p-4 md:p-5 min-w-0">
-        <div className="grid gap-3 xl:grid-cols-6 min-w-0">
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-6 min-w-0">
           {nodes.map((node, index) => {
             const active = node.key === focusNode;
             const needsAttention = node.blocked + node.overdue > 0;
@@ -472,7 +472,7 @@ export default function ProductionPipelineMap({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, delay: index * 0.05 }}
-                className={`group relative overflow-hidden rounded-xl border bg-neutral-950/85 text-left transition hover:-translate-y-0.5 hover:bg-neutral-900/90 focus-visible:outline-none focus-visible:ring-1 min-w-0 ${node.tone.border} ${active ? `${node.tone.ring} ring-1 ring-white/10` : ''}`}
+                className={`group relative overflow-hidden rounded-xl border bg-neutral-950/85 text-left transition hover:-translate-y-0.5 hover:bg-neutral-900/90 focus-visible:outline-none focus-visible:ring-1 min-w-0 w-full ${node.tone.border} ${active ? `${node.tone.ring} ring-1 ring-white/10` : ''}`}
               >
                 <div className={`pointer-events-none absolute inset-0 ${node.tone.fill}`} />
 
@@ -563,14 +563,14 @@ export default function ProductionPipelineMap({
           <MonthlyPublishStrip topics={topics} nowMs={now} className="xl:col-span-5" />
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 min-w-0">
           <StatTile value={openTopics} label="topics in flight" />
           <StatTile value={activeTimers} label="task timers open" tone="text-cyan-300" />
           <StatTile value={todayActions} label="actions today" tone="text-sky-300" />
           <StatTile value={sessions.length} label="past sessions" tone="text-violet-300" />
         </div>
 
-        <div className="mt-5 grid gap-3 lg:grid-cols-[1.35fr_.9fr_.9fr]">
+        <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-[1.35fr_.9fr_.9fr] min-w-0">
           {(() => {
             const weekCutoff = now - 7 * 86_400_000;
             const weekTimers = taskTimers.filter(t => new Date(t.startedAt).getTime() >= weekCutoff);
@@ -585,7 +585,7 @@ export default function ProductionPipelineMap({
             }, 0);
             const weekTopics = new Set(weekTimers.map(t => t.topicId)).size;
             return (
-              <div className="rounded-2xl border border-neutral-800/70 bg-neutral-950/75 p-4">
+              <div className="rounded-2xl border border-neutral-800/70 bg-neutral-950/75 p-4 min-w-0">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Time this week</div>
@@ -633,7 +633,7 @@ export default function ProductionPipelineMap({
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 lg:grid-cols-2">
+        <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2 min-w-0">
           {(() => {
             const recent = [...activities]
               .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
@@ -646,7 +646,7 @@ export default function ProductionPipelineMap({
               return `${Math.floor(diff / 86_400_000)}d ago`;
             };
             return (
-              <div className="rounded-2xl border border-neutral-800/70 bg-neutral-950/75 p-4">
+              <div className="rounded-2xl border border-neutral-800/70 bg-neutral-950/75 p-4 min-w-0">
                 <div className="flex items-center justify-between">
                   <div className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Last done activity</div>
                   <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(52,211,153,0.85)] animate-pulse" title="Live activity feed" />
@@ -707,7 +707,7 @@ export default function ProductionPipelineMap({
               edit: { label: 'Edit', class: 'text-emerald-300' }
             };
             return (
-              <div className="rounded-2xl border border-neutral-800/70 bg-neutral-950/75 p-4">
+              <div className="rounded-2xl border border-neutral-800/70 bg-neutral-950/75 p-4 min-w-0">
                 <div className="flex items-center justify-between">
                   <div className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Avg time per stage · 1 video</div>
                   <span className={`h-2 w-2 rounded-full ${complete.length > 0 ? 'bg-emerald-500 shadow-[0_0_10px_rgba(52,211,153,0.85)]' : 'bg-neutral-700'}`} title={complete.length > 0 ? 'Based on complete topics' : 'No topic yet has all 4 stages tracked'} />

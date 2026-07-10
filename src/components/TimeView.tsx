@@ -414,16 +414,25 @@ export default function TimeView({
                 </div>
               </button>
 
-              {isOpen && (
+              {isOpen && (() => {
+                // When a stage is actively running, the user is focused on that
+                // single task — give it the whole row with a 5x larger clock so
+                // the timer reads from across the room. Other stages compress
+                // into a strip below so they're still tappable but out of the way.
+                const focusStage = STAGES.find(s => row.perStage[s].running)
+                  || STAGES.find(s => row.perStage[s].paused);
+                return (
                 <div className="border-t border-neutral-800 bg-neutral-950/70 p-3 space-y-3">
                   {/* Per-stage controls */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div className={focusStage ? 'space-y-2' : 'grid grid-cols-2 md:grid-cols-4 gap-2'}>
                     {STAGES.map(s => {
                       const info = row.perStage[s];
+                      const isFocus = focusStage === s;
+                      if (focusStage && !isFocus) return null;
                       return (
-                        <div key={s} className="rounded border border-neutral-800 bg-neutral-950 p-2">
+                        <div key={s} className={`rounded border ${isFocus ? (info.running ? 'border-emerald-500/70 bg-emerald-950/25' : 'border-amber-500/70 bg-amber-950/20') : 'border-neutral-800 bg-neutral-950'} ${isFocus ? 'p-4' : 'p-2'}`}>
                           <div className="flex justify-between items-center">
-                            <span className="text-[9px] font-bold uppercase text-neutral-300">{STAGE_LABEL[s]}</span>
+                            <span className={`${isFocus ? 'text-xs' : 'text-[9px]'} font-bold uppercase text-neutral-300 tracking-wider`}>{STAGE_LABEL[s]}{isFocus && info.running && <span className="ml-2 text-emerald-300">● LIVE</span>}{isFocus && info.paused && <span className="ml-2 text-amber-300">◐ PAUSED</span>}</span>
                             <button
                               type="button"
                               onClick={() => {
@@ -559,7 +568,8 @@ export default function TimeView({
                     </div>
                   )}
                 </div>
-              )}
+              );
+            })()}
             </div>
           );
         })}
