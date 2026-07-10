@@ -42,13 +42,15 @@ interface TimeViewProps {
   onCompleteStage: (topicId: string, stage: TaskTimerStage) => void;
   onAddManualTime: (topicId: string, stage: TaskTimerStage, ms: number) => void;
   onReplaceTime: (topicId: string, stage: TaskTimerStage, ms: number) => void;
+  onSetStageTotals: (topicId: string, stage: TaskTimerStage, totalMs: number, sittings: number) => void;
   onUpdateTimer: (timerId: string, patch: Partial<TaskTimerRecord>) => void;
   onDeleteTimer: (timerId: string) => void;
 }
 
-type SortMode = TopicSortMode | 'newest' | 'time-desc' | 'time-asc' | 'running-first' | 'last-worked-on' | 'posted-first';
+type SortMode = TopicSortMode | 'newest' | 'time-desc' | 'time-asc' | 'running-first' | 'last-worked-on' | 'posted-first' | 'default-due-desc-last-worked';
 
 const SORT_LABELS: Partial<Record<SortMode, string>> = {
+  'default-due-desc-last-worked': 'Default (last-worked, then latest due)',
   'newest': 'Newest first',
   'due-date': 'First due',
   'running-first': 'Running first',
@@ -86,9 +88,9 @@ function stageTotals(timers: TaskTimerRecord[], nowMs: number, stage: TaskTimerS
 
 export default function TimeView({
   topics, taskTimers,
-  onStartTimer, onPauseTimer, onCompleteStage, onAddManualTime, onReplaceTime, onUpdateTimer, onDeleteTimer
+  onStartTimer, onPauseTimer, onCompleteStage, onAddManualTime, onReplaceTime, onSetStageTotals, onUpdateTimer, onDeleteTimer
 }: TimeViewProps) {
-  const [sortMode, setSortMode] = useState<SortMode>('newest');
+  const [sortMode, setSortMode] = useState<SortMode>('default-due-desc-last-worked');
   const [sortOpen, setSortOpen] = useState(false);
   const [filterMode, setFilterMode] = useState<'all' | 'active' | 'paused' | 'in-progress' | 'scheduled' | 'posted' | 'idea' | 'has-time' | 'no-time'>('all');
   const [filterOpen, setFilterOpen] = useState(false);
@@ -192,8 +194,27 @@ export default function TimeView({
     if (sortMode === 'last-worked-on' as SortMode) {
       return [...sorted].sort((a, b) => lastWorkedOnMs(b) - lastWorkedOnMs(a));
     }
+    if (sortMode === 'default-due-desc-last-worked' as SortMode) {
+      return [...filtered].sort((a, b) => {
+        // Primary: any topic currently active (running > paused) climbs to the top.
+        const activityRank = (r: typeof a) => r.anyRunning ? 0 : r.anyPaused ? 1 : 2;
+        const ar = activityRank(a);
+        const br = activityRank(b);
+        if (ar !== br) return ar - br;
+        // Secondary: within the same activity rank, the most-recently-worked
+        // topic wins (overrides the due-date order per your spec).
+        const aLast = lastWorkedOnMs(a);
+        const bLast = lastWorkedOnMs(b);
+        if (aLast !== bLast) return bLast - aLast;
+        // Tertiary: descending due date (latest due first). Topics with no
+        // due date fall to the bottom.
+        const aDue = a.topic.dueDate ? new Date(a.topic.dueDate).getTime() : -Infinity;
+        const bDue = b.topic.dueDate ? new Date(b.topic.dueDate).getTime() : -Infinity;
+        return bDue - aDue;
+      });
+    }
     return sorted;
-  }, [sorted, sortMode]);
+  }, [sorted, filtered, sortMode]);
 
   // Aggregate insights — total time per stage across all topics
   const stageAggregate = useMemo(() => {
@@ -283,7 +304,7 @@ export default function TimeView({
             </button>
             {sortOpen && (
               <div className="absolute right-0 mt-1 z-10 w-44 rounded border border-neutral-800 bg-neutral-950 shadow-xl py-1">
-                {(['newest', 'due-date', 'last-worked-on', 'running-first', 'time-desc', 'time-asc', 'progress-most', 'progress-least', 'workload', 'posted-first'] as SortMode[]).map(opt => (
+                {(['default-due-desc-last-worked', 'newest', 'due-date', 'last-worked-on', 'running-first', 'time-desc', 'time-asc', 'progress-most', 'progress-least', 'workload', 'posted-first'] as SortMode[]).map(opt => (
                   <button
                     key={opt}
                     type="button"
@@ -443,7 +464,23 @@ export default function TimeView({
                               formatHMS(info.ms)
                             )}
                           </div>
-                          <div className="text-[8px] text-neutral-500 mt-0.5">{info.sittings} sittings</div>
+                          <div className="flex items-center justify-between mt-0.5">
+                            <div className="text-[8px] text-neutral-500">{info.sittings} sittings</div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const raw = window.prompt(`Set sittings count for ${STAGE_LABEL[s]} (current: ${info.sittings}). Total time stays the same and is split evenly across the new count.`, String(Math.max(1, info.sittings)));
+                                if (raw === null) return;
+                                const n = parseInt(raw.trim(), 10);
+                                if (!Number.isFinite(n) || n < 1) { window.alert('Enter a whole number ≥ 1.'); return; }
+                                onSetStageTotals(t.id, s, info.ms, n);
+                              }}
+                              title="Edit sittings count"
+                              className="p-0.5 rounded border border-neutral-800 text-neutral-500 hover:text-cyan-300"
+                            >
+                              <Pencil className="h-2 w-2" />
+                            </button>
+                          </div>
                           <div className="flex gap-1 mt-1.5">
                             {!info.running && (
                               <button

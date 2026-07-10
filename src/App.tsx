@@ -450,7 +450,7 @@ function mergeTaskTimersByNewest(
 ) {
   if (remoteTimers.length === 0) {
     const localNewest = localTimers.reduce((max, timer) => Math.max(max, taskTimerRevisionMs(timer)), 0);
-    return remoteStateRevisionMs >= localNewest ? [] : localTimers;
+    return healStaleRunningTimers(remoteStateRevisionMs >= localNewest ? [] : localTimers);
   }
 
   const merged = new Map<string, TaskTimerRecord>();
@@ -464,10 +464,42 @@ function mergeTaskTimersByNewest(
   remoteTimers.forEach(upsert);
   localTimers.forEach(upsert);
 
-  return Array.from(merged.values()).sort((a, b) =>
+  return healStaleRunningTimers(Array.from(merged.values()).sort((a, b) =>
     taskTimerRevisionMs(b) - taskTimerRevisionMs(a) ||
     parseTimestampMs(b.startedAt) - parseTimestampMs(a.startedAt)
-  );
+  ));
+}
+
+// A running timer left over from a previous browser session (tab closed
+// without pausing) still has status='running' with an activeSince from
+// hours or days ago. Every subsequent render, `now - activeSince` inflates
+// the displayed elapsed time — and the very next pause bakes that
+// inflated number into accumulatedActiveMs, permanently corrupting the
+// stage total. On load, cap any such stale timer so a 30-minute session
+// can never silently become 8 hours.
+const STALE_RUNNING_THRESHOLD_MS = 6 * 60 * 60 * 1000;
+const STALE_RUNNING_CAP_MS = 30 * 60 * 1000;
+function healStaleRunningTimers(timers: TaskTimerRecord[]): TaskTimerRecord[] {
+  const nowMs = Date.now();
+  return timers.map(tt => {
+    if (tt.status !== 'running' || !tt.activeSince) return tt;
+    const activeSinceMs = new Date(tt.activeSince).getTime();
+    const elapsed = nowMs - activeSinceMs;
+    if (!Number.isFinite(elapsed) || elapsed < STALE_RUNNING_THRESHOLD_MS) return tt;
+    const capped = Math.min(elapsed, STALE_RUNNING_CAP_MS);
+    const cappedEndMs = activeSinceMs + capped;
+    const cappedEndIso = new Date(cappedEndMs).toISOString();
+    const closed = closeOpenSegment(tt, cappedEndMs);
+    return {
+      ...closed,
+      status: 'paused' as const,
+      accumulatedActiveMs: closed.accumulatedActiveMs + capped,
+      activeSince: null,
+      pausedAt: cappedEndIso,
+      breaksCount: tt.breaksCount + 1,
+      pauseSource: 'manual' as const,
+    };
+  });
 }
 
 const workflowStageNames = ['hook', 'script', 'shoot', 'edit', 'schedule', 'post'] as const;
@@ -2374,6 +2406,58 @@ export default function App() {
     });
   };
 
+  // Replace both the total time AND sittings count for a topic+stage in one
+  // atomic write. The sittings count is stored as N synthetic segments, each
+  // sized to totalMs / N, so downstream `sittings = segments.length` reads it
+  // back correctly. Zeroes existing rows the same way replaceStageTime does
+  // so a Supabase sync round-trip can't re-inject the old numbers.
+  const setStageTotals = (topicId: string, stage: TaskTimerStage, totalMs: number, sittings: number) => {
+    const topic = topics.find(t => t.id === topicId);
+    if (!topic) return;
+    const nowIso = new Date().toISOString();
+    const clean = Math.max(0, Math.floor(totalMs));
+    const sittingCount = Math.max(1, Math.floor(sittings));
+    setTaskTimers(prev => {
+      const zeroed = prev.map(tt => tt.topicId === topicId && tt.stage === stage
+        ? {
+            ...tt,
+            status: 'completed' as const,
+            completedAt: nowIso,
+            activeSince: null,
+            pausedAt: null,
+            accumulatedActiveMs: 0,
+            accumulatedPausedMs: 0,
+            breaksCount: 0,
+            segments: [],
+            endReason: 'done' as const
+          }
+        : tt);
+      if (clean === 0 && sittings <= 0) return zeroed;
+      const perSitting = Math.floor(clean / sittingCount);
+      const remainder = clean - perSitting * sittingCount;
+      const segs: SittingSegment[] = Array.from({ length: sittingCount }, (_, i) => ({
+        id: `seg-manual-${Date.now()}-${i}`,
+        startedAt: nowIso,
+        endedAt: nowIso,
+        activeMs: perSitting + (i === sittingCount - 1 ? remainder : 0),
+      }));
+      const newTimer: TaskTimerRecord = {
+        id: `tt-manual-${Date.now()}-${topicId}-${stage}`,
+        topicId, topicName: topic.name, stage,
+        status: 'completed',
+        startedAt: nowIso, completedAt: nowIso,
+        activeSince: null, pausedAt: null,
+        accumulatedActiveMs: clean,
+        accumulatedPausedMs: 0,
+        breaksCount: Math.max(0, sittingCount - 1),
+        endReason: 'done',
+        dateKey: todayKey(),
+        segments: segs,
+      };
+      return [...zeroed, newTimer];
+    });
+  };
+
   const stopActiveTaskTimer = (endReason: 'done' | 'deferred', productivityScore?: number) => {
     const stamp = new Date().toISOString();
     setTaskTimers(prev => closeOpenSideWork(prev, new Date(stamp).getTime()).map(tt => {
@@ -3159,6 +3243,7 @@ export default function App() {
                 onCompleteStage={completeTaskTimerStage}
                 onAddManualTime={addManualStageTime}
                 onReplaceTime={replaceStageTime}
+                onSetStageTotals={setStageTotals}
                 onUpdateTimer={updateStageTimer}
                 onDeleteTimer={deleteStageTimer}
               />
