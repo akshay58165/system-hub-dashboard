@@ -108,6 +108,8 @@ export default function TimeView({
   const [now, setNow] = useState(Date.now());
   const [editingStageKey, setEditingStageKey] = useState<string | null>(null);
   const [editingStageValue, setEditingStageValue] = useState('');
+  const [editingSittingsKey, setEditingSittingsKey] = useState<string | null>(null);
+  const [editingSittingsValue, setEditingSittingsValue] = useState('');
   const autoExpandedLiveId = useRef<string | null>(null);
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -509,13 +511,38 @@ export default function TimeView({
                             Pause {STAGE_LABEL[activeStage]}
                           </button>
                         )}
-                        <button
+                      <button
                           type="button"
                           disabled={activeInfo.ms === 0 && !activeInfo.running && !activeInfo.paused}
                           onClick={() => onCompleteStage(t.id, activeStage)}
                           className="rounded-full border border-blue-700/60 bg-blue-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-blue-200 hover:bg-blue-500/15 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           Done
+                        </button>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const stageKey = `${t.id}-${activeStage}`;
+                            setEditingStageKey(stageKey);
+                            setEditingStageValue(formatHMS(activeInfo.ms));
+                          }}
+                          className="rounded-full border border-neutral-800 bg-neutral-950/60 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-400 hover:border-blue-500/40 hover:text-blue-300"
+                        >
+                          Edit time
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const stageKey = `${t.id}-${activeStage}`;
+                            setEditingSittingsKey(stageKey);
+                            setEditingSittingsValue(String(Math.max(1, activeInfo.sittings || 1)));
+                          }}
+                          className="rounded-full border border-neutral-800 bg-neutral-950/60 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-400 hover:border-cyan-500/40 hover:text-cyan-300"
+                        >
+                          Edit sittings
                         </button>
                       </div>
                     </div>
@@ -575,6 +602,10 @@ export default function TimeView({
                               <button
                                 type="button"
                                 onClick={() => {
+                                  const stageKey = `${t.id}-${s}`;
+                                  setEditingSittingsKey(stageKey);
+                                  setEditingSittingsValue(String(Math.max(1, info.sittings || 1)));
+                                  return;
                                   const raw = window.prompt(`Set sittings count for ${STAGE_LABEL[s]} (current: ${info.sittings}). Total time stays the same and is split evenly across the new count.`, String(Math.max(1, info.sittings)));
                                   if (raw === null) return;
                                   const n = parseInt(raw.trim(), 10);
@@ -587,6 +618,41 @@ export default function TimeView({
                                 Split
                               </button>
                             </div>
+
+                            {editingSittingsKey === `${t.id}-${s}` && (
+                              <div className="mt-2 flex items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-950/80 px-2 py-2">
+                                <input
+                                  type="number"
+                                  min={1}
+                                  autoFocus
+                                  value={editingSittingsValue}
+                                  onChange={(e) => setEditingSittingsValue(e.target.value)}
+                                  className="w-20 rounded border border-neutral-800 bg-neutral-900 px-2 py-1 text-[11px] font-mono text-white outline-none"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const n = parseInt(editingSittingsValue.trim(), 10);
+                                    if (!Number.isFinite(n) || n < 1) {
+                                      window.alert('Enter a whole number >= 1.');
+                                      return;
+                                    }
+                                    onSetStageTotals(t.id, s, info.ms, n);
+                                    setEditingSittingsKey(null);
+                                  }}
+                                  className="rounded border border-cyan-700/60 bg-cyan-500/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-cyan-200 hover:bg-cyan-500/15"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingSittingsKey(null)}
+                                  className="rounded border border-neutral-800 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-400 hover:text-neutral-200"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            )}
 
                             <div className="mt-2 flex gap-1.5">
                               {!info.running && (
@@ -612,8 +678,33 @@ export default function TimeView({
                                 disabled={info.ms === 0 && !info.running && !info.paused}
                                 onClick={() => onCompleteStage(t.id, s)}
                                 className="rounded-lg border border-blue-800/60 bg-blue-500/10 px-2 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-blue-200 hover:bg-blue-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                  Done
+                                </button>
+                              </div>
+
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const stageKey = `${t.id}-${s}`;
+                                  setEditingStageKey(stageKey);
+                                  setEditingStageValue(formatHMS(info.ms));
+                                }}
+                                className="rounded-full border border-neutral-800 bg-neutral-950/60 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-400 hover:border-blue-500/40 hover:text-blue-300"
                               >
-                                Done
+                                Edit time
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const stageKey = `${t.id}-${s}`;
+                                  setEditingSittingsKey(stageKey);
+                                  setEditingSittingsValue(String(Math.max(1, info.sittings || 1)));
+                                }}
+                                className="rounded-full border border-neutral-800 bg-neutral-950/60 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-400 hover:border-cyan-500/40 hover:text-cyan-300"
+                              >
+                                Edit sittings
                               </button>
                             </div>
                           </div>
