@@ -19,6 +19,8 @@ export interface TaskTimerContextValue {
   addManualStageTime: (topicId: string, stage: TaskTimerStage, activeMs: number) => void;
   // Replace all time for a topic+stage with an exact value.
   replaceStageTime: (topicId: string, stage: TaskTimerStage, activeMs: number) => void;
+  // Overwrite both total time and sittings count atomically.
+  setStageTotals: (topicId: string, stage: TaskTimerStage, totalMs: number, sittings: number) => void;
   // Update or delete an existing stage timer (used by the Time view).
   updateStageTimer: (timerId: string, patch: Partial<TaskTimerRecord>) => void;
   deleteStageTimer: (timerId: string) => void;

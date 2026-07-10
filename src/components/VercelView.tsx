@@ -153,12 +153,13 @@ interface StageStopwatchProps {
   onDone: () => void;
   onAddManual: (ms: number) => void;
   onReplaceTime: (ms: number) => void;
+  onSetSittings?: (sittings: number) => void;
   disabled?: boolean;
 }
 
 export function StageStopwatch({
   topicId, stage, timers, nowMs,
-  onStart, onPause, onDone, onAddManual, onReplaceTime, disabled
+  onStart, onPause, onDone, onAddManual, onReplaceTime, onSetSittings, disabled
 }: StageStopwatchProps) {
   void topicId;
   const live = timers.find(t => t.status === 'running' || t.status === 'paused');
@@ -252,9 +253,25 @@ export function StageStopwatch({
             {formatHMS(activeMs)}
           </span>
         )}
-        {sittings > 0 && (
+        {onSetSittings ? (
+          <button
+            type="button"
+            onClick={() => {
+              const raw = window.prompt(`Set sittings for ${label}. Total time stays the same.`, String(Math.max(1, sittings)));
+              if (raw === null) return;
+              const n = parseInt(raw.trim(), 10);
+              if (!Number.isFinite(n) || n < 1) { window.alert('Enter a whole number ≥ 1.'); return; }
+              onSetSittings(n);
+            }}
+            title={`${sittings} sitting${sittings === 1 ? '' : 's'} · click to edit`}
+            className="text-[8px] px-1 rounded border border-cyan-900/50 bg-cyan-950/25 text-cyan-300 hover:border-cyan-500 hover:text-cyan-100 transition inline-flex items-center gap-0.5"
+          >
+            ×{sittings || 0}
+            <Pencil className="h-2 w-2" />
+          </button>
+        ) : sittings > 0 ? (
           <span title={`${sittings} sitting${sittings === 1 ? '' : 's'}`} className="text-[8px] px-1 rounded border border-cyan-900/50 bg-cyan-950/25 text-cyan-300">×{sittings}</span>
-        )}
+        ) : null}
       </div>
       <div className="flex items-center gap-1">
         {state === 'done' ? (
@@ -1507,7 +1524,7 @@ export default function VercelView({
                                 title={`Explanation difficulty: ${topic.explanationDifficulty}/10 — how hard to explain to a mass audience`}
                                 className="px-1.5 py-0.2 rounded border text-[8px] uppercase font-bold border-amber-900/40 bg-amber-950/20 text-amber-300"
                               >
-                                Diff {topic.explanationDifficulty}
+                                Hard {topic.explanationDifficulty}
                               </span>
                             )}
                           </div>
@@ -1717,6 +1734,12 @@ export default function VercelView({
                                 }}
                                 onAddManual={(ms) => { taskTimer?.addManualStageTime(topic.id, stage, ms); }}
                                 onReplaceTime={(ms) => { taskTimer?.replaceStageTime(topic.id, stage, ms); }}
+                                onSetSittings={(sittings) => {
+                                  const currentMs = stageTimers.reduce((sum, t) => sum + t.accumulatedActiveMs + (
+                                    t.status === 'running' && t.activeSince ? Math.max(0, now.getTime() - new Date(t.activeSince).getTime()) : 0
+                                  ), 0);
+                                  taskTimer?.setStageTotals(topic.id, stage, currentMs, sittings);
+                                }}
                               />
                             );
                           }

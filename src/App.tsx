@@ -2433,14 +2433,12 @@ export default function App() {
           }
         : tt);
       if (clean === 0 && sittings <= 0) return zeroed;
-      const perSitting = Math.floor(clean / sittingCount);
-      const remainder = clean - perSitting * sittingCount;
-      const segs: SittingSegment[] = Array.from({ length: sittingCount }, (_, i) => ({
-        id: `seg-manual-${Date.now()}-${i}`,
-        startedAt: nowIso,
-        endedAt: nowIso,
-        activeMs: perSitting + (i === sittingCount - 1 ? remainder : 0),
-      }));
+      // Store only what we actually care about: the total time and the
+      // sittings count. No per-segment breakdown — a manual edit is
+      // authoritative and shouldn't lie about which minute belongs to
+      // which sitting. Downstream sittings-display code falls back to
+      // `breaksCount + 1` for completed timers with no segments, so
+      // setting breaksCount = sittings - 1 makes the count render right.
       const newTimer: TaskTimerRecord = {
         id: `tt-manual-${Date.now()}-${topicId}-${stage}`,
         topicId, topicName: topic.name, stage,
@@ -2452,7 +2450,7 @@ export default function App() {
         breaksCount: Math.max(0, sittingCount - 1),
         endReason: 'done',
         dateKey: todayKey(),
-        segments: segs,
+        segments: [],
       };
       return [...zeroed, newTimer];
     });
@@ -3194,6 +3192,7 @@ export default function App() {
                 resumeWorkdayAndStart: resumeWorkdayAndStartTask,
                 addManualStageTime,
                 replaceStageTime,
+                setStageTotals,
                 updateStageTimer,
                 deleteStageTimer
               }}>
