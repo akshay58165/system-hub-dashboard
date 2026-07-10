@@ -415,150 +415,242 @@ export default function TimeView({
               </button>
 
               {isOpen && (() => {
-                // When a stage is actively running, the user is focused on that
-                // single task — give it the whole row with a 5x larger clock so
-                // the timer reads from across the room. Other stages compress
-                // into a strip below so they're still tappable but out of the way.
-                const focusStage = STAGES.find(s => row.perStage[s].running)
-                  || STAGES.find(s => row.perStage[s].paused);
+                const activeStage = STAGES.find(s => row.perStage[s].running)
+                  || STAGES.find(s => row.perStage[s].paused)
+                  || STAGES.find(s => row.perStage[s].done)
+                  || STAGES[0];
+                const activeInfo = row.perStage[activeStage];
+                const activeTone = activeInfo.running
+                  ? 'border-emerald-500/70 bg-gradient-to-br from-emerald-950/35 via-neutral-950 to-neutral-950'
+                  : activeInfo.paused
+                    ? 'border-amber-500/70 bg-gradient-to-br from-amber-950/30 via-neutral-950 to-neutral-950'
+                    : 'border-neutral-800 bg-gradient-to-br from-neutral-950 via-neutral-950 to-neutral-900/40';
                 return (
                 <div className="border-t border-neutral-800 bg-neutral-950/70 p-3 space-y-3">
-                  {/* Per-stage controls */}
-                  <div className={focusStage ? 'space-y-2' : 'grid grid-cols-2 md:grid-cols-4 gap-2'}>
-                    {STAGES.map(s => {
-                      const info = row.perStage[s];
-                      const isFocus = focusStage === s;
-                      if (focusStage && !isFocus) return null;
-                      return (
-                        <div key={s} className={`rounded border ${isFocus ? (info.running ? 'border-emerald-500/70 bg-emerald-950/25' : 'border-amber-500/70 bg-amber-950/20') : 'border-neutral-800 bg-neutral-950'} ${isFocus ? 'p-4' : 'p-2'}`}>
-                          <div className="flex justify-between items-center">
-                            <span className={`${isFocus ? 'text-xs' : 'text-[9px]'} font-bold uppercase text-neutral-300 tracking-wider`}>{STAGE_LABEL[s]}{isFocus && info.running && <span className="ml-2 text-emerald-300">● LIVE</span>}{isFocus && info.paused && <span className="ml-2 text-amber-300">◐ PAUSED</span>}</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const stageKey = `${t.id}-${s}`;
-                                setEditingStageKey(stageKey);
-                                setEditingStageValue(formatHMS(info.ms));
-                              }}
-                              title="Edit time"
-                              className="p-0.5 rounded border border-neutral-800 text-neutral-500 hover:text-blue-300"
-                            >
-                              <Pencil className="h-2.5 w-2.5" />
-                            </button>
+                  <div className="grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+                    <div className={`relative overflow-hidden rounded-2xl border p-5 shadow-[0_0_30px_rgba(0,0,0,0.22)] ${activeTone}`}>
+                      <div className={`absolute inset-0 pointer-events-none ${activeInfo.running ? 'bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.16),transparent_55%)]' : activeInfo.paused ? 'bg-[radial-gradient(circle_at_top_right,rgba(245,158,11,0.16),transparent_55%)]' : 'bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.04),transparent_55%)]'}`} />
+                      <div className="relative flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.28em] ${activeInfo.running ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' : activeInfo.paused ? 'border-amber-500/40 bg-amber-500/10 text-amber-300' : 'border-neutral-700 bg-neutral-900 text-neutral-300'}`}>
+                              {STAGE_LABEL[activeStage]}
+                            </span>
+                            <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.28em] ${activeInfo.running ? 'bg-emerald-500/15 text-emerald-300' : activeInfo.paused ? 'bg-amber-500/15 text-amber-300' : 'bg-neutral-800 text-neutral-400'}`}>
+                              {activeInfo.running ? 'Live stopwatch' : activeInfo.paused ? 'Paused' : 'Stopped'}
+                            </span>
                           </div>
-                          <div className={`text-[11px] font-mono mt-1 ${info.running ? 'text-emerald-300' : info.paused ? 'text-amber-300' : 'text-neutral-300'}`}>
-                            {editingStageKey === `${t.id}-${s}` ? (
-                              <input
-                                type="text"
-                                autoFocus
-                                value={editingStageValue}
-                                onChange={(e) => setEditingStageValue(e.target.value)}
-                                onBlur={() => {
-                                  const ms = parseTimeInput(editingStageValue);
-                                  if (ms !== null) onReplaceTime(t.id, s, ms);
-                                  setEditingStageKey(null);
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    const ms = parseTimeInput(editingStageValue);
-                                    if (ms !== null) onReplaceTime(t.id, s, ms);
-                                    setEditingStageKey(null);
-                                  }
-                                  if (e.key === 'Escape') setEditingStageKey(null);
-                                }}
-                                className="w-full bg-neutral-900 border border-blue-600 rounded px-1 py-0.5 text-[11px] font-mono text-white outline-none"
-                                placeholder="HH:MM:SS"
-                              />
-                            ) : (
-                              formatHMS(info.ms)
-                            )}
-                          </div>
-                          <div className="flex items-center justify-between mt-0.5">
-                            <div className="text-[8px] text-neutral-500">{info.sittings} sittings</div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const raw = window.prompt(`Set sittings count for ${STAGE_LABEL[s]} (current: ${info.sittings}). Total time stays the same and is split evenly across the new count.`, String(Math.max(1, info.sittings)));
-                                if (raw === null) return;
-                                const n = parseInt(raw.trim(), 10);
-                                if (!Number.isFinite(n) || n < 1) { window.alert('Enter a whole number ≥ 1.'); return; }
-                                onSetStageTotals(t.id, s, info.ms, n);
-                              }}
-                              title="Edit sittings count"
-                              className="p-0.5 rounded border border-neutral-800 text-neutral-500 hover:text-cyan-300"
-                            >
-                              <Pencil className="h-2 w-2" />
-                            </button>
-                          </div>
-                          <div className="flex gap-1 mt-1.5">
-                            {!info.running && (
-                              <button
-                                type="button"
-                                onClick={() => onStartTimer(t.id, s)}
-                                className="flex-1 px-1 py-0.5 text-[8px] font-bold rounded border border-emerald-800/60 text-emerald-300 hover:bg-emerald-500/15"
-                              >{info.paused ? 'Resume' : 'Start'}</button>
-                            )}
-                            {info.running && (
-                              <button
-                                type="button"
-                                onClick={onPauseTimer}
-                                className="flex-1 px-1 py-0.5 text-[8px] font-bold rounded border border-amber-800/60 text-amber-300 hover:bg-amber-500/15"
-                              >Pause</button>
-                            )}
-                            <button
-                              type="button"
-                              disabled={info.ms === 0 && !info.running && !info.paused}
-                              onClick={() => onCompleteStage(t.id, s)}
-                              className="px-1 py-0.5 text-[8px] font-bold rounded border border-blue-800/60 text-blue-300 hover:bg-blue-500/15 disabled:opacity-40"
-                            >Done</button>
+                          <div className="mt-4 flex items-end gap-3">
+                            <div className={`tabular-nums font-black tracking-tighter leading-none ${activeInfo.running ? 'text-6xl sm:text-7xl lg:text-[7rem]' : 'text-5xl sm:text-6xl lg:text-[6.25rem]'} ${activeInfo.running ? 'text-white' : activeInfo.paused ? 'text-amber-100' : 'text-neutral-100'}`}>
+                              {formatHMS(activeInfo.ms)}
+                            </div>
+                            <div className="pb-3 text-xs text-neutral-400">
+                              <div className="font-semibold text-neutral-200">{activeInfo.sittings} sittings</div>
+                              <div className="mt-1 max-w-[12rem] leading-relaxed">
+                                {activeInfo.running ? 'This stage is currently recording live time.' : activeInfo.paused ? 'Resume it or switch to a different stage.' : 'Ready for a fresh start or a manual time edit.'}
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      );
-                    })}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const stageKey = `${t.id}-${activeStage}`;
+                            setEditingStageKey(stageKey);
+                            setEditingStageValue(formatHMS(activeInfo.ms));
+                          }}
+                          title="Edit time"
+                          className="shrink-0 rounded-full border border-neutral-700 bg-neutral-950/70 p-2 text-neutral-400 hover:border-blue-500/40 hover:text-blue-300"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="relative mt-5 flex flex-wrap gap-2">
+                        {!activeInfo.running && (
+                          <button
+                            type="button"
+                            onClick={() => onStartTimer(t.id, activeStage)}
+                            className="rounded-full border border-emerald-700/60 bg-emerald-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-200 hover:bg-emerald-500/15"
+                          >
+                            {activeInfo.paused ? 'Resume' : 'Start'} {STAGE_LABEL[activeStage]}
+                          </button>
+                        )}
+                        {activeInfo.running && (
+                          <button
+                            type="button"
+                            onClick={onPauseTimer}
+                            className="rounded-full border border-amber-700/60 bg-amber-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200 hover:bg-amber-500/15"
+                          >
+                            Pause {STAGE_LABEL[activeStage]}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          disabled={activeInfo.ms === 0 && !activeInfo.running && !activeInfo.paused}
+                          onClick={() => onCompleteStage(t.id, activeStage)}
+                          className="rounded-full border border-blue-700/60 bg-blue-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-blue-200 hover:bg-blue-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Done
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      {STAGES.map(s => {
+                        const info = row.perStage[s];
+                        const isActive = activeStage === s;
+                        return (
+                          <div
+                            key={s}
+                            className={`rounded-2xl border p-3 transition-all duration-300 ${isActive ? info.running ? 'border-emerald-500/60 bg-emerald-950/25 shadow-[0_0_20px_rgba(16,185,129,0.08)]' : info.paused ? 'border-amber-500/60 bg-amber-950/20 shadow-[0_0_20px_rgba(245,158,11,0.08)]' : 'border-neutral-700 bg-neutral-900/70' : 'border-neutral-800 bg-neutral-950/85 hover:border-neutral-700'}`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className={`font-bold uppercase tracking-[0.2em] ${isActive ? 'text-[11px] text-neutral-100' : 'text-[9px] text-neutral-400'}`}>
+                                  {STAGE_LABEL[s]}
+                                  {isActive && info.running && <span className="ml-2 text-emerald-300">LIVE</span>}
+                                  {isActive && info.paused && <span className="ml-2 text-amber-300">PAUSED</span>}
+                                </div>
+                                <div className={`mt-1 tabular-nums font-black tracking-tight ${isActive ? 'text-2xl sm:text-3xl text-white' : 'text-lg sm:text-xl text-neutral-200'}`}>
+                                  {editingStageKey === `${t.id}-${s}` ? (
+                                    <input
+                                      type="text"
+                                      autoFocus
+                                      value={editingStageValue}
+                                      onChange={(e) => setEditingStageValue(e.target.value)}
+                                      onBlur={() => {
+                                        const ms = parseTimeInput(editingStageValue);
+                                        if (ms !== null) onReplaceTime(t.id, s, ms);
+                                        setEditingStageKey(null);
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          const ms = parseTimeInput(editingStageValue);
+                                          if (ms !== null) onReplaceTime(t.id, s, ms);
+                                          setEditingStageKey(null);
+                                        }
+                                        if (e.key === 'Escape') setEditingStageKey(null);
+                                      }}
+                                      className="w-full rounded border border-blue-600 bg-neutral-900 px-2 py-1 text-[11px] font-mono text-white outline-none"
+                                      placeholder="HH:MM:SS"
+                                    />
+                                  ) : (
+                                    formatHMS(info.ms)
+                                  )}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const stageKey = `${t.id}-${s}`;
+                                  setEditingStageKey(stageKey);
+                                  setEditingStageValue(formatHMS(info.ms));
+                                }}
+                                title="Edit time"
+                                className="shrink-0 rounded border border-neutral-800 p-1.5 text-neutral-500 hover:text-blue-300"
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                            </div>
+
+                            <div className="mt-2 flex items-center justify-between gap-2 text-[9px] text-neutral-500">
+                              <span>{info.sittings} sittings</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const raw = window.prompt(`Set sittings count for ${STAGE_LABEL[s]} (current: ${info.sittings}). Total time stays the same and is split evenly across the new count.`, String(Math.max(1, info.sittings)));
+                                  if (raw === null) return;
+                                  const n = parseInt(raw.trim(), 10);
+                                  if (!Number.isFinite(n) || n < 1) { window.alert('Enter a whole number ≥ 1.'); return; }
+                                  onSetStageTotals(t.id, s, info.ms, n);
+                                }}
+                                title="Edit sittings count"
+                                className="rounded border border-neutral-800 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-400 hover:border-cyan-500/40 hover:text-cyan-300"
+                              >
+                                Split
+                              </button>
+                            </div>
+
+                            <div className="mt-2 flex gap-1.5">
+                              {!info.running && (
+                                <button
+                                  type="button"
+                                  onClick={() => onStartTimer(t.id, s)}
+                                  className="flex-1 rounded-lg border border-emerald-800/60 bg-emerald-500/10 px-2 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-200 hover:bg-emerald-500/15"
+                                >
+                                  {info.paused ? 'Resume' : 'Start'}
+                                </button>
+                              )}
+                              {info.running && (
+                                <button
+                                  type="button"
+                                  onClick={onPauseTimer}
+                                  className="flex-1 rounded-lg border border-amber-800/60 bg-amber-500/10 px-2 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-amber-200 hover:bg-amber-500/15"
+                                >
+                                  Pause
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                disabled={info.ms === 0 && !info.running && !info.paused}
+                                onClick={() => onCompleteStage(t.id, s)}
+                                className="rounded-lg border border-blue-800/60 bg-blue-500/10 px-2 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-blue-200 hover:bg-blue-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                Done
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {/* Individual entries — collapsed by default. Click the header
                       to reveal the full audit list of every timer row. */}
                   {row.timers.length > 0 && (
-                    <div className="rounded border border-neutral-800 bg-neutral-950">
+                    <div className="overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950/90">
                       <button
                         type="button"
                         onClick={() => setEntriesOpen(prev => prev === t.id ? null : t.id)}
-                        className="w-full flex items-center justify-between px-2 py-1 border-b border-neutral-800 text-[9px] uppercase text-neutral-500 tracking-wider hover:text-neutral-200"
+                        className="flex w-full items-center justify-between border-b border-neutral-800/80 px-3 py-2 text-[10px] uppercase tracking-[0.22em] text-neutral-500 hover:text-neutral-200"
                         aria-expanded={entriesOpen === t.id}
                       >
                         <span>Time entries ({row.timers.length})</span>
-                        <ChevronDown className={`h-3 w-3 transition-transform ${entriesOpen === t.id ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${entriesOpen === t.id ? 'rotate-180' : ''}`} />
                       </button>
                       {entriesOpen === t.id ? (
                       <div className="divide-y divide-neutral-900">
                         {row.timers.slice().sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()).map(timer => (
-                          <div key={timer.id} className="flex items-center justify-between px-2 py-1.5 text-[10px]">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="uppercase text-[9px] font-bold text-neutral-400 min-w-[3rem]">{STAGE_LABEL[timer.stage]}</span>
-                              <span className="text-neutral-300 font-mono">{formatHMS(timer.accumulatedActiveMs)}</span>
-                              <span className="text-neutral-600">·</span>
-                              {(() => {
-                                const n = timer.segments && timer.segments.length > 0
-                                  ? timer.segments.length
-                                  : timer.status === 'paused' ? timer.breaksCount : timer.breaksCount + 1;
-                                return <span className="text-neutral-500 text-[9px]">{new Date(timer.startedAt).toLocaleDateString()} · {n} sitting{n === 1 ? '' : 's'}</span>;
-                              })()}
-                              <span className={`px-1 rounded text-[8px] ${timer.status === 'running' ? 'text-emerald-300 border border-emerald-900' : timer.status === 'paused' ? 'text-amber-300 border border-amber-900' : 'text-neutral-500 border border-neutral-800'}`}>{timer.status}</span>
+                          <div key={timer.id} className="flex items-start justify-between gap-3 px-3 py-2 text-[10px]">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="rounded-full border border-neutral-800 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-300">{STAGE_LABEL[timer.stage]}</span>
+                                <span className="font-mono text-sm font-semibold text-neutral-100 tabular-nums">{formatHMS(timer.accumulatedActiveMs)}</span>
+                                <span className="text-neutral-600">·</span>
+                                {(() => {
+                                  const n = timer.segments && timer.segments.length > 0
+                                    ? timer.segments.length
+                                    : timer.status === 'paused' ? timer.breaksCount : timer.breaksCount + 1;
+                                  return <span className="text-neutral-500 text-[9px]">{new Date(timer.startedAt).toLocaleDateString()} · {n} sitting{n === 1 ? '' : 's'}</span>;
+                                })()}
+                                <span className={`rounded-full border px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.18em] ${timer.status === 'running' ? 'border-emerald-900 text-emerald-300' : timer.status === 'paused' ? 'border-amber-900 text-amber-300' : 'border-neutral-800 text-neutral-500'}`}>{timer.status}</span>
+                              </div>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                               <button
                                 type="button"
                                 onClick={() => handleEditEntry(timer)}
                                 title="Edit time"
-                                className="p-1 rounded border border-neutral-800 text-neutral-400 hover:text-blue-300"
+                                className="rounded border border-neutral-800 p-1.5 text-neutral-400 hover:text-blue-300"
                               ><Pencil className="h-2.5 w-2.5" /></button>
                               <button
                                 type="button"
                                 onClick={() => { if (window.confirm('Delete this time entry?')) onDeleteTimer(timer.id); }}
                                 title="Delete entry"
-                                className="p-1 rounded border border-neutral-800 text-neutral-400 hover:text-rose-400"
+                                className="rounded border border-neutral-800 p-1.5 text-neutral-400 hover:text-rose-400"
                               ><Trash2 className="h-2.5 w-2.5" /></button>
                             </div>
                           </div>
