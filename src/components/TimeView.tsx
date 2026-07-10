@@ -95,6 +95,7 @@ export default function TimeView({
   const [filterMode, setFilterMode] = useState<'all' | 'active' | 'paused' | 'in-progress' | 'scheduled' | 'posted' | 'idea' | 'has-time' | 'no-time'>('all');
   const [filterOpen, setFilterOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [entriesOpen, setEntriesOpen] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
   const [editingStageKey, setEditingStageKey] = useState<string | null>(null);
   const [editingStageValue, setEditingStageValue] = useState('');
@@ -508,12 +509,20 @@ export default function TimeView({
                     })}
                   </div>
 
-                  {/* Individual entries — editable & deletable */}
+                  {/* Individual entries — collapsed by default. Click the header
+                      to reveal the full audit list of every timer row. */}
                   {row.timers.length > 0 && (
                     <div className="rounded border border-neutral-800 bg-neutral-950">
-                      <div className="px-2 py-1 border-b border-neutral-800 text-[9px] uppercase text-neutral-500 tracking-wider">
-                        Time entries ({row.timers.length})
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEntriesOpen(prev => prev === t.id ? null : t.id)}
+                        className="w-full flex items-center justify-between px-2 py-1 border-b border-neutral-800 text-[9px] uppercase text-neutral-500 tracking-wider hover:text-neutral-200"
+                        aria-expanded={entriesOpen === t.id}
+                      >
+                        <span>Time entries ({row.timers.length})</span>
+                        <ChevronDown className={`h-3 w-3 transition-transform ${entriesOpen === t.id ? 'rotate-180' : ''}`} />
+                      </button>
+                      {entriesOpen === t.id ? (
                       <div className="divide-y divide-neutral-900">
                         {row.timers.slice().sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()).map(timer => (
                           <div key={timer.id} className="flex items-center justify-between px-2 py-1.5 text-[10px]">
@@ -546,6 +555,7 @@ export default function TimeView({
                           </div>
                         ))}
                       </div>
+                      ) : null}
                     </div>
                   )}
                 </div>
