@@ -591,32 +591,41 @@ export default function App() {
   const pendingDeleteTimersRef = useRef<Record<string, number>>({});
   const pendingDeleteCommittersRef = useRef<Record<string, (() => void) | undefined>>({});
   const pendingDeleteGroupsRef = useRef<PendingDeleteGroup[]>([]);
+  const topicFingerprint = (topic: Topic) => JSON.stringify(topic);
+  const registerTopicMutation = (previous: Topic[], next: Topic[]) => {
+    const previousById = new Map(previous.map(topic => [topic.id, topic]));
+    const nextById = new Map(next.map(topic => [topic.id, topic]));
+    const nextIds = new Set(next.map(topic => topic.id));
+    const deletedAt = new Date().toISOString();
+
+    previous.forEach(topic => {
+      if (!nextIds.has(topic.id)) {
+        topicTombstonesRef.current[topic.id] = deletedAt;
+        dirtyTopicIdsRef.current.add(topic.id);
+      }
+    });
+
+    next.forEach(topic => {
+      const oldTopic = previousById.get(topic.id);
+      if (!oldTopic || topicFingerprint(oldTopic) !== topicFingerprint(topic)) {
+        dirtyTopicIdsRef.current.add(topic.id);
+        delete topicTombstonesRef.current[topic.id];
+      }
+    });
+
+    // Any topic mutation must clear a stale remote-sync skip and advance the
+    // mutation epoch so merges treat the update as authoritative.
+    isRemoteSyncRef.current = false;
+    topicMutationEpochRef.current += 1;
+
+    return { previousById, nextById };
+  };
   const setTopics: React.Dispatch<React.SetStateAction<Topic[]>> = (update) => {
     setTopicsState(previous => {
       const requested = typeof update === 'function' ? update(previous) : update;
       const changedAt = new Date().toISOString();
       const next = prepareLocalTopicMutation(previous, requested, changedAt);
-      const previousById = new Map(previous.map(topic => [topic.id, topic]));
-      const nextById = new Map(next.map(topic => [topic.id, topic]));
-      const nextIds = new Set(next.map(topic => topic.id));
-      const deletedAt = new Date().toISOString();
-      previous.forEach(topic => {
-        if (!nextIds.has(topic.id)) {
-          topicTombstonesRef.current[topic.id] = deletedAt;
-          dirtyTopicIdsRef.current.add(topic.id);
-        }
-      });
-      next.forEach(topic => {
-        const oldTopic = previousById.get(topic.id);
-        if (!oldTopic || oldTopic !== topic) {
-          dirtyTopicIdsRef.current.add(topic.id);
-          delete topicTombstonesRef.current[topic.id];
-        }
-      });
-      // A user mutation must always cancel a leftover remote-snapshot skip.
-      // Otherwise the next real edit can be mistaken for an echo and never saved.
-      isRemoteSyncRef.current = false;
-      topicMutationEpochRef.current += 1;
+      const { previousById, nextById } = registerTopicMutation(previous, next);
 
       const auditChanges = [
         ...next.filter(topic => {
@@ -1154,7 +1163,7 @@ export default function App() {
     // 2. Synchronize videos back into topics
     setTopicsState(prevTopics => {
       let changed = false;
-      const nextTopics = [...prevTopics];
+      const nextTopics = prevTopics.map(topic => ({ ...topic }));
       const topicMap = new Map(nextTopics.map(t => [t.id, t]));
 
       videos.forEach(v => {
@@ -1227,6 +1236,10 @@ export default function App() {
           }
         }
       });
+
+      if (changed) {
+        registerTopicMutation(prevTopics, nextTopics);
+      }
 
       return changed ? nextTopics : prevTopics;
     });
