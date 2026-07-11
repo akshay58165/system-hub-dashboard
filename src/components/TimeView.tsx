@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef, type ReactNode } from 'react';
-import { Clock, ChevronDown, Trash2, Pencil, GitBranch, FileText, Video } from 'lucide-react';
+import { Clock, ChevronDown, Trash2, Pencil, GitBranch, FileText, Video, Sparkles, Zap, Layers, Timer, TrendingUp, Flame, Play, Filter, ArrowUpDown } from 'lucide-react';
 import type { Topic, TaskTimerRecord, TaskTimerStage, TopicSortMode } from '../types';
 
 const STAGES: TaskTimerStage[] = ['hook', 'script', 'shoot', 'edit'];
@@ -15,6 +15,51 @@ const STAGE_ICON: Record<TaskTimerStage, ReactNode> = {
   schedule: <Clock className="h-4 w-4" />,
   post: <Clock className="h-4 w-4" />,
 };
+
+// Each authoring stage owns its own signature palette so every
+// insight card, bar, and highlight can be color-coded consistently.
+const STAGE_PALETTE: Record<TaskTimerStage, {
+  text: string; softText: string; ring: string; bar: string; glowVar: string; tintBg: string; iconBg: string;
+}> = {
+  hook: {
+    text: 'text-sky-300', softText: 'text-sky-200/70', ring: 'ring-sky-400/25',
+    bar: 'from-sky-500 to-sky-300', glowVar: 'rgba(56,189,248,0.35)',
+    tintBg: 'bg-gradient-to-br from-sky-500/10 via-transparent to-transparent', iconBg: 'bg-sky-500/15 text-sky-300 ring-1 ring-sky-400/30',
+  },
+  script: {
+    text: 'text-violet-300', softText: 'text-violet-200/70', ring: 'ring-violet-400/25',
+    bar: 'from-violet-500 to-violet-300', glowVar: 'rgba(167,139,250,0.35)',
+    tintBg: 'bg-gradient-to-br from-violet-500/10 via-transparent to-transparent', iconBg: 'bg-violet-500/15 text-violet-300 ring-1 ring-violet-400/30',
+  },
+  shoot: {
+    text: 'text-amber-300', softText: 'text-amber-200/70', ring: 'ring-amber-400/25',
+    bar: 'from-amber-500 to-amber-300', glowVar: 'rgba(251,191,36,0.35)',
+    tintBg: 'bg-gradient-to-br from-amber-500/10 via-transparent to-transparent', iconBg: 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-400/30',
+  },
+  edit: {
+    text: 'text-emerald-300', softText: 'text-emerald-200/70', ring: 'ring-emerald-400/25',
+    bar: 'from-emerald-500 to-emerald-300', glowVar: 'rgba(52,211,153,0.35)',
+    tintBg: 'bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent', iconBg: 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/30',
+  },
+  schedule: {
+    text: 'text-pink-300', softText: 'text-pink-200/70', ring: 'ring-pink-400/25',
+    bar: 'from-pink-500 to-pink-300', glowVar: 'rgba(244,114,182,0.35)',
+    tintBg: 'bg-gradient-to-br from-pink-500/10 via-transparent to-transparent', iconBg: 'bg-pink-500/15 text-pink-300 ring-1 ring-pink-400/30',
+  },
+  post: {
+    text: 'text-rose-300', softText: 'text-rose-200/70', ring: 'ring-rose-400/25',
+    bar: 'from-rose-500 to-rose-300', glowVar: 'rgba(244,63,94,0.35)',
+    tintBg: 'bg-gradient-to-br from-rose-500/10 via-transparent to-transparent', iconBg: 'bg-rose-500/15 text-rose-300 ring-1 ring-rose-400/30',
+  },
+};
+
+// Compact fractional formatter for "sittings avg" — trims trailing zero
+// so 4.0 reads as "4" and 1.7 stays as "1.7".
+function formatAvgSittings(n: number) {
+  if (!Number.isFinite(n) || n <= 0) return '0';
+  const rounded = Math.round(n * 10) / 10;
+  return Number.isInteger(rounded) ? rounded.toString() : rounded.toFixed(1);
+}
 
 function formatHMS(ms: number) {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -314,159 +359,250 @@ export default function TimeView({
     onUpdateTimer(timer.id, { accumulatedActiveMs: ms });
   };
 
+  const filterLabels = { all: 'All', active: 'Active (running)', paused: 'Paused', 'in-progress': 'In progress', scheduled: 'Scheduled', posted: 'Posted', idea: 'Idea only', 'has-time': 'Has time', 'no-time': 'No time yet' } as const;
+
   return (
-    <div className="space-y-6 font-mono">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-white flex items-center gap-2">
-            <Clock className="h-5 w-5 text-purple-400" />
-            Time
-          </h1>
-          <p className="text-[10px] text-neutral-500 mt-1">Per-stage stopwatches, sittings, and insights across every topic.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => { setFilterOpen(o => !o); setSortOpen(false); }}
-              className="flex items-center gap-1 px-2.5 py-1 rounded border border-neutral-800 bg-neutral-950 text-[11px] text-neutral-200 hover:border-neutral-700"
-            >
-              <span>Filter: {({ all: 'All', active: 'Active (running)', paused: 'Paused', 'in-progress': 'In progress', scheduled: 'Scheduled', posted: 'Posted', idea: 'Idea only', 'has-time': 'Has time', 'no-time': 'No time yet' } as const)[filterMode]}</span>
-              <ChevronDown className="h-3 w-3" />
-            </button>
-            {filterOpen && (
-              <div className="absolute right-0 mt-1 z-10 w-44 rounded border border-neutral-800 bg-neutral-950 shadow-xl py-1">
-                {(['all', 'active', 'paused', 'in-progress', 'idea', 'scheduled', 'posted', 'has-time', 'no-time'] as const).map(opt => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => { setFilterMode(opt); setFilterOpen(false); }}
-                    className={`block w-full text-left px-2 py-1 text-[11px] hover:bg-neutral-900 ${filterMode === opt ? 'text-purple-300' : 'text-neutral-200'}`}
-                  >{({ all: 'All', active: 'Active (running)', paused: 'Paused', 'in-progress': 'In progress', scheduled: 'Scheduled', posted: 'Posted', idea: 'Idea only', 'has-time': 'Has time', 'no-time': 'No time yet' } as const)[opt]}</button>
-                ))}
+    <div className="space-y-8 font-sans">
+      {/* Hero header */}
+      <section className="relative overflow-hidden rounded-3xl border border-neutral-800/70 bg-[linear-gradient(135deg,rgba(15,10,30,0.95),rgba(6,10,20,0.98))] p-5 md:p-6 shadow-[0_25px_70px_rgba(0,0,0,0.35)]">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-purple-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -left-24 bottom-0 h-56 w-56 rounded-full bg-cyan-500/10 blur-3xl" />
+        <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-purple-500/30 to-cyan-500/25 text-purple-100 ring-1 ring-white/10 shadow-[0_0_25px_rgba(168,85,247,0.35)]">
+              <Timer className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[.28em] text-purple-300">
+                <Sparkles className="h-3 w-3 animate-pulse" /> Time telemetry
               </div>
-            )}
+              <h1 className="mt-1 text-2xl font-bold tracking-tight text-white">Every second, every stage.</h1>
+              <p className="mt-1 text-[11px] text-neutral-400">Per-stage stopwatches, sittings, and averages across every topic in flight.</p>
+            </div>
           </div>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => { setSortOpen(o => !o); setFilterOpen(false); }}
-              className="flex items-center gap-1 px-2.5 py-1 rounded border border-neutral-800 bg-neutral-950 text-[11px] text-neutral-200 hover:border-neutral-700"
-            >
-              <span>Sort: {SORT_LABELS[sortMode]}</span>
-              <ChevronDown className="h-3 w-3" />
-            </button>
-            {sortOpen && (
-              <div className="absolute right-0 mt-1 z-10 w-44 rounded border border-neutral-800 bg-neutral-950 shadow-xl py-1">
-                {(['default-due-desc-last-worked', 'newest', 'due-date', 'last-worked-on', 'running-first', 'time-desc', 'time-asc', 'progress-most', 'progress-least', 'workload', 'posted-first'] as SortMode[]).map(opt => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => { setSortMode(opt); setSortOpen(false); }}
-                    className={`block w-full text-left px-2 py-1 text-[11px] hover:bg-neutral-900 ${sortMode === opt ? 'text-purple-300' : 'text-neutral-200'}`}
-                  >{SORT_LABELS[opt]}</button>
-                ))}
+          <div className="flex items-center gap-2 self-start lg:self-auto font-mono">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => { setFilterOpen(o => !o); setSortOpen(false); }}
+                className="group flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] text-neutral-200 backdrop-blur-md transition hover:border-white/25 hover:bg-white/10"
+              >
+                <Filter className="h-3 w-3 text-purple-300" />
+                <span className="text-neutral-500">Filter</span>
+                <span className="text-neutral-100">{filterLabels[filterMode]}</span>
+                <ChevronDown className={`h-3 w-3 text-neutral-500 transition ${filterOpen ? 'rotate-180 text-purple-300' : ''}`} />
+              </button>
+              {filterOpen && (
+                <div className="absolute right-0 mt-1 z-20 w-48 rounded-xl border border-white/10 bg-neutral-950/95 backdrop-blur-xl shadow-2xl py-1">
+                  {(['all', 'active', 'paused', 'in-progress', 'idea', 'scheduled', 'posted', 'has-time', 'no-time'] as const).map(opt => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => { setFilterMode(opt); setFilterOpen(false); }}
+                      className={`block w-full text-left px-3 py-1.5 text-[11px] transition ${filterMode === opt ? 'bg-purple-500/15 text-purple-200' : 'text-neutral-300 hover:bg-white/5 hover:text-white'}`}
+                    >{filterLabels[opt]}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => { setSortOpen(o => !o); setFilterOpen(false); }}
+                className="group flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] text-neutral-200 backdrop-blur-md transition hover:border-white/25 hover:bg-white/10"
+              >
+                <ArrowUpDown className="h-3 w-3 text-cyan-300" />
+                <span className="text-neutral-500">Sort</span>
+                <span className="text-neutral-100 max-w-[160px] truncate">{SORT_LABELS[sortMode]}</span>
+                <ChevronDown className={`h-3 w-3 text-neutral-500 transition ${sortOpen ? 'rotate-180 text-cyan-300' : ''}`} />
+              </button>
+              {sortOpen && (
+                <div className="absolute right-0 mt-1 z-20 w-56 rounded-xl border border-white/10 bg-neutral-950/95 backdrop-blur-xl shadow-2xl py-1">
+                  {(['default-due-desc-last-worked', 'newest', 'due-date', 'last-worked-on', 'running-first', 'time-desc', 'time-asc', 'progress-most', 'progress-least', 'workload', 'posted-first'] as SortMode[]).map(opt => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => { setSortMode(opt); setSortOpen(false); }}
+                      className={`block w-full text-left px-3 py-1.5 text-[11px] transition ${sortMode === opt ? 'bg-cyan-500/15 text-cyan-200' : 'text-neutral-300 hover:bg-white/5 hover:text-white'}`}
+                    >{SORT_LABELS[opt]}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* KPI grid */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label: 'Topics listed', value: perTopic.length, sub: 'visible in this view', Icon: Layers, tint: 'from-neutral-500/15 to-transparent', accent: 'text-neutral-100', chip: 'bg-white/5 text-neutral-300 ring-1 ring-white/10' },
+          { label: 'Started', value: startedTopicsCount, sub: 'at least one stage timed > 1s', Icon: Play, tint: 'from-amber-500/15 to-transparent', accent: 'text-amber-200', chip: 'bg-amber-500/10 text-amber-300 ring-1 ring-amber-400/30' },
+          { label: 'Avg per topic', value: fullyTrackedTopics.length ? formatShort(avgPerTopicMs) : '—', sub: fullyTrackedTopics.length ? `${fullyTrackedTopics.length} fully tracked · ${partialTopicsCount} partial excluded` : partialTopicsCount > 0 ? `${partialTopicsCount} partial · none fully tracked` : 'track every stage on one topic', Icon: TrendingUp, tint: 'from-emerald-500/15 to-transparent', accent: 'text-emerald-200', chip: 'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-400/30' },
+          { label: 'Total hours worked', value: formatShort(grandTotalMs), sub: 'across every stage and topic', Icon: Clock, tint: 'from-cyan-500/15 to-transparent', accent: 'text-cyan-200', chip: 'bg-cyan-500/10 text-cyan-300 ring-1 ring-cyan-400/30' },
+        ].map(tile => (
+          <div
+            key={tile.label}
+            className="group relative overflow-hidden rounded-2xl border border-white/10 bg-neutral-950/60 p-4 shadow-[0_10px_40px_rgba(0,0,0,0.25)] transition hover:-translate-y-0.5 hover:border-white/25"
+          >
+            <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${tile.tint} opacity-90`} />
+            <div className="relative z-10 flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">{tile.label}</div>
+                <div className={`mt-2 text-2xl font-bold tracking-tight ${tile.accent}`}>{tile.value}</div>
+                <div className="mt-1 text-[10px] text-neutral-500 leading-snug">{tile.sub}</div>
               </div>
-            )}
+              <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${tile.chip}`}>
+                <tile.Icon className="h-4 w-4" />
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        ))}
+      </section>
 
-      {/* Insights strip — top-line KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-3">
-          <div className="text-[9px] uppercase text-neutral-500 tracking-wider">Topics listed</div>
-          <div className="text-lg font-bold text-white mt-1">{perTopic.length}</div>
-          <div className="text-[9px] text-neutral-500 mt-0.5">visible in this view</div>
-        </div>
-        <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-3">
-          <div className="text-[9px] uppercase text-neutral-500 tracking-wider">Started</div>
-          <div className="text-lg font-bold text-amber-300 mt-1">{startedTopicsCount}</div>
-          <div className="text-[9px] text-neutral-500 mt-0.5">at least one stage timed &gt; 1s</div>
-        </div>
-        <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-3">
-          <div className="text-[9px] uppercase text-neutral-500 tracking-wider">Avg per topic</div>
-          <div className="text-lg font-bold text-emerald-300 mt-1">{fullyTrackedTopics.length ? formatShort(avgPerTopicMs) : '—'}</div>
-          <div className="text-[9px] text-neutral-500 mt-0.5">
-            {fullyTrackedTopics.length
-              ? <>from {fullyTrackedTopics.length} fully tracked{partialTopicsCount > 0 && <> · {partialTopicsCount} partial excluded</>}</>
-              : partialTopicsCount > 0
-                ? `no topic has all ${STAGES.length} stages tracked · ${partialTopicsCount} partial`
-                : 'track every stage on one topic to see this'}
+      {/* Busiest stage — hero card */}
+      {(() => {
+        const busy = busiestStage && busiestStage.avgMs > 0 ? busiestStage : null;
+        const palette = busy ? STAGE_PALETTE[busy.stage] : null;
+        return (
+          <section
+            className={`relative overflow-hidden rounded-2xl border border-white/10 bg-neutral-950/60 p-5 shadow-[0_15px_50px_rgba(0,0,0,0.35)]`}
+            style={busy ? { boxShadow: `0 15px 50px rgba(0,0,0,0.35), 0 0 60px ${palette!.glowVar}` } : undefined}
+          >
+            {busy && palette && <div className={`pointer-events-none absolute inset-0 ${palette.tintBg}`} />}
+            <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full opacity-40 blur-3xl" style={busy ? { background: palette!.glowVar } : undefined} />
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+              <div className="flex items-center gap-4">
+                <div className={`grid h-14 w-14 place-items-center rounded-2xl ${busy && palette ? palette.iconBg : 'bg-white/5 text-neutral-500 ring-1 ring-white/10'}`}>
+                  {busy ? STAGE_ICON[busy.stage] : <Flame className="h-5 w-5" />}
+                </div>
+                <div>
+                  <div className="font-mono text-[10px] uppercase tracking-[.28em] text-neutral-500 flex items-center gap-1.5">
+                    <Flame className="h-3 w-3" /> Busiest stage
+                  </div>
+                  <div className={`mt-1 text-3xl font-bold tracking-tight ${busy && palette ? palette.text : 'text-neutral-400'}`}>
+                    {busy ? STAGE_LABEL[busy.stage] : '—'}
+                  </div>
+                  <div className="mt-1 text-[11px] text-neutral-400">
+                    {busy
+                      ? <>Averages <span className={`font-semibold ${palette!.text}`}>{formatShort(busy.avgMs)}</span> per topic over the tracked sample.</>
+                      : 'Need at least one topic with every stage tracked.'}
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 md:gap-4">
+                <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 min-w-[128px] backdrop-blur-md">
+                  <div className="font-mono text-[9px] uppercase tracking-[.22em] text-neutral-500">Sample size</div>
+                  <div className="mt-1 text-lg font-bold text-white tabular-nums">{fullyTrackedTopics.length} <span className="text-[11px] font-normal text-neutral-500">/ {perTopic.length}</span></div>
+                  <div className="text-[10px] text-neutral-500">fully tracked</div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 min-w-[128px] backdrop-blur-md">
+                  <div className="font-mono text-[9px] uppercase tracking-[.22em] text-neutral-500">Avg sittings</div>
+                  <div className={`mt-1 text-lg font-bold ${busy && palette ? palette.text : 'text-neutral-400'} tabular-nums`}>{busy ? formatAvgSittings(busy.avgSittings) : '—'}</div>
+                  <div className="text-[10px] text-neutral-500">on this stage</div>
+                </div>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
+
+      {/* Per-stage averages — one video */}
+      <section className="rounded-2xl border border-white/10 bg-neutral-950/60 p-5 shadow-[0_10px_40px_rgba(0,0,0,0.25)]">
+        <div className="flex items-baseline justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="grid h-8 w-8 place-items-center rounded-xl bg-purple-500/10 text-purple-300 ring-1 ring-purple-400/25">
+              <Zap className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-[.28em] text-purple-300">Avg per stage · one video</div>
+              <div className="text-[10px] text-neutral-500 mt-0.5">only topics with every stage tracked contribute</div>
+            </div>
           </div>
-        </div>
-        <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-3">
-          <div className="text-[9px] uppercase text-neutral-500 tracking-wider">Total hours worked</div>
-          <div className="text-lg font-bold text-cyan-300 mt-1">{formatShort(grandTotalMs)}</div>
-          <div className="text-[9px] text-neutral-500 mt-0.5">across every stage and topic</div>
-        </div>
-      </div>
-
-      {/* Busiest stage — headline callout */}
-      <div className="rounded-lg border border-purple-900/40 bg-purple-950/15 p-3 flex items-center justify-between gap-3">
-        <div>
-          <div className="text-[9px] uppercase text-purple-400 tracking-wider">Busiest stage</div>
-          <div className="text-lg font-bold text-purple-200 mt-1">{busiestStage && busiestStage.avgMs > 0 ? STAGE_LABEL[busiestStage.stage] : '—'}</div>
-          <div className="text-[9px] text-neutral-500 mt-0.5">
-            {busiestStage && busiestStage.avgMs > 0
-              ? <>{formatShort(busiestStage.avgMs)} avg per topic · from {fullyTrackedTopics.length} fully tracked</>
-              : 'need at least one fully tracked topic'}
+          <div className="hidden md:flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-[10px] text-neutral-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+            {fullyTrackedTopics.length} sample
           </div>
-        </div>
-        <div className="text-right">
-          <div className="text-[9px] uppercase text-neutral-500 tracking-wider">Sample size</div>
-          <div className="text-sm font-bold text-neutral-200 mt-1">{fullyTrackedTopics.length} of {perTopic.length}</div>
-          <div className="text-[9px] text-neutral-500 mt-0.5">fully tracked topics</div>
-        </div>
-      </div>
-
-      {/* Per-stage averages — time and sittings side by side */}
-      <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-4">
-        <div className="flex items-baseline justify-between mb-3">
-          <div className="text-[9px] uppercase text-neutral-500 tracking-wider">Avg per stage · one video</div>
-          <div className="text-[9px] text-neutral-600">only fully tracked topics count</div>
         </div>
         {fullyTrackedTopics.length === 0 ? (
-          <div className="text-center py-4 text-neutral-500 text-[10px]">
+          <div className="text-center py-8 text-neutral-500 text-[11px] rounded-xl border border-dashed border-white/10">
             No topic has all {STAGES.length} stages tracked yet.
             {partialTopicsCount > 0 && ` ${partialTopicsCount} partial topic${partialTopicsCount === 1 ? '' : 's'} excluded.`}
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {perStageAveragesFull.map(s => (
-              <div key={s.stage} className="rounded border border-neutral-800 bg-neutral-950/60 p-2.5">
-                <div className="text-[9px] uppercase font-bold text-neutral-300 tracking-wider">{STAGE_LABEL[s.stage]}</div>
-                <div className="text-sm font-bold text-white mt-1 tabular-nums">{formatShort(s.avgMs)}</div>
-                <div className="text-[9px] text-cyan-300 mt-0.5 tabular-nums">
-                  {s.avgSittings.toFixed(s.avgSittings >= 10 ? 0 : 1)} sittings avg
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {perStageAveragesFull.map(s => {
+              const palette = STAGE_PALETTE[s.stage];
+              const isBusy = busiestStage?.stage === s.stage && busiestStage.avgMs > 0;
+              return (
+                <div
+                  key={s.stage}
+                  className={`group relative overflow-hidden rounded-2xl border border-white/10 bg-neutral-950/70 p-4 transition hover:-translate-y-0.5 hover:border-white/25`}
+                  style={isBusy ? { boxShadow: `0 0 25px ${palette.glowVar}` } : undefined}
+                >
+                  <div className={`pointer-events-none absolute inset-0 ${palette.tintBg}`} />
+                  <div className="relative z-10 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`grid h-8 w-8 place-items-center rounded-xl ${palette.iconBg}`}>{STAGE_ICON[s.stage]}</div>
+                      <span className={`font-mono text-[10px] uppercase tracking-[.22em] ${palette.text}`}>{STAGE_LABEL[s.stage]}</span>
+                    </div>
+                    {isBusy && <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-[8px] uppercase tracking-wider text-neutral-300">Busiest</span>}
+                  </div>
+                  <div className="relative z-10 mt-3 text-2xl font-bold tracking-tight text-white tabular-nums">{formatShort(s.avgMs)}</div>
+                  <div className={`relative z-10 mt-1 text-[10px] ${palette.softText} tabular-nums`}>
+                    {formatAvgSittings(s.avgSittings)} sittings avg
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Per-stage aggregate bars */}
-      <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-4">
-        <div className="text-[9px] uppercase text-neutral-500 tracking-wider mb-3">Total time by stage</div>
-        <div className="space-y-2">
+      {/* Total time by stage — gradient bars */}
+      <section className="rounded-2xl border border-white/10 bg-neutral-950/60 p-5 shadow-[0_10px_40px_rgba(0,0,0,0.25)]">
+        <div className="flex items-baseline justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="grid h-8 w-8 place-items-center rounded-xl bg-cyan-500/10 text-cyan-300 ring-1 ring-cyan-400/25">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-[.28em] text-cyan-300">Total time by stage</div>
+              <div className="text-[10px] text-neutral-500 mt-0.5">every topic, every sitting</div>
+            </div>
+          </div>
+          <div className="hidden md:block font-mono text-[10px] text-neutral-500">{formatShort(grandTotalMs)} total</div>
+        </div>
+        <div className="space-y-3">
           {stageAggregate.map(s => {
             const pct = grandTotalMs > 0 ? (s.ms / grandTotalMs) * 100 : 0;
+            const palette = STAGE_PALETTE[s.stage];
             return (
-              <div key={s.stage} className="space-y-1">
-                <div className="flex justify-between text-[10px]">
-                  <span className="text-neutral-300 font-bold">{STAGE_LABEL[s.stage]}</span>
-                  <span className="text-neutral-400">{formatShort(s.ms)} · {s.uniqueTopics} topics · {s.sittings} sittings</span>
+              <div key={s.stage} className="space-y-1.5">
+                <div className="flex justify-between items-center text-[10px] font-mono">
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2 w-2 rounded-full`} style={{ background: palette.glowVar, boxShadow: `0 0 8px ${palette.glowVar}` }} />
+                    <span className={`${palette.text} font-semibold`}>{STAGE_LABEL[s.stage]}</span>
+                  </div>
+                  <span className="text-neutral-400 tabular-nums">
+                    <span className="text-neutral-200 font-semibold">{formatShort(s.ms)}</span>
+                    <span className="text-neutral-600"> · </span>
+                    {s.uniqueTopics} topics
+                    <span className="text-neutral-600"> · </span>
+                    {s.sittings} sittings
+                  </span>
                 </div>
-                <div className="h-1.5 rounded bg-neutral-900 overflow-hidden">
-                  <div className="h-full bg-purple-500/70" style={{ width: `${pct}%` }} />
+                <div className="h-2 rounded-full bg-neutral-900/80 overflow-hidden ring-1 ring-white/5">
+                  <div
+                    className={`h-full rounded-full bg-gradient-to-r ${palette.bar} transition-[width] duration-500 ease-out`}
+                    style={{ width: `${pct}%`, boxShadow: `0 0 12px ${palette.glowVar}` }}
+                  />
                 </div>
               </div>
             );
           })}
         </div>
-      </div>
+      </section>
 
       {/* Topic list */}
       <div className="space-y-2">
