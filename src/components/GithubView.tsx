@@ -202,6 +202,12 @@ export default function GithubView({
     return { month: now.getMonth(), year: now.getFullYear() };
   });
 
+  useEffect(() => {
+    if (!showDatePicker) return;
+    const now = new Date();
+    setPickerDate({ month: now.getMonth(), year: now.getFullYear() });
+  }, [showDatePicker]);
+
   const getScheduledTopicChannelsForDate = (dateStr: string) => {
     const matchingTopics = topics.filter(t => {
       if (!t.dueDate) return false;
@@ -1606,7 +1612,11 @@ export default function GithubView({
                     <label className="block uppercase text-neutral-500">Due Date</label>
                     <div className="relative">
                       <div
-                        onClick={() => setShowDatePicker(!showDatePicker)}
+                        onClick={() => {
+                          const now = new Date();
+                          setPickerDate({ month: now.getMonth(), year: now.getFullYear() });
+                          setShowDatePicker(prev => !prev);
+                        }}
                         className="w-full bg-neutral-950 border border-neutral-900 focus-within:border-neutral-800 outline-none text-[10px] rounded px-2 py-1.5 mt-1 text-white flex items-center justify-between cursor-pointer select-none"
                       >
                         <span className={newTopicDueDate ? 'text-white' : 'text-neutral-500'}>
