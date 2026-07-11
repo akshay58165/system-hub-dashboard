@@ -273,7 +273,6 @@ export default function TimeView({
     });
   }, [taskTimers, now]);
 
-  const busiestStage = [...stageAggregate].sort((a, b) => b.ms - a.ms)[0];
   // Only average over topics where every authoring stage has time logged.
   // A topic with just script tracked skews the mean downward and doesn't
   // represent "time it takes to make one video". Half-tracked topics are
@@ -285,6 +284,26 @@ export default function TimeView({
     ? fullyTrackedTopics.reduce((sum, row) => sum + row.totalMs, 0) / fullyTrackedTopics.length
     : 0;
   const partialTopicsCount = perTopic.length - fullyTrackedTopics.length;
+  // A topic is "started" the moment any of its authoring stages has more
+  // than a second of time logged — anything below is treated as an accidental
+  // tap or a runaway that got zeroed out.
+  const startedTopicsCount = perTopic.filter(row =>
+    STAGES.some(s => row.perStage[s].ms > 1000)
+  ).length;
+  // Per-stage averages across only fully tracked topics so a lone tracked
+  // stage doesn't flatten the mean. Sittings averages come from the same
+  // sample so the two rows read as apples-to-apples.
+  const perStageAveragesFull = STAGES.map(stage => {
+    if (fullyTrackedTopics.length === 0) return { stage, avgMs: 0, avgSittings: 0 };
+    const totalMs = fullyTrackedTopics.reduce((sum, row) => sum + row.perStage[stage].ms, 0);
+    const totalSittings = fullyTrackedTopics.reduce((sum, row) => sum + row.perStage[stage].sittings, 0);
+    return {
+      stage,
+      avgMs: totalMs / fullyTrackedTopics.length,
+      avgSittings: totalSittings / fullyTrackedTopics.length,
+    };
+  });
+  const busiestStage = [...perStageAveragesFull].sort((a, b) => b.avgMs - a.avgMs)[0];
 
   const handleEditEntry = (timer: TaskTimerRecord) => {
     const current = formatHMS(timer.accumulatedActiveMs);
@@ -354,17 +373,17 @@ export default function TimeView({
         </div>
       </div>
 
-      {/* Insights strip */}
+      {/* Insights strip — top-line KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-3">
-          <div className="text-[9px] uppercase text-neutral-500 tracking-wider">Total tracked</div>
-          <div className="text-lg font-bold text-white mt-1">{formatShort(grandTotalMs)}</div>
-          <div className="text-[9px] text-neutral-500 mt-0.5">across {perTopic.length} topics</div>
+          <div className="text-[9px] uppercase text-neutral-500 tracking-wider">Topics listed</div>
+          <div className="text-lg font-bold text-white mt-1">{perTopic.length}</div>
+          <div className="text-[9px] text-neutral-500 mt-0.5">visible in this view</div>
         </div>
         <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-3">
-          <div className="text-[9px] uppercase text-neutral-500 tracking-wider">Busiest stage</div>
-          <div className="text-lg font-bold text-purple-300 mt-1">{busiestStage && busiestStage.ms > 0 ? STAGE_LABEL[busiestStage.stage] : '—'}</div>
-          <div className="text-[9px] text-neutral-500 mt-0.5">{busiestStage ? formatShort(busiestStage.ms) : '0m'}</div>
+          <div className="text-[9px] uppercase text-neutral-500 tracking-wider">Started</div>
+          <div className="text-lg font-bold text-amber-300 mt-1">{startedTopicsCount}</div>
+          <div className="text-[9px] text-neutral-500 mt-0.5">at least one stage timed &gt; 1s</div>
         </div>
         <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-3">
           <div className="text-[9px] uppercase text-neutral-500 tracking-wider">Avg per topic</div>
@@ -378,10 +397,54 @@ export default function TimeView({
           </div>
         </div>
         <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-3">
-          <div className="text-[9px] uppercase text-neutral-500 tracking-wider">Last 7 days</div>
-          <div className="text-lg font-bold text-cyan-300 mt-1">{formatShort(weeklyByStage.reduce((s, x) => s + x.ms, 0))}</div>
-          <div className="text-[9px] text-neutral-500 mt-0.5">{weeklyByStage.map(w => `${STAGE_LABEL[w.stage][0]} ${formatShort(w.ms)}`).join(' · ')}</div>
+          <div className="text-[9px] uppercase text-neutral-500 tracking-wider">Total hours worked</div>
+          <div className="text-lg font-bold text-cyan-300 mt-1">{formatShort(grandTotalMs)}</div>
+          <div className="text-[9px] text-neutral-500 mt-0.5">across every stage and topic</div>
         </div>
+      </div>
+
+      {/* Busiest stage — headline callout */}
+      <div className="rounded-lg border border-purple-900/40 bg-purple-950/15 p-3 flex items-center justify-between gap-3">
+        <div>
+          <div className="text-[9px] uppercase text-purple-400 tracking-wider">Busiest stage</div>
+          <div className="text-lg font-bold text-purple-200 mt-1">{busiestStage && busiestStage.avgMs > 0 ? STAGE_LABEL[busiestStage.stage] : '—'}</div>
+          <div className="text-[9px] text-neutral-500 mt-0.5">
+            {busiestStage && busiestStage.avgMs > 0
+              ? <>{formatShort(busiestStage.avgMs)} avg per topic · from {fullyTrackedTopics.length} fully tracked</>
+              : 'need at least one fully tracked topic'}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-[9px] uppercase text-neutral-500 tracking-wider">Sample size</div>
+          <div className="text-sm font-bold text-neutral-200 mt-1">{fullyTrackedTopics.length} of {perTopic.length}</div>
+          <div className="text-[9px] text-neutral-500 mt-0.5">fully tracked topics</div>
+        </div>
+      </div>
+
+      {/* Per-stage averages — time and sittings side by side */}
+      <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-4">
+        <div className="flex items-baseline justify-between mb-3">
+          <div className="text-[9px] uppercase text-neutral-500 tracking-wider">Avg per stage · one video</div>
+          <div className="text-[9px] text-neutral-600">only fully tracked topics count</div>
+        </div>
+        {fullyTrackedTopics.length === 0 ? (
+          <div className="text-center py-4 text-neutral-500 text-[10px]">
+            No topic has all {STAGES.length} stages tracked yet.
+            {partialTopicsCount > 0 && ` ${partialTopicsCount} partial topic${partialTopicsCount === 1 ? '' : 's'} excluded.`}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {perStageAveragesFull.map(s => (
+              <div key={s.stage} className="rounded border border-neutral-800 bg-neutral-950/60 p-2.5">
+                <div className="text-[9px] uppercase font-bold text-neutral-300 tracking-wider">{STAGE_LABEL[s.stage]}</div>
+                <div className="text-sm font-bold text-white mt-1 tabular-nums">{formatShort(s.avgMs)}</div>
+                <div className="text-[9px] text-cyan-300 mt-0.5 tabular-nums">
+                  {s.avgSittings.toFixed(s.avgSittings >= 10 ? 0 : 1)} sittings avg
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Per-stage aggregate bars */}
