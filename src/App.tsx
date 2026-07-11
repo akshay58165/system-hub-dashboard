@@ -2418,6 +2418,12 @@ export default function App() {
     const clean = Math.max(0, Math.floor(totalMs));
     const sittingCount = Math.max(1, Math.floor(sittings));
     setTaskTimers(prev => {
+      // Void every prior timer for this topic+stage. breaksCount = -1 makes
+      // the downstream sittings formula (`breaksCount + 1` for completed
+      // timers without segments) evaluate to 0 for these rows so they stop
+      // contributing to the sittings count — before this fix, N prior rows
+      // each still counted as 1 sitting, so 3 zeroed rows + a synthetic "3"
+      // rendered as 6 sittings instead of the 3 the user asked for.
       const zeroed = prev.map(tt => tt.topicId === topicId && tt.stage === stage
         ? {
             ...tt,
@@ -2427,7 +2433,7 @@ export default function App() {
             pausedAt: null,
             accumulatedActiveMs: 0,
             accumulatedPausedMs: 0,
-            breaksCount: 0,
+            breaksCount: -1,
             segments: [],
             endReason: 'done' as const
           }
