@@ -230,6 +230,9 @@ export default function TopicCreateModal({
       scheduleTime: initialTime,
       eligibility: emptyEligibility
     });
+    const pickerSeed = topicToEdit?.dueDate ? new Date(topicToEdit.dueDate) : new Date();
+    setPickerDate({ month: pickerSeed.getMonth(), year: pickerSeed.getFullYear() });
+    setShowDatePicker(false);
   }, [isOpen, topicToEdit]);
 
   const setEligibilityValue = (key: keyof Eligibility, checked: boolean) => {
@@ -535,7 +538,11 @@ export default function TopicCreateModal({
                 <label className="block uppercase text-neutral-500">Due Date
                   <div className="relative mt-1">
                     <div
-                      onClick={() => setShowDatePicker(!showDatePicker)}
+                      onClick={() => {
+                        const pickerSeed = topicToEdit?.dueDate ? new Date(topicToEdit.dueDate) : new Date();
+                        setPickerDate({ month: pickerSeed.getMonth(), year: pickerSeed.getFullYear() });
+                        setShowDatePicker(prev => !prev);
+                      }}
                       className="h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 text-[10px] normal-case text-white flex items-center justify-between cursor-pointer select-none"
                     >
                       <span className={dueDate ? 'text-white' : 'text-neutral-500'}>

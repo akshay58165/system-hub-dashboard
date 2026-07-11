@@ -113,6 +113,13 @@ export default function SupabaseView({
     return { month: now.getMonth(), year: now.getFullYear() };
   });
 
+  useEffect(() => {
+    if (!isTopicFormOpen) return;
+    const now = new Date();
+    setPickerDate({ month: now.getMonth(), year: now.getFullYear() });
+    setShowDatePicker(false);
+  }, [isTopicFormOpen]);
+
   const getScheduledTopicChannelsForDate = (dateStr: string) => {
     const matchingTopics = topics.filter(t => {
       if (!t.dueDate) return false;
@@ -860,7 +867,11 @@ ${task}`;
                           <span className="uppercase text-neutral-500">Due Date</span>
                           <div className="relative">
                             <div
-                              onClick={() => setShowDatePicker(!showDatePicker)}
+                              onClick={() => {
+                                const now = new Date();
+                                setPickerDate({ month: now.getMonth(), year: now.getFullYear() });
+                                setShowDatePicker(prev => !prev);
+                              }}
                               className="w-full bg-neutral-950 border border-neutral-800 rounded px-2 py-2 text-xs text-white flex items-center justify-between cursor-pointer select-none"
                             >
                               <span className={newTopicDueDate ? 'text-white' : 'text-neutral-500'}>

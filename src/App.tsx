@@ -993,6 +993,7 @@ export default function App() {
   const [insights, setInsights] = useState<CreatorInsight[]>(initialCreatorInsights);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
   const [topicFormTopic, setTopicFormTopic] = useState<Topic | null>(null);
+  const [topicFormOpenNonce, setTopicFormOpenNonce] = useState(0);
   // Set when a pipeline card asks to jump to a specific topic's scorecard.
   // TopicScoreView reads it, auto-expands + scrolls to that card, then calls
   // onFocusHandled to clear it so a later tab visit stays neutral.
@@ -2096,6 +2097,12 @@ export default function App() {
 
     return () => clearTimeout(timer);
   }, [topics, activities, cycleGoals, workdaySession, sessions, scorecard, videos, experiments, insights, aiPresets, aiUsage, taskTimers, topicSortOrder, user, authLoading, isStateLoaded, hydratedUserId]);
+
+  useEffect(() => {
+    if (isAddFormOpen && !topicFormTopic) {
+      setTopicFormOpenNonce(nonce => nonce + 1);
+    }
+  }, [isAddFormOpen, topicFormTopic]);
 
   // ─── Task Timer Handlers ────────────────────────────────────────────────────
   const todayKey = () => new Date().toLocaleDateString('en-CA');
@@ -3417,6 +3424,7 @@ export default function App() {
 
       {isAddFormOpen && (
         <TopicCreateModal
+          key={`topic-create-${topicFormOpenNonce}`}
           isOpen={isAddFormOpen}
           onClose={() => {
             setIsAddFormOpen(false);
