@@ -1277,6 +1277,11 @@ export default function App() {
     }, 250);
   };
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
+  const openFreshTopicForm = () => {
+    setTopicFormTopic(null);
+    setTopicFormOpenNonce(nonce => nonce + 1);
+    setIsAddFormOpen(true);
+  };
   const [logsSubView, setLogsSubView] = useState<'content' | 'backlog' | 'tables'>('content');
 
   // Supabase Auth and Real-time Gateway States
@@ -1493,8 +1498,7 @@ export default function App() {
 
       if (e.key === 'a' || e.key === 'A') {
         e.preventDefault();
-        setTopicFormTopic(null);
-        setIsAddFormOpen(true);
+        openFreshTopicForm();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -2097,12 +2101,6 @@ export default function App() {
 
     return () => clearTimeout(timer);
   }, [topics, activities, cycleGoals, workdaySession, sessions, scorecard, videos, experiments, insights, aiPresets, aiUsage, taskTimers, topicSortOrder, user, authLoading, isStateLoaded, hydratedUserId]);
-
-  useEffect(() => {
-    if (isAddFormOpen && !topicFormTopic) {
-      setTopicFormOpenNonce(nonce => nonce + 1);
-    }
-  }, [isAddFormOpen, topicFormTopic]);
 
   // ─── Task Timer Handlers ────────────────────────────────────────────────────
   const todayKey = () => new Date().toLocaleDateString('en-CA');
@@ -3032,8 +3030,7 @@ export default function App() {
                 }
               }}
               onClick={() => {
-                setTopicFormTopic(null);
-                setIsAddFormOpen(true);
+                openFreshTopicForm();
               }}
               className="hidden sm:flex px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-black font-bold font-mono text-[11px] rounded-lg items-center gap-1 transition-colors cursor-pointer"
             >
@@ -3118,8 +3115,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => {
-                    setTopicFormTopic(null);
-                    setIsAddFormOpen(true);
+                    openFreshTopicForm();
                     setMobileNavOpen(false);
                   }}
                   className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-blue-500 hover:bg-blue-600 text-black font-bold font-mono text-xs rounded-lg"
@@ -3293,10 +3289,7 @@ export default function App() {
               <CalendarView
                 topics={visibleTopics}
                 setTopics={setTopics}
-                onCreateTopic={() => {
-                  setTopicFormTopic(null);
-                  setIsAddFormOpen(true);
-                }}
+                onCreateTopic={openFreshTopicForm}
                 onEditTopic={(topic) => {
                   setTopicFormTopic(topic);
                   setIsAddFormOpen(true);
@@ -3423,23 +3416,24 @@ export default function App() {
       </main>
 
       {isAddFormOpen && (
-        <TopicCreateModal
-          key={`topic-create-${topicFormOpenNonce}`}
-          isOpen={isAddFormOpen}
-          onClose={() => {
-            setIsAddFormOpen(false);
-            setTopicFormTopic(null);
-          }}
-          topicToEdit={topicFormTopic}
-          topics={topics}
-          setTopics={setTopics}
-          setActivities={setActivities}
-          onAddEvent={addEvent}
-          setActiveTab={setActiveTab}
-          setPipelineSubView={setPipelineSubView}
-          taskTimers={visibleTaskTimers}
-          onReplaceStageTime={replaceStageTime}
-        />
+        <React.Fragment key={`topic-create-${topicFormOpenNonce}`}>
+          <TopicCreateModal
+            isOpen={isAddFormOpen}
+            onClose={() => {
+              setIsAddFormOpen(false);
+              setTopicFormTopic(null);
+            }}
+            topicToEdit={topicFormTopic}
+            topics={topics}
+            setTopics={setTopics}
+            setActivities={setActivities}
+            onAddEvent={addEvent}
+            setActiveTab={setActiveTab}
+            setPipelineSubView={setPipelineSubView}
+            taskTimers={visibleTaskTimers}
+            onReplaceStageTime={replaceStageTime}
+          />
+        </React.Fragment>
       )}
 
       {/* Command Palette Modal */}

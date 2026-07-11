@@ -90,6 +90,18 @@ function timeOnlyFromIso(value?: string | null) {
   return value ? value.split('T')[1]?.slice(0, 5) || '' : '';
 }
 
+function parseLocalDateValue(value?: string | null) {
+  if (!value) return null;
+  const dateKey = value.split('T')[0];
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey);
+  if (!match) {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  const [, year, month, day] = match;
+  return new Date(Number(year), Number(month) - 1, Number(day), 12);
+}
+
 function createWorkflowStatuses(status: Topic['status']) {
   const stageIndex = { topic: -1, hooked: 0, scripted: 1, shot: 2, edited: 3, scheduled: 4, posted: 5 }[status];
   const workflowStatuses: Partial<Record<'hook' | 'script' | 'shoot' | 'edit' | 'schedule' | 'post', 'completed'>> = {};
@@ -230,7 +242,7 @@ export default function TopicCreateModal({
       scheduleTime: initialTime,
       eligibility: emptyEligibility
     });
-    const pickerSeed = topicToEdit?.dueDate ? new Date(topicToEdit.dueDate) : new Date();
+    const pickerSeed = parseLocalDateValue(initialDueDate) ?? new Date();
     setPickerDate({ month: pickerSeed.getMonth(), year: pickerSeed.getFullYear() });
     setShowDatePicker(false);
   }, [isOpen, topicToEdit]);
@@ -539,7 +551,9 @@ export default function TopicCreateModal({
                   <div className="relative mt-1">
                     <div
                       onClick={() => {
-                        const pickerSeed = topicToEdit?.dueDate ? new Date(topicToEdit.dueDate) : new Date();
+                        const pickerSeed = parseLocalDateValue(dueDate)
+                          ?? (isEditing ? parseLocalDateValue(topicToEdit?.dueDate) : null)
+                          ?? new Date();
                         setPickerDate({ month: pickerSeed.getMonth(), year: pickerSeed.getFullYear() });
                         setShowDatePicker(prev => !prev);
                       }}
