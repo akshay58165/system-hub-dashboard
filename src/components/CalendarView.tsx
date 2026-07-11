@@ -359,7 +359,7 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
 
           <div className="overflow-x-auto">
             <div className="min-w-[980px] space-y-2">
-              <div className="sticky top-3 z-20 grid grid-cols-7 gap-2 rounded-xl border border-neutral-800 bg-neutral-950/95 px-1 py-2 text-center text-[10px] font-bold uppercase tracking-[0.28em] text-neutral-500 backdrop-blur-md">
+              <div className="sticky top-20 z-40 grid grid-cols-7 gap-2 rounded-xl border border-neutral-800 bg-neutral-950/95 px-1 py-2 text-center text-[10px] font-bold uppercase tracking-[0.28em] text-neutral-500 backdrop-blur-md">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
                   <div key={day} className="py-1">{day}</div>
                 ))}
