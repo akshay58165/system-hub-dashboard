@@ -5,6 +5,10 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    // Electron loads the built index.html via file:// where absolute paths
+    // (`/assets/...`) fail. A relative base keeps the same build usable both
+    // in a browser (served over http) and in the packaged desktop app.
+    base: './',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
