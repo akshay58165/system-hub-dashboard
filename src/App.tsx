@@ -10,6 +10,7 @@ import {
   Bell, 
   Activity, 
   Clock,
+  Calendar as CalendarIcon,
   Cpu,
   Github,
   Wifi,
@@ -57,6 +58,7 @@ const ScoreView = lazy(() => import('./components/ScoreView'));
 const CommandCenterView = lazy(() => import('./components/CommandCenterView'));
 const PipelineView = lazy(() => import('./components/PipelineView'));
 const VideoLabView = lazy(() => import('./components/VideoLabView'));
+const CalendarView = lazy(() => import('./components/CalendarView'));
 const TodayGoalsView = lazy(() => import('./components/TodayGoalsView'));
 const TimeView = lazy(() => import('./components/TimeView'));
 const TopicScoreView = lazy(() => import('./components/TopicScoreView'));
@@ -531,7 +533,7 @@ export default function App() {
     localStorage.removeItem('unicorn_openai_api_key');
   }, []);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score' | 'pipeline' | 'videolab' | 'topicintel' | 'experiments' | 'sessions'>(() => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'topics' | 'progress' | 'actionhub' | 'logs' | 'score' | 'pipeline' | 'videolab' | 'topicintel' | 'experiments' | 'sessions' | 'calendar'>(() => {
     const savedTab = localStorage.getItem('unicorn_active_tab') as any;
     return savedTab === 'insights' ? 'overview' : savedTab || 'overview';
   });
@@ -2879,7 +2881,7 @@ export default function App() {
                 {(() => {
                   const label: Record<string, string> = {
                     overview: 'Command Center', topics: 'Topics', pipeline: 'Pipeline', actionhub: 'Score',
-                    topicintel: 'Time', videolab: 'Video Lab', logs: 'Logs', progress: 'Progress',
+                    topicintel: 'Time', videolab: 'Video Lab', calendar: 'Calendar', logs: 'Logs', progress: 'Progress',
                     score: 'Score', experiments: 'Experiments', sessions: 'Sessions'
                   };
                   return label[activeTab] || activeTab;
@@ -2948,6 +2950,18 @@ export default function App() {
               >
                 <Clock className="h-3.5 w-3.5 text-purple-400" />
                 <span>Time</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('calendar')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition flex items-center gap-1.5 ${
+                  activeTab === 'calendar'
+                    ? 'bg-neutral-900 border border-neutral-850 text-emerald-400'
+                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30'
+                }`}
+              >
+                <CalendarIcon className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Calendar</span>
               </button>
 
               <button
@@ -3053,6 +3067,7 @@ export default function App() {
                   { id: 'pipeline' as const, label: 'Pipeline', Icon: Layers, iconClass: 'text-amber-500', activeClass: 'text-amber-400', extra: () => setPipelineSubView('topics') },
                   { id: 'actionhub' as const, label: 'Score', Icon: Database, iconClass: 'text-emerald-400', activeClass: 'text-emerald-400' },
                   { id: 'topicintel' as const, label: 'Time', Icon: Clock, iconClass: 'text-purple-400', activeClass: 'text-purple-400' },
+                  { id: 'calendar' as const, label: 'Calendar', Icon: CalendarIcon, iconClass: 'text-emerald-400', activeClass: 'text-emerald-400' },
                   { id: 'videolab' as const, label: 'Video Lab', Icon: Clapperboard, iconClass: 'text-blue-400', activeClass: 'text-blue-400' },
                   { id: 'logs' as const, label: 'Logs', Icon: Terminal, iconClass: 'text-purple-400', activeClass: 'text-purple-400' },
                 ]).map(item => {
@@ -3251,6 +3266,21 @@ export default function App() {
                 onSetStageTotals={setStageTotals}
                 onUpdateTimer={updateStageTimer}
                 onDeleteTimer={deleteStageTimer}
+              />
+            )}
+
+            {activeTab === 'calendar' && (
+              <CalendarView
+                topics={visibleTopics}
+                setTopics={setTopics}
+                onCreateTopic={() => {
+                  setTopicFormTopic(null);
+                  setIsAddFormOpen(true);
+                }}
+                onEditTopic={(topic) => {
+                  setTopicFormTopic(topic);
+                  setIsAddFormOpen(true);
+                }}
               />
             )}
 
