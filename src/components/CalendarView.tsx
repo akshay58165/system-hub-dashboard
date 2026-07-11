@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, GripVertical, Plus, Pencil, Dot } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, GripVertical, Plus, Pencil } from 'lucide-react';
 import type { Topic } from '../types';
+import { getTopicWorkflowState } from '../services/topicWorkflow';
 
 interface CalendarViewProps {
   topics: Topic[];
@@ -38,6 +39,14 @@ function getTimePart(topic: Topic) {
     if (embedded && /^\d{2}:\d{2}$/.test(embedded)) return embedded;
   }
   return DEFAULT_TIME_BY_CHANNEL[topic.channel];
+}
+
+function getTopicDisplayColor(topic: Topic) {
+  return topic.channel === 'LearnDriven' ? 'text-purple-400' : 'text-yellow-300';
+}
+
+function getStageLetterState(topic: Topic, stage: 'hook' | 'script' | 'shoot' | 'edit') {
+  return getTopicWorkflowState(topic, stage);
 }
 
 function buildMonthGrid(year: number, month: number): CalendarCell[] {
@@ -131,9 +140,17 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
   };
 
   const renderTopicCard = (topic: Topic, compact = false) => {
-    const isUnscheduled = !getDateKey(topic.dueDate);
-    const dateKey = getDateKey(topic.dueDate);
-    const timePart = getTimePart(topic);
+    const stageStates = {
+      hook: getStageLetterState(topic, 'hook'),
+      script: getStageLetterState(topic, 'script'),
+      shoot: getStageLetterState(topic, 'shoot'),
+      edit: getStageLetterState(topic, 'edit')
+    };
+    const boxClass = (state: 'pending' | 'in-progress' | 'completed') => {
+      if (state === 'completed') return 'border-emerald-500 bg-emerald-500 text-black shadow-[0_0_14px_rgba(16,185,129,.25)]';
+      if (state === 'in-progress') return 'border-amber-500 bg-amber-500/20 text-amber-200';
+      return 'border-neutral-800 bg-neutral-950 text-neutral-500';
+    };
 
     return (
       <div
@@ -149,51 +166,29 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
           setDragOverDateKey(null);
         }}
         onClick={() => onEditTopic?.(topic)}
-        className={`group cursor-grab active:cursor-grabbing rounded-xl border bg-neutral-950/70 transition-all duration-200 ${
+        className={`group cursor-grab active:cursor-grabbing rounded-xl border bg-neutral-950/45 backdrop-blur-md transition-all duration-200 ${
           compact
-            ? 'border-neutral-900 hover:border-neutral-700'
-            : 'border-neutral-800 hover:border-neutral-700'
+            ? 'border-white/10 hover:border-white/20'
+            : 'border-white/10 hover:border-white/20'
         } ${draggedTopicId === topic.id ? 'opacity-50 scale-[0.99]' : ''}`}
       >
         <div className="flex items-start gap-2 p-2.5">
-          <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${
-            topic.channel === 'LearnDriven'
-              ? 'border-purple-900/40 bg-purple-950/35 text-purple-300'
-              : 'border-emerald-900/40 bg-emerald-950/35 text-emerald-300'
-          }`}>
-            <Dot className="h-6 w-6" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <span className="truncate text-[11px] font-bold text-white">{topic.name}</span>
-              <span className={`rounded border px-1.5 py-0.5 text-[8px] font-mono uppercase tracking-wider ${
-                topic.channel === 'LearnDriven'
-                  ? 'border-purple-900/40 bg-purple-950/25 text-purple-300'
-                  : 'border-emerald-900/40 bg-emerald-950/25 text-emerald-300'
-              }`}>
-                {topic.channel}
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className={`min-w-0 truncate text-[11px] font-black ${getTopicDisplayColor(topic)}`}>
+                {topic.name}
               </span>
             </div>
-            <div className="mt-1 flex flex-wrap items-center gap-1 text-[9px] font-mono text-neutral-500">
-              <span className="rounded border border-neutral-900 bg-neutral-950 px-1.5 py-0.5">
-                {topic.status}
-              </span>
-              <span className="rounded border border-cyan-900/40 bg-cyan-950/20 px-1.5 py-0.5 text-cyan-300">
-                {timePart}
-              </span>
-              {topic.priority && (
-                <span className="rounded border border-amber-900/40 bg-amber-950/20 px-1.5 py-0.5 text-amber-300">
-                  P{topic.priority}
-                </span>
-              )}
-            </div>
-            <div className="mt-1 flex items-center gap-1 text-[8px] font-mono text-neutral-600">
-              {isUnscheduled ? (
-                <span>Unscheduled</span>
-              ) : (
-                <span>Due {dateKey}</span>
-              )}
-              {topic.savedForLater && <span className="text-blue-300">Saved for later</span>}
+            <div className="grid grid-cols-4 gap-1.5">
+              {(['hook', 'script', 'shoot', 'edit'] as const).map(stage => (
+                <div
+                  key={stage}
+                  className={`flex h-7 items-center justify-center rounded border text-[9px] font-black uppercase tracking-[0.22em] ${boxClass(stageStates[stage])}`}
+                  title={`${stage.toUpperCase()} ${stageStates[stage]}`}
+                >
+                  {stage === 'shoot' ? 'C' : stage[0].toUpperCase()}
+                </div>
+              ))}
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1">
@@ -253,8 +248,8 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
         </button>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[4.5rem_minmax(0,1fr)]">
-        <aside className="group z-20 overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950/70 transition-all duration-300 xl:sticky xl:top-4 xl:h-[calc(100vh-8rem)] xl:w-16 xl:hover:w-[18rem] xl:relative">
+      <div className="grid gap-4 xl:grid-cols-[minmax(4.5rem,18rem)_minmax(0,1fr)] xl:items-start">
+        <aside className="group z-20 overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl transition-all duration-300 xl:sticky xl:top-4 xl:h-[calc(100vh-8rem)] xl:w-[4.5rem] xl:hover:w-[18rem]">
           <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
             <div className="flex items-center gap-2 min-w-0">
               <CalendarIcon className="h-4 w-4 shrink-0 text-emerald-400" />
@@ -275,7 +270,7 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
 
           <div className="max-h-[calc(100vh-12rem)] space-y-2 overflow-y-auto p-3">
             {unscheduledTopics.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-neutral-800 bg-neutral-950/40 p-4 text-center text-[11px] text-neutral-500">
+              <div className="rounded-xl border border-dashed border-white/10 bg-white/5 p-4 text-center text-[11px] text-neutral-500">
                 Everything has a due date.
               </div>
             ) : (
@@ -284,8 +279,8 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
           </div>
         </aside>
 
-        <section className="space-y-3 xl:pl-3">
-          <div className="flex items-center justify-between rounded-2xl border border-neutral-800 bg-neutral-950/50 px-4 py-3">
+        <section className="space-y-3 xl:min-w-0 xl:pl-1">
+          <div className="flex flex-col gap-3 rounded-2xl border border-neutral-800 bg-neutral-950/50 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -331,7 +326,7 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
 
           <div className="overflow-x-auto">
             <div className="min-w-[980px] space-y-2">
-              <div className="grid grid-cols-7 gap-2 px-1 text-center text-[10px] font-bold uppercase tracking-[0.28em] text-neutral-500">
+              <div className="sticky top-0 z-10 grid grid-cols-7 gap-2 rounded-xl border border-neutral-800 bg-neutral-950/90 px-1 py-2 text-center text-[10px] font-bold uppercase tracking-[0.28em] text-neutral-500 backdrop-blur">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
                   <div key={day} className="py-1">{day}</div>
                 ))}
@@ -371,26 +366,11 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-sm font-black ${isToday ? 'text-emerald-300' : 'text-white'}`}>{cell.dayNumber}</span>
-                          {dayTopics.length > 0 && (
-                            <span className="rounded-full border border-neutral-800 bg-neutral-900 px-2 py-0.5 text-[10px] font-mono text-neutral-400">
-                              {dayTopics.length}
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-neutral-600">
-                          {cell.dateKey}
-                        </span>
+                        <span className={`text-sm font-black ${isToday ? 'text-emerald-300' : 'text-white'}`}>{cell.dayNumber}</span>
                       </div>
 
                       <div className="mt-3 space-y-2">
-                        {dayTopics.slice(0, 3).map(topic => renderTopicCard(topic))}
-                        {dayTopics.length > 3 && (
-                          <div className="rounded-xl border border-dashed border-neutral-800 px-3 py-2 text-center text-[10px] text-neutral-500">
-                            +{dayTopics.length - 3} more
-                          </div>
-                        )}
+                        {dayTopics.map(topic => renderTopicCard(topic))}
                       </div>
                     </div>
                   );
