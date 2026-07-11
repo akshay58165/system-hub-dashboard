@@ -274,7 +274,17 @@ export default function TimeView({
   }, [taskTimers, now]);
 
   const busiestStage = [...stageAggregate].sort((a, b) => b.ms - a.ms)[0];
-  const avgPerTopicMs = perTopic.length ? grandTotalMs / perTopic.length : 0;
+  // Only average over topics where every authoring stage has time logged.
+  // A topic with just script tracked skews the mean downward and doesn't
+  // represent "time it takes to make one video". Half-tracked topics are
+  // disclosed alongside so the number stays honest.
+  const fullyTrackedTopics = perTopic.filter(row =>
+    STAGES.every(s => row.perStage[s].ms > 0)
+  );
+  const avgPerTopicMs = fullyTrackedTopics.length
+    ? fullyTrackedTopics.reduce((sum, row) => sum + row.totalMs, 0) / fullyTrackedTopics.length
+    : 0;
+  const partialTopicsCount = perTopic.length - fullyTrackedTopics.length;
 
   const handleEditEntry = (timer: TaskTimerRecord) => {
     const current = formatHMS(timer.accumulatedActiveMs);
@@ -358,8 +368,14 @@ export default function TimeView({
         </div>
         <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-3">
           <div className="text-[9px] uppercase text-neutral-500 tracking-wider">Avg per topic</div>
-          <div className="text-lg font-bold text-emerald-300 mt-1">{formatShort(avgPerTopicMs)}</div>
-          <div className="text-[9px] text-neutral-500 mt-0.5">including archived stages</div>
+          <div className="text-lg font-bold text-emerald-300 mt-1">{fullyTrackedTopics.length ? formatShort(avgPerTopicMs) : '—'}</div>
+          <div className="text-[9px] text-neutral-500 mt-0.5">
+            {fullyTrackedTopics.length
+              ? <>from {fullyTrackedTopics.length} fully tracked{partialTopicsCount > 0 && <> · {partialTopicsCount} partial excluded</>}</>
+              : partialTopicsCount > 0
+                ? `no topic has all ${STAGES.length} stages tracked · ${partialTopicsCount} partial`
+                : 'track every stage on one topic to see this'}
+          </div>
         </div>
         <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-3">
           <div className="text-[9px] uppercase text-neutral-500 tracking-wider">Last 7 days</div>
