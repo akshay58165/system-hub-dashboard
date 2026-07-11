@@ -556,6 +556,12 @@ export default function VercelView({
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null);
   const [editCalendarOpen, setEditCalendarOpen] = useState(false);
   const [editCalendarMonth, setEditCalendarMonth] = useState(() => ({ month: new Date().getMonth(), year: new Date().getFullYear() }));
+
+  useEffect(() => {
+    if (!editCalendarOpen) return;
+    const now = new Date();
+    setEditCalendarMonth({ month: now.getMonth(), year: now.getFullYear() });
+  }, [editCalendarOpen]);
   // Outside-click only dismisses this modal while it still exactly matches
   // the real topic (i.e. nothing has actually been edited yet) — the
   // instant a field changes, only the explicit X/Cancel controls can close it.
@@ -1542,8 +1548,6 @@ export default function VercelView({
                     if (!initialTopic.scheduledTime) {
                       initialTopic.scheduledTime = defaultTime;
                     }
-                    const initialDate = initialTopic.dueDate ? new Date(initialTopic.dueDate) : new Date();
-                    setEditCalendarMonth({ month: initialDate.getMonth(), year: initialDate.getFullYear() });
                     setEditCalendarOpen(false);
                     setEditingTopic(initialTopic);
                   };
@@ -2204,8 +2208,6 @@ export default function VercelView({
                                       if (onEditTopic) { onEditTopic(topic); return; }
                                       const initial = { ...topic };
                                       if (!initial.scheduledTime) initial.scheduledTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
-                                      const d = initial.dueDate ? new Date(initial.dueDate) : new Date();
-                                      setEditCalendarMonth({ month: d.getMonth(), year: d.getFullYear() });
                                       setEditCalendarOpen(false);
                                       setEditingTopic(initial);
                                     }}
@@ -2279,8 +2281,6 @@ export default function VercelView({
                                     if (onEditTopic) { onEditTopic(topic); return; }
                                     const initial = { ...topic };
                                     if (!initial.scheduledTime) initial.scheduledTime = topic.channel === 'LearnDriven' ? '21:09' : '19:07';
-                                    const d = initial.dueDate ? new Date(initial.dueDate) : new Date();
-                                    setEditCalendarMonth({ month: d.getMonth(), year: d.getFullYear() });
                                     setEditCalendarOpen(false);
                                     setEditingTopic(initial);
                                   }}
