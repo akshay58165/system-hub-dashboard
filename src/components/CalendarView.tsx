@@ -172,18 +172,18 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
             : 'border-white/10 hover:border-white/20'
         } ${draggedTopicId === topic.id ? 'opacity-50 scale-[0.99]' : ''}`}
       >
-        <div className="flex items-start gap-2 p-2.5">
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <span className={`min-w-0 truncate text-[11px] font-black ${getTopicDisplayColor(topic)}`}>
+        <div className="flex items-start gap-2 p-2">
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="flex min-w-0 items-start gap-2">
+              <span className={`min-w-0 flex-1 break-words text-[12px] font-black leading-tight ${getTopicDisplayColor(topic)} line-clamp-2`}>
                 {topic.name}
               </span>
             </div>
-            <div className="grid grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-4 gap-1">
               {(['hook', 'script', 'shoot', 'edit'] as const).map(stage => (
                 <div
                   key={stage}
-                  className={`flex h-7 items-center justify-center rounded border text-[9px] font-black uppercase tracking-[0.22em] ${boxClass(stageStates[stage])}`}
+                  className={`flex h-5 items-center justify-center rounded border text-[8px] font-black uppercase tracking-[0.2em] ${boxClass(stageStates[stage])}`}
                   title={`${stage.toUpperCase()} ${stageStates[stage]}`}
                 >
                   {stage === 'shoot' ? 'C' : stage[0].toUpperCase()}
@@ -203,7 +203,7 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
             >
               <Pencil className="h-3 w-3" />
             </button>
-            <GripVertical className="mt-0.5 h-4 w-4 text-neutral-700" />
+            <GripVertical className="mt-0.5 h-3.5 w-3.5 text-neutral-700" />
           </div>
         </div>
       </div>
@@ -248,9 +248,9 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
         </button>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(4.5rem,18rem)_minmax(0,1fr)] xl:items-start">
-        <aside className="group z-20 overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl transition-all duration-300 xl:sticky xl:top-4 xl:h-[calc(100vh-8rem)] xl:w-[4.5rem] xl:hover:w-[18rem]">
-          <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
+      <div className="grid gap-4 xl:grid-cols-[18rem_minmax(0,1fr)] xl:items-start">
+        <aside className="z-20 overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl xl:sticky xl:top-4 xl:h-[calc(100vh-8rem)] xl:w-[18rem]">
+          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
             <div className="flex items-center gap-2 min-w-0">
               <CalendarIcon className="h-4 w-4 shrink-0 text-emerald-400" />
               <div className="min-w-0">
@@ -279,7 +279,7 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
           </div>
         </aside>
 
-        <section className="space-y-3 xl:min-w-0 xl:pl-1">
+        <section className="space-y-3 xl:min-w-0">
           <div className="flex flex-col gap-3 rounded-2xl border border-neutral-800 bg-neutral-950/50 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-2">
               <button
@@ -326,7 +326,7 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
 
           <div className="overflow-x-auto">
             <div className="min-w-[980px] space-y-2">
-              <div className="sticky top-0 z-10 grid grid-cols-7 gap-2 rounded-xl border border-neutral-800 bg-neutral-950/90 px-1 py-2 text-center text-[10px] font-bold uppercase tracking-[0.28em] text-neutral-500 backdrop-blur">
+              <div className="sticky top-3 z-20 grid grid-cols-7 gap-2 rounded-xl border border-neutral-800 bg-neutral-950/95 px-1 py-2 text-center text-[10px] font-bold uppercase tracking-[0.28em] text-neutral-500 backdrop-blur-md">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
                   <div key={day} className="py-1">{day}</div>
                 ))}
@@ -355,7 +355,7 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
                         setDraggedTopicId(null);
                         setDragOverDateKey(null);
                       }}
-                      className={`min-h-[11.5rem] rounded-2xl border p-3 transition ${
+                      className={`min-h-[14rem] rounded-2xl border p-3 transition flex flex-col ${
                         cell.isCurrentMonth ? 'bg-neutral-950/70' : 'bg-neutral-950/30 opacity-50'
                       } ${
                         isOver
@@ -369,7 +369,7 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
                         <span className={`text-sm font-black ${isToday ? 'text-emerald-300' : 'text-white'}`}>{cell.dayNumber}</span>
                       </div>
 
-                      <div className="mt-3 space-y-2">
+                      <div className="mt-3 flex-1 space-y-2">
                         {dayTopics.map(topic => renderTopicCard(topic))}
                       </div>
                     </div>
