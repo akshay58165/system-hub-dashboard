@@ -42,7 +42,7 @@ export default function RunningStageBar({ timers, topics, onPause, onResume, onD
   const stageLabel = activeTimer.stage.charAt(0).toUpperCase() + activeTimer.stage.slice(1);
 
   return (
-    <div className={`w-full flex flex-wrap items-center gap-3 border-b px-4 py-2 font-mono text-[10px] ${isRunning ? 'border-emerald-800/60 bg-emerald-950/30' : 'border-amber-800/60 bg-amber-950/25'}`}>
+    <div className={`sticky top-[104px] z-20 w-full flex flex-wrap items-center gap-3 border-b px-4 py-2 font-mono text-[10px] backdrop-blur-md ${isRunning ? 'border-emerald-800/60 bg-emerald-950/85' : 'border-amber-800/60 bg-amber-950/85'}`}>
       <span className={`h-2 w-2 rounded-full shrink-0 ${isRunning ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} aria-hidden="true" />
       <span className={`text-[9px] font-bold uppercase tracking-wider ${isRunning ? 'text-emerald-300' : 'text-amber-300'}`}>{isRunning ? 'Running' : 'Paused'} · {stageLabel}</span>
       <button
