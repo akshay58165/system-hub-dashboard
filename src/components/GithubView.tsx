@@ -197,15 +197,21 @@ export default function GithubView({
   const tomorrowDateKey = localDateKey(1);
   const [newTopicSchedTime, setNewTopicSchedTime] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [hasMovedDatePicker, setHasMovedDatePicker] = useState(false);
   const [pickerDate, setPickerDate] = useState(() => {
     const now = new Date();
     return { month: now.getMonth(), year: now.getFullYear() };
   });
+  const currentPickerSeed = new Date();
+  const displayedPickerDate = !newTopicDueDate && !hasMovedDatePicker
+    ? { month: currentPickerSeed.getMonth(), year: currentPickerSeed.getFullYear() }
+    : pickerDate;
 
   useLayoutEffect(() => {
     if (!showDatePicker) return;
     const now = new Date();
     setPickerDate({ month: now.getMonth(), year: now.getFullYear() });
+    setHasMovedDatePicker(false);
   }, [showDatePicker]);
 
   const getScheduledTopicChannelsForDate = (dateStr: string) => {
@@ -1615,6 +1621,7 @@ export default function GithubView({
                         onClick={() => {
                           const now = new Date();
                           setPickerDate({ month: now.getMonth(), year: now.getFullYear() });
+                          setHasMovedDatePicker(false);
                           setShowDatePicker(prev => !prev);
                         }}
                         className="w-full bg-neutral-950 border border-neutral-900 focus-within:border-neutral-800 outline-none text-[10px] rounded px-2 py-1.5 mt-1 text-white flex items-center justify-between cursor-pointer select-none"
@@ -1639,22 +1646,21 @@ export default function GithubView({
                                     "January", "February", "March", "April", "May", "June", 
                                     "July", "August", "September", "October", "November", "December"
                                   ];
-                                  return `${monthNames[pickerDate.month]} ${pickerDate.year}`;
+                                  return `${monthNames[displayedPickerDate.month]} ${displayedPickerDate.year}`;
                                 })()}
                               </span>
                               <div className="flex gap-1.5">
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setPickerDate(prev => {
-                                      let newMonth = prev.month - 1;
-                                      let newYear = prev.year;
-                                      if (newMonth < 0) {
-                                        newMonth = 11;
-                                        newYear -= 1;
-                                      }
-                                      return { month: newMonth, year: newYear };
-                                    });
+                                    setHasMovedDatePicker(true);
+                                    let newMonth = displayedPickerDate.month - 1;
+                                    let newYear = displayedPickerDate.year;
+                                    if (newMonth < 0) {
+                                      newMonth = 11;
+                                      newYear -= 1;
+                                    }
+                                    setPickerDate({ month: newMonth, year: newYear });
                                   }}
                                   className="p-1 rounded bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer"
                                 >
@@ -1663,15 +1669,14 @@ export default function GithubView({
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setPickerDate(prev => {
-                                      let newMonth = prev.month + 1;
-                                      let newYear = prev.year;
-                                      if (newMonth > 11) {
-                                        newMonth = 0;
-                                        newYear += 1;
-                                      }
-                                      return { month: newMonth, year: newYear };
-                                    });
+                                    setHasMovedDatePicker(true);
+                                    let newMonth = displayedPickerDate.month + 1;
+                                    let newYear = displayedPickerDate.year;
+                                    if (newMonth > 11) {
+                                      newMonth = 0;
+                                      newYear += 1;
+                                    }
+                                    setPickerDate({ month: newMonth, year: newYear });
                                   }}
                                   className="p-1 rounded bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer"
                                 >
@@ -1688,17 +1693,17 @@ export default function GithubView({
 
                             <div className="grid grid-cols-7 gap-1">
                               {(() => {
-                                const daysInMonth = new Date(pickerDate.year, pickerDate.month + 1, 0).getDate();
-                                const firstDayIndex = new Date(pickerDate.year, pickerDate.month, 1).getDay();
+                                const daysInMonth = new Date(displayedPickerDate.year, displayedPickerDate.month + 1, 0).getDate();
+                                const firstDayIndex = new Date(displayedPickerDate.year, displayedPickerDate.month, 1).getDay();
                                 const cells = [];
 
                                 for (let i = 0; i < firstDayIndex; i++) {
                                   cells.push(<div key={`empty-${i}`} />);
                                 }
 
-                                const todayStr = new Date().toISOString().split('T')[0];
+                                const todayStr = localDateKey();
                                 for (let day = 1; day <= daysInMonth; day++) {
-                                  const dateStr = `${pickerDate.year}-${String(pickerDate.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                  const dateStr = `${displayedPickerDate.year}-${String(displayedPickerDate.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                                   const { hasLearnDrivenShort, hasDecodeWorthyShort, hasLearnDrivenMembers, hasLearnDrivenLong } = getScheduledTopicChannelsForDate(dateStr);
                                   const isSelected = newTopicDueDate === dateStr;
                                   const isToday = dateStr === todayStr;

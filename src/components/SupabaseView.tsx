@@ -108,15 +108,21 @@ export default function SupabaseView({
   const [newTopicScore, setNewTopicScore] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | undefined>(undefined);
   const [newTopicDueDate, setNewTopicDueDate] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [hasMovedDatePicker, setHasMovedDatePicker] = useState(false);
   const [pickerDate, setPickerDate] = useState(() => {
     const now = new Date();
     return { month: now.getMonth(), year: now.getFullYear() };
   });
+  const currentPickerSeed = new Date();
+  const displayedPickerDate = !newTopicDueDate && !hasMovedDatePicker
+    ? { month: currentPickerSeed.getMonth(), year: currentPickerSeed.getFullYear() }
+    : pickerDate;
 
   useLayoutEffect(() => {
     if (!isTopicFormOpen) return;
     const now = new Date();
     setPickerDate({ month: now.getMonth(), year: now.getFullYear() });
+    setHasMovedDatePicker(false);
     setShowDatePicker(false);
   }, [isTopicFormOpen]);
 
@@ -870,6 +876,7 @@ ${task}`;
                               onClick={() => {
                                 const now = new Date();
                                 setPickerDate({ month: now.getMonth(), year: now.getFullYear() });
+                                setHasMovedDatePicker(false);
                                 setShowDatePicker(prev => !prev);
                               }}
                               className="w-full bg-neutral-950 border border-neutral-800 rounded px-2 py-2 text-xs text-white flex items-center justify-between cursor-pointer select-none"
@@ -888,12 +895,12 @@ ${task}`;
                                     <span className="font-bold text-[10px] text-neutral-200">
                                       {(() => {
                                         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-                                        return `${monthNames[pickerDate.month]} ${pickerDate.year}`;
+                                        return `${monthNames[displayedPickerDate.month]} ${displayedPickerDate.year}`;
                                       })()}
                                     </span>
                                     <div className="flex gap-1.5">
-                                      <button type="button" onClick={() => setPickerDate(prev => { let m = prev.month - 1, y = prev.year; if (m < 0) { m = 11; y -= 1; } return { month: m, year: y }; })} className="p-1 rounded bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer">&lt;</button>
-                                      <button type="button" onClick={() => setPickerDate(prev => { let m = prev.month + 1, y = prev.year; if (m > 11) { m = 0; y += 1; } return { month: m, year: y }; })} className="p-1 rounded bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer">&gt;</button>
+                                      <button type="button" onClick={() => { setHasMovedDatePicker(true); let m = displayedPickerDate.month - 1, y = displayedPickerDate.year; if (m < 0) { m = 11; y -= 1; } setPickerDate({ month: m, year: y }); }} className="p-1 rounded bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer">&lt;</button>
+                                      <button type="button" onClick={() => { setHasMovedDatePicker(true); let m = displayedPickerDate.month + 1, y = displayedPickerDate.year; if (m > 11) { m = 0; y += 1; } setPickerDate({ month: m, year: y }); }} className="p-1 rounded bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer">&gt;</button>
                                     </div>
                                   </div>
                                   <div className="grid grid-cols-7 gap-1 text-center font-bold text-neutral-500 mb-1">
@@ -901,13 +908,13 @@ ${task}`;
                                   </div>
                                   <div className="grid grid-cols-7 gap-1">
                                     {(() => {
-                                      const daysInMonth = new Date(pickerDate.year, pickerDate.month + 1, 0).getDate();
-                                      const firstDayIndex = new Date(pickerDate.year, pickerDate.month, 1).getDay();
+                                      const daysInMonth = new Date(displayedPickerDate.year, displayedPickerDate.month + 1, 0).getDate();
+                                      const firstDayIndex = new Date(displayedPickerDate.year, displayedPickerDate.month, 1).getDay();
                                       const cells = [];
-                                      const todayStr = new Date().toISOString().split('T')[0];
+                                      const todayStr = new Date().toLocaleDateString('en-CA');
                                       for (let i = 0; i < firstDayIndex; i++) cells.push(<div key={`empty-${i}`} />);
                                       for (let day = 1; day <= daysInMonth; day++) {
-                                        const dateStr = `${pickerDate.year}-${String(pickerDate.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                        const dateStr = `${displayedPickerDate.year}-${String(displayedPickerDate.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                                         const { hasLearnDrivenShort, hasDecodeWorthyShort, hasLearnDrivenMembers, hasLearnDrivenLong } = getScheduledTopicChannelsForDate(dateStr);
                                         const isSelected = newTopicDueDate === dateStr;
                                         const isToday = dateStr === todayStr;
