@@ -270,8 +270,8 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[18rem_minmax(0,1fr)] xl:items-start">
-        <aside className="z-20 overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl xl:sticky xl:top-4 xl:h-[calc(100vh-8rem)] xl:w-[18rem]">
-          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+        <aside className="sticky top-4 z-20 overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl xl:h-[calc(100vh-8rem)] xl:w-[18rem]">
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-neutral-950/80 px-4 py-3 backdrop-blur-xl">
             <div className="flex items-center gap-2 min-w-0">
               <CalendarIcon className="h-4 w-4 shrink-0 text-emerald-400" />
               <div className="min-w-0">
