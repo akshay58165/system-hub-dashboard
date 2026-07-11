@@ -202,7 +202,10 @@ export function StageStopwatch({
 
   const [isEditingTime, setIsEditingTime] = useState(false);
   const [editTimeValue, setEditTimeValue] = useState('');
+  const [isEditingSittings, setIsEditingSittings] = useState(false);
+  const [editSittingsValue, setEditSittingsValue] = useState('');
   const editInputRef = useRef<HTMLInputElement>(null);
+  const editSittingsInputRef = useRef<HTMLInputElement>(null);
 
   const handlePencilClick = () => {
     setEditTimeValue(formatHMS(activeMs));
@@ -218,50 +221,113 @@ export function StageStopwatch({
     setIsEditingTime(false);
   };
 
+  const handleSittingsClick = () => {
+    setEditSittingsValue(String(Math.max(1, sittings)));
+    setIsEditingSittings(true);
+    setTimeout(() => editSittingsInputRef.current?.select(), 0);
+  };
+
+  const handleSittingsConfirm = () => {
+    const n = parseInt(editSittingsValue.trim(), 10);
+    if (Number.isFinite(n) && n >= 1) {
+      onSetSittings?.(n);
+    }
+    setIsEditingSittings(false);
+  };
+
   const handleEditKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') { e.preventDefault(); handleEditConfirm(); }
     if (e.key === 'Escape') { setIsEditingTime(false); }
+  };
+
+  const handleSittingsKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); handleSittingsConfirm(); }
+    if (e.key === 'Escape') { setIsEditingSittings(false); }
   };
 
   return (
     <div className={`flex flex-col items-stretch gap-1 rounded-md border px-1.5 py-1 min-w-[7.5rem] ${stateColor}`}>
       <div className="flex items-center justify-between gap-1">
         <span className="text-[9px] font-bold uppercase tracking-wider">{label}</span>
-        <button
-          type="button"
-          onClick={handlePencilClick}
-          title="Edit time"
-          className="p-0.5 rounded border border-neutral-800 text-neutral-500 hover:text-blue-300 hover:border-blue-700 transition"
-        >
-          <Pencil className="h-2.5 w-2.5" />
-        </button>
+        {!isEditingTime && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handlePencilClick();
+            }}
+            title="Edit time"
+            className="p-0.5 rounded border border-neutral-800 text-neutral-500 hover:text-blue-300 hover:border-blue-700 transition"
+          >
+            <Pencil className="h-2.5 w-2.5" />
+          </button>
+        )}
       </div>
-      <div className="flex items-center justify-between gap-1 font-mono text-[10px] tabular-nums">
+      <div className="flex items-center justify-between gap-1 font-mono text-[10px] tabular-nums flex-wrap">
         {isEditingTime ? (
-          <input
-            ref={editInputRef}
-            type="text"
-            value={editTimeValue}
-            onChange={(e) => setEditTimeValue(e.target.value)}
-            onBlur={handleEditConfirm}
-            onKeyDown={handleEditKeyDown}
-            className="w-full bg-neutral-900 border border-blue-600 rounded px-1 py-0.5 text-[10px] font-mono text-white outline-none"
-            placeholder="HH:MM:SS"
-          />
+          <div className="flex w-full items-center gap-1">
+            <input
+              ref={editInputRef}
+              type="text"
+              value={editTimeValue}
+              onChange={(e) => setEditTimeValue(e.target.value)}
+              onKeyDown={handleEditKeyDown}
+              className="min-w-0 flex-1 bg-neutral-900 border border-blue-600 rounded px-1 py-0.5 text-[10px] font-mono text-white outline-none"
+              placeholder="HH:MM:SS"
+            />
+            <button
+              type="button"
+              onClick={handleEditConfirm}
+              className="rounded border border-emerald-700/60 bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-bold uppercase text-emerald-200 hover:bg-emerald-500/20"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsEditingTime(false)}
+              className="rounded border border-neutral-800 px-1.5 py-0.5 text-[8px] font-bold uppercase text-neutral-400 hover:text-white"
+            >
+              Cancel
+            </button>
+          </div>
         ) : (
           <span className={state === 'running' ? 'text-emerald-300 font-bold' : state === 'paused' ? 'text-amber-300 font-bold' : 'text-neutral-400'}>
             {formatHMS(activeMs)}
           </span>
         )}
-        {onSetSittings ? (
+        {onSetSittings ? isEditingSittings ? (
+          <div className="flex items-center gap-1">
+            <input
+              ref={editSittingsInputRef}
+              type="text"
+              inputMode="numeric"
+              value={editSittingsValue}
+              onChange={(e) => setEditSittingsValue(e.target.value)}
+              onKeyDown={handleSittingsKeyDown}
+              className="w-16 bg-neutral-900 border border-cyan-700 rounded px-1 py-0.5 text-[10px] font-mono text-white outline-none"
+              placeholder="1"
+            />
+            <button
+              type="button"
+              onClick={handleSittingsConfirm}
+              className="rounded border border-emerald-700/60 bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-bold uppercase text-emerald-200 hover:bg-emerald-500/20"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsEditingSittings(false)}
+              className="rounded border border-neutral-800 px-1.5 py-0.5 text-[8px] font-bold uppercase text-neutral-400 hover:text-white"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
           <button
             type="button"
-            onClick={() => {
-              const raw = window.prompt(`Set sittings for ${label}. Total time stays the same.`, String(Math.max(1, sittings)));
-              if (raw === null) return;
-              const n = parseInt(raw.trim(), 10);
-              if (!Number.isFinite(n) || n < 1) { window.alert('Enter a whole number ≥ 1.'); return; }
-              onSetSittings(n);
+            onClick={(e) => {
+              e.stopPropagation();
+              handleSittingsClick();
             }}
             title={`${sittings} sitting${sittings === 1 ? '' : 's'} · click to edit`}
             className="text-[8px] px-1 rounded border border-cyan-900/50 bg-cyan-950/25 text-cyan-300 hover:border-cyan-500 hover:text-cyan-100 transition inline-flex items-center gap-0.5"
