@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, GripVertical, Plus, Pencil } from 'lucide-react';
 import type { Topic } from '../types';
@@ -49,6 +49,24 @@ function getStageLetterState(topic: Topic, stage: 'hook' | 'script' | 'shoot' | 
   return getTopicWorkflowState(topic, stage);
 }
 
+function formatCountdown(targetIso?: string | null, nowMs = Date.now()) {
+  if (!targetIso) return '';
+  const targetMs = new Date(targetIso).getTime();
+  if (!Number.isFinite(targetMs)) return '';
+  const delta = targetMs - nowMs;
+  const abs = Math.abs(delta);
+  const totalSeconds = Math.floor(abs / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+  const core = days > 0
+    ? `${days}d ${String(hours).padStart(2, '0')}h`
+    : `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
+
+  return delta < 0 ? `Overdue ${core}` : `Due in ${core}`;
+}
+
 function buildMonthGrid(year: number, month: number): CalendarCell[] {
   const firstDay = new Date(year, month, 1);
   const firstDow = firstDay.getDay();
@@ -94,6 +112,12 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
   const [draggedTopicId, setDraggedTopicId] = useState<string | null>(null);
   const [dragOverDateKey, setDragOverDateKey] = useState<string | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const monthLabel = useMemo(() => new Date(selectedYear, selectedMonth).toLocaleDateString([], {
     month: 'long',
@@ -151,6 +175,10 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
       if (state === 'in-progress') return 'border-amber-500 bg-amber-500/20 text-amber-200';
       return 'border-neutral-800 bg-neutral-950 text-neutral-500';
     };
+    const countdown = formatCountdown(topic.dueDate, nowMs);
+    const countdownClass = countdown.startsWith('Overdue')
+      ? 'border-rose-500/30 bg-rose-500/10 text-rose-300'
+      : 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300';
 
     return (
       <div
@@ -179,17 +207,22 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
                 {topic.name}
               </span>
             </div>
-            <div className="grid grid-cols-4 gap-1">
+            <div className="grid grid-cols-4 gap-0.5">
               {(['hook', 'script', 'shoot', 'edit'] as const).map(stage => (
                 <div
                   key={stage}
-                  className={`flex h-5 items-center justify-center rounded border text-[8px] font-black uppercase tracking-[0.2em] ${boxClass(stageStates[stage])}`}
+                  className={`flex h-4 items-center justify-center rounded border text-[7px] font-black uppercase tracking-[0.16em] ${boxClass(stageStates[stage])}`}
                   title={`${stage.toUpperCase()} ${stageStates[stage]}`}
                 >
                   {stage === 'shoot' ? 'C' : stage[0].toUpperCase()}
                 </div>
               ))}
             </div>
+            {countdown && (
+              <div className={`inline-flex w-full items-center justify-center rounded border px-2 py-0.5 text-[8px] font-mono font-bold ${countdownClass}`}>
+                {countdown}
+              </div>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <button
