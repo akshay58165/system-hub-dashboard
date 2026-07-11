@@ -14,6 +14,7 @@ interface CalendarViewProps {
 type CalendarCell = {
   dateKey: string;
   dayNumber: number;
+  weekdayLabel: string;
   isCurrentMonth: boolean;
 };
 
@@ -67,39 +68,26 @@ function formatCountdown(targetIso?: string | null, nowMs = Date.now()) {
   return delta < 0 ? `Overdue ${core}` : `Due in ${core}`;
 }
 
+function getWeekdayLabel(date: Date) {
+  return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][((date.getDay() + 6) % 7)];
+}
+
 function buildMonthGrid(year: number, month: number): CalendarCell[] {
   const firstDay = new Date(year, month, 1);
-  const firstDow = firstDay.getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const prevMonthDays = new Date(year, month, 0).getDate();
   const cells: CalendarCell[] = [];
+  const startOffset = (firstDay.getDay() + 6) % 7;
 
-  for (let index = firstDow - 1; index >= 0; index -= 1) {
-    const dayNumber = prevMonthDays - index;
-    const date = new Date(year, month - 1, dayNumber);
-    cells.push({
-      dateKey: toDateKey(date),
-      dayNumber,
-      isCurrentMonth: false
-    });
-  }
+  const gridStart = new Date(year, month, 1);
+  gridStart.setDate(gridStart.getDate() - startOffset);
 
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    const date = new Date(year, month, day);
-    cells.push({
-      dateKey: toDateKey(date),
-      dayNumber: day,
-      isCurrentMonth: true
-    });
-  }
-
-  while (cells.length < 42) {
-    const extraIndex = cells.length - (firstDow + daysInMonth) + 1;
-    const date = new Date(year, month + 1, extraIndex);
+  for (let index = 0; index < 42; index += 1) {
+    const date = new Date(gridStart);
+    date.setDate(gridStart.getDate() + index);
     cells.push({
       dateKey: toDateKey(date),
       dayNumber: date.getDate(),
-      isCurrentMonth: false
+      weekdayLabel: getWeekdayLabel(date),
+      isCurrentMonth: date.getMonth() === month
     });
   }
 
@@ -359,12 +347,6 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
 
           <div className="overflow-x-auto">
             <div className="min-w-[980px] space-y-2">
-              <div className="sticky top-20 z-40 grid grid-cols-7 gap-2 rounded-xl border border-neutral-800 bg-neutral-950/95 px-1 py-2 text-center text-[10px] font-bold uppercase tracking-[0.28em] text-neutral-500 backdrop-blur-md">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                  <div key={day} className="py-1">{day}</div>
-                ))}
-              </div>
-
               <div className="grid grid-cols-7 gap-2">
                 {calendarCells.map(cell => {
                   const dayTopics = topicsByDate[cell.dateKey] || [];
@@ -398,8 +380,13 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
                             : 'border-neutral-800'
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className={`text-sm font-black ${isToday ? 'text-emerald-300' : 'text-white'}`}>{cell.dayNumber}</span>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="space-y-0.5">
+                          <div className="text-[9px] font-bold uppercase tracking-[0.32em] text-neutral-500">
+                            {cell.weekdayLabel}
+                          </div>
+                          <span className={`text-sm font-black ${isToday ? 'text-emerald-300' : 'text-white'}`}>{cell.dayNumber}</span>
+                        </div>
                       </div>
 
                       <div className="mt-3 flex-1 space-y-2">
