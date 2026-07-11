@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Calendar, Plus, X } from 'lucide-react';
 import { useDismissOnOutsideClick } from '../hooks/useDismissOnOutsideClick';
@@ -175,7 +175,7 @@ export default function TopicCreateModal({
       );
   const modalRef = useDismissOnOutsideClick<HTMLFormElement>(isOpen, !hasUnsavedInput, onClose);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isOpen) {
       initialSnapshotRef.current = '';
       return;

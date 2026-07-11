@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Clapperboard,
@@ -113,7 +113,7 @@ export default function SupabaseView({
     return { month: now.getMonth(), year: now.getFullYear() };
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isTopicFormOpen) return;
     const now = new Date();
     setPickerDate({ month: now.getMonth(), year: now.getFullYear() });

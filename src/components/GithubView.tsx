@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   GitBranch, 
@@ -202,7 +202,7 @@ export default function GithubView({
     return { month: now.getMonth(), year: now.getFullYear() };
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!showDatePicker) return;
     const now = new Date();
     setPickerDate({ month: now.getMonth(), year: now.getFullYear() });
