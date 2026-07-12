@@ -163,10 +163,18 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
       if (state === 'in-progress') return 'border-amber-500 bg-amber-500/20 text-amber-200';
       return 'border-neutral-800 bg-neutral-950 text-neutral-500';
     };
-    const countdown = formatCountdown(topic.dueDate, nowMs);
-    const countdownClass = countdown.startsWith('Overdue')
+    const rawCountdown = formatCountdown(topic.dueDate, nowMs);
+    let countdown = rawCountdown;
+    let countdownClass = rawCountdown.startsWith('Overdue')
       ? 'border-rose-500/30 bg-rose-500/10 text-rose-300'
       : 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300';
+    if (topic.status === 'posted') {
+      countdown = 'Posted';
+      countdownClass = 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
+    } else if (topic.status === 'scheduled') {
+      countdown = rawCountdown.startsWith('Overdue') ? 'Scheduled' : rawCountdown;
+      countdownClass = 'border-purple-500/30 bg-purple-500/10 text-purple-300';
+    }
 
     return (
       <div
