@@ -12,6 +12,8 @@ A private creator workflow dashboard for video planning, production status, earn
 2. Run the app:
    `npm run dev`
 
+If Vite cannot start in your environment, `npm run dev` now falls back to the last built app in `dist/` so the dashboard still opens.
+
 ## Build
 
 `npm run build`

@@ -2,6 +2,7 @@ const { app, BrowserWindow, shell, Menu } = require('electron');
 const path = require('path');
 
 const isDev = !app.isPackaged;
+const distIndexPath = path.join(__dirname, '..', 'dist', 'index.html');
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -41,9 +42,18 @@ function createWindow() {
   if (isDev) {
     const devUrl = process.env.ELECTRON_START_URL || 'http://localhost:3000';
     win.loadURL(devUrl);
+    win.webContents.on('did-fail-load', async (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (!isMainFrame || validatedURL !== devUrl) return;
+      if (errorCode !== -102 && errorCode !== -105 && errorCode !== -106 && errorCode !== -118) return;
+      try {
+        await win.loadFile(distIndexPath);
+      } catch (fallbackError) {
+        console.error('Failed to load fallback build:', fallbackError);
+      }
+    });
     win.webContents.openDevTools({ mode: 'detach' });
   } else {
-    win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
+    win.loadFile(distIndexPath);
   }
 }
 
