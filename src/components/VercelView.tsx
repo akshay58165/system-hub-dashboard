@@ -544,6 +544,7 @@ export default function VercelView({
   const [schedTime, setSchedTime] = useState('');
   const [schedPickerOpen, setSchedPickerOpen] = useState(false);
   const [schedPickerMonth, setSchedPickerMonth] = useState(() => ({ month: new Date().getMonth(), year: new Date().getFullYear() }));
+  const schedPickerOpenedAtRef = useRef(0);
   const getSchedChannelsForDate = (dateStr: string) => {
     const matching = topics.filter(t => t.dueDate && t.dueDate.split('T')[0] === dateStr);
     return {
@@ -1993,6 +1994,7 @@ export default function VercelView({
                                     if (!Number.isNaN(seed.getTime())) {
                                       setSchedPickerMonth({ month: seed.getMonth(), year: seed.getFullYear() });
                                     }
+                                    schedPickerOpenedAtRef.current = Date.now();
                                     setSchedPickerOpen(prev => !prev);
                                   }}
                                   className="w-full bg-neutral-900 border border-neutral-800 text-[9px] text-white rounded px-2 py-1 flex items-center justify-between cursor-pointer select-none"
@@ -2015,8 +2017,8 @@ export default function VercelView({
                                           })()}
                                         </span>
                                         <div className="flex gap-1.5">
-                                          <button type="button" onClick={() => setSchedPickerMonth(prev => { let m = prev.month - 1, y = prev.year; if (m < 0) { m = 11; y -= 1; } return { month: m, year: y }; })} className="p-1 rounded bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer">&lt;</button>
-                                          <button type="button" onClick={() => setSchedPickerMonth(prev => { let m = prev.month + 1, y = prev.year; if (m > 11) { m = 0; y += 1; } return { month: m, year: y }; })} className="p-1 rounded bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer">&gt;</button>
+                                          <button type="button" onClick={() => { if (Date.now() - schedPickerOpenedAtRef.current < 300) return; setSchedPickerMonth(prev => { let m = prev.month - 1, y = prev.year; if (m < 0) { m = 11; y -= 1; } return { month: m, year: y }; }); }} className="p-1 rounded bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer">&lt;</button>
+                                          <button type="button" onClick={() => { if (Date.now() - schedPickerOpenedAtRef.current < 300) return; setSchedPickerMonth(prev => { let m = prev.month + 1, y = prev.year; if (m > 11) { m = 0; y += 1; } return { month: m, year: y }; }); }} className="p-1 rounded bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer">&gt;</button>
                                         </div>
                                       </div>
                                       <div className="grid grid-cols-7 gap-1 text-center font-bold text-neutral-500 mb-1">

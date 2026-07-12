@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Clapperboard,
@@ -108,21 +108,25 @@ export default function SupabaseView({
   const [newTopicScore, setNewTopicScore] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | undefined>(undefined);
   const [newTopicDueDate, setNewTopicDueDate] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [hasMovedDatePicker, setHasMovedDatePicker] = useState(false);
   const [pickerDate, setPickerDate] = useState(() => {
     const now = new Date();
     return { month: now.getMonth(), year: now.getFullYear() };
   });
-  const currentPickerSeed = new Date();
-  const displayedPickerDate = !newTopicDueDate && !hasMovedDatePicker
-    ? { month: currentPickerSeed.getMonth(), year: currentPickerSeed.getFullYear() }
-    : pickerDate;
+  const pickerOpenedAtRef = useRef(0);
+  useLayoutEffect(() => {
+    if (!showDatePicker) return;
+    const seed = newTopicDueDate ? new Date(`${newTopicDueDate}T00:00:00`) : new Date();
+    if (!Number.isNaN(seed.getTime())) {
+      setPickerDate({ month: seed.getMonth(), year: seed.getFullYear() });
+    }
+    pickerOpenedAtRef.current = Date.now();
+  }, [showDatePicker]);
+  const displayedPickerDate = pickerDate;
 
   useLayoutEffect(() => {
     if (!isTopicFormOpen) return;
     const now = new Date();
     setPickerDate({ month: now.getMonth(), year: now.getFullYear() });
-    setHasMovedDatePicker(false);
     setShowDatePicker(false);
   }, [isTopicFormOpen]);
 
@@ -874,9 +878,6 @@ ${task}`;
                           <div className="relative">
                             <div
                               onClick={() => {
-                                const now = new Date();
-                                setPickerDate({ month: now.getMonth(), year: now.getFullYear() });
-                                setHasMovedDatePicker(false);
                                 setShowDatePicker(prev => !prev);
                               }}
                               className="w-full bg-neutral-950 border border-neutral-800 rounded px-2 py-2 text-xs text-white flex items-center justify-between cursor-pointer select-none"
@@ -899,8 +900,8 @@ ${task}`;
                                       })()}
                                     </span>
                                     <div className="flex gap-1.5">
-                                      <button type="button" onClick={() => { setHasMovedDatePicker(true); let m = displayedPickerDate.month - 1, y = displayedPickerDate.year; if (m < 0) { m = 11; y -= 1; } setPickerDate({ month: m, year: y }); }} className="p-1 rounded bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer">&lt;</button>
-                                      <button type="button" onClick={() => { setHasMovedDatePicker(true); let m = displayedPickerDate.month + 1, y = displayedPickerDate.year; if (m > 11) { m = 0; y += 1; } setPickerDate({ month: m, year: y }); }} className="p-1 rounded bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer">&gt;</button>
+                                      <button type="button" onClick={() => { if (Date.now() - pickerOpenedAtRef.current < 300) return; let m = displayedPickerDate.month - 1, y = displayedPickerDate.year; if (m < 0) { m = 11; y -= 1; } setPickerDate({ month: m, year: y }); }} className="p-1 rounded bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer">&lt;</button>
+                                      <button type="button" onClick={() => { if (Date.now() - pickerOpenedAtRef.current < 300) return; let m = displayedPickerDate.month + 1, y = displayedPickerDate.year; if (m > 11) { m = 0; y += 1; } setPickerDate({ month: m, year: y }); }} className="p-1 rounded bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-neutral-400 hover:text-white cursor-pointer">&gt;</button>
                                     </div>
                                   </div>
                                   <div className="grid grid-cols-7 gap-1 text-center font-bold text-neutral-500 mb-1">

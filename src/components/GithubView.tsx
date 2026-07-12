@@ -197,21 +197,19 @@ export default function GithubView({
   const tomorrowDateKey = localDateKey(1);
   const [newTopicSchedTime, setNewTopicSchedTime] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [hasMovedDatePicker, setHasMovedDatePicker] = useState(false);
   const [pickerDate, setPickerDate] = useState(() => {
     const now = new Date();
     return { month: now.getMonth(), year: now.getFullYear() };
   });
-  const currentPickerSeed = new Date();
-  const displayedPickerDate = !newTopicDueDate && !hasMovedDatePicker
-    ? { month: currentPickerSeed.getMonth(), year: currentPickerSeed.getFullYear() }
-    : pickerDate;
+  const pickerOpenedAtRef = useRef(0);
+  const displayedPickerDate = pickerDate;
 
   useLayoutEffect(() => {
     if (!showDatePicker) return;
-    const now = new Date();
-    setPickerDate({ month: now.getMonth(), year: now.getFullYear() });
-    setHasMovedDatePicker(false);
+    const seed = newTopicDueDate ? new Date(`${newTopicDueDate}T00:00:00`) : new Date();
+    const useSeed = Number.isNaN(seed.getTime()) ? new Date() : seed;
+    setPickerDate({ month: useSeed.getMonth(), year: useSeed.getFullYear() });
+    pickerOpenedAtRef.current = Date.now();
   }, [showDatePicker]);
 
   const getScheduledTopicChannelsForDate = (dateStr: string) => {
@@ -1619,9 +1617,6 @@ export default function GithubView({
                     <div className="relative">
                       <div
                         onClick={() => {
-                          const now = new Date();
-                          setPickerDate({ month: now.getMonth(), year: now.getFullYear() });
-                          setHasMovedDatePicker(false);
                           setShowDatePicker(prev => !prev);
                         }}
                         className="w-full bg-neutral-950 border border-neutral-900 focus-within:border-neutral-800 outline-none text-[10px] rounded px-2 py-1.5 mt-1 text-white flex items-center justify-between cursor-pointer select-none"
@@ -1653,7 +1648,7 @@ export default function GithubView({
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setHasMovedDatePicker(true);
+                                    if (Date.now() - pickerOpenedAtRef.current < 300) return;
                                     let newMonth = displayedPickerDate.month - 1;
                                     let newYear = displayedPickerDate.year;
                                     if (newMonth < 0) {
@@ -1669,7 +1664,7 @@ export default function GithubView({
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setHasMovedDatePicker(true);
+                                    if (Date.now() - pickerOpenedAtRef.current < 300) return;
                                     let newMonth = displayedPickerDate.month + 1;
                                     let newYear = displayedPickerDate.year;
                                     if (newMonth > 11) {

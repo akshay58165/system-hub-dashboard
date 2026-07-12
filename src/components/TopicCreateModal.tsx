@@ -137,7 +137,6 @@ export default function TopicCreateModal({
   const [dueDate, setDueDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [hasMovedDatePicker, setHasMovedDatePicker] = useState(false);
   const [pickerDate, setPickerDate] = useState(() => {
     const now = new Date();
     return { month: now.getMonth(), year: now.getFullYear() };
@@ -187,15 +186,10 @@ export default function TopicCreateModal({
         topicScore !== undefined || explanationDifficulty !== undefined || dueDate || scheduleTime || Object.values(eligibility).some(Boolean)
       );
   const modalRef = useDismissOnOutsideClick<HTMLFormElement>(isOpen, !hasUnsavedInput, onClose);
-  const currentPickerSeed = new Date();
-  const displayedPickerDate = !dueDate && !hasMovedDatePicker
-    ? { month: currentPickerSeed.getMonth(), year: currentPickerSeed.getFullYear() }
-    : pickerDate;
 
   useLayoutEffect(() => {
     if (!isOpen) {
       initialSnapshotRef.current = '';
-      setHasMovedDatePicker(false);
       return;
     }
 
@@ -250,9 +244,16 @@ export default function TopicCreateModal({
     });
     const pickerSeed = parseLocalDateValue(initialDueDate) ?? new Date();
     setPickerDate({ month: pickerSeed.getMonth(), year: pickerSeed.getFullYear() });
-    setHasMovedDatePicker(false);
     setShowDatePicker(false);
   }, [isOpen, topicToEdit]);
+
+  const pickerOpenedAtRef = useRef(0);
+  useLayoutEffect(() => {
+    if (!showDatePicker) return;
+    const seed = parseLocalDateValue(dueDate) ?? new Date();
+    setPickerDate({ month: seed.getMonth(), year: seed.getFullYear() });
+    pickerOpenedAtRef.current = Date.now();
+  }, [showDatePicker]);
 
   const setEligibilityValue = (key: keyof Eligibility, checked: boolean) => {
     setEligibility(current => ({
@@ -558,11 +559,6 @@ export default function TopicCreateModal({
                   <div className="relative mt-1">
                     <div
                       onClick={() => {
-                        const pickerSeed = parseLocalDateValue(dueDate)
-                          ?? (isEditing ? parseLocalDateValue(topicToEdit?.dueDate) : null)
-                          ?? new Date();
-                        setPickerDate({ month: pickerSeed.getMonth(), year: pickerSeed.getFullYear() });
-                        setHasMovedDatePicker(false);
                         setShowDatePicker(prev => !prev);
                       }}
                       className="h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 text-[10px] normal-case text-white flex items-center justify-between cursor-pointer select-none"
@@ -587,16 +583,16 @@ export default function TopicCreateModal({
                                   "January", "February", "March", "April", "May", "June",
                                   "July", "August", "September", "October", "November", "December"
                                 ];
-                                return `${monthNames[displayedPickerDate.month]} ${displayedPickerDate.year}`;
+                                return `${monthNames[pickerDate.month]} ${pickerDate.year}`;
                               })()}
                             </span>
                             <div className="flex gap-1.5">
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setHasMovedDatePicker(true);
-                                  let newMonth = displayedPickerDate.month - 1;
-                                  let newYear = displayedPickerDate.year;
+                                  if (Date.now() - pickerOpenedAtRef.current < 300) return;
+                                  let newMonth = pickerDate.month - 1;
+                                  let newYear = pickerDate.year;
                                   if (newMonth < 0) { newMonth = 11; newYear -= 1; }
                                   setPickerDate({ month: newMonth, year: newYear });
                                 }}
@@ -605,9 +601,9 @@ export default function TopicCreateModal({
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setHasMovedDatePicker(true);
-                                  let newMonth = displayedPickerDate.month + 1;
-                                  let newYear = displayedPickerDate.year;
+                                  if (Date.now() - pickerOpenedAtRef.current < 300) return;
+                                  let newMonth = pickerDate.month + 1;
+                                  let newYear = pickerDate.year;
                                   if (newMonth > 11) { newMonth = 0; newYear += 1; }
                                   setPickerDate({ month: newMonth, year: newYear });
                                 }}
@@ -624,8 +620,8 @@ export default function TopicCreateModal({
 
                           <div className="grid grid-cols-7 gap-1">
                             {(() => {
-                              const daysInMonth = new Date(displayedPickerDate.year, displayedPickerDate.month + 1, 0).getDate();
-                              const firstDayIndex = new Date(displayedPickerDate.year, displayedPickerDate.month, 1).getDay();
+                              const daysInMonth = new Date(pickerDate.year, pickerDate.month + 1, 0).getDate();
+                              const firstDayIndex = new Date(pickerDate.year, pickerDate.month, 1).getDay();
                               const cells = [];
                               const todayStr = localDateKey();
 
@@ -634,7 +630,7 @@ export default function TopicCreateModal({
                               }
 
                               for (let day = 1; day <= daysInMonth; day++) {
-                                const dateStr = `${displayedPickerDate.year}-${String(displayedPickerDate.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                const dateStr = `${pickerDate.year}-${String(pickerDate.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                                 const { hasLearnDrivenShort, hasDecodeWorthyShort, hasLearnDrivenMembers, hasLearnDrivenLong } = getScheduledTopicChannelsForDate(dateStr);
                                 const isSelected = dueDate === dateStr;
                                 const isToday = dateStr === todayStr;
