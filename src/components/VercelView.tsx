@@ -1988,7 +1988,13 @@ export default function VercelView({
                               <label className="text-[8px] text-neutral-500 block mb-0.5">Date</label>
                               <div className="relative">
                                 <div
-                                  onClick={() => setSchedPickerOpen(!schedPickerOpen)}
+                                  onClick={() => {
+                                    const seed = schedDate ? new Date(`${schedDate}T00:00:00`) : new Date();
+                                    if (!Number.isNaN(seed.getTime())) {
+                                      setSchedPickerMonth({ month: seed.getMonth(), year: seed.getFullYear() });
+                                    }
+                                    setSchedPickerOpen(prev => !prev);
+                                  }}
                                   className="w-full bg-neutral-900 border border-neutral-800 text-[9px] text-white rounded px-2 py-1 flex items-center justify-between cursor-pointer select-none"
                                 >
                                   <span className={schedDate ? 'text-white' : 'text-neutral-500'}>

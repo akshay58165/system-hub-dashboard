@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, GripVertical, Plus, Pencil } from 'lucide-react';
+import { Calendar as CalendarIcon, Check, ChevronLeft, ChevronRight, GripVertical, Plus, Pencil } from 'lucide-react';
 import type { Topic } from '../types';
 import { getTopicWorkflowState } from '../services/topicWorkflow';
 
@@ -352,6 +352,7 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
                   const dayTopics = topicsByDate[cell.dateKey] || [];
                   const isToday = cell.dateKey === toDateKey(today);
                   const isOver = dragOverDateKey === cell.dateKey;
+                  const hasPosted = dayTopics.some(topic => topic.status === 'posted');
 
                   return (
                     <div
@@ -387,6 +388,14 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
                           </div>
                           <span className={`text-sm font-black ${isToday ? 'text-emerald-300' : 'text-white'}`}>{cell.dayNumber}</span>
                         </div>
+                        {hasPosted && (
+                          <div
+                            className="flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.35)]"
+                            title="Posted"
+                          >
+                            <Check className="h-3 w-3 text-black" strokeWidth={3} />
+                          </div>
+                        )}
                       </div>
 
                       <div className="mt-3 flex-1 space-y-2">
