@@ -177,21 +177,21 @@ function MonthlyPublishStrip({ topics, nowMs, className }: { topics: Topic[]; no
       <div className="space-y-2">
         {channels.map(channel => {
           const channelTopics = topics.filter(t => t.channel === channel.name);
-          const postedByDay = new Map<number, number>();
+          const postedByDay = new Map<number, Topic[]>();
           const scheduledByDay = new Map<number, number>();
           channelTopics.forEach(t => {
             if (t.status === 'posted') {
               const stamp = t.postedAt || t.dueDate;
               if (!stamp) return;
               const d = dayKey(stamp);
-              if (d > 0) postedByDay.set(d, (postedByDay.get(d) || 0) + 1);
+              if (d > 0) postedByDay.set(d, [...(postedByDay.get(d) || []), t]);
             } else if (t.status === 'scheduled' && t.dueDate) {
               const d = dayKey(t.dueDate);
               if (d > 0) scheduledByDay.set(d, (scheduledByDay.get(d) || 0) + 1);
             }
           });
           const daysPosted = Array.from(postedByDay.keys()).length;
-          const videosPosted = Array.from(postedByDay.values()).reduce((s, v) => s + v, 0);
+          const videosPosted = Array.from(postedByDay.values()).reduce((s, v) => s + v.length, 0);
           const daysScheduled = Array.from(scheduledByDay.keys()).length;
 
           return (
@@ -203,7 +203,9 @@ function MonthlyPublishStrip({ topics, nowMs, className }: { topics: Topic[]; no
               <div className="flex flex-1 items-center gap-[2px] overflow-hidden rounded-md bg-neutral-950/60 px-1 py-1.5">
                 {Array.from({ length: daysInMonth }, (_, i) => {
                   const day = i + 1;
-                  const posted = postedByDay.get(day) || 0;
+                  const postedTopics = postedByDay.get(day) || [];
+                  const posted = postedTopics.length;
+                  const postedNames = postedTopics.map(t => t.name).join(', ');
                   const scheduled = scheduledByDay.get(day) || 0;
                   const isPast = day < todayDay;
                   const isToday = day === todayDay;
@@ -212,9 +214,9 @@ function MonthlyPublishStrip({ topics, nowMs, className }: { topics: Topic[]; no
                   let title = `${monthName} ${day}`;
                   let animate = '';
 
-                  if (posted >= 3) { color = 'bg-emerald-700'; title += ` · ${posted} posted`; }
-                  else if (posted === 2) { color = 'bg-emerald-500'; title += ` · 2 posted`; }
-                  else if (posted === 1) { color = 'bg-emerald-300'; title += ` · 1 posted`; }
+                  if (posted >= 3) { color = 'bg-emerald-700'; title += ` · ${posted} posted: ${postedNames}`; }
+                  else if (posted === 2) { color = 'bg-emerald-500'; title += ` · 2 posted: ${postedNames}`; }
+                  else if (posted === 1) { color = 'bg-emerald-300'; title += ` · 1 posted: ${postedNames}`; }
                   else if (scheduled > 0 && !isPast) { color = 'bg-emerald-300/80'; animate = 'animate-pulse'; title += ` · ${scheduled} scheduled`; }
                   else if (isPast) { color = 'bg-rose-500/70'; title += ` · nothing posted`; }
                   else { title += ` · empty`; }
