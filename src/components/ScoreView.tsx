@@ -606,14 +606,14 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
             </div>
             <div>
               <h2 className="text-sm font-bold text-neutral-100 font-mono tracking-tight">Creator Bio-Performance Scorecard</h2>
-              <p className="text-[10px] text-neutral-400 mt-0.5 font-mono">
+              <p className="text-[14px] text-neutral-400 mt-0.5 font-mono">
                 Consolidated evaluation of personal biometrics, mental focus, and environment readiness.
               </p>
             </div>
           </div>
           <div className="flex items-center gap-4 bg-neutral-950 border border-neutral-850 px-5 py-3 rounded-xl font-mono">
             <div className="text-center">
-              <span className="text-[10px] uppercase text-neutral-400 tracking-wider block font-bold">Daily Readiness</span>
+              <span className="text-[14px] uppercase text-neutral-400 tracking-wider block font-bold">Daily Readiness</span>
               <span className={`text-sm font-bold mt-0.5 block flex items-center justify-center gap-1 ${statusInfoColor}`}>
                 <ShieldCheck className="h-4 w-4" />
                 {statusInfo.label}
@@ -621,7 +621,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
             </div>
             <div className="w-px h-8 bg-neutral-850" />
             <div className="text-center">
-              <span className="text-[10px] uppercase text-neutral-400 tracking-wider block font-bold">Bio-Focus Score</span>
+              <span className="text-[14px] uppercase text-neutral-400 tracking-wider block font-bold">Bio-Focus Score</span>
               <span className={`text-xl font-bold mt-0.5 block ${statusInfoColor}`}>
                 {computedMetrics.readiness.score === null ? '-/100' : `${computedMetrics.readiness.score}/100`}
               </span>
@@ -655,7 +655,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-neutral-100 font-mono tracking-tight">Daily Insight Engine</h3>
-                  <span className="flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-emerald-950/30 border border-emerald-900/40 text-emerald-400 text-[10px] font-bold uppercase tracking-wider">
+                  <span className="flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-emerald-950/30 border border-emerald-900/40 text-emerald-400 text-[14px] font-bold uppercase tracking-wider">
                     <span className="relative flex h-1.5 w-1.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                       <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
@@ -663,13 +663,13 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                     Watching
                   </span>
                 </div>
-                <p className="text-[10px] text-neutral-400 font-mono mt-0.5">
+                <p className="text-[14px] text-neutral-400 font-mono mt-0.5">
                   Reads your parameters 10 seconds after your last change and tells you what kind of day this is.
                 </p>
               </div>
             </div>
             {insightTimestamp && !isAnalyzing && (
-              <span className="text-[10px] text-neutral-400 font-mono shrink-0">Updated {insightTimestamp}</span>
+              <span className="text-[14px] text-neutral-400 font-mono shrink-0">Updated {insightTimestamp}</span>
             )}
           </div>
 
@@ -709,7 +709,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                     exit={{ opacity: 0 }}
                     className="space-y-3"
                   >
-                    <span className={`inline-block text-[10px] font-bold uppercase tracking-wider font-mono ${confidenceColor}`}>
+                    <span className={`inline-block text-[14px] font-bold uppercase tracking-wider font-mono ${confidenceColor}`}>
                       {wellbeingInsight.dataNote}
                     </span>
 
@@ -717,29 +717,29 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                     <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div className="rounded-xl border border-blue-900/30 bg-gradient-to-br from-blue-950/25 to-neutral-950/80 p-3.5 space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] uppercase tracking-[0.18em] text-blue-400 font-bold font-mono">Readiness</span>
+                          <span className="text-[14px] uppercase tracking-[0.18em] text-blue-400 font-bold font-mono">Readiness</span>
                           <ShieldCheck className="h-4 w-4 text-blue-400" />
                         </div>
                         <div>
                           <span className="text-xl font-bold text-white">{wellbeingInsight.readiness.status}</span>
-                          <p className="text-[10px] text-neutral-400 mt-1 font-mono">Bio-Focus {wellbeingInsight.readiness.score ?? '-'}/100</p>
+                          <p className="text-[14px] text-neutral-400 mt-1 font-mono">Bio-Focus {wellbeingInsight.readiness.score ?? '-'}/100</p>
                         </div>
                       </div>
 
                       <div className="rounded-xl border border-amber-900/30 bg-gradient-to-br from-amber-950/25 to-neutral-950/80 p-3.5 space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] uppercase tracking-[0.18em] text-amber-400 font-bold font-mono">Best Mode</span>
+                          <span className="text-[14px] uppercase tracking-[0.18em] text-amber-400 font-bold font-mono">Best Mode</span>
                           <Flame className="h-4 w-4 text-amber-400" />
                         </div>
                         <div>
                           <span className="text-base font-bold text-white">{wellbeingInsight.readiness.dayType}</span>
-                          <p className="text-[10px] text-neutral-400 mt-1 font-mono">{wellbeingInsight.bottleneckTag} is the main constraint</p>
+                          <p className="text-[14px] text-neutral-400 mt-1 font-mono">{wellbeingInsight.bottleneckTag} is the main constraint</p>
                         </div>
                       </div>
 
                       <div className="rounded-xl border border-emerald-900/30 bg-gradient-to-br from-emerald-950/25 to-neutral-950/80 p-3.5 space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] uppercase tracking-[0.18em] text-emerald-400 font-bold font-mono">Next Best Action</span>
+                          <span className="text-[14px] uppercase tracking-[0.18em] text-emerald-400 font-bold font-mono">Next Best Action</span>
                           <Zap className="h-4 w-4 text-emerald-400" />
                         </div>
                         <p className="text-xs text-neutral-200 leading-relaxed font-medium">{wellbeingInsight.action}</p>
@@ -750,7 +750,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                     {wellbeingInsight.risks.length > 0 && (
                       <div className="max-w-7xl mx-auto flex flex-wrap gap-2">
                         {wellbeingInsight.risks.map((r, i) => (
-                          <span key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-950/20 border border-rose-900/30 text-rose-400 text-[10px] font-bold font-mono uppercase tracking-wide">
+                          <span key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-950/20 border border-rose-900/30 text-rose-400 text-[14px] font-bold font-mono uppercase tracking-wide">
                             <AlertTriangle className="h-3 w-3" />
                             {r}
                           </span>
@@ -770,11 +770,11 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className={`grid place-items-center h-8 w-8 rounded-lg bg-black/30 border ${row.border} ${row.color}`}>{row.icon}</div>
-                            <span className={`max-w-[65%] truncate px-2 py-1 rounded-full bg-black/30 border ${row.border} ${row.color} text-[10px] font-bold font-mono`}>{row.value}</span>
+                            <span className={`max-w-[65%] truncate px-2 py-1 rounded-full bg-black/30 border ${row.border} ${row.color} text-[14px] font-bold font-mono`}>{row.value}</span>
                           </div>
                           <div className="mt-3">
-                            <span className={`text-[10px] font-bold uppercase tracking-[0.16em] font-mono ${row.color}`}>{row.label}</span>
-                            <p className="text-[11px] text-neutral-300 font-sans mt-1.5 leading-relaxed">{row.text}</p>
+                            <span className={`text-[14px] font-bold uppercase tracking-[0.16em] font-mono ${row.color}`}>{row.label}</span>
+                            <p className="text-[14px] text-neutral-300 font-sans mt-1.5 leading-relaxed">{row.text}</p>
                           </div>
                         </motion.div>
                       ))}
@@ -921,7 +921,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
 
               return parameterDefs.map((group, gIdx) => (
                 <div key={group.group} className={`space-y-2 ${gIdx > 0 ? 'pt-2' : ''}`}>
-                  <h4 className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider font-mono">{group.group}</h4>
+                  <h4 className="text-[14px] uppercase font-bold text-neutral-400 tracking-wider font-mono">{group.group}</h4>
                   {group.items.map(item => {
                     const displayValue = item.val !== null
                       ? (item.customLabel ? item.customLabel(item.val).text : `${item.val}/10`)
@@ -955,7 +955,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                                 key={n}
                                 type="button"
                                 onClick={() => handleParamChange(item.key, n, item.setter, item.val)}
-                                className={`flex-1 h-6 rounded text-[10px] font-mono font-bold transition cursor-pointer ${
+                                className={`flex-1 h-6 rounded text-[14px] font-mono font-bold transition cursor-pointer ${
                                   active
                                     ? `${dotColorClass(n).replace('text-', 'bg-').replace('-400', '-500')} text-black`
                                     : 'bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border border-neutral-850'
@@ -1014,7 +1014,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                 <p className="text-xs text-neutral-400 font-sans">Timeline of parameters changed during the day.</p>
               </div>
 
-              <div className="h-64 overflow-y-auto pr-1 space-y-2.5 font-mono text-[10px] scrollbar-thin">
+              <div className="h-64 overflow-y-auto pr-1 space-y-2.5 font-mono text-[14px] scrollbar-thin">
                 <AnimatePresence initial={false}>
                   {history.map((log) => (
                     <motion.div
@@ -1040,7 +1040,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                       </div>
                       <p className="text-neutral-400 font-sans leading-normal">{log.description}</p>
                       {log.oldVal !== 'None' && (
-                        <div className="text-[10px] text-neutral-400 mt-0.5">
+                        <div className="text-[14px] text-neutral-400 mt-0.5">
                           Transition: {log.oldVal} ➔ {log.newVal}
                         </div>
                       )}
@@ -1079,7 +1079,7 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                         onClick={() => setSelectedArchiveDate(active ? null : day.date)}
                         className={`shrink-0 px-3 py-2 rounded-lg border text-left font-mono transition ${active ? 'border-rose-500 bg-rose-950/20' : 'border-neutral-850 bg-neutral-950 hover:bg-neutral-800'}`}
                       >
-                        <div className="text-[10px] text-neutral-400">{day.date}</div>
+                        <div className="text-[14px] text-neutral-400">{day.date}</div>
                         <div className={`text-xs font-bold ${dayStatus.score === null ? 'text-neutral-400' : 'text-neutral-200'}`}>
                           {dayStatus.score === null ? `${countFilled(day)}/12` : `${dayStatus.score}/100`}
                         </div>
@@ -1140,14 +1140,14 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                       initial={{ scale: 0.95, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       exit={{ scale: 0.95, opacity: 0 }}
-                      className={`p-3 border rounded-lg flex items-start gap-2.5 font-mono text-[10px] leading-relaxed transition ${warn.bg} ${warn.borderColor}`}
+                      className={`p-3 border rounded-lg flex items-start gap-2.5 font-mono text-[14px] leading-relaxed transition ${warn.bg} ${warn.borderColor}`}
                     >
                       <div className={`mt-0.5 shrink-0 animate-pulse ${warn.color}`}>
                         {warn.icon}
                       </div>
                       <div className="space-y-0.5 min-w-0">
                         <span className={`font-bold tracking-wide uppercase ${warn.color}`}>{warn.title}</span>
-                        <p className="text-[10px] text-neutral-400 font-sans leading-relaxed">{warn.desc}</p>
+                        <p className="text-[14px] text-neutral-400 font-sans leading-relaxed">{warn.desc}</p>
                       </div>
                     </motion.div>
                   ))
@@ -1155,12 +1155,12 @@ export default function ScoreView({ repos, vercelProjects, supabase, scorecard, 
                   <motion.div 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="p-4 bg-emerald-950/10 border border-emerald-900/30 text-emerald-400 rounded-lg flex items-center gap-3 font-mono text-[10px] col-span-2 justify-center"
+                    className="p-4 bg-emerald-950/10 border border-emerald-900/30 text-emerald-400 rounded-lg flex items-center gap-3 font-mono text-[14px] col-span-2 justify-center"
                   >
                     <ShieldCheck className="h-5 w-5 text-emerald-400" />
                     <div className="text-center md:text-left">
                       <span className="font-bold">ALL BIO-SYSTEMS STABLE</span>
-                      <p className="text-[10px] text-neutral-400 font-sans mt-0.5 leading-relaxed">
+                      <p className="text-[14px] text-neutral-400 font-sans mt-0.5 leading-relaxed">
                         Metrics are aligned in optimal boundaries. Daily focus capacity is maximized. Keep it up!
                       </p>
                     </div>

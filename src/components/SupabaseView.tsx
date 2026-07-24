@@ -307,7 +307,7 @@ export default function SupabaseView({
         aria-pressed={isActive}
         aria-label={isActive ? `Clear score (currently ${value})` : `Set score to ${value}`}
         title={isActive ? 'Tap to clear' : `Set to ${value}`}
-        className={`relative flex h-5 w-5 cursor-pointer items-center justify-center rounded border text-[8px] font-bold transition ${
+        className={`relative flex h-5 w-5 cursor-pointer items-center justify-center rounded border text-[13px] font-bold transition ${
           isActive
             ? 'border-rose-400 bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,.25)]'
             : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-700 hover:text-white'
@@ -657,7 +657,7 @@ ${task}`;
             </div>
             <div>
               <h2 className="text-sm font-bold text-neutral-100 font-mono tracking-tight">Action Hub</h2>
-              <p className="text-[10px] text-neutral-500 mt-0.5 font-mono">Manage content tables, run queries on topics &amp; activities, and edit scripts.</p>
+              <p className="text-[14px] text-neutral-500 mt-0.5 font-mono">Manage content tables, run queries on topics &amp; activities, and edit scripts.</p>
             </div>
           </div>
 
@@ -680,10 +680,10 @@ ${task}`;
           return (
             <>
               <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
-                <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Total Topics</span>
+                <span className="text-[14px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Total Topics</span>
                 <div className="flex items-baseline gap-1.5 mt-1.5">
                   <span className="text-xl font-bold font-mono text-white">{totalTopics}</span>
-                  <span className="text-[10px] text-neutral-500 font-mono">across channels</span>
+                  <span className="text-[14px] text-neutral-500 font-mono">across channels</span>
                 </div>
                 <div className="w-full bg-neutral-900 rounded-full h-1 mt-2.5 overflow-hidden">
                   <div className="bg-emerald-500 h-1 rounded-full" style={{ width: totalTopics > 0 ? '100%' : '0%' }} />
@@ -691,10 +691,10 @@ ${task}`;
               </div>
 
               <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
-                <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Completion Rate</span>
+                <span className="text-[14px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Completion Rate</span>
                 <div className="flex items-baseline gap-1.5 mt-1.5">
                   <span className="text-xl font-bold font-mono text-white">{throughputPct}%</span>
-                  <span className="text-[10px] text-emerald-400 font-mono">{throughputPct >= 50 ? 'On Track' : throughputPct > 0 ? 'In Progress' : 'No Data'}</span>
+                  <span className="text-[14px] text-emerald-400 font-mono">{throughputPct >= 50 ? 'On Track' : throughputPct > 0 ? 'In Progress' : 'No Data'}</span>
                 </div>
                 <div className="w-full bg-neutral-900 rounded-full h-1 mt-2.5 overflow-hidden">
                   <div className="bg-emerald-500 h-1 rounded-full" style={{ width: `${throughputPct}%` }} />
@@ -702,10 +702,10 @@ ${task}`;
               </div>
 
               <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
-                <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Pending Actions</span>
+                <span className="text-[14px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Pending Actions</span>
                 <div className="flex items-baseline gap-1.5 mt-1.5">
                   <span className="text-xl font-bold font-mono text-white">{inProgressTopics + pendingTopics}</span>
-                  <span className="text-[10px] text-neutral-500 font-mono">items in pipeline</span>
+                  <span className="text-[14px] text-neutral-500 font-mono">items in pipeline</span>
                 </div>
                 <div className="w-full bg-neutral-900 rounded-full h-1 mt-2.5 overflow-hidden">
                   <div className="bg-emerald-500 h-1 rounded-full" style={{ width: totalTopics > 0 ? `${Math.round(((inProgressTopics + pendingTopics) / totalTopics) * 100)}%` : '0%' }} />
@@ -750,11 +750,11 @@ ${task}`;
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                   <h3 className="text-xs font-semibold text-neutral-300">Video Script Workspace</h3>
-                  <p className="text-[11px] text-neutral-500">Draft your script, measure pacing, and track estimated duration for publishing.</p>
+                  <p className="text-[14px] text-neutral-500">Draft your script, measure pacing, and track estimated duration for publishing.</p>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono text-neutral-400">Target Topic:</span>
+                  <span className="text-[14px] font-mono text-neutral-400">Target Topic:</span>
                   <select
                     value={selectedScriptTopicId}
                     disabled={isAiLoading}
@@ -772,7 +772,7 @@ ${task}`;
                     type="button"
                     onClick={() => setIsTopicFormOpen(open => !open)}
                     disabled={isAiLoading}
-                    className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-black font-mono font-bold text-[10px] rounded transition cursor-pointer flex items-center gap-1.5 shrink-0"
+                    className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-black font-mono font-bold text-[14px] rounded transition cursor-pointer flex items-center gap-1.5 shrink-0"
                   >
                     <Plus className="h-3.5 w-3.5" />
                     Add Topic
@@ -790,11 +790,11 @@ ${task}`;
                     onSubmit={handleCreateScriptTopic}
                     className="overflow-hidden"
                   >
-                    <div className="p-4 bg-neutral-900/50 border border-emerald-900/30 rounded-xl space-y-4 font-mono text-[10px]">
+                    <div className="p-4 bg-neutral-900/50 border border-emerald-900/30 rounded-xl space-y-4 font-mono text-[14px]">
                       <div className="flex items-center justify-between">
                         <div>
                           <h4 className="text-xs font-bold text-emerald-400">Create Topic</h4>
-                          <p className="text-[9px] text-neutral-500 mt-0.5">Uses the Topic Inventory fields and selects the new topic for scripting.</p>
+                          <p className="text-[13px] text-neutral-500 mt-0.5">Uses the Topic Inventory fields and selects the new topic for scripting.</p>
                         </div>
                         <button
                           type="button"
@@ -845,7 +845,7 @@ ${task}`;
                                 type="button"
                                 disabled={!newTopicChannel}
                                 onClick={() => setNewTopicLane(lane as typeof newTopicLane)}
-                                className={`flex-1 py-2 rounded border font-bold text-[9px] transition disabled:opacity-30 ${newTopicLane === lane ? 'bg-blue-600 border-blue-500 text-white' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'}`}
+                                className={`flex-1 py-2 rounded border font-bold text-[13px] transition disabled:opacity-30 ${newTopicLane === lane ? 'bg-blue-600 border-blue-500 text-white' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white'}`}
                               >
                                 {lane}
                               </button>
@@ -891,9 +891,9 @@ ${task}`;
                             {showDatePicker && (
                               <>
                                 <div className="fixed inset-0 z-40" onClick={() => setShowDatePicker(false)} />
-                                <div className="absolute right-0 mt-1.5 w-64 backdrop-blur-md bg-neutral-950/90 border border-neutral-800 rounded-xl p-3 shadow-2xl z-50 font-mono text-[9px] select-none">
+                                <div className="absolute right-0 mt-1.5 w-64 backdrop-blur-md bg-neutral-950/90 border border-neutral-800 rounded-xl p-3 shadow-2xl z-50 font-mono text-[13px] select-none">
                                   <div className="flex items-center justify-between mb-3 text-neutral-200">
-                                    <span className="font-bold text-[10px] text-neutral-200">
+                                    <span className="font-bold text-[14px] text-neutral-200">
                                       {(() => {
                                         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
                                         return `${monthNames[displayedPickerDate.month]} ${displayedPickerDate.year}`;
@@ -936,7 +936,7 @@ ${task}`;
                                       return cells;
                                     })()}
                                   </div>
-                                  <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 pt-1.5 border-t border-neutral-900/50 text-[7px] text-neutral-500">
+                                  <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 pt-1.5 border-t border-neutral-900/50 text-[12px] text-neutral-500">
                                     <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#a855f7' }} />LD Short</span>
                                     <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#eab308' }} />DW Short</span>
                                     <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#22c55e' }} />LD Members</span>
@@ -960,7 +960,7 @@ ${task}`;
                       {newTopicLane && (
                         <div className="pt-3 border-t border-neutral-800/70">
                           <span className="uppercase text-neutral-500">Revenue Streams</span>
-                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-2 font-sans text-[9px] text-neutral-400">
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-2 font-sans text-[13px] text-neutral-400">
                             {TOPIC_REVENUE_OPTIONS.filter(option => (option.lanes as readonly string[]).includes(newTopicLane)).map(option => (
                               <label key={option.key} className="flex items-center gap-1.5 cursor-pointer hover:text-white">
                                 <input
@@ -1005,7 +1005,7 @@ ${task}`;
                     type="button"
                     onClick={handleResetUsageCycle}
                     title="Start a new in-app tracking cycle (clears tracked spend, keeps your budget)"
-                    className="px-2 py-1 bg-neutral-950 border border-neutral-800 hover:border-amber-800 text-neutral-500 hover:text-amber-400 rounded text-[9px] font-mono flex items-center gap-1 transition cursor-pointer"
+                    className="px-2 py-1 bg-neutral-950 border border-neutral-800 hover:border-amber-800 text-neutral-500 hover:text-amber-400 rounded text-[13px] font-mono flex items-center gap-1 transition cursor-pointer"
                   >
                     <RotateCcw className="h-3 w-3" />
                     <span>Reset In-App Tracker</span>
@@ -1015,7 +1015,7 @@ ${task}`;
                 {/* Real Account Spend - fetched live from OpenAI */}
                 <div className="border border-amber-900/30 bg-amber-950/10 rounded-lg p-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[9px] uppercase font-bold tracking-wider text-amber-500">Real Account Spend (Month-to-date)</span>
+                    <span className="text-[13px] uppercase font-bold tracking-wider text-amber-500">Real Account Spend (Month-to-date)</span>
                     <button
                       type="button"
                       onClick={loadRealUsage}
@@ -1027,30 +1027,30 @@ ${task}`;
                     </button>
                   </div>
                   {realUsageError ? (
-                    <div className="text-[10px] text-rose-400 font-mono mt-1 leading-relaxed">{realUsageError}</div>
+                    <div className="text-[14px] text-rose-400 font-mono mt-1 leading-relaxed">{realUsageError}</div>
                   ) : realUsage ? (
                     <>
                       <div className="text-xl font-bold text-white font-mono mt-0.5">
-                        ${Number(realUsage.totalCostUSD || 0).toFixed(4)} <span className="text-[10px] text-neutral-500 uppercase">{realUsage.currency}</span>
+                        ${Number(realUsage.totalCostUSD || 0).toFixed(4)} <span className="text-[14px] text-neutral-500 uppercase">{realUsage.currency}</span>
                       </div>
-                      <div className="text-[9px] text-neutral-500 font-mono mt-0.5">
+                      <div className="text-[13px] text-neutral-500 font-mono mt-0.5">
                         {new Date(realUsage.periodStart).toLocaleDateString([], { month: 'short', day: 'numeric' })} – {new Date(realUsage.periodEnd).toLocaleDateString([], { month: 'short', day: 'numeric' })} · fetched {new Date(realUsage.fetchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </>
                   ) : (
-                    <div className="text-[10px] text-neutral-500 font-mono mt-1">{isFetchingRealUsage ? 'Fetching real spend from OpenAI…' : 'Not fetched yet.'}</div>
+                    <div className="text-[14px] text-neutral-500 font-mono mt-1">{isFetchingRealUsage ? 'Fetching real spend from OpenAI…' : 'Not fetched yet.'}</div>
                   )}
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                   <div className="border border-neutral-900 rounded-lg p-2.5 bg-neutral-950/60">
-                    <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-500">In-App Est. Spend</span>
+                    <span className="text-[13px] uppercase font-bold tracking-wider text-neutral-500">In-App Est. Spend</span>
                     <div className="text-sm font-bold text-white font-mono mt-0.5">${Number(aiUsage.totalCostUSD || 0).toFixed(4)}</div>
                   </div>
 
                   <div className="border border-neutral-900 rounded-lg p-2.5 bg-neutral-950/60">
                     <div className="flex items-center justify-between">
-                      <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-500">Budget</span>
+                      <span className="text-[13px] uppercase font-bold tracking-wider text-neutral-500">Budget</span>
                       {!isEditingBudget && (
                         <button
                           type="button"
@@ -1087,7 +1087,7 @@ ${task}`;
                   </div>
 
                   <div className="border border-neutral-900 rounded-lg p-2.5 bg-neutral-950/60">
-                    <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-500">Remaining</span>
+                    <span className="text-[13px] uppercase font-bold tracking-wider text-neutral-500">Remaining</span>
                     <div className={`text-sm font-bold font-mono mt-0.5 ${
                       aiUsage.budgetUSD === null ? 'text-neutral-500' : (Number(aiUsage.budgetUSD) - Number(aiUsage.totalCostUSD || 0)) < 0 ? 'text-rose-400' : 'text-emerald-400'
                     }`}>
@@ -1096,20 +1096,20 @@ ${task}`;
                   </div>
 
                   <div className="border border-neutral-900 rounded-lg p-2.5 bg-neutral-950/60">
-                    <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-500">Tokens Used</span>
+                    <span className="text-[13px] uppercase font-bold tracking-wider text-neutral-500">Tokens Used</span>
                     <div className="text-sm font-bold text-white font-mono mt-0.5">{Number(aiUsage.totalTokens || 0).toLocaleString()}</div>
                   </div>
                 </div>
 
                 {aiUsage.lastCall ? (
-                  <div className="text-[10px] text-neutral-500 font-mono border-t border-neutral-900 pt-2">
+                  <div className="text-[14px] text-neutral-500 font-mono border-t border-neutral-900 pt-2">
                     Last call ({new Date(aiUsage.lastCall.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}):{' '}
                     <span className="text-neutral-300">{aiUsage.lastCall.model}</span>{' - '}
                     {Number(aiUsage.lastCall.promptTokens || 0).toLocaleString()} in / {Number(aiUsage.lastCall.completionTokens || 0).toLocaleString()} out{' '}
                     ({Number(aiUsage.lastCall.totalTokens || 0).toLocaleString()} tokens) · ${Number(aiUsage.lastCall.costUSD || 0).toFixed(5)} · {aiUsage.callCount} call{aiUsage.callCount === 1 ? '' : 's'} this cycle
                   </div>
                 ) : (
-                  <div className="text-[10px] text-neutral-600 font-mono border-t border-neutral-900 pt-2 italic">
+                  <div className="text-[14px] text-neutral-600 font-mono border-t border-neutral-900 pt-2 italic">
                     No AI calls made yet this cycle - cost estimates use published per-token pricing since OpenAI doesn't return a dollar amount directly.
                   </div>
                 )}
@@ -1126,7 +1126,7 @@ ${task}`;
                         onClick={() => setIsPresetDropdownOpen(open => !open)}
                         className="w-full flex items-center gap-2 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 rounded px-2.5 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
                       >
-                        <span className="text-[10px] text-neutral-500 font-mono uppercase shrink-0">Preset:</span>
+                        <span className="text-[14px] text-neutral-500 font-mono uppercase shrink-0">Preset:</span>
                         <span className="flex-1 text-left text-xs text-neutral-200 font-mono truncate">
                           {selectedPresetId ? aiPresets.find(p => p.id === selectedPresetId)?.name : '- No preset (typed instruction) -'}
                         </span>
@@ -1146,7 +1146,7 @@ ${task}`;
                               <span>- No preset (typed instruction) -</span>
                             </button>
                             {aiPresets.length === 0 ? (
-                              <div className="px-3 py-2 text-[10px] font-mono text-neutral-600 italic">No saved presets yet.</div>
+                              <div className="px-3 py-2 text-[14px] font-mono text-neutral-600 italic">No saved presets yet.</div>
                             ) : (
                               aiPresets.map(preset => (
                                 <button
@@ -1170,7 +1170,7 @@ ${task}`;
                         onClick={() => { setIsSavingPreset(true); setPresetNameDraft(''); }}
                         disabled={isAiLoading || !customInstruction.trim()}
                         title="Save the current instruction as a new named preset"
-                        className="px-2.5 py-1.5 bg-neutral-950 border border-neutral-800 hover:border-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed text-neutral-300 hover:text-emerald-400 font-mono text-[10px] rounded transition cursor-pointer flex items-center gap-1"
+                        className="px-2.5 py-1.5 bg-neutral-950 border border-neutral-800 hover:border-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed text-neutral-300 hover:text-emerald-400 font-mono text-[14px] rounded transition cursor-pointer flex items-center gap-1"
                       >
                         <BookmarkPlus className="h-3 w-3" />
                         <span>Save New</span>
@@ -1182,7 +1182,7 @@ ${task}`;
                             onClick={handleUpdateSelectedPreset}
                             disabled={isAiLoading || !customInstruction.trim()}
                             title="Overwrite this preset with the current instruction text"
-                            className="px-2.5 py-1.5 bg-neutral-950 border border-neutral-800 hover:border-blue-800 disabled:opacity-40 disabled:cursor-not-allowed text-neutral-300 hover:text-blue-400 font-mono text-[10px] rounded transition cursor-pointer flex items-center gap-1"
+                            className="px-2.5 py-1.5 bg-neutral-950 border border-neutral-800 hover:border-blue-800 disabled:opacity-40 disabled:cursor-not-allowed text-neutral-300 hover:text-blue-400 font-mono text-[14px] rounded transition cursor-pointer flex items-center gap-1"
                           >
                             <Save className="h-3 w-3" />
                             <span>Update</span>
@@ -1203,7 +1203,7 @@ ${task}`;
                   {/* Inline "Save New Preset" name form */}
                   {isSavingPreset && (
                     <div ref={savePresetFormRef} className="flex items-center gap-2 bg-neutral-950 border border-emerald-900/40 rounded px-2.5 py-1.5">
-                      <span className="text-[10px] text-emerald-500 font-mono uppercase shrink-0">Preset Name:</span>
+                      <span className="text-[14px] text-emerald-500 font-mono uppercase shrink-0">Preset Name:</span>
                       <input
                         type="text"
                         autoFocus
@@ -1217,7 +1217,7 @@ ${task}`;
                         type="button"
                         onClick={handleSaveNewPreset}
                         disabled={!presetNameDraft.trim()}
-                        className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-black font-mono font-bold text-[10px] rounded transition cursor-pointer"
+                        className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-black font-mono font-bold text-[14px] rounded transition cursor-pointer"
                       >
                         Save
                       </button>
@@ -1234,7 +1234,7 @@ ${task}`;
                   <div className="flex flex-col md:flex-row items-center gap-3">
                     {/* Custom AI Instructions Input Box */}
                     <div className="flex-1 w-full flex items-center gap-2 bg-neutral-950 border border-neutral-800 rounded px-2.5 py-1.5 focus-within:border-emerald-800 transition">
-                      <span className="text-[10px] text-neutral-500 font-mono uppercase shrink-0">Custom AI Rule:</span>
+                      <span className="text-[14px] text-neutral-500 font-mono uppercase shrink-0">Custom AI Rule:</span>
                       <input
                         type="text"
                         value={customInstruction}
@@ -1249,7 +1249,7 @@ ${task}`;
                     <div className="flex items-center gap-3 shrink-0">
                       <label
                         title={!scriptText.trim() ? 'Write or paste a script first to find sources for it' : 'Verify real sources for the current script instead of generating/rewriting it'}
-                        className={`flex items-center gap-1.5 text-[9px] font-mono uppercase select-none ${!scriptText.trim() ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer text-neutral-400 hover:text-neutral-200'}`}
+                        className={`flex items-center gap-1.5 text-[13px] font-mono uppercase select-none ${!scriptText.trim() ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer text-neutral-400 hover:text-neutral-200'}`}
                       >
                         <input
                           type="checkbox"
@@ -1264,7 +1264,7 @@ ${task}`;
                         onClick={handleGetResponse}
                         disabled={isAiLoading || isSourcesLoading || !selectedScriptTopicId}
                         title={findSourcesMode ? 'Find real, verified sources for the current script' : 'Runs the preset or typed instruction above to generate/rewrite the script'}
-                        className={`px-3 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed font-mono font-bold text-[10px] rounded transition cursor-pointer flex items-center gap-1 ${
+                        className={`px-3 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed font-mono font-bold text-[14px] rounded transition cursor-pointer flex items-center gap-1 ${
                           findSourcesMode ? 'bg-blue-500 hover:bg-blue-600 text-black' : 'bg-emerald-500 hover:bg-emerald-600 text-black'
                         }`}
                       >
@@ -1277,28 +1277,28 @@ ${task}`;
 
               {/* AI Processing and Error Display Banner */}
               {isAiLoading && (
-                <div className="bg-emerald-950/20 border border-emerald-900/30 rounded-xl p-3 flex items-center gap-3 font-mono text-[10px] text-emerald-400 animate-pulse">
+                <div className="bg-emerald-950/20 border border-emerald-900/30 rounded-xl p-3 flex items-center gap-3 font-mono text-[14px] text-emerald-400 animate-pulse">
                   <div className="h-2 w-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
                   <span>AI Core is compiling data model and calling OpenAI (gpt-4o-mini)... Please wait.</span>
                 </div>
               )}
 
               {aiError && (
-                <div className="bg-rose-950/20 border border-rose-900/30 rounded-xl p-3 flex items-center gap-3 font-mono text-[10px] text-rose-400">
+                <div className="bg-rose-950/20 border border-rose-900/30 rounded-xl p-3 flex items-center gap-3 font-mono text-[14px] text-rose-400">
                   <AlertCircle className="h-4 w-4 text-rose-500 shrink-0" />
                   <span className="truncate">AI Request Error: {aiError}</span>
                 </div>
               )}
 
               {isSourcesLoading && (
-                <div className="bg-blue-950/20 border border-blue-900/30 rounded-xl p-3 flex items-center gap-3 font-mono text-[10px] text-blue-400 animate-pulse">
+                <div className="bg-blue-950/20 border border-blue-900/30 rounded-xl p-3 flex items-center gap-3 font-mono text-[14px] text-blue-400 animate-pulse">
                   <div className="h-2 w-2 rounded-full bg-blue-400 animate-ping shrink-0" />
                   <span>Searching the live web for verified sources and checking every claim. This can take up to a minute...</span>
                 </div>
               )}
 
               {sourcesError && (
-                <div className="bg-rose-950/20 border border-rose-900/30 rounded-xl p-3 flex items-center gap-3 font-mono text-[10px] text-rose-400">
+                <div className="bg-rose-950/20 border border-rose-900/30 rounded-xl p-3 flex items-center gap-3 font-mono text-[14px] text-rose-400">
                   <AlertCircle className="h-4 w-4 text-rose-500 shrink-0" />
                   <span className="truncate">Source Search Error: {sourcesError}</span>
                 </div>
@@ -1317,7 +1317,7 @@ ${task}`;
                   />
                   
                   {selectedScriptTopicId && (
-                    <div className="flex justify-between items-center text-[10px] font-mono text-neutral-500">
+                    <div className="flex justify-between items-center text-[14px] font-mono text-neutral-500">
                       <div className="flex items-center gap-1.5">
                         <span className="relative flex h-2 w-2">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -1362,13 +1362,13 @@ ${task}`;
                 </div>
 
                 {/* Right Analytics Sidebar Card */}
-                <div className="lg:w-[280px] bg-neutral-950 border border-neutral-800 rounded-lg p-4 flex flex-col justify-between font-mono text-[10px] text-neutral-400 space-y-4">
+                <div className="lg:w-[280px] bg-neutral-950 border border-neutral-800 rounded-lg p-4 flex flex-col justify-between font-mono text-[14px] text-neutral-400 space-y-4">
                   <div className="space-y-4">
-                    <span className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider">Script Analytics</span>
+                    <span className="text-[14px] uppercase font-bold text-neutral-500 tracking-wider">Script Analytics</span>
                     
                     {/* Est. Duration Stat Card */}
                     <div className="p-3 bg-neutral-900/40 border border-neutral-850 rounded-lg space-y-1">
-                      <span className="text-neutral-500 uppercase text-[9px]">Estimated Duration</span>
+                      <span className="text-neutral-500 uppercase text-[13px]">Estimated Duration</span>
                       {(() => {
                         const words = scriptText.trim() === "" ? 0 : scriptText.trim().split(/\s+/).length;
                         const totalSecs = Math.round((words / 150) * 60);
@@ -1388,13 +1388,13 @@ ${task}`;
                     {/* Word / Char Counter Grid */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="p-3 bg-neutral-900/20 border border-neutral-850 rounded-lg">
-                        <span className="text-neutral-500 block mb-0.5 text-[8px] uppercase">Word Count</span>
+                        <span className="text-neutral-500 block mb-0.5 text-[13px] uppercase">Word Count</span>
                         <span className="text-lg font-bold text-white">
                           {scriptText.trim() === "" ? 0 : scriptText.trim().split(/\s+/).length}
                         </span>
                       </div>
                       <div className="p-3 bg-neutral-900/20 border border-neutral-850 rounded-lg">
-                        <span className="text-neutral-500 block mb-0.5 text-[8px] uppercase">Characters</span>
+                        <span className="text-neutral-500 block mb-0.5 text-[13px] uppercase">Characters</span>
                         <span className="text-lg font-bold text-white">
                           {scriptText.length}
                         </span>
@@ -1402,7 +1402,7 @@ ${task}`;
                     </div>
 
                     {/* Classification details */}
-                    <div className="p-3 bg-neutral-900/10 border border-neutral-900 rounded-lg space-y-2 text-[9px]">
+                    <div className="p-3 bg-neutral-900/10 border border-neutral-900 rounded-lg space-y-2 text-[13px]">
                       <div className="flex justify-between border-b border-neutral-850 pb-1.5">
                         <span className="text-neutral-500">Video Format</span>
                         {(() => {
@@ -1426,7 +1426,7 @@ ${task}`;
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t border-neutral-900 text-[8px] text-neutral-600 leading-normal">
+                  <div className="pt-2 border-t border-neutral-900 text-[13px] text-neutral-600 leading-normal">
                     Tip: speaking speed defaults to standard conversational rate. Classifications adapt dynamically based on your content guidelines.
                   </div>
                 </div>
@@ -1442,7 +1442,7 @@ ${task}`;
                   <div className="flex items-center justify-between border-b border-neutral-900 pb-2">
                     <div className="flex items-center gap-2">
                       <Link2 className="h-4 w-4 text-blue-400" />
-                      <span className="text-[10px] uppercase font-bold text-blue-400 tracking-wider font-mono">Verified Sources</span>
+                      <span className="text-[14px] uppercase font-bold text-blue-400 tracking-wider font-mono">Verified Sources</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
@@ -1457,14 +1457,14 @@ ${task}`;
                             timestamp: new Date().toISOString()
                           });
                         }}
-                        className="px-2 py-1 bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-300 rounded transition cursor-pointer text-[10px] font-mono"
+                        className="px-2 py-1 bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-300 rounded transition cursor-pointer text-[14px] font-mono"
                       >
                         Copy
                       </button>
                       <button
                         type="button"
                         onClick={() => setSourcesResult(null)}
-                        className="px-2 py-1 bg-neutral-900 border border-neutral-800 hover:border-rose-900/60 hover:text-rose-400 text-neutral-400 rounded transition cursor-pointer text-[10px] font-mono"
+                        className="px-2 py-1 bg-neutral-900 border border-neutral-800 hover:border-rose-900/60 hover:text-rose-400 text-neutral-400 rounded transition cursor-pointer text-[14px] font-mono"
                       >
                         Dismiss
                       </button>
@@ -1532,15 +1532,15 @@ ${task}`;
                 setSaveNotification({ message: "🎯 Content Cycle Goals configured successfully!", type: 'success' });
                 setTimeout(() => setSaveNotification(null), 3000);
               }}
-              className="space-y-5 flex-1 flex flex-col font-mono text-[10px]"
+              className="space-y-5 flex-1 flex flex-col font-mono text-[14px]"
             >
               <div>
                 <h3 className="text-xs font-semibold text-neutral-300">🎯 Content Cycle Target Goals</h3>
-                <p className="text-[11px] text-neutral-500 font-sans mt-0.5">Specify video frequency targets for each channel. Unconfigured streams default to "Free Flow" mode.</p>
+                <p className="text-[14px] text-neutral-500 font-sans mt-0.5">Specify video frequency targets for each channel. Unconfigured streams default to "Free Flow" mode.</p>
               </div>
 
               {saveNotification && (
-                <div className={`p-2.5 rounded-lg border text-[10px] flex items-center gap-2 animate-bounce transition-all ${
+                <div className={`p-2.5 rounded-lg border text-[14px] flex items-center gap-2 animate-bounce transition-all ${
                   saveNotification.type === 'success' ? 'bg-emerald-950/40 border-emerald-900/50 text-emerald-400' :
                   saveNotification.type === 'warning' ? 'bg-rose-950/40 border-rose-900/50 text-rose-400' :
                   'bg-neutral-900 border-neutral-800 text-neutral-300'
@@ -1553,7 +1553,7 @@ ${task}`;
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 {/* Duration Column */}
                 <div className="bg-neutral-950 border border-neutral-900 rounded-lg p-4 space-y-4">
-                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block border-b border-neutral-900 pb-1.5">1. Content Cycle</span>
+                  <span className="text-[14px] font-bold text-neutral-400 uppercase tracking-wider block border-b border-neutral-900 pb-1.5">1. Content Cycle</span>
                   
                   <div className="space-y-3">
                     <label className="flex items-center gap-2 cursor-pointer text-neutral-300">
@@ -1624,7 +1624,7 @@ ${task}`;
 
                 {/* LearnDriven Column */}
                 <div className="bg-neutral-950 border border-neutral-900 rounded-lg p-4 space-y-4">
-                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block border-b border-neutral-900 pb-1.5">2. LearnDriven Targets</span>
+                  <span className="text-[14px] font-bold text-neutral-400 uppercase tracking-wider block border-b border-neutral-900 pb-1.5">2. LearnDriven Targets</span>
                   
                   <div className="space-y-3">
                     <div>
@@ -1692,7 +1692,7 @@ ${task}`;
 
                 {/* DecodeWorthy Column */}
                 <div className="bg-neutral-950 border border-neutral-900 rounded-lg p-4 space-y-4">
-                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider block border-b border-neutral-900 pb-1.5">3. DecodeWorthy Targets</span>
+                  <span className="text-[14px] font-bold text-neutral-400 uppercase tracking-wider block border-b border-neutral-900 pb-1.5">3. DecodeWorthy Targets</span>
                   
                   <div className="space-y-3">
                     <div>

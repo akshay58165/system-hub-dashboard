@@ -220,7 +220,7 @@ export default function CommandPalette({
                 }}
                 className="w-full bg-transparent border-none outline-none text-white text-xs py-1"
               />
-              <span className="px-1.5 py-0.5 bg-neutral-900 border border-neutral-800 text-neutral-500 rounded text-[10px]">ESC</span>
+              <span className="px-1.5 py-0.5 bg-neutral-900 border border-neutral-800 text-neutral-500 rounded text-[14px]">ESC</span>
             </div>
 
             {/* Results */}
@@ -248,12 +248,12 @@ export default function CommandPalette({
                         <span className={`block font-semibold ${idx === selectedIndex ? 'text-white' : 'text-neutral-200'}`}>
                           {item.title}
                         </span>
-                        <span className="block text-[10px] text-neutral-500 truncate mt-0.5">{item.subtitle}</span>
+                        <span className="block text-[14px] text-neutral-500 truncate mt-0.5">{item.subtitle}</span>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className="px-1.5 py-0.2 bg-neutral-900 border border-neutral-800 text-[9px] text-neutral-500 uppercase rounded font-semibold">
+                      <span className="px-1.5 py-0.2 bg-neutral-900 border border-neutral-800 text-[13px] text-neutral-500 uppercase rounded font-semibold">
                         {item.category}
                       </span>
                       {idx === selectedIndex && (
@@ -266,7 +266,7 @@ export default function CommandPalette({
             </div>
 
             {/* Hint Footer */}
-            <div className="px-4 py-2 bg-neutral-950 border-t border-neutral-800 flex justify-between items-center text-[10px] text-neutral-500">
+            <div className="px-4 py-2 bg-neutral-950 border-t border-neutral-800 flex justify-between items-center text-[14px] text-neutral-500">
               <div className="flex gap-4">
                 <span>↑↓ Navigate</span>
                 <span>ENTER Select</span>

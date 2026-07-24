@@ -344,7 +344,7 @@ export default function FloatingTaskTimer({
           onMouseDown={onMouseDown}
           onTouchStart={onTouchStart}
         >
-          <div className="relative overflow-hidden rounded-3xl border border-rose-400/20 bg-rose-950/32 font-mono text-[11px] font-bold text-rose-50 shadow-[0_0_42px_rgba(244,63,94,.22)] backdrop-blur-3xl">
+          <div className="relative overflow-hidden rounded-3xl border border-rose-400/20 bg-rose-950/32 font-mono text-[14px] font-bold text-rose-50 shadow-[0_0_42px_rgba(244,63,94,.22)] backdrop-blur-3xl">
             <TimerGlow />
             <div className="relative">
               <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/5 px-2.5 py-1.5">
@@ -352,7 +352,7 @@ export default function FloatingTaskTimer({
                   type="button"
                   onMouseDown={e => e.stopPropagation()}
                   onClick={() => onOpenSessions?.()}
-                  className="flex items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-rose-100/80 transition hover:bg-white/10 hover:text-white"
+                  className="flex items-center gap-1.5 rounded-full px-2 py-1 text-[13px] font-bold uppercase tracking-[0.18em] text-rose-100/80 transition hover:bg-white/10 hover:text-white"
                   title="Open Sessions"
                   aria-label="Open Sessions"
                 >
@@ -397,7 +397,7 @@ export default function FloatingTaskTimer({
                 <div className="flex flex-1 items-center gap-2 bg-black/10 px-3 py-2.5">
                   <Clock3 className={`h-3.5 w-3.5 shrink-0 ${isMainRunning ? 'text-rose-300' : 'text-rose-200/60'}`} />
                   <div className="flex flex-col">
-                    <span className="text-[9px] uppercase tracking-wider text-rose-200/70">Day timer</span>
+                    <span className="text-[13px] uppercase tracking-wider text-rose-200/70">Day timer</span>
                     <span className={`text-sm font-black tabular-nums ${isMainRunning ? 'text-white' : 'text-rose-50'}`}>
                       {fmt(mainActiveMs)}
                     </span>
@@ -410,14 +410,14 @@ export default function FloatingTaskTimer({
       )}
 
       {desktopWindow && !desktopWindow.closed && createPortal(
-        <div className="relative flex h-full min-h-[112px] w-full items-stretch overflow-hidden rounded-none border border-rose-400/20 bg-rose-950/35 font-mono text-[11px] font-bold text-rose-50 backdrop-blur-3xl">
+        <div className="relative flex h-full min-h-[112px] w-full items-stretch overflow-hidden rounded-none border border-rose-400/20 bg-rose-950/35 font-mono text-[14px] font-bold text-rose-50 backdrop-blur-3xl">
           <TimerGlow />
           <div className="relative flex min-w-0 flex-1 flex-col">
             <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/5 px-3 py-2">
               <button
                 type="button"
                 onClick={() => onOpenSessions?.()}
-                className="flex items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-rose-100/80 transition hover:bg-white/10 hover:text-white"
+                className="flex items-center gap-1.5 rounded-full px-2 py-1 text-[13px] font-bold uppercase tracking-[0.18em] text-rose-100/80 transition hover:bg-white/10 hover:text-white"
                 title="Open Sessions"
                 aria-label="Open Sessions"
               >
@@ -455,7 +455,7 @@ export default function FloatingTaskTimer({
             <div className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2.5">
               <Clock3 className={`h-4 w-4 ${isMainRunning ? 'text-rose-300' : 'text-rose-200/60'}`} />
               <div className="flex flex-col">
-                <span className="text-[9px] uppercase tracking-wider text-rose-200/70">Day timer</span>
+                <span className="text-[13px] uppercase tracking-wider text-rose-200/70">Day timer</span>
                 <span className="text-lg font-black tabular-nums text-rose-50">{fmt(mainActiveMs)}</span>
               </div>
             </div>

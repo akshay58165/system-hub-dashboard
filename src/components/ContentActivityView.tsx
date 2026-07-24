@@ -101,7 +101,7 @@ export default function ContentActivityView({ activities, topics, onShowBacklog,
             { id: 'topics', label: 'Topics Touched', count: stats.uniqueTopics, color: 'text-purple-400 border-purple-950/40 bg-purple-950/10' }
           ].map(badge => (
             <div key={badge.id} className={`border rounded-lg p-3 flex flex-col justify-between font-mono ${badge.color}`}>
-              <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">{badge.label}</span>
+              <span className="text-[14px] uppercase font-bold tracking-wider opacity-60">{badge.label}</span>
               <span className="text-xl font-bold mt-1">{badge.count}</span>
             </div>
           ))}
@@ -139,9 +139,9 @@ export default function ContentActivityView({ activities, topics, onShowBacklog,
         <div className="bg-neutral-900/80 px-4 py-3 border-b border-neutral-850 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ListChecks className="h-4 w-4 text-neutral-400" />
-            <span className="text-[11px] text-neutral-400 font-mono font-semibold">Content actions</span>
+            <span className="text-[14px] text-neutral-400 font-mono font-semibold">Content actions</span>
           </div>
-          <span className="px-2 py-0.5 bg-neutral-900 text-neutral-400 font-mono text-[10px] border border-neutral-900 rounded-full">
+          <span className="px-2 py-0.5 bg-neutral-900 text-neutral-400 font-mono text-[14px] border border-neutral-900 rounded-full">
             {filtered.length} of {activities.length}
           </span>
         </div>
@@ -187,12 +187,12 @@ export default function ContentActivityView({ activities, topics, onShowBacklog,
                         </button>
                       </p>
                       <div className="flex items-center gap-2.5 mt-1">
-                        <span className={`px-1.5 py-0.2 rounded font-mono text-[9px] uppercase font-semibold tracking-wider ${
+                        <span className={`px-1.5 py-0.2 rounded font-mono text-[13px] uppercase font-semibold tracking-wider ${
                           isLD ? 'bg-blue-950/40 text-blue-400 border border-blue-900/20' : 'bg-emerald-950/40 text-emerald-400 border border-emerald-900/20'
                         }`}>
                           {act.channel}
                         </span>
-                        <span className="text-neutral-500 text-[10px] italic">
+                        <span className="text-neutral-500 text-[14px] italic">
                           {dateStr} - {timeStr}
                         </span>
                       </div>

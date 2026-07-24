@@ -169,7 +169,7 @@ export default function TopicIntelligenceView({ videos }: TopicIntelligenceProps
             <Sparkles className="h-4 w-4" />
             <span>Top Repeat Topics</span>
           </div>
-          <p className="text-[11px] text-neutral-400 font-sans leading-relaxed">
+          <p className="text-[14px] text-neutral-400 font-sans leading-relaxed">
             {topicStatsList.filter(t => t.recommendation === 'Make more').map(t => t.topic).join(', ') || 'None detected yet.'}
           </p>
         </div>
@@ -180,7 +180,7 @@ export default function TopicIntelligenceView({ videos }: TopicIntelligenceProps
             <TrendingUp className="h-4 w-4" />
             <span>Shorts to Long</span>
           </div>
-          <p className="text-[11px] text-neutral-400 font-sans leading-relaxed">
+          <p className="text-[14px] text-neutral-400 font-sans leading-relaxed">
             {topicStatsList.filter(t => t.recommendation === 'Make long video').map(t => t.topic).join(', ') || 'None detected yet.'}
           </p>
         </div>
@@ -191,7 +191,7 @@ export default function TopicIntelligenceView({ videos }: TopicIntelligenceProps
             <Layers className="h-4 w-4" />
             <span>Members-Only Potential</span>
           </div>
-          <p className="text-[11px] text-neutral-400 font-sans leading-relaxed">
+          <p className="text-[14px] text-neutral-400 font-sans leading-relaxed">
             {topicStatsList.filter(t => t.recommendation === 'Make members-only').map(t => t.topic).join(', ') || 'None detected yet.'}
           </p>
         </div>
@@ -202,7 +202,7 @@ export default function TopicIntelligenceView({ videos }: TopicIntelligenceProps
             <TrendingDown className="h-4 w-4" />
             <span>Pause / Avoid</span>
           </div>
-          <p className="text-[11px] text-neutral-400 font-sans leading-relaxed">
+          <p className="text-[14px] text-neutral-400 font-sans leading-relaxed">
             {topicStatsList.filter(t => t.recommendation === 'Avoid' || t.recommendation === 'Pause').map(t => t.topic).join(', ') || 'None.'}
           </p>
         </div>
@@ -213,7 +213,7 @@ export default function TopicIntelligenceView({ videos }: TopicIntelligenceProps
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs font-sans">
             <thead>
-              <tr className="bg-neutral-950 text-neutral-400 uppercase font-mono text-[9px] border-b border-neutral-850">
+              <tr className="bg-neutral-950 text-neutral-400 uppercase font-mono text-[13px] border-b border-neutral-850">
                 <th className="p-4 font-semibold">Topic Domain</th>
                 <th className="p-4 font-semibold text-center">Videos</th>
                 <th className="p-4 font-semibold">Avg Views</th>
@@ -237,19 +237,19 @@ export default function TopicIntelligenceView({ videos }: TopicIntelligenceProps
                     <td className="p-4 font-bold font-mono">{t.avgViews.toLocaleString()}</td>
                     <td className="p-4 text-emerald-400 font-bold font-mono">+{t.avgSubscribers}</td>
                     <td className="p-4 text-purple-400 font-bold font-mono">
-                      ₹{t.revenuePerEffortHour} <span className="text-[9px] text-neutral-500 font-normal">/hr</span>
+                      ₹{t.revenuePerEffortHour} <span className="text-[13px] text-neutral-500 font-normal">/hr</span>
                     </td>
                     <td className="p-4 font-mono text-neutral-400 flex items-center gap-1 mt-1">
                       <Timer className="h-3.5 w-3.5 text-neutral-500" />
                       <span>{t.avgEffortHours} hrs avg</span>
                     </td>
                     <td className="p-4 text-center">
-                      <div className="inline-flex items-center justify-center h-6 w-12 bg-neutral-900 border border-neutral-850 rounded font-mono font-bold text-white text-[10px]">
+                      <div className="inline-flex items-center justify-center h-6 w-12 bg-neutral-900 border border-neutral-850 rounded font-mono font-bold text-white text-[14px]">
                         {t.avgEvergreenScore}%
                       </div>
                     </td>
                     <td className="p-4 text-right">
-                      <span className={`px-2.5 py-1 rounded-lg border text-[9px] font-mono font-bold uppercase tracking-wider ${t.recommendationColor}`}>
+                      <span className={`px-2.5 py-1 rounded-lg border text-[13px] font-mono font-bold uppercase tracking-wider ${t.recommendationColor}`}>
                         {t.recommendation}
                       </span>
                     </td>

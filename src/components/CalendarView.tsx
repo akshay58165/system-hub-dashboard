@@ -199,7 +199,7 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
         <div className="flex items-start gap-2 p-2">
           <div className="min-w-0 flex-1 space-y-1.5">
             <div className="flex min-w-0 items-start gap-2">
-              <span className={`min-w-0 flex-1 break-words text-[12px] font-black leading-tight ${getTopicDisplayColor(topic)} line-clamp-2`}>
+              <span className={`min-w-0 flex-1 break-words text-[15px] font-black leading-tight ${getTopicDisplayColor(topic)} line-clamp-2`}>
                 {topic.name}
               </span>
             </div>
@@ -207,7 +207,7 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
               {(['hook', 'script', 'shoot', 'edit'] as const).map(stage => (
                 <div
                   key={stage}
-                  className={`flex h-4 items-center justify-center rounded border text-[7px] font-black uppercase tracking-[0.16em] ${boxClass(stageStates[stage])}`}
+                  className={`flex h-4 items-center justify-center rounded border text-[12px] font-black uppercase tracking-[0.16em] ${boxClass(stageStates[stage])}`}
                   title={`${stage.toUpperCase()} ${stageStates[stage]}`}
                 >
                   {stage === 'shoot' ? 'C' : stage[0].toUpperCase()}
@@ -215,7 +215,7 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
               ))}
             </div>
             {countdown && (
-              <div className={`inline-flex w-full items-center justify-center rounded border px-2 py-0.5 text-[8px] font-mono font-bold ${countdownClass}`}>
+              <div className={`inline-flex w-full items-center justify-center rounded border px-2 py-0.5 text-[13px] font-mono font-bold ${countdownClass}`}>
                 {countdown}
               </div>
             )}
@@ -251,13 +251,13 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
       <div className="flex flex-col gap-4 rounded-2xl border border-neutral-800 bg-neutral-950/70 p-4 shadow-2xl shadow-black/20 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <span className="rounded-full border border-emerald-900/40 bg-emerald-950/30 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-300">
+            <span className="rounded-full border border-emerald-900/40 bg-emerald-950/30 px-2.5 py-1 text-[14px] font-bold uppercase tracking-[0.3em] text-emerald-300">
               Calendar
             </span>
-            <span className="rounded-full border border-neutral-800 bg-neutral-900/80 px-2.5 py-1 text-[10px] font-mono text-neutral-400">
+            <span className="rounded-full border border-neutral-800 bg-neutral-900/80 px-2.5 py-1 text-[14px] font-mono text-neutral-400">
               {unscheduledTopics.length} unscheduled
             </span>
-            <span className="rounded-full border border-neutral-800 bg-neutral-900/80 px-2.5 py-1 text-[10px] font-mono text-neutral-400">
+            <span className="rounded-full border border-neutral-800 bg-neutral-900/80 px-2.5 py-1 text-[14px] font-mono text-neutral-400">
               {scheduledCount} on calendar
             </span>
           </div>
@@ -283,8 +283,8 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
             <div className="flex items-center gap-2 min-w-0">
               <CalendarIcon className="h-4 w-4 shrink-0 text-emerald-400" />
               <div className="min-w-0">
-                <div className="text-[10px] font-bold uppercase tracking-[0.28em] text-neutral-500">Unscheduled</div>
-                <div className="text-[11px] font-mono text-neutral-400">{unscheduledTopics.length} topics</div>
+                <div className="text-[14px] font-bold uppercase tracking-[0.28em] text-neutral-500">Unscheduled</div>
+                <div className="text-[14px] font-mono text-neutral-400">{unscheduledTopics.length} topics</div>
               </div>
             </div>
             <button
@@ -299,7 +299,7 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
 
           <div className="max-h-[calc(100vh-12rem)] space-y-2 overflow-y-auto p-3">
             {unscheduledTopics.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-white/10 bg-white/5 p-4 text-center text-[11px] text-neutral-500">
+              <div className="rounded-xl border border-dashed border-white/10 bg-white/5 p-4 text-center text-[14px] text-neutral-500">
                 Everything has a due date.
               </div>
             ) : (
@@ -327,7 +327,7 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
                 <ChevronLeft className="h-4 w-4" />
               </button>
               <div>
-                <div className="text-[10px] uppercase tracking-[0.3em] text-neutral-500">Calendar view</div>
+                <div className="text-[14px] uppercase tracking-[0.3em] text-neutral-500">Calendar view</div>
                 <div className="text-lg font-black text-white">{monthLabel}</div>
               </div>
               <button
@@ -347,7 +347,7 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
               </button>
             </div>
 
-            <div className="flex items-center gap-2 text-[10px] font-mono text-neutral-500">
+            <div className="flex items-center gap-2 text-[14px] font-mono text-neutral-500">
               <span className="rounded-full border border-neutral-800 bg-neutral-950 px-2 py-1">Drop to set due date</span>
               <span className="rounded-full border border-neutral-800 bg-neutral-950 px-2 py-1">Click a topic to edit</span>
             </div>
@@ -391,7 +391,7 @@ export default function CalendarView({ topics, setTopics, onCreateTopic, onEditT
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="space-y-0.5">
-                          <div className="text-[9px] font-bold uppercase tracking-[0.32em] text-neutral-500">
+                          <div className="text-[13px] font-bold uppercase tracking-[0.32em] text-neutral-500">
                             {cell.weekdayLabel}
                           </div>
                           <span className={`text-sm font-black ${isToday ? 'text-emerald-300' : 'text-white'}`}>{cell.dayNumber}</span>

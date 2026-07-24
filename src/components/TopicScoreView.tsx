@@ -192,7 +192,7 @@ function ScorePicker({
               aria-pressed={active}
               aria-label={active ? `Clear score (currently ${n})` : `Set score to ${n}${marker ? ` (${marker.label})` : ''}`}
               title={marker ? `${n} — ${marker.label}` : (active ? 'Tap to clear' : `Set to ${n}`)}
-              className={`flex-1 ${compact ? 'h-6 text-[10px]' : 'h-7 text-[11px]'} rounded font-mono font-bold transition cursor-pointer ${
+              className={`flex-1 ${compact ? 'h-6 text-[14px]' : 'h-7 text-[14px]'} rounded font-mono font-bold transition cursor-pointer ${
                 active
                   ? `${activeBg(n)} text-black`
                   : belowPass
@@ -216,7 +216,7 @@ function ScorePicker({
             return (
               <div key={n} className="flex-1 text-center">
                 {marker ? (
-                  <span className={`inline-block text-[8px] font-mono font-bold uppercase tracking-wider ${
+                  <span className={`inline-block text-[13px] font-mono font-bold uppercase tracking-wider ${
                     marker.tone === 'emerald' ? 'text-emerald-400'
                     : marker.tone === 'cyan' ? 'text-cyan-400'
                     : marker.tone === 'amber' ? 'text-amber-400'
@@ -401,7 +401,7 @@ export default function TopicScoreView({
               Score each topic on 5 dimensions — Topic and Hook decide script access; Quality, Accuracy, and Originality decide shoot access. Tap a number to set it; tap the same number to clear.
             </p>
           </div>
-          <div className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-[10px] font-mono text-neutral-400">
+          <div className="rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-1.5 text-[14px] font-mono text-neutral-400">
             {insights.totalTopics} topic{insights.totalTopics === 1 ? '' : 's'}
           </div>
         </div>
@@ -503,7 +503,7 @@ export default function TopicScoreView({
                     </span>
                     <div className="min-w-0">
                       <div className="truncate text-sm font-semibold text-white">{topic.name}</div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] font-mono text-neutral-500">
+                      <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[14px] font-mono text-neutral-500">
                         <span>{topic.channel}</span>
                         <span>·</span>
                         <span>{topic.status}</span>
@@ -516,7 +516,7 @@ export default function TopicScoreView({
                   </div>
 
                   {/* Summary chips */}
-                  <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10px]">
+                  <div className="flex flex-wrap items-center gap-1.5 font-mono text-[14px]">
                     <span className={`rounded border px-2 py-1 font-bold ${gradeBadgeTone(topicGrade)}`}>Topic {topicGrade}</span>
                     <span className={`rounded border px-2 py-1 font-bold ${gradeBadgeTone(hookGrade)}`}>Hook {hookGrade}</span>
                     <span className={`rounded border px-2 py-1 font-bold ${scoreTone(total / 10)}`}>{total}/100 · {band.label}</span>
@@ -535,7 +535,7 @@ export default function TopicScoreView({
                 <div className="mt-3 space-y-3">
                   <div className="rounded-lg border border-neutral-800 bg-neutral-950/40 p-3">
                     <div className="mb-2 font-mono">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Topic stage (Topic · Hook)</span>
+                      <span className="text-[14px] font-bold uppercase tracking-wider text-neutral-400">Topic stage (Topic · Hook)</span>
                     </div>
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                       <ScoreRow
@@ -557,10 +557,10 @@ export default function TopicScoreView({
 
                   <div className="rounded-lg border border-neutral-800 bg-neutral-950/40 p-3">
                     <div className="mb-2 flex items-center justify-between font-mono">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                      <span className="text-[14px] font-bold uppercase tracking-wider text-neutral-400">
                         Script stage (Quality · Accuracy · Originality)
                       </span>
-                      <span className={`text-[10px] font-bold ${scriptAvg === null ? 'text-neutral-500' : 'text-white'}`}>
+                      <span className={`text-[14px] font-bold ${scriptAvg === null ? 'text-neutral-500' : 'text-white'}`}>
                         Avg {scriptAvg === null ? '—' : scriptAvg.toFixed(1)}
                       </span>
                     </div>
@@ -582,20 +582,20 @@ export default function TopicScoreView({
                 {/* Why blocked + Next action */}
                 <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                   <div className={`rounded-lg border p-3 ${blockers.length === 0 ? 'border-emerald-900/40 bg-emerald-950/15' : 'border-rose-900/40 bg-rose-950/15'}`}>
-                    <div className={`text-[10px] font-bold uppercase tracking-wider ${blockers.length === 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                    <div className={`text-[14px] font-bold uppercase tracking-wider ${blockers.length === 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
                       {blockers.length === 0 ? 'No blockers' : 'Why blocked?'}
                     </div>
                     {blockers.length === 0 ? (
-                      <p className="mt-1 text-[11px] text-emerald-200/80 font-mono">All required scores meet the threshold.</p>
+                      <p className="mt-1 text-[14px] text-emerald-200/80 font-mono">All required scores meet the threshold.</p>
                     ) : (
-                      <ul className="mt-1 space-y-0.5 text-[11px] text-rose-200/85 font-mono">
+                      <ul className="mt-1 space-y-0.5 text-[14px] text-rose-200/85 font-mono">
                         {blockers.map((r, i) => <li key={i}>• {r}</li>)}
                       </ul>
                     )}
                   </div>
                   <div className="rounded-lg border border-cyan-900/40 bg-cyan-950/15 p-3">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-cyan-300">Next action</div>
-                    <p className="mt-1 text-[11px] font-mono text-cyan-100/85">{nextAction}</p>
+                    <div className="text-[14px] font-bold uppercase tracking-wider text-cyan-300">Next action</div>
+                    <p className="mt-1 text-[14px] font-mono text-cyan-100/85">{nextAction}</p>
                   </div>
                 </div>
                 </div>
@@ -611,7 +611,7 @@ export default function TopicScoreView({
         <div className="flex items-center gap-2 border-b border-emerald-900/30 pb-3">
           <CheckCircle2 className="h-4 w-4 text-emerald-400" />
           <h3 className="text-sm font-bold text-white">Allowed For Shoot</h3>
-          <span className="ml-auto rounded border border-emerald-700 bg-emerald-950/50 px-2 py-0.5 text-[10px] font-mono font-bold text-emerald-300">
+          <span className="ml-auto rounded border border-emerald-700 bg-emerald-950/50 px-2 py-0.5 text-[14px] font-mono font-bold text-emerald-300">
             {allowedList.length} topic{allowedList.length === 1 ? '' : 's'}
           </span>
         </div>
@@ -648,15 +648,15 @@ export default function TopicScoreView({
           {(Object.keys(needsWork) as WeaknessCategory[]).map(cat => (
             <div key={cat} className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-3">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-300">{cat}</span>
-                <span className="rounded border border-neutral-800 bg-neutral-950 px-1.5 py-0.5 text-[10px] font-mono text-neutral-400">
+                <span className="text-[14px] font-bold uppercase tracking-wider text-neutral-300">{cat}</span>
+                <span className="rounded border border-neutral-800 bg-neutral-950 px-1.5 py-0.5 text-[14px] font-mono text-neutral-400">
                   {needsWork[cat].length}
                 </span>
               </div>
               {needsWork[cat].length === 0 ? (
-                <p className="mt-2 text-[11px] text-neutral-500 font-mono">None.</p>
+                <p className="mt-2 text-[14px] text-neutral-500 font-mono">None.</p>
               ) : (
-                <ul className="mt-2 space-y-1 text-[11px] font-mono text-neutral-300">
+                <ul className="mt-2 space-y-1 text-[14px] font-mono text-neutral-300">
                   {needsWork[cat].slice(0, 5).map(t => (
                     <li key={t.id} className="truncate">• {t.name}</li>
                   ))}
@@ -698,7 +698,7 @@ function InsightCard({
         <span className={`grid h-6 w-6 place-items-center rounded border ${iconTone}`}>{icon}</span>
         <span className="text-lg font-bold font-mono text-white">{value}</span>
       </div>
-      <div className="mt-1.5 text-[10px] uppercase tracking-wider text-neutral-500 font-mono">{label}</div>
+      <div className="mt-1.5 text-[14px] uppercase tracking-wider text-neutral-500 font-mono">{label}</div>
     </div>
   );
 }
@@ -724,15 +724,15 @@ function ScoreRow({
   return (
     <div className={`rounded-lg border p-2.5 ${disabled ? 'border-neutral-900 bg-neutral-950/40 opacity-70' : accent === 'cyan' ? 'border-cyan-900/30 bg-cyan-950/10' : 'border-rose-900/30 bg-rose-950/10'}`}>
       <div className="flex items-center justify-between">
-        <span className={`text-[11px] font-bold uppercase tracking-wider font-mono ${accent === 'cyan' ? 'text-cyan-300' : 'text-rose-300'}`}>
+        <span className={`text-[14px] font-bold uppercase tracking-wider font-mono ${accent === 'cyan' ? 'text-cyan-300' : 'text-rose-300'}`}>
           {label}
         </span>
-        <span className={`font-mono text-[11px] font-bold ${value === undefined ? 'text-neutral-500' : 'text-white'}`}>
+        <span className={`font-mono text-[14px] font-bold ${value === undefined ? 'text-neutral-500' : 'text-white'}`}>
           {value === undefined ? 'Unscored' : `${value}/10`}
         </span>
       </div>
       {disabled ? (
-        <div className="mt-1 flex items-center gap-1.5 text-[10px] text-neutral-500 font-mono">
+        <div className="mt-1 flex items-center gap-1.5 text-[14px] text-neutral-500 font-mono">
           <Lock className="h-3 w-3" />
           {disabledHint}
         </div>

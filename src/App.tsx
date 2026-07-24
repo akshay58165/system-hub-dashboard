@@ -2647,7 +2647,7 @@ export default function App() {
                 <p className="text-xs text-white uppercase tracking-widest font-bold animate-pulse">
                   Initializing Cloud Gateway...
                 </p>
-                <p className="text-[10px] text-neutral-500">
+                <p className="text-[14px] text-neutral-500">
                   Syncing secure schema partitions with Supabase...
                 </p>
               </div>
@@ -2678,12 +2678,12 @@ export default function App() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
               </span>
-              <span className="text-[10px] uppercase font-bold text-blue-400 tracking-widest">
+              <span className="text-[14px] uppercase font-bold text-blue-400 tracking-widest">
                 Cloud Sync Gateway
               </span>
             </div>
 
-            <p className="text-[10px] text-neutral-400 leading-normal mb-4 font-sans">
+            <p className="text-[14px] text-neutral-400 leading-normal mb-4 font-sans">
               Sign in to access your dashboard. Topics, goals, and progress are stored in the cloud and sync across every device on this account - no guest mode.
             </p>
 
@@ -2736,7 +2736,7 @@ export default function App() {
               className="space-y-3.5"
             >
               <div>
-                <label className="block text-[9px] text-neutral-500 uppercase mb-1">Email Address</label>
+                <label className="block text-[13px] text-neutral-500 uppercase mb-1">Email Address</label>
                 <input
                   type="email"
                   required
@@ -2748,7 +2748,7 @@ export default function App() {
               </div>
 
               <div>
-                <label className="block text-[9px] text-neutral-500 uppercase mb-1">Password</label>
+                <label className="block text-[13px] text-neutral-500 uppercase mb-1">Password</label>
                 <input
                   type="password"
                   required
@@ -2760,12 +2760,12 @@ export default function App() {
               </div>
 
               {authError && (
-                <p className="text-[9px] text-red-500 uppercase font-bold tracking-wider leading-relaxed bg-red-950/20 p-2 border border-red-950 rounded text-center">
+                <p className="text-[13px] text-red-500 uppercase font-bold tracking-wider leading-relaxed bg-red-950/20 p-2 border border-red-950 rounded text-center">
                   {authError}
                 </p>
               )}
 
-              <div className="flex items-center justify-between text-[9px] pt-1">
+              <div className="flex items-center justify-between text-[13px] pt-1">
                 <button
                   type="button"
                   onClick={() => {
@@ -2817,11 +2817,11 @@ export default function App() {
             <div>
               <h1 className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
                 Unicorn's Desk
-                <span className="px-1.5 py-0.2 bg-emerald-950 text-emerald-400 font-mono text-[9px] uppercase font-semibold rounded-full border border-emerald-900">
+                <span className="px-1.5 py-0.2 bg-emerald-950 text-emerald-400 font-mono text-[13px] uppercase font-semibold rounded-full border border-emerald-900">
                   v7.7
                 </span>
               </h1>
-              <p className="text-[10px] text-neutral-500 font-mono hidden sm:block">It works if you do what works</p>
+              <p className="text-[14px] text-neutral-500 font-mono hidden sm:block">It works if you do what works</p>
             </div>
           </div>
 
@@ -2835,14 +2835,14 @@ export default function App() {
                 <Search className="h-3.5 w-3.5 text-neutral-500" />
                 <span>Search projects or schemas...</span>
               </div>
-              <span className="text-[9px] text-neutral-600 font-semibold uppercase bg-neutral-950 px-1.5 py-0.5 border border-neutral-850 rounded">
+              <span className="text-[13px] text-neutral-600 font-semibold uppercase bg-neutral-950 px-1.5 py-0.5 border border-neutral-850 rounded">
                 ⌘K
               </span>
             </button>
           </div>
 
           {/* Real-time UTC metrics / clock */}
-          <div className="flex items-center gap-2 sm:gap-4 shrink-0 font-mono text-[11px] text-neutral-400">
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0 font-mono text-[14px] text-neutral-400">
             <div className="flex items-center gap-1.5 text-neutral-500 bg-neutral-900 border border-neutral-850 px-2 sm:px-2.5 py-1 rounded-lg">
               <span
                 className="relative flex h-2 w-2"
@@ -3032,7 +3032,7 @@ export default function App() {
               onClick={() => {
                 openFreshTopicForm();
               }}
-              className="hidden sm:flex px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-black font-bold font-mono text-[11px] rounded-lg items-center gap-1 transition-colors cursor-pointer"
+              className="hidden sm:flex px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-black font-bold font-mono text-[14px] rounded-lg items-center gap-1 transition-colors cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
               <span>Add Topic</span>
@@ -3351,19 +3351,19 @@ export default function App() {
                 <div className="flex bg-neutral-900 border border-neutral-850 rounded-lg p-0.5 max-w-fit font-mono">
                   <button 
                     onClick={() => setLogsSubView('content')}
-                    className={`px-3 py-1 text-[10px] font-bold rounded transition ${logsSubView === 'content' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-neutral-200'}`}
+                    className={`px-3 py-1 text-[14px] font-bold rounded transition ${logsSubView === 'content' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-neutral-200'}`}
                   >
                     Activity Feed
                   </button>
                   <button 
                     onClick={() => setLogsSubView('backlog')}
-                    className={`px-3 py-1 text-[10px] font-bold rounded transition ${logsSubView === 'backlog' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-neutral-200'}`}
+                    className={`px-3 py-1 text-[14px] font-bold rounded transition ${logsSubView === 'backlog' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-neutral-200'}`}
                   >
                     Telemetry Logs
                   </button>
                   <button 
                     onClick={() => setLogsSubView('tables')}
-                    className={`px-3 py-1 text-[10px] font-bold rounded transition ${logsSubView === 'tables' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-neutral-200'}`}
+                    className={`px-3 py-1 text-[14px] font-bold rounded transition ${logsSubView === 'tables' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-neutral-200'}`}
                   >
                     Database Tables
                   </button>
@@ -3465,7 +3465,7 @@ export default function App() {
                   setResetLogs([]);
                   setResetProgress(0);
                 }}
-                className="flex items-center gap-1 text-red-400 hover:text-red-300 bg-red-950/40 border border-red-900/50 hover:border-red-800/80 px-2 py-0.5 rounded cursor-pointer transition duration-300 font-mono font-medium text-[10px]"
+                className="flex items-center gap-1 text-red-400 hover:text-red-300 bg-red-950/40 border border-red-900/50 hover:border-red-800/80 px-2 py-0.5 rounded cursor-pointer transition duration-300 font-mono font-medium text-[14px]"
               >
                 <Database className="h-3 w-3 animate-pulse text-red-500" />
                 <span>DB Reset</span>
@@ -3499,14 +3499,14 @@ export default function App() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                 </span>
-                <span className="text-[10px] uppercase font-bold text-red-500 tracking-widest">
+                <span className="text-[14px] uppercase font-bold text-red-500 tracking-widest">
                   System Detonation Node
                 </span>
               </div>
 
               {resetPhase === 'password' && (
                 <div className="space-y-4">
-                  <p className="text-[10px] text-neutral-400 leading-normal">
+                  <p className="text-[14px] text-neutral-400 leading-normal">
                     Enter security override key to initiate content database wipe sequence:
                   </p>
                   <form 
@@ -3531,7 +3531,7 @@ export default function App() {
                       onChange={(e) => setResetPassword(e.target.value)}
                       className="w-full bg-neutral-900/40 border border-neutral-900 focus:border-red-900/50 outline-none text-xs rounded px-3 py-2 text-white text-center tracking-widest font-mono"
                     />
-                    <div className="flex justify-end gap-2 text-[10px]">
+                    <div className="flex justify-end gap-2 text-[14px]">
                       <button 
                         type="button" 
                         onClick={() => setIsResetOpen(false)}
@@ -3548,7 +3548,7 @@ export default function App() {
                     </div>
                   </form>
                   {isShaking && (
-                    <p className="text-[9px] text-red-500 text-center animate-pulse uppercase font-bold tracking-wider">
+                    <p className="text-[13px] text-red-500 text-center animate-pulse uppercase font-bold tracking-wider">
                       Override Denied: Authentication Failure
                     </p>
                   )}
@@ -3557,11 +3557,11 @@ export default function App() {
 
               {resetPhase === 'confirm' && (
                 <div className="space-y-4">
-                  <div className="p-3 bg-red-950/10 border border-red-900/40 text-red-400 rounded-lg text-[10px] leading-relaxed">
+                  <div className="p-3 bg-red-950/10 border border-red-900/40 text-red-400 rounded-lg text-[14px] leading-relaxed">
                     <span className="font-bold block mb-1">⚠️ DETONATION WARNING:</span>
                     This operation will drop all catalog tables, video backlogs, channel logs, and telemetry history. Reseeding factory content schemas is required post-flush. Execute?
                   </div>
-                  <div className="flex justify-center gap-3 text-[10px]">
+                  <div className="flex justify-center gap-3 text-[14px]">
                     <button 
                       onClick={() => setIsResetOpen(false)}
                       className="px-4 py-1.5 bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white rounded transition"
@@ -3580,7 +3580,7 @@ export default function App() {
 
               {resetPhase === 'deleting' && (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between text-[10px]">
+                  <div className="flex items-center justify-between text-[14px]">
                     <span className="text-red-400 font-bold uppercase animate-pulse">Flush active...</span>
                     <span className="text-neutral-400">{resetProgress}%</span>
                   </div>
@@ -3590,7 +3590,7 @@ export default function App() {
                       style={{ width: `${resetProgress}%` }}
                     />
                   </div>
-                  <div className="bg-neutral-950/60 border border-neutral-900 rounded-lg p-2.5 h-36 overflow-y-auto font-mono text-[8px] text-neutral-400 space-y-1 scrollbar-thin">
+                  <div className="bg-neutral-950/60 border border-neutral-900 rounded-lg p-2.5 h-36 overflow-y-auto font-mono text-[13px] text-neutral-400 space-y-1 scrollbar-thin">
                     {resetLogs.map((log, idx) => (
                       <div key={idx} className={log.includes('DROP') || log.includes('WIPE') ? 'text-red-400' : 'text-neutral-400'}>
                         {log}
@@ -3604,8 +3604,8 @@ export default function App() {
                 <div className="space-y-3 text-center py-4">
                   <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto animate-bounce" />
                   <div className="space-y-0.5">
-                    <span className="font-bold text-white uppercase text-[10px]">Detonation Ingest Complete</span>
-                    <p className="text-[9px] text-neutral-400 font-sans">Desk catalog successfully reseeded. Client rebooted.</p>
+                    <span className="font-bold text-white uppercase text-[14px]">Detonation Ingest Complete</span>
+                    <p className="text-[13px] text-neutral-400 font-sans">Desk catalog successfully reseeded. Client rebooted.</p>
                   </div>
                 </div>
               )}

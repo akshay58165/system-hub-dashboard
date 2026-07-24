@@ -120,7 +120,7 @@ export default function LogsView({ events, onClearEvents, onBack }: LogsViewProp
               key={badge.id} 
               className={`border rounded-lg p-3 flex flex-col justify-between font-mono ${badge.color}`}
             >
-              <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">{badge.label}</span>
+              <span className="text-[14px] uppercase font-bold tracking-wider opacity-60">{badge.label}</span>
               <span className="text-xl font-bold mt-1">{badge.count}</span>
             </div>
           ))}
@@ -183,16 +183,16 @@ export default function LogsView({ events, onClearEvents, onBack }: LogsViewProp
               <span className="w-3 h-3 rounded-full bg-amber-500/80" />
               <span className="w-3 h-3 rounded-full bg-emerald-500/80" />
             </div>
-            <span className="text-[11px] text-neutral-400 font-mono font-semibold ml-2">bash - telemetry@console</span>
+            <span className="text-[14px] text-neutral-400 font-mono font-semibold ml-2">bash - telemetry@console</span>
           </div>
-          <div className="flex items-center gap-2 text-neutral-500 text-[10px] font-mono">
+          <div className="flex items-center gap-2 text-neutral-500 text-[14px] font-mono">
             <Clock className="h-3 w-3" />
             <span>UTC Sync Active</span>
           </div>
         </div>
 
         {/* Terminal Output Logs */}
-        <div className="p-4 min-h-[400px] max-h-[500px] overflow-y-auto font-mono text-[11px] leading-relaxed space-y-2.5">
+        <div className="p-4 min-h-[400px] max-h-[500px] overflow-y-auto font-mono text-[14px] leading-relaxed space-y-2.5">
           <AnimatePresence initial={false}>
             {filteredEvents.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-neutral-500 gap-2">
@@ -241,12 +241,12 @@ export default function LogsView({ events, onClearEvents, onBack }: LogsViewProp
                     </span>
 
                     {/* Source Badge */}
-                    <span className={`px-2 py-0.2 rounded text-[9px] uppercase font-bold tracking-wider shrink-0 ${sourceBadge}`}>
+                    <span className={`px-2 py-0.2 rounded text-[13px] uppercase font-bold tracking-wider shrink-0 ${sourceBadge}`}>
                       {sourceLabel}
                     </span>
 
                     {/* Level Badge */}
-                    <span className={`px-1.5 py-0.2 rounded text-[9px] uppercase font-bold shrink-0 ${typeColors[evt.type]}`}>
+                    <span className={`px-1.5 py-0.2 rounded text-[13px] uppercase font-bold shrink-0 ${typeColors[evt.type]}`}>
                       {evt.type}
                     </span>
 

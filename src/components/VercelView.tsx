@@ -248,7 +248,7 @@ export function StageStopwatch({
   return (
     <div className={`flex flex-col items-stretch gap-1 rounded-md border px-1.5 py-1 min-w-[7.5rem] ${stateColor}`}>
       <div className="flex items-center justify-between gap-1">
-        <span className="text-[9px] font-bold uppercase tracking-wider">{label}</span>
+        <span className="text-[13px] font-bold uppercase tracking-wider">{label}</span>
         {!isEditingTime && (
           <button
             type="button"
@@ -263,7 +263,7 @@ export function StageStopwatch({
           </button>
         )}
       </div>
-      <div className="flex items-center justify-between gap-1 font-mono text-[10px] tabular-nums flex-wrap">
+      <div className="flex items-center justify-between gap-1 font-mono text-[14px] tabular-nums flex-wrap">
         {isEditingTime ? (
           <div className="flex w-full items-center gap-1">
             <input
@@ -272,20 +272,20 @@ export function StageStopwatch({
               value={editTimeValue}
               onChange={(e) => setEditTimeValue(e.target.value)}
               onKeyDown={handleEditKeyDown}
-              className="min-w-0 flex-1 bg-neutral-900 border border-blue-600 rounded px-1 py-0.5 text-[10px] font-mono text-white outline-none"
+              className="min-w-0 flex-1 bg-neutral-900 border border-blue-600 rounded px-1 py-0.5 text-[14px] font-mono text-white outline-none"
               placeholder="HH:MM:SS"
             />
             <button
               type="button"
               onClick={handleEditConfirm}
-              className="rounded border border-emerald-700/60 bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-bold uppercase text-emerald-200 hover:bg-emerald-500/20"
+              className="rounded border border-emerald-700/60 bg-emerald-500/10 px-1.5 py-0.5 text-[13px] font-bold uppercase text-emerald-200 hover:bg-emerald-500/20"
             >
               Save
             </button>
             <button
               type="button"
               onClick={() => setIsEditingTime(false)}
-              className="rounded border border-neutral-800 px-1.5 py-0.5 text-[8px] font-bold uppercase text-neutral-400 hover:text-white"
+              className="rounded border border-neutral-800 px-1.5 py-0.5 text-[13px] font-bold uppercase text-neutral-400 hover:text-white"
             >
               Cancel
             </button>
@@ -304,20 +304,20 @@ export function StageStopwatch({
               value={editSittingsValue}
               onChange={(e) => setEditSittingsValue(e.target.value)}
               onKeyDown={handleSittingsKeyDown}
-              className="w-16 bg-neutral-900 border border-cyan-700 rounded px-1 py-0.5 text-[10px] font-mono text-white outline-none"
+              className="w-16 bg-neutral-900 border border-cyan-700 rounded px-1 py-0.5 text-[14px] font-mono text-white outline-none"
               placeholder="1"
             />
             <button
               type="button"
               onClick={handleSittingsConfirm}
-              className="rounded border border-emerald-700/60 bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-bold uppercase text-emerald-200 hover:bg-emerald-500/20"
+              className="rounded border border-emerald-700/60 bg-emerald-500/10 px-1.5 py-0.5 text-[13px] font-bold uppercase text-emerald-200 hover:bg-emerald-500/20"
             >
               Save
             </button>
             <button
               type="button"
               onClick={() => setIsEditingSittings(false)}
-              className="rounded border border-neutral-800 px-1.5 py-0.5 text-[8px] font-bold uppercase text-neutral-400 hover:text-white"
+              className="rounded border border-neutral-800 px-1.5 py-0.5 text-[13px] font-bold uppercase text-neutral-400 hover:text-white"
             >
               Cancel
             </button>
@@ -330,13 +330,13 @@ export function StageStopwatch({
               handleSittingsClick();
             }}
             title={`${sittings} sitting${sittings === 1 ? '' : 's'} · click to edit`}
-            className="text-[8px] px-1 rounded border border-cyan-900/50 bg-cyan-950/25 text-cyan-300 hover:border-cyan-500 hover:text-cyan-100 transition inline-flex items-center gap-0.5"
+            className="text-[13px] px-1 rounded border border-cyan-900/50 bg-cyan-950/25 text-cyan-300 hover:border-cyan-500 hover:text-cyan-100 transition inline-flex items-center gap-0.5"
           >
             ×{sittings || 0}
             <Pencil className="h-2 w-2" />
           </button>
         ) : sittings > 0 ? (
-          <span title={`${sittings} sitting${sittings === 1 ? '' : 's'}`} className="text-[8px] px-1 rounded border border-cyan-900/50 bg-cyan-950/25 text-cyan-300">×{sittings}</span>
+          <span title={`${sittings} sitting${sittings === 1 ? '' : 's'}`} className="text-[13px] px-1 rounded border border-cyan-900/50 bg-cyan-950/25 text-cyan-300">×{sittings}</span>
         ) : null}
       </div>
       <div className="flex items-center gap-1">
@@ -346,7 +346,7 @@ export function StageStopwatch({
             disabled={disabled}
             onClick={onStart}
             title="Reopen — start a fresh sitting on this stage"
-            className="flex-1 rounded border border-neutral-800 bg-neutral-950 px-1 py-0.5 text-[8px] font-bold uppercase text-neutral-400 hover:text-emerald-300 hover:border-emerald-800 transition"
+            className="flex-1 rounded border border-neutral-800 bg-neutral-950 px-1 py-0.5 text-[13px] font-bold uppercase text-neutral-400 hover:text-emerald-300 hover:border-emerald-800 transition"
           >Reopen</button>
         ) : (
           <>
@@ -355,7 +355,7 @@ export function StageStopwatch({
               disabled={disabled || state === 'running'}
               onClick={onStart}
               title={state === 'idle' ? 'Start' : state === 'paused' ? 'Resume' : 'Running'}
-              className="flex-1 rounded border border-emerald-800/60 bg-emerald-500/10 px-1 py-0.5 text-[8px] font-bold uppercase text-emerald-300 hover:bg-emerald-500/25 hover:border-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center justify-center gap-0.5"
+              className="flex-1 rounded border border-emerald-800/60 bg-emerald-500/10 px-1 py-0.5 text-[13px] font-bold uppercase text-emerald-300 hover:bg-emerald-500/25 hover:border-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center justify-center gap-0.5"
             >
               <Play className="h-2 w-2 fill-current" />
               {state === 'paused' ? 'Resume' : 'Start'}
@@ -365,7 +365,7 @@ export function StageStopwatch({
               disabled={disabled || state !== 'running'}
               onClick={onPause}
               title="Pause"
-              className="rounded border border-amber-800/60 bg-amber-500/10 px-1 py-0.5 text-[8px] font-bold uppercase text-amber-300 hover:bg-amber-500/25 hover:border-amber-500 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-0.5"
+              className="rounded border border-amber-800/60 bg-amber-500/10 px-1 py-0.5 text-[13px] font-bold uppercase text-amber-300 hover:bg-amber-500/25 hover:border-amber-500 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-0.5"
             >
               <Pause className="h-2 w-2 fill-current" />
             </button>
@@ -374,7 +374,7 @@ export function StageStopwatch({
               disabled={disabled || state === 'idle'}
               onClick={onDone}
               title="Mark done"
-              className="rounded border border-blue-800/60 bg-blue-500/10 px-1 py-0.5 text-[8px] font-bold uppercase text-blue-300 hover:bg-blue-500/25 hover:border-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              className="rounded border border-blue-800/60 bg-blue-500/10 px-1 py-0.5 text-[13px] font-bold uppercase text-blue-300 hover:bg-blue-500/25 hover:border-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition"
             >Done</button>
           </>
         )}
@@ -451,7 +451,7 @@ export function WorkflowStatusButton({
       title={disabled ? undefined : state === 'completed'
         ? 'Hold 3 seconds to reset this stage.'
         : 'Quick click: mark in progress. Hold 1 second to mark complete.'}
-      className={`relative overflow-hidden px-2 py-0.5 rounded text-[8px] font-semibold border transition select-none touch-none ${
+      className={`relative overflow-hidden px-2 py-0.5 rounded text-[13px] font-semibold border transition select-none touch-none ${
         disabled ? 'cursor-default opacity-85' : 'cursor-pointer'
       } ${
         state === 'pending'
@@ -1371,7 +1371,7 @@ export default function VercelView({
             </div>
             <div>
               <h2 className="text-sm font-bold text-neutral-100 font-mono tracking-tight">Topic Workflow</h2>
-              <p className="text-[10px] text-neutral-500 mt-0.5 font-mono">Edit, delete, or correct the production status of every topic from one permanent workspace.</p>
+              <p className="text-[14px] text-neutral-500 mt-0.5 font-mono">Edit, delete, or correct the production status of every topic from one permanent workspace.</p>
             </div>
           </div>
 
@@ -1417,14 +1417,14 @@ export default function VercelView({
             {/* 4 Metric Boxes */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-5 border-t border-neutral-900">
               <div className="p-3 bg-neutral-900 rounded-lg">
-                <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Next Upload</span>
+                <span className="text-[14px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Next Upload</span>
                 <span className="text-xs font-bold font-mono text-white mt-1 block truncate" title={nextUpload}>
                   {nextUpload}
                 </span>
               </div>
 
               <div className="p-3 bg-neutral-900 rounded-lg">
-                <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Pipeline Velocity</span>
+                <span className="text-[14px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Pipeline Velocity</span>
                 <span className="text-xs font-bold font-mono text-white mt-1 flex items-center gap-1">
                   <Activity className="h-3 w-3 text-blue-400" />
                   {monthlyScheduledCompletedCount} Videos/mo
@@ -1432,14 +1432,14 @@ export default function VercelView({
               </div>
 
               <div className="p-3 bg-neutral-900 rounded-lg">
-                <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Last Update</span>
+                <span className="text-[14px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Last Update</span>
                 <span className="text-xs font-bold font-mono text-white mt-1 block">
                   {lastWorkflowUpdate}
                 </span>
               </div>
 
               <div className="p-3 bg-neutral-900 rounded-lg">
-                <span className="text-[10px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Buffer Safety</span>
+                <span className="text-[14px] uppercase font-semibold text-neutral-500 tracking-wider font-mono">Buffer Safety</span>
                 <span className={`text-xs font-bold font-mono mt-1 block ${
                   bufferDays >= 5 ? 'text-emerald-400' :
                   bufferDays >= 2 ? 'text-orange-400' :
@@ -1459,12 +1459,12 @@ export default function VercelView({
                 <span>All Topic Controls</span>
               </h3>
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <span className="text-[10px] font-mono text-neutral-500">{filteredTopics.length} topics · quick click / hold 1s</span>
+                <span className="text-[14px] font-mono text-neutral-500">{filteredTopics.length} topics · quick click / hold 1s</span>
                 <div ref={topicSortRef} className="relative">
                   <button
                     type="button"
                     onClick={() => setIsTopicSortOpen(open => !open)}
-                    className="flex items-center gap-1.5 rounded border border-neutral-800 bg-neutral-900/70 py-1 pl-2 pr-1.5 text-[9px] font-mono text-neutral-300 outline-none transition hover:border-neutral-700 hover:text-white focus:border-rose-800"
+                    className="flex items-center gap-1.5 rounded border border-neutral-800 bg-neutral-900/70 py-1 pl-2 pr-1.5 text-[13px] font-mono text-neutral-300 outline-none transition hover:border-neutral-700 hover:text-white focus:border-rose-800"
                     title="Sort topic controls"
                     aria-haspopup="listbox"
                     aria-expanded={isTopicSortOpen}
@@ -1489,7 +1489,7 @@ export default function VercelView({
                             key={value}
                             type="button"
                             onClick={() => handleUserSortChange(value)}
-                            className={`block w-full whitespace-nowrap rounded px-3 py-2 text-left text-[10px] font-mono transition-colors ${
+                            className={`block w-full whitespace-nowrap rounded px-3 py-2 text-left text-[14px] font-mono transition-colors ${
                               value === topicSortOrder
                                 ? 'bg-rose-500/15 text-rose-300'
                                 : 'text-neutral-400 hover:bg-neutral-900 hover:text-white'
@@ -1512,7 +1512,7 @@ export default function VercelView({
               const blockedCount = filteredTopics.filter(t => t.blockedReason).length;
               if (stuckCount === 0 && blockedCount === 0) return null;
               return (
-                <div className="flex flex-wrap items-center gap-2 bg-amber-950/15 border border-amber-900/30 rounded-lg px-3 py-2 text-[10px] font-mono">
+                <div className="flex flex-wrap items-center gap-2 bg-amber-950/15 border border-amber-900/30 rounded-lg px-3 py-2 text-[14px] font-mono">
                   <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                   <span className="text-amber-300">
                     {stuckCount > 0 && <>{stuckCount} topic{stuckCount === 1 ? '' : 's'} overdue and need{stuckCount === 1 ? 's' : ''} a decision</>}
@@ -1528,7 +1528,7 @@ export default function VercelView({
                 const activeProgress = filteredTopics;
                 if (activeProgress.length === 0) {
                   return (
-                    <div className="text-center py-6 text-neutral-500 font-mono text-[10px] border border-dashed border-neutral-900 rounded-lg">
+                    <div className="text-center py-6 text-neutral-500 font-mono text-[14px] border border-dashed border-neutral-900 rounded-lg">
                       No topics match this channel. Add one from Topic Inventory to begin.
                     </div>
                   );
@@ -1556,7 +1556,7 @@ export default function VercelView({
                     <div
                       key={topic.id}
                       id={`topic-control-${topic.id}`}
-                      className="p-2.5 bg-neutral-900/40 border border-neutral-850 rounded-lg space-y-2 font-mono text-[10px]"
+                      className="p-2.5 bg-neutral-900/40 border border-neutral-850 rounded-lg space-y-2 font-mono text-[14px]"
                     >
                       <div className="flex justify-between items-start gap-2">
                         <div
@@ -1566,23 +1566,23 @@ export default function VercelView({
                         >
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className={`text-xs font-bold text-neutral-200 ${topicGoal ? 'underline decoration-purple-500 decoration-2 underline-offset-2' : ''}`}>{topic.name}</span>
-                            {topicGoal && <span className="rounded border border-purple-700/60 bg-purple-950/35 px-1.5 py-0.5 text-[8px] font-bold text-purple-200 shadow-[0_0_10px_rgba(168,85,247,.18)]" title={`Today's goal: reach ${topicGoal.targetStatus}`}>🎯 Today&apos;s aim</span>}
-                            <span className="px-1.5 py-0.2 bg-neutral-950 text-neutral-500 border border-neutral-900 rounded text-[8px]">
+                            {topicGoal && <span className="rounded border border-purple-700/60 bg-purple-950/35 px-1.5 py-0.5 text-[13px] font-bold text-purple-200 shadow-[0_0_10px_rgba(168,85,247,.18)]" title={`Today's goal: reach ${topicGoal.targetStatus}`}>🎯 Today&apos;s aim</span>}
+                            <span className="px-1.5 py-0.2 bg-neutral-950 text-neutral-500 border border-neutral-900 rounded text-[13px]">
                               {topic.channel}
                             </span>
                             {topic.revenueLevel && (
-                              <span className="px-1.5 py-0.2 bg-emerald-950/20 text-emerald-400 border border-emerald-900/30 rounded text-[8px] font-bold">
+                              <span className="px-1.5 py-0.2 bg-emerald-950/20 text-emerald-400 border border-emerald-900/30 rounded text-[13px] font-bold">
                                 {topic.revenueLevel}
                               </span>
                             )}
-                            <span className="px-1.5 py-0.2 rounded border text-[8px] uppercase font-bold border-blue-900/40 text-blue-400 bg-blue-950/20">
+                            <span className="px-1.5 py-0.2 rounded border text-[13px] uppercase font-bold border-blue-900/40 text-blue-400 bg-blue-950/20">
                               {currentWorkflow.label}
                             </span>
                             <button
                               type="button"
                               onClick={(event) => { event.stopPropagation(); onOpenTopicScore?.(topic.id); }}
                               title={topic.topicScore ? `Open scorecard · Score ${topic.topicScore}/10` : 'Open scorecard — set a score'}
-                              className={`px-1.5 py-0.2 rounded border text-[8px] uppercase font-bold transition cursor-pointer ${
+                              className={`px-1.5 py-0.2 rounded border text-[13px] uppercase font-bold transition cursor-pointer ${
                                 topic.topicScore
                                   ? 'border-rose-900/40 bg-rose-950/20 text-rose-300 hover:border-rose-700 hover:text-rose-200'
                                   : 'border-neutral-800 bg-neutral-950 text-neutral-500 hover:border-rose-800 hover:text-rose-300'
@@ -1593,13 +1593,13 @@ export default function VercelView({
                             {topic.explanationDifficulty !== undefined && (
                               <span
                                 title={`Explanation difficulty: ${topic.explanationDifficulty}/10 — how hard to explain to a mass audience`}
-                                className="px-1.5 py-0.2 rounded border text-[8px] uppercase font-bold border-amber-900/40 bg-amber-950/20 text-amber-300"
+                                className="px-1.5 py-0.2 rounded border text-[13px] uppercase font-bold border-amber-900/40 bg-amber-950/20 text-amber-300"
                               >
                                 Hard {topic.explanationDifficulty}
                               </span>
                             )}
                           </div>
-                          <div className="text-[8px] text-neutral-600 mt-0.5 truncate">
+                          <div className="text-[13px] text-neutral-600 mt-0.5 truncate">
                             Created {new Date(topic.createdDate).toLocaleDateString()} · Due {topic.dueDate ? new Date(topic.dueDate).toLocaleDateString() : 'None'}
                           </div>
                         </div>
@@ -1653,7 +1653,7 @@ export default function VercelView({
                         <div className="flex items-center justify-between gap-2 rounded-md border border-neutral-700 bg-neutral-800/40 px-2 py-1">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <Shield className="h-3 w-3 text-neutral-400 shrink-0" />
-                            <span className="text-[9px] text-neutral-300 truncate" title={topic.blockedReason}>
+                            <span className="text-[13px] text-neutral-300 truncate" title={topic.blockedReason}>
                               Blocked: {topic.blockedReason}
                             </span>
                           </div>
@@ -1661,7 +1661,7 @@ export default function VercelView({
                             id={`topic-action-${topic.id}-unblock`}
                             type="button"
                             onClick={() => handleUnblock(topic)}
-                            className="text-[8px] font-bold uppercase text-blue-400 hover:text-blue-300 shrink-0 cursor-pointer"
+                            className="text-[13px] font-bold uppercase text-blue-400 hover:text-blue-300 shrink-0 cursor-pointer"
                           >
                             Unblock
                           </button>
@@ -1680,11 +1680,11 @@ export default function VercelView({
                               <span className={`topic-led topic-led--${urgency.ledTone} shrink-0`} title={urgency.message} style={{ '--topic-led-speed': urgency.ledSpeed } as React.CSSProperties} aria-hidden="true">
                                 <span className="topic-led__bezel"><span className="topic-led__lens"><span className="topic-led__glint" /></span></span>
                               </span>
-                              <span className={`text-[8px] font-black uppercase tracking-wide truncate ${urgencyPalette.labelClass}`}>
+                              <span className={`text-[13px] font-black uppercase tracking-wide truncate ${urgencyPalette.labelClass}`}>
                                 {urgency.overdue ? 'Overdue' : urgency.calendarDaysLeft >= 7 ? 'Upcoming' : urgency.greenBlink ? 'Advance warning' : 'Critical window'}
                               </span>
                             </div>
-                            <span className={`emergency-clock text-[10px] font-black tabular-nums tracking-wider shrink-0 ${urgencyPalette.clockClass}`}>
+                            <span className={`emergency-clock text-[14px] font-black tabular-nums tracking-wider shrink-0 ${urgencyPalette.clockClass}`}>
                               {urgency.clock}
                             </span>
                           </div>
@@ -1695,7 +1695,7 @@ export default function VercelView({
                         <div className="rounded-md border border-amber-700/50 bg-amber-950/15 px-2 py-1.5 space-y-1.5">
                           <div className="flex items-center gap-1.5">
                             <AlertTriangle className="h-3 w-3 text-amber-400 shrink-0" />
-                            <span className="text-[9px] font-bold text-amber-300">
+                            <span className="text-[13px] font-bold text-amber-300">
                               {urgency.daysOverdue}d overdue - decide what to do
                             </span>
                           </div>
@@ -1708,35 +1708,35 @@ export default function VercelView({
                                 if (!initialTopic.scheduledTime) initialTopic.scheduledTime = defaultTime;
                                 setEditingTopic(initialTopic);
                               }}
-                              className="px-1.5 py-0.5 bg-neutral-950 border border-neutral-800 hover:border-blue-800 text-neutral-300 hover:text-blue-400 rounded text-[8px] font-bold uppercase transition cursor-pointer"
+                              className="px-1.5 py-0.5 bg-neutral-950 border border-neutral-800 hover:border-blue-800 text-neutral-300 hover:text-blue-400 rounded text-[13px] font-bold uppercase transition cursor-pointer"
                             >
                               Reschedule
                             </button>
                             <button
                               type="button"
                               onClick={() => handleClearDeadline(topic)}
-                              className="px-1.5 py-0.5 bg-neutral-950 border border-neutral-800 hover:border-neutral-600 text-neutral-300 hover:text-white rounded text-[8px] font-bold uppercase transition cursor-pointer"
+                              className="px-1.5 py-0.5 bg-neutral-950 border border-neutral-800 hover:border-neutral-600 text-neutral-300 hover:text-white rounded text-[13px] font-bold uppercase transition cursor-pointer"
                             >
                               Move to Backlog
                             </button>
                             <button
                               type="button"
                               onClick={() => handleLowerPriority(topic)}
-                              className="px-1.5 py-0.5 bg-neutral-950 border border-neutral-800 hover:border-neutral-600 text-neutral-300 hover:text-white rounded text-[8px] font-bold uppercase transition cursor-pointer"
+                              className="px-1.5 py-0.5 bg-neutral-950 border border-neutral-800 hover:border-neutral-600 text-neutral-300 hover:text-white rounded text-[13px] font-bold uppercase transition cursor-pointer"
                             >
                               Deprioritize
                             </button>
                             <button
                               type="button"
                               onClick={() => handleMarkBlocked(topic)}
-                              className="px-1.5 py-0.5 bg-neutral-950 border border-neutral-800 hover:border-amber-700 text-neutral-300 hover:text-amber-400 rounded text-[8px] font-bold uppercase transition cursor-pointer"
+                              className="px-1.5 py-0.5 bg-neutral-950 border border-neutral-800 hover:border-amber-700 text-neutral-300 hover:text-amber-400 rounded text-[13px] font-bold uppercase transition cursor-pointer"
                             >
                               Mark Blocked
                             </button>
                             <button
                               type="button"
                               onClick={() => deleteTopic(topic)}
-                              className="px-1.5 py-0.5 bg-neutral-950 border border-neutral-800 hover:border-rose-800 text-neutral-300 hover:text-rose-400 rounded text-[8px] font-bold uppercase transition cursor-pointer"
+                              className="px-1.5 py-0.5 bg-neutral-950 border border-neutral-800 hover:border-rose-800 text-neutral-300 hover:text-rose-400 rounded text-[13px] font-bold uppercase transition cursor-pointer"
                             >
                               Drop
                             </button>
@@ -1767,8 +1767,8 @@ export default function VercelView({
                         const anyPaused = allTopicTimers.some(t => t.status === 'paused');
                         const format = (ms: number) => `${String(Math.floor(ms / 3600000)).padStart(2, '0')}:${String(Math.floor(ms / 60000) % 60).padStart(2, '0')}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
                         return (
-                          <div className="flex flex-wrap items-center gap-2 pt-1.5 border-t border-neutral-900 font-mono text-[9px]">
-                            <span className="text-[8px] uppercase tracking-wider text-neutral-500">Topic total</span>
+                          <div className="flex flex-wrap items-center gap-2 pt-1.5 border-t border-neutral-900 font-mono text-[13px]">
+                            <span className="text-[13px] uppercase tracking-wider text-neutral-500">Topic total</span>
                             <span className={`font-bold ${anyRunning ? 'text-emerald-300' : anyPaused ? 'text-amber-300' : 'text-neutral-300'}`}>{format(topicTotalMs)}</span>
                             <span className="text-neutral-600">·</span>
                             <span className="text-cyan-300 font-bold">{topicTotalSittings}</span>
@@ -1935,7 +1935,7 @@ export default function VercelView({
                                 const isGoalAchieved = topicGoal && goalStatusOrder.indexOf(topic.status) >= goalStatusOrder.indexOf(topicGoal.targetStatus);
                                 return isGoalAchieved ? (
                                   <motion.div
-                                    className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider text-emerald-400"
+                                    className="flex items-center gap-1 text-[13px] font-bold uppercase tracking-wider text-emerald-400"
                                     initial={{ opacity: 0, scale: 0.6 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     transition={{ type: 'spring', stiffness: 400, damping: 15 }}
@@ -1951,7 +1951,7 @@ export default function VercelView({
                                   </motion.div>
                                 ) : (
                                   <motion.div
-                                    className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider text-amber-400"
+                                    className="flex items-center gap-1 text-[13px] font-bold uppercase tracking-wider text-amber-400"
                                     initial={{ opacity: 0, y: -4 }}
                                     animate={{ opacity: 1, y: 0 }}
                                   >
@@ -1982,11 +1982,11 @@ export default function VercelView({
                       {/* Scheduling Date/Time Picker Form Block */}
                       {isSchedulingThis && (
                         <div className="mt-2.5 p-3 bg-neutral-950 border border-neutral-850 rounded-lg space-y-2">
-                          <span className="text-[9px] uppercase font-bold text-purple-400 tracking-wider">Set Video Schedule Parameters</span>
+                          <span className="text-[13px] uppercase font-bold text-purple-400 tracking-wider">Set Video Schedule Parameters</span>
                           
                           <div className="grid grid-cols-1 gap-2 mt-1">
                             <div>
-                              <label className="text-[8px] text-neutral-500 block mb-0.5">Date</label>
+                              <label className="text-[13px] text-neutral-500 block mb-0.5">Date</label>
                               <div className="relative">
                                 <div
                                   onClick={() => {
@@ -1997,7 +1997,7 @@ export default function VercelView({
                                     schedPickerOpenedAtRef.current = Date.now();
                                     setSchedPickerOpen(prev => !prev);
                                   }}
-                                  className="w-full bg-neutral-900 border border-neutral-800 text-[9px] text-white rounded px-2 py-1 flex items-center justify-between cursor-pointer select-none"
+                                  className="w-full bg-neutral-900 border border-neutral-800 text-[13px] text-white rounded px-2 py-1 flex items-center justify-between cursor-pointer select-none"
                                 >
                                   <span className={schedDate ? 'text-white' : 'text-neutral-500'}>
                                     {schedDate || 'dd - mm - yyyy'}
@@ -2008,9 +2008,9 @@ export default function VercelView({
                                 {schedPickerOpen && (
                                   <>
                                     <div className="fixed inset-0 z-40" onClick={() => setSchedPickerOpen(false)} />
-                                    <div className="absolute left-0 mt-1.5 w-64 backdrop-blur-md bg-neutral-950/90 border border-neutral-800 rounded-xl p-3 shadow-2xl z-50 font-mono text-[9px] select-none">
+                                    <div className="absolute left-0 mt-1.5 w-64 backdrop-blur-md bg-neutral-950/90 border border-neutral-800 rounded-xl p-3 shadow-2xl z-50 font-mono text-[13px] select-none">
                                       <div className="flex items-center justify-between mb-3 text-neutral-200">
-                                        <span className="font-bold text-[10px] text-neutral-200">
+                                        <span className="font-bold text-[14px] text-neutral-200">
                                           {(() => {
                                             const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
                                             return `${monthNames[schedPickerMonth.month]} ${schedPickerMonth.year}`;
@@ -2053,7 +2053,7 @@ export default function VercelView({
                                           return cells;
                                         })()}
                                       </div>
-                                      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 pt-1.5 border-t border-neutral-900/50 text-[7px] text-neutral-500">
+                                      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 pt-1.5 border-t border-neutral-900/50 text-[12px] text-neutral-500">
                                         <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#a855f7' }} />LD Short</span>
                                         <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#eab308' }} />DW Short</span>
                                         <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#22c55e' }} />LD Members</span>
@@ -2069,12 +2069,12 @@ export default function VercelView({
                               </div>
                             </div>
                             <div>
-                              <label className="text-[8px] text-neutral-500 block mb-0.5">Time (24h format)</label>
+                              <label className="text-[13px] text-neutral-500 block mb-0.5">Time (24h format)</label>
                               <input 
                                 type="time"
                                 value={schedTime}
                                 onChange={(e) => setSchedTime(e.target.value)}
-                                className="w-full bg-neutral-900 border border-neutral-800 text-[9px] text-white rounded px-2 py-1 outline-none font-mono"
+                                className="w-full bg-neutral-900 border border-neutral-800 text-[13px] text-white rounded px-2 py-1 outline-none font-mono"
                               />
                             </div>
                           </div>
@@ -2129,7 +2129,7 @@ export default function VercelView({
 
                                 setSchedulingTopicId(null);
                               }}
-                              className="px-3 py-1 bg-purple-500 hover:bg-purple-600 text-black font-bold rounded text-[9px] transition cursor-pointer"
+                              className="px-3 py-1 bg-purple-500 hover:bg-purple-600 text-black font-bold rounded text-[13px] transition cursor-pointer"
                             >
                               Save Schedule
                             </button>
@@ -2150,7 +2150,7 @@ export default function VercelView({
                 <Layers className="h-4 w-4 text-emerald-500" />
                 <span>Scheduled & Completed Video Ledger</span>
               </h3>
-              <span className="text-[10px] font-mono text-neutral-500">Archive</span>
+              <span className="text-[14px] font-mono text-neutral-500">Archive</span>
             </div>
 
             <div className="space-y-3">
@@ -2160,7 +2160,7 @@ export default function VercelView({
 
                 if (scheduledItems.length === 0 && postedItems.length === 0) {
                   return (
-                    <div className="text-center py-6 text-neutral-500 font-mono text-[10px] border border-dashed border-neutral-900 rounded-lg">
+                    <div className="text-center py-6 text-neutral-500 font-mono text-[14px] border border-dashed border-neutral-900 rounded-lg">
                       No videos currently scheduled or done. Complete the progress stages and save scheduling parameters to archive them here.
                     </div>
                   );
@@ -2170,7 +2170,7 @@ export default function VercelView({
                   <div className="space-y-4">
                     {scheduledItems.length > 0 && (
                       <div className="space-y-2">
-                        <div className="text-[9px] uppercase font-bold text-purple-400 tracking-wider font-mono">Scheduled Releases</div>
+                        <div className="text-[13px] uppercase font-bold text-purple-400 tracking-wider font-mono">Scheduled Releases</div>
                         {scheduledItems.map(topic => {
                           const dueMs = topic.dueDate ? new Date(topic.dueDate).getTime() : null;
                           const remainingMs = dueMs !== null ? Math.max(0, dueMs - now.getTime()) : null;
@@ -2189,7 +2189,7 @@ export default function VercelView({
                           return (
                           <div
                             key={topic.id}
-                            className="p-3 bg-neutral-900/20 border border-neutral-850 rounded-lg space-y-2 font-mono text-[10px]"
+                            className="p-3 bg-neutral-900/20 border border-neutral-850 rounded-lg space-y-2 font-mono text-[14px]"
                           >
                             <div className="flex justify-between items-start gap-2">
                               <div className="min-w-0">
@@ -2197,11 +2197,11 @@ export default function VercelView({
                                   {topic.name}
                                 </span>
                                 <div className="flex items-center gap-1.5 mt-1">
-                                  <span className="px-1.5 py-0.2 bg-neutral-950 text-neutral-500 border border-neutral-900 rounded text-[8px]">
+                                  <span className="px-1.5 py-0.2 bg-neutral-950 text-neutral-500 border border-neutral-900 rounded text-[13px]">
                                     {topic.channel}
                                   </span>
                                   {topic.revenueLevel && (
-                                    <span className="px-1.5 py-0.2 bg-emerald-950/20 text-emerald-400 border border-emerald-900/30 rounded text-[8px] font-bold">
+                                    <span className="px-1.5 py-0.2 bg-emerald-950/20 text-emerald-400 border border-emerald-900/30 rounded text-[13px] font-bold">
                                       {topic.revenueLevel}
                                     </span>
                                   )}
@@ -2224,13 +2224,13 @@ export default function VercelView({
                                   >
                                     <Pencil className="h-3 w-3" />
                                   </button>
-                                  <span className="px-1.5 py-0.5 rounded border text-[8px] uppercase font-bold border-purple-900/40 text-purple-400 bg-purple-950/20">
+                                  <span className="px-1.5 py-0.5 rounded border text-[13px] uppercase font-bold border-purple-900/40 text-purple-400 bg-purple-950/20">
                                     Scheduled
                                   </span>
                                 </div>
                                 {countdown && (
                                   <div
-                                    className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] font-bold tabular-nums ${
+                                    className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[13px] font-bold tabular-nums ${
                                       isImminent
                                         ? 'border-rose-900/50 bg-rose-950/25 text-rose-300 animate-pulse'
                                         : 'border-purple-900/40 bg-purple-950/15 text-purple-300'
@@ -2244,7 +2244,7 @@ export default function VercelView({
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-2 text-neutral-500 text-[8px] pt-1">
+                            <div className="grid grid-cols-2 gap-2 text-neutral-500 text-[13px] pt-1">
                               <div>Created: {new Date(topic.createdDate).toLocaleDateString()}</div>
                               <div>
                                 Release: {topic.dueDate ? new Date(topic.dueDate).toLocaleDateString() : 'N/A'}{' '}
@@ -2259,11 +2259,11 @@ export default function VercelView({
 
                     {postedItems.length > 0 && (
                       <div className="space-y-2 pt-2 border-t border-neutral-900/50">
-                        <div className="text-[9px] uppercase font-bold text-emerald-400 tracking-wider font-mono">Posted & Completed Archive</div>
+                        <div className="text-[13px] uppercase font-bold text-emerald-400 tracking-wider font-mono">Posted & Completed Archive</div>
                         {postedItems.map(topic => (
                           <div 
                             key={topic.id}
-                            className="p-3 bg-neutral-900/10 border border-neutral-850/60 rounded-lg space-y-2 font-mono text-[10px] opacity-75 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300"
+                            className="p-3 bg-neutral-900/10 border border-neutral-850/60 rounded-lg space-y-2 font-mono text-[14px] opacity-75 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300"
                           >
                             <div className="flex justify-between items-start">
                               <div>
@@ -2271,11 +2271,11 @@ export default function VercelView({
                                   {topic.name}
                                 </span>
                                 <div className="flex items-center gap-1.5 mt-1">
-                                  <span className="px-1.5 py-0.2 bg-neutral-950 text-neutral-500 border border-neutral-900 rounded text-[8px]">
+                                  <span className="px-1.5 py-0.2 bg-neutral-950 text-neutral-500 border border-neutral-900 rounded text-[13px]">
                                     {topic.channel}
                                   </span>
                                   {topic.revenueLevel && (
-                                    <span className="px-1.5 py-0.2 bg-emerald-950/20 text-emerald-400 border border-emerald-900/30 rounded text-[8px] font-bold">
+                                    <span className="px-1.5 py-0.2 bg-emerald-950/20 text-emerald-400 border border-emerald-900/30 rounded text-[13px] font-bold">
                                       {topic.revenueLevel}
                                     </span>
                                   )}
@@ -2297,13 +2297,13 @@ export default function VercelView({
                                 >
                                   <Pencil className="h-3 w-3" />
                                 </button>
-                                <span className="px-1.5 py-0.5 rounded border text-[8px] uppercase font-bold border-emerald-900/30 text-emerald-400 bg-emerald-950/20">
+                                <span className="px-1.5 py-0.5 rounded border text-[13px] uppercase font-bold border-emerald-900/30 text-emerald-400 bg-emerald-950/20">
                                   Live
                                 </span>
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-2 text-neutral-500 text-[8px] pt-1">
+                            <div className="grid grid-cols-2 gap-2 text-neutral-500 text-[13px] pt-1">
                               <div>Created: {new Date(topic.createdDate).toLocaleDateString()}</div>
                               <div>
                                 Published: {topic.dueDate ? new Date(topic.dueDate).toLocaleDateString() : 'N/A'}{' '}
@@ -2354,8 +2354,8 @@ export default function VercelView({
                 recentHistory.map(act => (
                   <div key={act.id} className="p-3 bg-neutral-900/60 border border-neutral-850 rounded-lg space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-neutral-500 truncate max-w-[120px]">{act.channel}</span>
-                      <span className={`px-1.5 py-0.2 rounded text-[8px] uppercase font-semibold border ${
+                      <span className="text-[14px] text-neutral-500 truncate max-w-[120px]">{act.channel}</span>
+                      <span className={`px-1.5 py-0.2 rounded text-[13px] uppercase font-semibold border ${
                         act.action.includes('scheduled') ? 'bg-emerald-950/85 text-emerald-400 border-emerald-900' :
                         act.action.includes('edited') ? 'bg-fuchsia-950/85 text-fuchsia-400 border-fuchsia-900' :
                         'bg-blue-950/85 text-blue-400 border-blue-900'
@@ -2364,11 +2364,11 @@ export default function VercelView({
                       </span>
                     </div>
                     
-                    <p className="text-[11px] text-neutral-300 break-all font-semibold leading-snug">
+                    <p className="text-[14px] text-neutral-300 break-all font-semibold leading-snug">
                       {act.action} on "{act.topicName}"
                     </p>
 
-                    <div className="flex items-center justify-between text-[10px] text-neutral-500 pt-1">
+                    <div className="flex items-center justify-between text-[14px] text-neutral-500 pt-1">
                       <span>by @{act.author}</span>
                       <span>{new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
@@ -2391,33 +2391,33 @@ export default function VercelView({
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-xs font-semibold text-neutral-200">{lane.path}</span>
                     {lane.bufferStatus === 'free-flow' ? (
-                      <span className="px-1.5 py-0.2 bg-neutral-900 border border-neutral-800 text-neutral-400 text-[8px] font-semibold uppercase rounded">
+                      <span className="px-1.5 py-0.2 bg-neutral-900 border border-neutral-800 text-neutral-400 text-[13px] font-semibold uppercase rounded">
                         Free Flow
                       </span>
                     ) : lane.bufferStatus === 'safe' ? (
-                      <span className="px-1.5 py-0.2 bg-emerald-950 border border-emerald-900 text-emerald-400 text-[8px] font-semibold uppercase rounded">
+                      <span className="px-1.5 py-0.2 bg-emerald-950 border border-emerald-900 text-emerald-400 text-[13px] font-semibold uppercase rounded">
                         Safe Buffer
                       </span>
                     ) : (
-                      <span className="px-1.5 py-0.2 bg-amber-950/80 border border-amber-900/60 text-amber-400 text-[8px] font-semibold uppercase rounded animate-pulse">
+                      <span className="px-1.5 py-0.2 bg-amber-950/80 border border-amber-900/60 text-amber-400 text-[13px] font-semibold uppercase rounded animate-pulse">
                         Gaps: {lane.scheduledInCycle}/{lane.targetGoal}
                       </span>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-neutral-850 text-center text-[10px] text-neutral-500">
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-neutral-850 text-center text-[14px] text-neutral-500">
                     <div>
-                      <span className="block text-[8px] text-neutral-500 uppercase">Pipeline Load</span>
+                      <span className="block text-[13px] text-neutral-500 uppercase">Pipeline Load</span>
                       <span className="font-semibold text-neutral-300 mt-0.5 block">{lane.invocations}</span>
                     </div>
                     <div>
-                      <span className="block text-[8px] text-neutral-500 uppercase">Cycle Target</span>
+                      <span className="block text-[13px] text-neutral-500 uppercase">Cycle Target</span>
                       <span className="font-semibold text-neutral-300 mt-0.5 block">
                         {lane.targetGoal !== null ? lane.targetGoal : 'Free'}
                       </span>
                     </div>
                     <div>
-                      <span className="block text-[8px] text-neutral-500 uppercase">Scheduled</span>
+                      <span className="block text-[13px] text-neutral-500 uppercase">Scheduled</span>
                       <span className={`font-semibold mt-0.5 block ${
                         lane.bufferStatus === 'gaps' ? 'text-amber-400 font-bold' : 'text-neutral-300'
                       }`}>
@@ -2446,10 +2446,10 @@ export default function VercelView({
               <div className="flex items-start justify-between border-b border-neutral-900 pb-3">
                 <div>
                   <h3 className="text-sm font-bold text-white">Edit Topic</h3>
-                  <p className="text-[10px] text-neutral-500 mt-1">Changes sync everywhere this topic appears.</p>
+                  <p className="text-[14px] text-neutral-500 mt-1">Changes sync everywhere this topic appears.</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[9px] uppercase text-blue-400 border border-blue-900/40 bg-blue-950/20 rounded px-2 py-1">{editingTopic.status}</span>
+                  <span className="text-[13px] uppercase text-blue-400 border border-blue-900/40 bg-blue-950/20 rounded px-2 py-1">{editingTopic.status}</span>
                   <button
                     type="button"
                     onClick={() => setEditingTopic(null)}
@@ -2461,7 +2461,7 @@ export default function VercelView({
                 </div>
               </div>
 
-              <label className="block text-[9px] uppercase text-neutral-500 font-mono">
+              <label className="block text-[13px] uppercase text-neutral-500 font-mono">
                 Title
                 <input
                   required
@@ -2471,7 +2471,7 @@ export default function VercelView({
                 />
               </label>
 
-              <label className="block text-[9px] uppercase text-neutral-500 font-mono">
+              <label className="block text-[13px] uppercase text-neutral-500 font-mono">
                 Description
                 <textarea
                   rows={3}
@@ -2482,7 +2482,7 @@ export default function VercelView({
               </label>
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <label className="block text-[9px] uppercase text-neutral-500 font-mono">
+                <label className="block text-[13px] uppercase text-neutral-500 font-mono">
                   Channel
                   <select
                     value={editingTopic.channel}
@@ -2509,7 +2509,7 @@ export default function VercelView({
                     <option value="DecodeWorthy">DecodeWorthy</option>
                   </select>
                 </label>
-                <label className="block text-[9px] uppercase text-neutral-500 font-mono">
+                <label className="block text-[13px] uppercase text-neutral-500 font-mono">
                   Priority
                   <select
                     value={editingTopic.priority}
@@ -2519,13 +2519,13 @@ export default function VercelView({
                     {[1, 2, 3, 4, 5].map(priority => <option key={priority} value={priority}>{priority}</option>)}
                   </select>
                 </label>
-                <div className="block text-[9px] uppercase text-neutral-500 font-mono">
+                <div className="block text-[13px] uppercase text-neutral-500 font-mono">
                   Due date
                   <button type="button" onClick={() => setEditCalendarOpen(open => !open)} className={`mt-1 flex w-full items-center justify-between rounded border px-2 py-2 text-xs normal-case outline-none transition ${editCalendarOpen ? 'border-blue-600 bg-blue-950/20 text-blue-100' : 'border-neutral-800 bg-neutral-900 text-white hover:border-neutral-700'}`}>
                     <span>{editingTopic.dueDate?.split('T')[0] || 'Select date'}</span><Calendar className="h-3.5 w-3.5 text-blue-400" />
                   </button>
                 </div>
-                <label className="block text-[9px] uppercase text-neutral-500 font-mono">
+                <label className="block text-[13px] uppercase text-neutral-500 font-mono">
                   Sched Time
                   <input
                     type="time"
@@ -2549,10 +2549,10 @@ export default function VercelView({
                 {editCalendarOpen && <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden"><div className="rounded-xl border border-blue-900/40 bg-neutral-900/45 p-3 font-mono shadow-[0_0_28px_rgba(59,130,246,.08)]">
                   <div className="mb-3 flex items-center justify-between">
                     <button type="button" onClick={() => setEditCalendarMonth(current => current.month === 0 ? { month: 11, year: current.year - 1 } : { ...current, month: current.month - 1 })} className="rounded-md border border-neutral-800 bg-neutral-950 p-1.5 text-neutral-400 hover:border-blue-800 hover:text-blue-300"><ChevronLeft className="h-3.5 w-3.5" /></button>
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-200">{new Date(editCalendarMonth.year, editCalendarMonth.month).toLocaleDateString([], { month: 'long', year: 'numeric' })}</div>
+                    <div className="text-[14px] font-bold uppercase tracking-wider text-neutral-200">{new Date(editCalendarMonth.year, editCalendarMonth.month).toLocaleDateString([], { month: 'long', year: 'numeric' })}</div>
                     <button type="button" onClick={() => setEditCalendarMonth(current => current.month === 11 ? { month: 0, year: current.year + 1 } : { ...current, month: current.month + 1 })} className="rounded-md border border-neutral-800 bg-neutral-950 p-1.5 text-neutral-400 hover:border-blue-800 hover:text-blue-300"><ChevronRight className="h-3.5 w-3.5" /></button>
                   </div>
-                  <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[7px] font-bold uppercase text-neutral-600">{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => <span key={day}>{day}</span>)}</div>
+                  <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[12px] font-bold uppercase text-neutral-600">{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => <span key={day}>{day}</span>)}</div>
                   <div className="grid grid-cols-7 gap-1">{(() => {
                     const cells: React.ReactNode[] = [];
                     const firstDay = new Date(editCalendarMonth.year, editCalendarMonth.month, 1).getDay();
@@ -2569,16 +2569,16 @@ export default function VercelView({
                       const hasLearnDrivenMembers = scheduled.some(topic => topic.channel === 'LearnDriven' && topic.format === 'Members');
                       const hasLearnDrivenLong = scheduled.some(topic => topic.channel === 'LearnDriven' && topic.format === 'Long');
                       cells.push(<button key={dateKey} type="button" title={scheduled.length ? `${scheduled.length} topic${scheduled.length === 1 ? '' : 's'} on this date` : 'No topics on this date'} onClick={() => { const defaultTime = editingTopic.channel === 'LearnDriven' ? '21:09' : '19:07'; const timePart = editingTopic.scheduledTime || defaultTime; setEditingTopic({ ...editingTopic, dueDate: new Date(`${dateKey}T${timePart}:00`).toISOString() }); setEditCalendarOpen(false); }} className={`relative min-h-10 rounded-lg border p-1 text-left transition ${selected ? 'border-blue-400 bg-blue-500/25 text-white shadow-[0_0_14px_rgba(59,130,246,.22)]' : isToday ? 'border-neutral-500 ring-1 ring-neutral-400 bg-neutral-950 text-white' : scheduled.length ? 'border-neutral-700 bg-neutral-950 text-neutral-200 hover:border-blue-700' : 'border-neutral-900 bg-neutral-950/50 text-neutral-600 hover:border-neutral-700 hover:text-neutral-300'}`}>
-                        <span className="text-[8px] font-bold">{day}</span>{scheduled.length > 0 && <span className="absolute right-1 top-1 rounded bg-neutral-800 px-1 text-[7px] font-black text-white">{scheduled.length}</span>}<span className="absolute bottom-1 left-1 flex gap-[2px]">{hasLearnDrivenShort && <span className="h-1.5 w-1.5 rounded-full shadow-[0_0_5px_#a855f7]" style={{ backgroundColor: '#a855f7' }} title="LearnDriven Short" />}{hasDecodeWorthyShort && <span className="h-1.5 w-1.5 rounded-full shadow-[0_0_5px_#eab308]" style={{ backgroundColor: '#eab308' }} title="DecodeWorthy Short" />}{hasLearnDrivenMembers && <span className="h-1.5 w-1.5 rounded-full shadow-[0_0_5px_#22c55e]" style={{ backgroundColor: '#22c55e' }} title="LearnDriven Members" />}{hasLearnDrivenLong && <span className="h-1.5 w-1.5 rounded-full shadow-[0_0_5px_#3b82f6]" style={{ backgroundColor: '#3b82f6' }} title="LearnDriven Long" />}</span>
+                        <span className="text-[13px] font-bold">{day}</span>{scheduled.length > 0 && <span className="absolute right-1 top-1 rounded bg-neutral-800 px-1 text-[12px] font-black text-white">{scheduled.length}</span>}<span className="absolute bottom-1 left-1 flex gap-[2px]">{hasLearnDrivenShort && <span className="h-1.5 w-1.5 rounded-full shadow-[0_0_5px_#a855f7]" style={{ backgroundColor: '#a855f7' }} title="LearnDriven Short" />}{hasDecodeWorthyShort && <span className="h-1.5 w-1.5 rounded-full shadow-[0_0_5px_#eab308]" style={{ backgroundColor: '#eab308' }} title="DecodeWorthy Short" />}{hasLearnDrivenMembers && <span className="h-1.5 w-1.5 rounded-full shadow-[0_0_5px_#22c55e]" style={{ backgroundColor: '#22c55e' }} title="LearnDriven Members" />}{hasLearnDrivenLong && <span className="h-1.5 w-1.5 rounded-full shadow-[0_0_5px_#3b82f6]" style={{ backgroundColor: '#3b82f6' }} title="LearnDriven Long" />}</span>
                       </button>);
                     }
                     return cells;
                   })()}</div>
-                  <div className="mt-3 flex items-center justify-between border-t border-neutral-800 pt-2 text-[8px]"><div className="flex gap-3 text-neutral-500"><span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#a855f7' }} />LD Short</span><span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#eab308' }} />DW Short</span><span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#22c55e' }} />LD Members</span><span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#3b82f6' }} />LD Long</span></div><button type="button" onClick={() => { setEditingTopic({ ...editingTopic, dueDate: null }); setEditCalendarOpen(false); }} className="text-neutral-500 hover:text-rose-300">Clear date</button></div>
+                  <div className="mt-3 flex items-center justify-between border-t border-neutral-800 pt-2 text-[13px]"><div className="flex gap-3 text-neutral-500"><span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#a855f7' }} />LD Short</span><span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#eab308' }} />DW Short</span><span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#22c55e' }} />LD Members</span><span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#3b82f6' }} />LD Long</span></div><button type="button" onClick={() => { setEditingTopic({ ...editingTopic, dueDate: null }); setEditCalendarOpen(false); }} className="text-neutral-500 hover:text-rose-300">Clear date</button></div>
                 </div></motion.div>}
               </AnimatePresence>
 
-              <div className="flex justify-end gap-2 border-t border-neutral-900 pt-3 text-[10px] font-mono">
+              <div className="flex justify-end gap-2 border-t border-neutral-900 pt-3 text-[14px] font-mono">
                 <button type="button" onClick={() => setEditingTopic(null)} className="px-3 py-1.5 text-neutral-400 hover:text-white">Cancel</button>
                 <button type="submit" className="rounded bg-blue-500 px-4 py-1.5 font-bold text-black hover:bg-blue-400">Save Changes</button>
               </div>
@@ -2670,7 +2670,7 @@ export default function VercelView({
                 </button>
                 <button
                   onClick={() => setResumePrompt(null)}
-                  className="mt-1 text-center text-[10px] text-neutral-500 hover:text-white"
+                  className="mt-1 text-center text-[14px] text-neutral-500 hover:text-white"
                 >
                   Cancel
                 </button>

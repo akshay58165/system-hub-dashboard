@@ -336,9 +336,9 @@ export default function CommandCenterView({
             onBlur={() => card.label === 'Needs attention' && hideAttentionPopover()}
           >
             <button type="button" onClick={card.action} className="group w-full rounded-xl border border-neutral-850 bg-neutral-950/65 p-4 text-left backdrop-blur transition hover:-translate-y-0.5 hover:border-neutral-600 hover:bg-neutral-900/70">
-            <div className="flex items-center justify-between"><span className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">{card.label}</span><span className="flex items-center gap-2"><card.icon className={`h-4 w-4 ${card.iconClass}`} /><ArrowUpRight className="h-3 w-3 text-neutral-700 group-hover:text-neutral-300" /></span></div>
+            <div className="flex items-center justify-between"><span className="font-mono text-[13px] uppercase tracking-wider text-neutral-500">{card.label}</span><span className="flex items-center gap-2"><card.icon className={`h-4 w-4 ${card.iconClass}`} /><ArrowUpRight className="h-3 w-3 text-neutral-700 group-hover:text-neutral-300" /></span></div>
             <div className="mt-3 text-2xl font-bold text-neutral-100">{card.value}</div>
-              <div className="mt-1 font-mono text-[9px] text-neutral-600">
+              <div className="mt-1 font-mono text-[13px] text-neutral-600">
                 {card.label === 'Needs attention' && visibleAttentionItems[0]
                   ? `Next: ${visibleAttentionItems[0].name} · ${nextActionForTopic(visibleAttentionItems[0])}`
                   : card.note}
@@ -353,8 +353,8 @@ export default function CommandCenterView({
                 onBlur={hideAttentionPopover}
               >
                 <div className="flex items-center justify-between border-b border-neutral-900 pb-2">
-                  <span className="font-mono text-[9px] uppercase tracking-[.24em] text-rose-300">Next attention</span>
-                  <span className="font-mono text-[9px] text-neutral-500">{visibleAttentionItems.length} item{visibleAttentionItems.length === 1 ? '' : 's'}</span>
+                  <span className="font-mono text-[13px] uppercase tracking-[.24em] text-rose-300">Next attention</span>
+                  <span className="font-mono text-[13px] text-neutral-500">{visibleAttentionItems.length} item{visibleAttentionItems.length === 1 ? '' : 's'}</span>
                 </div>
                 <div className="mt-2 space-y-2">
                   {visibleAttentionItems.slice(0, 3).map((topic, index) => (
@@ -365,22 +365,22 @@ export default function CommandCenterView({
                     title={`Open ${topic.name}`}
                     className="flex w-full items-start gap-2 rounded-lg border border-neutral-900 bg-neutral-900/40 px-2 py-2 text-left transition hover:border-rose-900/50 hover:bg-rose-950/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-400 cursor-pointer"
                   >
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-neutral-950 font-mono text-[8px] text-neutral-500">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-neutral-950 font-mono text-[13px] text-neutral-500">
                       0{index + 1}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-xs font-semibold text-neutral-100">{topic.name}</span>
-                      <span className="mt-0.5 block font-mono text-[8px] text-rose-300">
+                      <span className="mt-0.5 block font-mono text-[13px] text-rose-300">
                         {nextActionForTopic(topic)}
                       </span>
                     </span>
-                    <span className="mt-0.5 rounded border border-rose-900/40 bg-rose-950/20 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-rose-200">
+                    <span className="mt-0.5 rounded border border-rose-900/40 bg-rose-950/20 px-1.5 py-0.5 font-mono text-[13px] uppercase tracking-wider text-rose-200">
                       Go
                     </span>
                   </button>
                   ))}
                 </div>
-                <div className="mt-2 font-mono text-[9px] text-neutral-600">
+                <div className="mt-2 font-mono text-[13px] text-neutral-600">
                   Click any item to jump straight to that exact action.
                 </div>
               </div>
@@ -394,14 +394,14 @@ export default function CommandCenterView({
           <div className="mb-4 flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 text-sm font-bold text-white"><Flame className="h-4 w-4 text-rose-400" /> Attention spotlight</div>
-              <p className="mt-1 text-[11px] text-neutral-500">All items that need your immediate attention, listed with the exact next action.</p>
+              <p className="mt-1 text-[14px] text-neutral-500">All items that need your immediate attention, listed with the exact next action.</p>
             </div>
-            <button onClick={() => onOpenTopicPipeline()} className="flex items-center gap-1 font-mono text-[10px] text-rose-400 hover:text-rose-300">Open pipeline <ArrowUpRight className="h-3 w-3" /></button>
+            <button onClick={() => onOpenTopicPipeline()} className="flex items-center gap-1 font-mono text-[14px] text-rose-400 hover:text-rose-300">Open pipeline <ArrowUpRight className="h-3 w-3" /></button>
           </div>
 
           <div className="space-y-2.5">
             {model.queue.length === 0 ? (
-              <div className="flex items-center gap-3 rounded-xl border border-emerald-900/30 bg-emerald-950/10 p-4"><ShieldCheck className="h-5 w-5 text-emerald-400" /><div><div className="text-sm font-semibold text-emerald-300">No open topics</div><div className="text-[11px] text-neutral-500">Everything is published. Add a topic to start the next cycle.</div></div></div>
+              <div className="flex items-center gap-3 rounded-xl border border-emerald-900/30 bg-emerald-950/10 p-4"><ShieldCheck className="h-5 w-5 text-emerald-400" /><div><div className="text-sm font-semibold text-emerald-300">No open topics</div><div className="text-[14px] text-neutral-500">Everything is published. Add a topic to start the next cycle.</div></div></div>
             ) : model.queue.map((topic, index) => {
               const isBlocked = Boolean(topic.blockedReason);
               const isOverdue = Boolean(topic.dueDate && timeValue(topic.dueDate) < Date.now());
@@ -420,20 +420,20 @@ export default function CommandCenterView({
               ].filter(Boolean) as string[];
               return (
                 <button key={topic.id} onClick={() => onOpenTopicPipeline(topic.id, actionTarget)} className={`group flex w-full items-start gap-3 rounded-xl border p-3.5 text-left transition ${isRisk ? 'border-rose-950/50 bg-rose-950/5 hover:border-rose-900/60 hover:bg-rose-950/10' : isDueSoon ? 'border-amber-950/40 bg-amber-950/5 hover:border-amber-900/50 hover:bg-amber-950/10' : 'border-neutral-850 bg-neutral-900/30 hover:border-neutral-700 hover:bg-neutral-900/50'}`}>
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-neutral-950 font-mono text-[10px] text-neutral-500">0{index + 1}</span>
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-neutral-950 font-mono text-[14px] text-neutral-500">0{index + 1}</span>
                   <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${isBlocked ? 'bg-rose-500 shadow-[0_0_9px_#f43f5e]' : isOverdue ? 'bg-rose-400' : isDueSoon ? 'bg-amber-400 shadow-[0_0_9px_#f59e0b]' : isGoal ? 'bg-purple-400' : 'bg-neutral-500'}`} />
                   <span className="min-w-0 flex-1">
                     {/* Title + urgent/goal badges */}
                     <span className="flex flex-wrap items-center gap-1.5">
                       <span className="truncate text-xs font-semibold text-neutral-200">{topic.name}</span>
-                      {topic.topicScore != null && <span className="rounded bg-neutral-900/60 px-1.5 py-0.5 font-mono text-[8px] font-bold text-neutral-300 border border-neutral-800">{topic.topicScore}/10</span>}
-                      {isOverdue && <span className="rounded bg-rose-950/60 px-1.5 py-0.5 font-mono text-[7px] font-bold uppercase text-rose-300 border border-rose-900/40">Overdue</span>}
-                      {isDueSoon && !isOverdue && <span className="rounded bg-amber-950/40 px-1.5 py-0.5 font-mono text-[7px] font-bold uppercase text-amber-300 border border-amber-900/30">Due Soon</span>}
-                      {isGoal && <span className="rounded bg-purple-950/40 px-1.5 py-0.5 font-mono text-[7px] font-bold uppercase text-purple-300 border border-purple-900/40">Today Goal</span>}
-                      {isBlocked && <span className="rounded bg-rose-950/60 px-1.5 py-0.5 font-mono text-[7px] font-bold uppercase text-rose-400 border border-rose-900/40">Blocked</span>}
+                      {topic.topicScore != null && <span className="rounded bg-neutral-900/60 px-1.5 py-0.5 font-mono text-[13px] font-bold text-neutral-300 border border-neutral-800">{topic.topicScore}/10</span>}
+                      {isOverdue && <span className="rounded bg-rose-950/60 px-1.5 py-0.5 font-mono text-[12px] font-bold uppercase text-rose-300 border border-rose-900/40">Overdue</span>}
+                      {isDueSoon && !isOverdue && <span className="rounded bg-amber-950/40 px-1.5 py-0.5 font-mono text-[12px] font-bold uppercase text-amber-300 border border-amber-900/30">Due Soon</span>}
+                      {isGoal && <span className="rounded bg-purple-950/40 px-1.5 py-0.5 font-mono text-[12px] font-bold uppercase text-purple-300 border border-purple-900/40">Today Goal</span>}
+                      {isBlocked && <span className="rounded bg-rose-950/60 px-1.5 py-0.5 font-mono text-[12px] font-bold uppercase text-rose-400 border border-rose-900/40">Blocked</span>}
                     </span>
                     {/* Metadata chips row 1: channel, status, priority, lane */}
-                    <span className="mt-1.5 flex flex-wrap items-center gap-1.5 font-mono text-[8px] uppercase">
+                    <span className="mt-1.5 flex flex-wrap items-center gap-1.5 font-mono text-[13px] uppercase">
                       <span className="rounded bg-neutral-950 px-1.5 py-0.5 text-neutral-500 border border-neutral-800">{topic.channel}</span>
                       <span className="rounded bg-blue-950/30 px-1.5 py-0.5 text-blue-300 border border-blue-900/30">{topic.status}</span>
                       <span className={`rounded px-1.5 py-0.5 border ${topic.priority >= 4 ? 'bg-rose-950/20 text-rose-300 border-rose-900/30' : topic.priority === 3 ? 'bg-amber-950/20 text-amber-300 border-amber-900/30' : 'bg-neutral-950 text-neutral-400 border-neutral-800'}`}>P{topic.priority} · {priorityLabel}</span>
@@ -442,19 +442,19 @@ export default function CommandCenterView({
                     </span>
                     {/* Eligibility tags if any */}
                     {eligibilityTags.length > 0 && (
-                      <span className="mt-1.5 flex flex-wrap items-center gap-1 font-mono text-[7px]">
+                      <span className="mt-1.5 flex flex-wrap items-center gap-1 font-mono text-[12px]">
                         {eligibilityTags.map(tag => (
                           <span key={tag} className="rounded bg-cyan-950/20 px-1.5 py-0.5 text-cyan-400 border border-cyan-900/20">{tag}</span>
                         ))}
                       </span>
                     )}
                     {/* Next action hint */}
-                    <span className={`mt-1.5 block text-[10px] font-medium ${isRisk ? 'text-rose-300' : isDueSoon ? 'text-amber-200' : 'text-neutral-400'}`}>
-                      <span className="mr-1 font-mono text-[8px] uppercase tracking-wider text-neutral-600">Next</span>{nextAction}
+                    <span className={`mt-1.5 block text-[14px] font-medium ${isRisk ? 'text-rose-300' : isDueSoon ? 'text-amber-200' : 'text-neutral-400'}`}>
+                      <span className="mr-1 font-mono text-[13px] uppercase tracking-wider text-neutral-600">Next</span>{nextAction}
                     </span>
                   </span>
                   <div className="flex flex-col items-end gap-1.5 shrink-0 ml-1">
-                    <span className={`rounded-md px-2 py-1 font-mono text-[9px] ${isBlocked ? 'bg-rose-950/40 text-rose-400' : isOverdue ? 'bg-rose-950/40 text-rose-400' : topic.dueDate ? 'bg-amber-950/30 text-amber-300' : 'bg-neutral-900 text-neutral-500'}`}>{isBlocked ? 'BLOCKED' : deadlineText(topic.dueDate)}</span>
+                    <span className={`rounded-md px-2 py-1 font-mono text-[13px] ${isBlocked ? 'bg-rose-950/40 text-rose-400' : isOverdue ? 'bg-rose-950/40 text-rose-400' : topic.dueDate ? 'bg-amber-950/30 text-amber-300' : 'bg-neutral-900 text-neutral-500'}`}>{isBlocked ? 'BLOCKED' : deadlineText(topic.dueDate)}</span>
                     <ArrowUpRight className="mt-0.5 h-3.5 w-3.5 text-neutral-700 transition group-hover:text-rose-400" />
                   </div>
                 </button>
@@ -464,13 +464,13 @@ export default function CommandCenterView({
         </div>
 
         <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5">
-          <div className="mb-5 flex items-center justify-between"><div><div className="flex items-center gap-2 text-sm font-bold text-white"><TrendingUp className="h-4 w-4 text-cyan-400" /> Production flow</div><p className="mt-1 text-[11px] text-neutral-500">Live density by completed stage.</p></div><span className="font-mono text-[9px] text-neutral-600">{topics.length} TOTAL</span></div>
+          <div className="mb-5 flex items-center justify-between"><div><div className="flex items-center gap-2 text-sm font-bold text-white"><TrendingUp className="h-4 w-4 text-cyan-400" /> Production flow</div><p className="mt-1 text-[14px] text-neutral-500">Live density by completed stage.</p></div><span className="font-mono text-[13px] text-neutral-600">{topics.length} TOTAL</span></div>
           <div className="space-y-3.5">
             {model.stages.map(stage => (
               <button type="button" onClick={() => onOpenTopicPipeline()} key={stage.key} className="grid w-full grid-cols-[74px_1fr_28px] items-center gap-3 rounded-md text-left transition hover:bg-neutral-900/50 focus-visible:ring-1 focus-visible:ring-cyan-500">
-                <span className="font-mono text-[10px] text-neutral-500">{stage.label}</span>
+                <span className="font-mono text-[14px] text-neutral-500">{stage.label}</span>
                 <div className="h-2 overflow-hidden rounded-full bg-neutral-900"><motion.div initial={{ width: 0 }} animate={{ width: `${stage.width}%` }} transition={{ duration: .6 }} className="h-full rounded-full" style={{ backgroundColor: stage.color, boxShadow: `0 0 10px ${stage.color}55` }} /></div>
-                <span className="text-right font-mono text-[10px] font-bold" style={{ color: stage.color }}>{stage.count}</span>
+                <span className="text-right font-mono text-[14px] font-bold" style={{ color: stage.color }}>{stage.count}</span>
               </button>
             ))}
           </div>
@@ -508,19 +508,19 @@ export default function CommandCenterView({
             return (
               <button type="button" onClick={() => onTabChange('topicintel')} className="mt-6 block w-full border-t border-neutral-900 pt-4 text-left transition hover:border-cyan-900">
                 <div className="mb-3 flex items-center justify-between">
-                  <span className="font-mono text-[9px] uppercase tracking-wider text-neutral-500">Time invested by stage</span>
-                  <span className="font-mono text-[9px] text-cyan-400">{compactDuration(totalMs)} tracked · {compactDuration(weekMs)} this week</span>
+                  <span className="font-mono text-[13px] uppercase tracking-wider text-neutral-500">Time invested by stage</span>
+                  <span className="font-mono text-[13px] text-cyan-400">{compactDuration(totalMs)} tracked · {compactDuration(weekMs)} this week</span>
                 </div>
                 <div className="space-y-2.5">
                   {stageTime.map(s => {
                     const pct = totalMs > 0 ? (s.ms / totalMs) * 100 : 0;
                     return (
                       <div key={s.key} className="grid grid-cols-[70px_minmax(0,1fr)_140px] items-center gap-3">
-                        <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-neutral-200">{s.label}</span>
+                        <span className="font-mono text-[14px] font-semibold uppercase tracking-wider text-neutral-200">{s.label}</span>
                         <div className="h-2.5 overflow-hidden rounded-full bg-neutral-900">
                           <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.7 }} className="h-full rounded-full" style={{ backgroundColor: s.color, boxShadow: `0 0 10px ${s.color}55` }} />
                         </div>
-                        <div className="text-right font-mono text-[10px]">
+                        <div className="text-right font-mono text-[14px]">
                           <span className="font-bold text-white">{compactDuration(s.ms)}</span>
                           <span className="text-neutral-500"> · {s.sittings} sitting{s.sittings === 1 ? '' : 's'} · {s.topics} topic{s.topics === 1 ? '' : 's'}</span>
                         </div>
@@ -530,15 +530,15 @@ export default function CommandCenterView({
                 </div>
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2 border-t border-neutral-900 pt-3">
                   <div className="rounded-lg border border-neutral-900 bg-neutral-950/60 px-2 py-1.5">
-                    <div className="font-mono text-[8px] uppercase tracking-wider text-neutral-500">Total tracked</div>
+                    <div className="font-mono text-[13px] uppercase tracking-wider text-neutral-500">Total tracked</div>
                     <div className="mt-1 text-sm font-bold text-white">{compactDuration(totalMs)}</div>
                   </div>
                   <div className="rounded-lg border border-neutral-900 bg-neutral-950/60 px-2 py-1.5">
-                    <div className="font-mono text-[8px] uppercase tracking-wider text-neutral-500">Heaviest stage</div>
+                    <div className="font-mono text-[13px] uppercase tracking-wider text-neutral-500">Heaviest stage</div>
                     <div className="mt-1 text-sm font-bold" style={{ color: heaviest?.ms > 0 ? heaviest.color : '#6b7280' }}>{heaviest && heaviest.ms > 0 ? heaviest.label : '—'}</div>
                   </div>
                   <div className="rounded-lg border border-neutral-900 bg-neutral-950/60 px-2 py-1.5">
-                    <div className="font-mono text-[8px] uppercase tracking-wider text-neutral-500">Last 7 days</div>
+                    <div className="font-mono text-[13px] uppercase tracking-wider text-neutral-500">Last 7 days</div>
                     <div className="mt-1 text-sm font-bold text-cyan-300">{compactDuration(weekMs)}</div>
                   </div>
                 </div>
@@ -550,11 +550,11 @@ export default function CommandCenterView({
 
       <section className="grid gap-5 xl:grid-cols-3">
         <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5 xl:col-span-2">
-          <div className="mb-4 flex items-center justify-between"><div><div className="flex items-center gap-2 text-sm font-bold text-white"><Activity className="h-4 w-4 text-blue-400" /> Latest movement</div><p className="mt-1 text-[11px] text-neutral-500">Newest user actions across production.</p></div><button onClick={() => onTabChange('logs')} className="font-mono text-[10px] text-blue-400 hover:text-blue-300">View all →</button></div>
+          <div className="mb-4 flex items-center justify-between"><div><div className="flex items-center gap-2 text-sm font-bold text-white"><Activity className="h-4 w-4 text-blue-400" /> Latest movement</div><p className="mt-1 text-[14px] text-neutral-500">Newest user actions across production.</p></div><button onClick={() => onTabChange('logs')} className="font-mono text-[14px] text-blue-400 hover:text-blue-300">View all →</button></div>
           <div className="divide-y divide-neutral-900">
             {model.recent.length ? model.recent.map(item => (
-              <button type="button" onClick={() => openActivity(item)} key={item.id} className="group flex w-full items-center gap-3 py-3 text-left transition hover:bg-blue-950/10 focus-visible:ring-1 focus-visible:ring-blue-500"><CircleDot className={`h-4 w-4 shrink-0 ${item.channel === 'LearnDriven' ? 'text-blue-400' : 'text-emerald-400'}`} /><div className="min-w-0 flex-1"><div className="truncate text-xs text-neutral-300"><span className="font-semibold text-white group-hover:text-blue-300">{item.topicName}</span> - {item.action}</div><div className="mt-1 font-mono text-[9px] uppercase text-neutral-600">{item.channel}</div></div><span className="shrink-0 font-mono text-[9px] text-neutral-600">{relativeTime(item.timestamp)}</span><ArrowUpRight className="h-3 w-3 shrink-0 text-neutral-700 group-hover:text-blue-400" /></button>
-            )) : <div className="py-12 text-center font-mono text-[10px] text-neutral-600">No content movement logged yet.</div>}
+              <button type="button" onClick={() => openActivity(item)} key={item.id} className="group flex w-full items-center gap-3 py-3 text-left transition hover:bg-blue-950/10 focus-visible:ring-1 focus-visible:ring-blue-500"><CircleDot className={`h-4 w-4 shrink-0 ${item.channel === 'LearnDriven' ? 'text-blue-400' : 'text-emerald-400'}`} /><div className="min-w-0 flex-1"><div className="truncate text-xs text-neutral-300"><span className="font-semibold text-white group-hover:text-blue-300">{item.topicName}</span> - {item.action}</div><div className="mt-1 font-mono text-[13px] uppercase text-neutral-600">{item.channel}</div></div><span className="shrink-0 font-mono text-[13px] text-neutral-600">{relativeTime(item.timestamp)}</span><ArrowUpRight className="h-3 w-3 shrink-0 text-neutral-700 group-hover:text-blue-400" /></button>
+            )) : <div className="py-12 text-center font-mono text-[14px] text-neutral-600">No content movement logged yet.</div>}
           </div>
         </div>
 
@@ -562,7 +562,7 @@ export default function CommandCenterView({
           <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5">
             <div className="mb-4 flex items-center gap-2 text-sm font-bold text-white"><Target className="h-4 w-4 text-purple-400" /> Channel balance</div>
             <div className="space-y-4">{model.channels.map(channel => (
-              <button type="button" onClick={() => onOpenTopicPipeline()} key={channel.channel} className="group block w-full rounded-lg p-1 text-left transition hover:bg-neutral-900/50"><div className="mb-2 flex items-center justify-between"><span className="text-xs font-semibold text-neutral-300 group-hover:text-white">{channel.channel}</span><span className="font-mono text-[9px] text-neutral-600">{channel.active} active - {channel.done} done</span></div><div className="flex h-2 overflow-hidden rounded-full bg-neutral-900"><div className={channel.channel === 'LearnDriven' ? 'bg-blue-500' : 'bg-emerald-500'} style={{ width: `${channel.total ? (channel.done / channel.total) * 100 : 0}%` }} /><div className={channel.channel === 'LearnDriven' ? 'bg-blue-950' : 'bg-emerald-950'} style={{ flex: 1 }} /></div>{channel.atRisk > 0 && <div className="mt-1.5 font-mono text-[9px] text-rose-400">{channel.atRisk} need attention</div>}</button>
+              <button type="button" onClick={() => onOpenTopicPipeline()} key={channel.channel} className="group block w-full rounded-lg p-1 text-left transition hover:bg-neutral-900/50"><div className="mb-2 flex items-center justify-between"><span className="text-xs font-semibold text-neutral-300 group-hover:text-white">{channel.channel}</span><span className="font-mono text-[13px] text-neutral-600">{channel.active} active - {channel.done} done</span></div><div className="flex h-2 overflow-hidden rounded-full bg-neutral-900"><div className={channel.channel === 'LearnDriven' ? 'bg-blue-500' : 'bg-emerald-500'} style={{ width: `${channel.total ? (channel.done / channel.total) * 100 : 0}%` }} /><div className={channel.channel === 'LearnDriven' ? 'bg-blue-950' : 'bg-emerald-950'} style={{ flex: 1 }} /></div>{channel.atRisk > 0 && <div className="mt-1.5 font-mono text-[13px] text-rose-400">{channel.atRisk} need attention</div>}</button>
             ))}</div>
           </div>
 
@@ -574,7 +574,7 @@ export default function CommandCenterView({
                 { ok: model.overdue.length === 0, label: model.overdue.length ? `${model.overdue.length} overdue deadlines` : 'Deadlines controlled', action: () => { const t = model.overdue[0]; t ? onOpenTopicPipeline(t.id, actionTargetForTopic(t)) : onOpenTopicPipeline(); } },
                 { ok: model.scheduled > 0, label: model.scheduled ? `${model.scheduled} releases scheduled` : 'No release scheduled', action: () => onOpenTopicPipeline() },
                 { ok: activities.length > 0, label: activities.length ? 'Audit trail active' : 'No activity history', action: () => onTabChange('logs') }
-              ].map(signal => <button type="button" onClick={signal.action} key={signal.label} className="group flex w-full items-center gap-2 rounded-lg bg-neutral-900/35 px-3 py-2 text-left transition hover:bg-neutral-800/60"><span className={`h-1.5 w-1.5 rounded-full ${signal.ok ? 'bg-emerald-400' : 'bg-rose-500'}`} /><span className={`flex-1 text-[10px] ${signal.ok ? 'text-neutral-400' : 'text-rose-300'}`}>{signal.label}</span><ArrowUpRight className="h-3 w-3 text-neutral-700 group-hover:text-neutral-300" /></button>)}
+              ].map(signal => <button type="button" onClick={signal.action} key={signal.label} className="group flex w-full items-center gap-2 rounded-lg bg-neutral-900/35 px-3 py-2 text-left transition hover:bg-neutral-800/60"><span className={`h-1.5 w-1.5 rounded-full ${signal.ok ? 'bg-emerald-400' : 'bg-rose-500'}`} /><span className={`flex-1 text-[14px] ${signal.ok ? 'text-neutral-400' : 'text-rose-300'}`}>{signal.label}</span><ArrowUpRight className="h-3 w-3 text-neutral-700 group-hover:text-neutral-300" /></button>)}
             </div>
           </div>
         </div>
@@ -582,7 +582,7 @@ export default function CommandCenterView({
 
       {(warningInsights.length > 0 || sessions.length > 0 || cycleGoals) && (
         <section className="grid gap-5 lg:grid-cols-2">
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5"><button type="button" onClick={() => onTabChange('insights')} className="group mb-4 flex w-full items-center justify-between text-left text-sm font-bold text-white"><span className="flex items-center gap-2"><Zap className="h-4 w-4 text-amber-400" /> Strategic watchlist</span><ArrowUpRight className="h-3.5 w-3.5 text-neutral-700 group-hover:text-amber-400" /></button><div className="space-y-2.5">{warningInsights.length ? warningInsights.map(item => <button type="button" onClick={() => onTabChange('insights')} key={item.id} className="group block w-full rounded-xl border border-neutral-900 bg-neutral-900/25 p-3 text-left transition hover:border-amber-900/50"><div className="flex items-center justify-between gap-2 text-xs font-semibold text-neutral-200"><span>{item.title}</span><ArrowUpRight className="h-3 w-3 text-neutral-700 group-hover:text-amber-400" /></div><div className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-neutral-500">{item.description}</div></button>) : <div className="text-[10px] text-neutral-600">No strategic warnings.</div>}</div></div>
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5"><button type="button" onClick={() => onTabChange('insights')} className="group mb-4 flex w-full items-center justify-between text-left text-sm font-bold text-white"><span className="flex items-center gap-2"><Zap className="h-4 w-4 text-amber-400" /> Strategic watchlist</span><ArrowUpRight className="h-3.5 w-3.5 text-neutral-700 group-hover:text-amber-400" /></button><div className="space-y-2.5">{warningInsights.length ? warningInsights.map(item => <button type="button" onClick={() => onTabChange('insights')} key={item.id} className="group block w-full rounded-xl border border-neutral-900 bg-neutral-900/25 p-3 text-left transition hover:border-amber-900/50"><div className="flex items-center justify-between gap-2 text-xs font-semibold text-neutral-200"><span>{item.title}</span><ArrowUpRight className="h-3 w-3 text-neutral-700 group-hover:text-amber-400" /></div><div className="mt-1 line-clamp-2 text-[14px] leading-relaxed text-neutral-500">{item.description}</div></button>) : <div className="text-[14px] text-neutral-600">No strategic warnings.</div>}</div></div>
           <div className="rounded-2xl border border-neutral-800 bg-neutral-950/70 p-5">
             <button type="button" onClick={() => onTabChange('topicintel')} className="group mb-4 flex w-full items-center justify-between text-left text-sm font-bold text-white">
               <span className="flex items-center gap-2"><ListTodo className="h-4 w-4 text-purple-400" /> Active initiatives</span>
@@ -593,12 +593,12 @@ export default function CommandCenterView({
                 <button type="button" onClick={() => onTabChange('actionhub')} className="group block w-full rounded-xl border border-purple-900/25 bg-purple-950/10 p-3 text-left transition hover:border-purple-700/60">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-neutral-200">{cycleGoals.monthName} publishing cycle</span>
-                    <span className="flex items-center gap-2 font-mono text-[10px] text-purple-300">{cycleDelivered}/{cycleTarget || '-'}<ArrowUpRight className="h-3 w-3" /></span>
+                    <span className="flex items-center gap-2 font-mono text-[14px] text-purple-300">{cycleDelivered}/{cycleTarget || '-'}<ArrowUpRight className="h-3 w-3" /></span>
                   </div>
                   <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-neutral-900">
                     <div className="h-full rounded-full bg-gradient-to-r from-purple-600 to-cyan-400" style={{ width: `${cycleProgress}%` }} />
                   </div>
-                  <div className="mt-1.5 font-mono text-[9px] text-neutral-600">{cycleProgress}% of target delivered</div>
+                  <div className="mt-1.5 font-mono text-[13px] text-neutral-600">{cycleProgress}% of target delivered</div>
                 </button>
               )}
               {(() => {
@@ -611,7 +611,7 @@ export default function CommandCenterView({
                     <button type="button" onClick={() => onOpenTopicPipeline(active.topicId, active.stage)} className="flex w-full items-center justify-between rounded-xl border border-emerald-900/30 bg-emerald-950/10 p-3 text-left hover:border-emerald-700/60">
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-xs font-semibold text-neutral-100">Live: {active.topicName}</span>
-                        <span className="mt-1 block font-mono text-[10px] text-emerald-300">{active.status === 'running' ? 'Running' : 'Paused'} · {compactDuration(active_ms)} on {active.stage}</span>
+                        <span className="mt-1 block font-mono text-[14px] text-emerald-300">{active.status === 'running' ? 'Running' : 'Paused'} · {compactDuration(active_ms)} on {active.stage}</span>
                       </span>
                       <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-emerald-300" />
                     </button>
@@ -624,13 +624,13 @@ export default function CommandCenterView({
                     <button type="button" onClick={() => onOpenTopicPipeline(nextDue.id, actionTargetForTopic(nextDue))} className="flex w-full items-center justify-between rounded-xl border border-neutral-900 bg-neutral-900/25 p-3 text-left hover:border-amber-900/50">
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-xs font-semibold text-neutral-100">Nearest deadline · {nextDue.name}</span>
-                        <span className="mt-1 block font-mono text-[10px] text-amber-300">{deadlineText(nextDue.dueDate)}</span>
+                        <span className="mt-1 block font-mono text-[14px] text-amber-300">{deadlineText(nextDue.dueDate)}</span>
                       </span>
                       <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-amber-300" />
                     </button>
                   );
                 }
-                return <div className="text-[10px] text-neutral-600">No live timer, no upcoming deadline. Start a stage stopwatch on any topic.</div>;
+                return <div className="text-[14px] text-neutral-600">No live timer, no upcoming deadline. Start a stage stopwatch on any topic.</div>;
               })()}
             </div>
           </div>

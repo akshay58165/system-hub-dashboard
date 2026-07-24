@@ -146,7 +146,7 @@ export default function InsightsView({
                     <Icon className="h-4 w-4 shrink-0 text-current" />
                     <span className="text-xs font-bold text-white font-sans">{ins.title}</span>
                   </div>
-                  <span className="rounded bg-black/30 px-2 py-0.5 text-[8px] font-mono font-bold uppercase tracking-widest text-white">
+                  <span className="rounded bg-black/30 px-2 py-0.5 text-[13px] font-mono font-bold uppercase tracking-widest text-white">
                     {ins.channel}
                   </span>
                 </div>
@@ -155,7 +155,7 @@ export default function InsightsView({
                   {ins.description}
                 </p>
 
-                <p className="border-t border-white/5 pt-2 text-[10px] leading-normal font-mono text-neutral-400 font-normal">
+                <p className="border-t border-white/5 pt-2 text-[14px] leading-normal font-mono text-neutral-400 font-normal">
                   <span className="font-bold text-neutral-300">Reason:</span> {ins.reason}
                 </p>
               </div>
@@ -172,7 +172,7 @@ export default function InsightsView({
                         onTabChange('overview');
                       }
                     }}
-                    className="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-white hover:underline"
+                    className="inline-flex items-center gap-1 text-[14px] font-mono font-bold text-white hover:underline"
                   >
                     <span>{ins.actionLabel}</span>
                     <ArrowRight className="h-3 w-3" />

@@ -730,7 +730,7 @@ export default function GithubView({
       <div
         key={topic.id}
         id={`topic-inventory-${topic.id}`}
-        className={`p-3.5 bg-neutral-950/30 hover:bg-neutral-900/20 border rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-3 font-mono text-[11px] transition-all duration-300 hover:translate-x-0.5 ${
+        className={`p-3.5 bg-neutral-950/30 hover:bg-neutral-900/20 border rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-3 font-mono text-[14px] transition-all duration-300 hover:translate-x-0.5 ${
           isDueSoon
             ? 'border-red-950/40 hover:border-red-900/40 bg-red-950/5 shadow-[0_0_12px_rgba(239,68,68,0.03)]'
             : 'border-neutral-900 hover:border-neutral-800/80'
@@ -744,26 +744,26 @@ export default function GithubView({
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex items-center flex-wrap gap-2">
               <span className="text-xs font-bold text-neutral-200 truncate">{topic.name}</span>
-              <span className="px-1.5 py-0.2 bg-neutral-900/40 text-neutral-500 border border-neutral-900 rounded text-[9px]">
+              <span className="px-1.5 py-0.2 bg-neutral-900/40 text-neutral-500 border border-neutral-900 rounded text-[13px]">
                 {topic.channel}
               </span>
               {topic.format && (
-                <span className="px-1.5 py-0.2 bg-cyan-950/20 text-cyan-400 border border-cyan-900/30 rounded text-[9px] font-bold">
+                <span className="px-1.5 py-0.2 bg-cyan-950/20 text-cyan-400 border border-cyan-900/30 rounded text-[13px] font-bold">
                   {topic.format}
                 </span>
               )}
               {topic.category && (
-                <span className="px-1.5 py-0.2 bg-violet-950/20 text-violet-400 border border-violet-900/30 rounded text-[9px]">
+                <span className="px-1.5 py-0.2 bg-violet-950/20 text-violet-400 border border-violet-900/30 rounded text-[13px]">
                   {topic.category}
                 </span>
               )}
               {topic.isDemo && (
-                <span className="px-1.5 py-0.2 bg-amber-950/20 text-amber-400 border border-amber-900/30 rounded text-[9px] font-bold">
+                <span className="px-1.5 py-0.2 bg-amber-950/20 text-amber-400 border border-amber-900/30 rounded text-[13px] font-bold">
                   Demo Deletable
                 </span>
               )}
               {topic.revenueLevel && (
-                <span className="px-1.5 py-0.2 bg-emerald-950/20 text-emerald-400 border border-emerald-900/30 rounded text-[9px] font-bold">
+                <span className="px-1.5 py-0.2 bg-emerald-950/20 text-emerald-400 border border-emerald-900/30 rounded text-[13px] font-bold">
                   {topic.revenueLevel}
                 </span>
               )}
@@ -771,7 +771,7 @@ export default function GithubView({
                 type="button"
                 onClick={(e) => { e.stopPropagation(); startEditTopic(topic); }}
                 title={topic.topicScore ? 'Change score' : 'Set a score'}
-                className={`px-1.5 py-0.2 rounded text-[9px] font-bold border transition cursor-pointer ${
+                className={`px-1.5 py-0.2 rounded text-[13px] font-bold border transition cursor-pointer ${
                   topic.topicScore
                     ? 'bg-rose-950/20 text-rose-300 border-rose-900/30 hover:border-rose-700'
                     : 'bg-neutral-950 text-neutral-500 border-neutral-800 hover:border-rose-800 hover:text-rose-300'
@@ -811,7 +811,7 @@ export default function GithubView({
                     if (setPipelineSubView) setPipelineSubView('topics');
                     if (setActiveTab) setActiveTab('pipeline');
                   }}
-                  className="px-1.5 py-0.2 bg-blue-950/45 hover:bg-blue-900/20 text-blue-400 border border-blue-900/40 hover:border-blue-500 hover:text-white rounded text-[8px] font-mono transition cursor-pointer select-none"
+                  className="px-1.5 py-0.2 bg-blue-950/45 hover:bg-blue-900/20 text-blue-400 border border-blue-900/40 hover:border-blue-500 hover:text-white rounded text-[13px] font-mono transition cursor-pointer select-none"
                   title="Send to Progress section"
                 >
                   Start Pipeline
@@ -825,17 +825,17 @@ export default function GithubView({
                     if (setPipelineSubView) setPipelineSubView('topics');
                     if (setActiveTab) setActiveTab('pipeline');
                   }}
-                  className="px-1.5 py-0.2 bg-amber-950/35 hover:bg-amber-900/25 text-amber-400 border border-amber-900/40 hover:border-amber-500 rounded text-[8px] font-mono transition cursor-pointer"
+                  className="px-1.5 py-0.2 bg-amber-950/35 hover:bg-amber-900/25 text-amber-400 border border-amber-900/40 hover:border-amber-500 rounded text-[13px] font-mono transition cursor-pointer"
                   title="Open edit, delete, reset, and status controls"
                 >
                   Manage
                 </button>
               )}
             </div>
-            <p className="text-[10px] text-neutral-400 font-sans leading-relaxed">{topic.description}</p>
+            <p className="text-[14px] text-neutral-400 font-sans leading-relaxed">{topic.description}</p>
 
             {topic.dueDate && (
-              <div className="flex items-center gap-1 text-[9px] text-neutral-500 italic mt-0.5 font-sans">
+              <div className="flex items-center gap-1 text-[13px] text-neutral-500 italic mt-0.5 font-sans">
                 <Calendar className="h-3 w-3" />
                 <span>Due date: {new Date(topic.dueDate).toLocaleDateString()}</span>
                 {isDueSoon && (
@@ -849,11 +849,11 @@ export default function GithubView({
         </div>
 
         <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
-          <span className={`px-2 py-0.5 rounded border text-[9px] font-bold uppercase ${statusColors}`}>
+          <span className={`px-2 py-0.5 rounded border text-[13px] font-bold uppercase ${statusColors}`}>
             {workflow.label}
           </span>
 
-          <span className={`px-2 py-0.5 rounded border text-[9px] font-bold ${prio.style}`}>
+          <span className={`px-2 py-0.5 rounded border text-[13px] font-bold ${prio.style}`}>
             {prio.text}
           </span>
 
@@ -954,11 +954,11 @@ export default function GithubView({
             <div>
               <h2 className="text-sm font-bold text-neutral-100 font-mono tracking-tight flex items-center gap-2">
                 Topic Dashboard
-                <span className="px-1.5 py-0.2 bg-blue-950/30 text-blue-400 border border-blue-900/40 font-mono text-[10px] rounded">
+                <span className="px-1.5 py-0.2 bg-blue-950/30 text-blue-400 border border-blue-900/40 font-mono text-[14px] rounded">
                   Total: {stats.total}
                 </span>
               </h2>
-              <p className="text-[10px] text-neutral-500 mt-0.5 font-mono">
+              <p className="text-[14px] text-neutral-500 mt-0.5 font-mono">
                 Last created: {stats.lastCreatedText}
               </p>
             </div>
@@ -994,7 +994,7 @@ export default function GithubView({
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-lg font-bold font-mono text-white tracking-tight">Topic Status</h3>
-                  <span className="px-1.5 py-0.5 bg-neutral-900 border border-neutral-900 text-neutral-400 rounded text-[9px] font-mono font-semibold">
+                  <span className="px-1.5 py-0.5 bg-neutral-900 border border-neutral-900 text-neutral-400 rounded text-[13px] font-mono font-semibold">
                     updated {stats.lastUpdatedText}
                   </span>
                 </div>
@@ -1005,7 +1005,7 @@ export default function GithubView({
             {/* Metrics Row: Topic, Scripted, Shot, Edited, Scheduled */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5 mt-6 pt-5 border-t border-neutral-900/60 font-mono">
               <div className="p-3 bg-purple-950/5 rounded-lg border border-purple-950/30 hover:border-purple-900/30 hover:bg-purple-950/10 transition duration-300 group/metric">
-                <span className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider">Topic</span>
+                <span className="text-[14px] uppercase font-bold text-neutral-500 tracking-wider">Topic</span>
                 <span className="text-xs font-bold text-purple-400 mt-1 flex items-center gap-1.5 group-hover/metric:translate-x-0.5 transition-transform duration-300">
                   <SlidersHorizontal className="h-3.5 w-3.5" />
                   {stats.topicCount} ideas
@@ -1013,7 +1013,7 @@ export default function GithubView({
               </div>
 
               <div className="p-3 bg-blue-950/5 rounded-lg border border-blue-950/30 hover:border-blue-900/30 hover:bg-blue-950/10 transition duration-300 group/metric">
-                <span className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider">Scripted</span>
+                <span className="text-[14px] uppercase font-bold text-neutral-500 tracking-wider">Scripted</span>
                 <span className="text-xs font-bold text-blue-400 mt-1 flex items-center gap-1.5 group-hover/metric:translate-x-0.5 transition-transform duration-300">
                   <Terminal className="h-3.5 w-3.5" />
                   {stats.scripted} topics
@@ -1021,7 +1021,7 @@ export default function GithubView({
               </div>
 
               <div className="p-3 bg-amber-950/5 rounded-lg border border-amber-950/30 hover:border-amber-900/30 hover:bg-amber-950/10 transition duration-300 group/metric">
-                <span className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider">Shot</span>
+                <span className="text-[14px] uppercase font-bold text-neutral-500 tracking-wider">Shot</span>
                 <span className="text-xs font-bold text-amber-400 mt-1 flex items-center gap-1.5 group-hover/metric:translate-x-0.5 transition-transform duration-300">
                   <Play className="h-3.5 w-3.5 fill-amber-400/20" />
                   {stats.shot} topics
@@ -1029,7 +1029,7 @@ export default function GithubView({
               </div>
 
               <div className="p-3 bg-emerald-950/5 rounded-lg border border-emerald-950/30 hover:border-emerald-900/30 hover:bg-emerald-950/10 transition duration-300 group/metric">
-                <span className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider">Edited</span>
+                <span className="text-[14px] uppercase font-bold text-neutral-500 tracking-wider">Edited</span>
                 <span className="text-xs font-bold text-emerald-400 mt-1 flex items-center gap-1.5 group-hover/metric:translate-x-0.5 transition-transform duration-300">
                   <CheckCircle className="h-3.5 w-3.5" />
                   {stats.edited} topics
@@ -1037,7 +1037,7 @@ export default function GithubView({
               </div>
 
               <div className="p-3 bg-pink-950/5 rounded-lg border border-pink-950/30 hover:border-pink-900/30 hover:bg-pink-950/10 transition duration-300 group/metric">
-                <span className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider">Scheduled</span>
+                <span className="text-[14px] uppercase font-bold text-neutral-500 tracking-wider">Scheduled</span>
                 <span className="text-xs font-bold text-pink-400 mt-1 flex items-center gap-1.5 group-hover/metric:translate-x-0.5 transition-transform duration-300">
                   <Clock className="h-3.5 w-3.5" />
                   {stats.scheduled} scheduled
@@ -1065,7 +1065,7 @@ export default function GithubView({
                         'Remove all injected demo topics'
                       );
                     }}
-                    className="px-2.5 py-1 bg-amber-950/20 border border-amber-900/40 hover:border-amber-700 text-amber-400 rounded text-[10px] font-mono flex items-center gap-1.5 shrink-0 transition"
+                    className="px-2.5 py-1 bg-amber-950/20 border border-amber-900/40 hover:border-amber-700 text-amber-400 rounded text-[14px] font-mono flex items-center gap-1.5 shrink-0 transition"
                     title="Permanently remove all injected demo topics"
                   >
                     <Trash2 className="h-3 w-3" />
@@ -1182,9 +1182,9 @@ export default function GithubView({
 
               const stat = (label: string, value: React.ReactNode, sub: string, tone: string) => (
                 <div className={`rounded-lg border ${tone} px-2.5 py-2 min-w-0`}>
-                  <div className="text-[9px] uppercase tracking-wider text-neutral-400 font-semibold truncate">{label}</div>
+                  <div className="text-[13px] uppercase tracking-wider text-neutral-400 font-semibold truncate">{label}</div>
                   <div className="text-sm font-bold text-white mt-0.5 truncate">{value}</div>
-                  <div className="text-[9px] text-neutral-500 mt-0.5 truncate">{sub}</div>
+                  <div className="text-[13px] text-neutral-500 mt-0.5 truncate">{sub}</div>
                 </div>
               );
 
@@ -1205,10 +1205,10 @@ export default function GithubView({
               <div className="space-y-3">
                 <div className="flex items-center justify-between border-b border-neutral-900 pb-2">
                   <div>
-                    <h4 className="text-[10px] uppercase tracking-[0.3em] text-neutral-500">Active topics</h4>
-                    <p className="mt-1 text-[10px] font-mono text-neutral-600">Topics still moving through the workflow.</p>
+                    <h4 className="text-[14px] uppercase tracking-[0.3em] text-neutral-500">Active topics</h4>
+                    <p className="mt-1 text-[14px] font-mono text-neutral-600">Topics still moving through the workflow.</p>
                   </div>
-                  <span className="rounded border border-neutral-900 bg-neutral-950 px-2 py-0.5 text-[9px] font-mono text-neutral-500">
+                  <span className="rounded border border-neutral-900 bg-neutral-950 px-2 py-0.5 text-[13px] font-mono text-neutral-500">
                     {activeTopics.length}
                   </span>
                 </div>
@@ -1226,10 +1226,10 @@ export default function GithubView({
               <div className="space-y-3">
                 <div className="flex items-center justify-between border-b border-neutral-900 pb-2">
                   <div>
-                    <h4 className="text-[10px] uppercase tracking-[0.3em] text-pink-400/80">Scheduled topics</h4>
-                    <p className="mt-1 text-[10px] font-mono text-neutral-600">Ready to publish, but not posted yet.</p>
+                    <h4 className="text-[14px] uppercase tracking-[0.3em] text-pink-400/80">Scheduled topics</h4>
+                    <p className="mt-1 text-[14px] font-mono text-neutral-600">Ready to publish, but not posted yet.</p>
                   </div>
-                  <span className="rounded border border-pink-900/40 bg-pink-950/20 px-2 py-0.5 text-[9px] font-mono text-pink-300">
+                  <span className="rounded border border-pink-900/40 bg-pink-950/20 px-2 py-0.5 text-[13px] font-mono text-pink-300">
                     {scheduledTopics.length}
                   </span>
                 </div>
@@ -1247,10 +1247,10 @@ export default function GithubView({
               <div className="space-y-3 pb-1">
                 <div className="flex items-center justify-between border-b border-neutral-900 pb-2">
                   <div>
-                    <h4 className="text-[10px] uppercase tracking-[0.3em] text-rose-400/80">Posted topics</h4>
-                    <p className="mt-1 text-[10px] font-mono text-neutral-600">Published work archived at the bottom of the page.</p>
+                    <h4 className="text-[14px] uppercase tracking-[0.3em] text-rose-400/80">Posted topics</h4>
+                    <p className="mt-1 text-[14px] font-mono text-neutral-600">Published work archived at the bottom of the page.</p>
                   </div>
-                  <span className="rounded border border-rose-900/40 bg-rose-950/20 px-2 py-0.5 text-[9px] font-mono text-rose-300">
+                  <span className="rounded border border-rose-900/40 bg-rose-950/20 px-2 py-0.5 text-[13px] font-mono text-rose-300">
                     {postedTopics.length}
                   </span>
                 </div>
@@ -1299,7 +1299,7 @@ export default function GithubView({
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
                 onSubmit={handleAddTopic}
-                className="p-3.5 bg-neutral-900/50 border border-neutral-900 rounded-lg space-y-3 font-mono text-[10px]"
+                className="p-3.5 bg-neutral-900/50 border border-neutral-900 rounded-lg space-y-3 font-mono text-[14px]"
               >
                 <div>
                   <label className="block uppercase text-neutral-500">Topic Title</label>
@@ -1384,7 +1384,7 @@ export default function GithubView({
                             key={lane}
                             type="button"
                             onClick={() => setNewTopicLane(lane)}
-                            className={`flex-1 py-1.5 rounded border font-mono font-bold text-center transition text-[10px] select-none cursor-pointer ${
+                            className={`flex-1 py-1.5 rounded border font-mono font-bold text-center transition text-[14px] select-none cursor-pointer ${
                               newTopicLane === lane
                                 ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_8px_rgba(37,99,235,0.25)]'
                                 : 'bg-neutral-950 border-neutral-900 text-neutral-400 hover:text-neutral-200 hover:border-neutral-800'
@@ -1398,7 +1398,7 @@ export default function GithubView({
                           key="DW-Shorts"
                           type="button"
                           onClick={() => setNewTopicLane('Shorts')}
-                          className="flex-1 py-1.5 rounded border border-blue-500 bg-blue-600 text-white font-mono font-bold text-center text-[10px] select-none cursor-pointer shadow-[0_0_8px_rgba(37,99,235,0.25)]"
+                          className="flex-1 py-1.5 rounded border border-blue-500 bg-blue-600 text-white font-mono font-bold text-center text-[14px] select-none cursor-pointer shadow-[0_0_8px_rgba(37,99,235,0.25)]"
                         >
                           Shorts
                         </button>
@@ -1434,9 +1434,9 @@ export default function GithubView({
                 {newTopicLane && (
                   <div className="space-y-1.5 pt-1.5 border-t border-neutral-900/60">
                     <label className="block uppercase text-neutral-500">Revenue streams</label>
-                    <p className="text-[8px] text-neutral-600 font-sans">Options change depending on content lane selected.</p>
+                    <p className="text-[13px] text-neutral-600 font-sans">Options change depending on content lane selected.</p>
                     
-                    <div className="grid grid-cols-2 gap-2 mt-1 font-sans text-[9px] text-neutral-400">
+                    <div className="grid grid-cols-2 gap-2 mt-1 font-sans text-[13px] text-neutral-400">
                       <label className="flex items-center gap-1.5 cursor-pointer hover:text-neutral-200">
                         <input 
                           type="checkbox"
@@ -1579,7 +1579,7 @@ export default function GithubView({
                           aria-pressed={isActive}
                           aria-label={isActive ? `Clear score (currently ${score})` : `Set score to ${score}`}
                           title={isActive ? 'Tap to clear' : `Set to ${score}`}
-                          className={`flex h-5 w-5 cursor-pointer items-center justify-center rounded border text-[8px] font-bold transition ${
+                          className={`flex h-5 w-5 cursor-pointer items-center justify-center rounded border text-[13px] font-bold transition ${
                             isActive
                               ? 'border-rose-400 bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,.25)]'
                               : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-700 hover:text-white'
@@ -1601,7 +1601,7 @@ export default function GithubView({
                           key={num}
                           type="button"
                           onClick={() => setNewTopicPriority(num)}
-                          className={`w-5.5 h-5.5 rounded border font-mono font-bold flex items-center justify-center transition text-[9px] select-none cursor-pointer ${
+                          className={`w-5.5 h-5.5 rounded border font-mono font-bold flex items-center justify-center transition text-[13px] select-none cursor-pointer ${
                             newTopicPriority === num
                               ? 'bg-rose-500 border-rose-400 text-white shadow-[0_0_8px_rgba(244,63,94,0.3)]'
                               : 'bg-neutral-950 border-neutral-900 text-neutral-400 hover:text-neutral-200 hover:border-neutral-800'
@@ -1619,7 +1619,7 @@ export default function GithubView({
                         onClick={() => {
                           setShowDatePicker(prev => !prev);
                         }}
-                        className="w-full bg-neutral-950 border border-neutral-900 focus-within:border-neutral-800 outline-none text-[10px] rounded px-2 py-1.5 mt-1 text-white flex items-center justify-between cursor-pointer select-none"
+                        className="w-full bg-neutral-950 border border-neutral-900 focus-within:border-neutral-800 outline-none text-[14px] rounded px-2 py-1.5 mt-1 text-white flex items-center justify-between cursor-pointer select-none"
                       >
                         <span className={newTopicDueDate ? 'text-white' : 'text-neutral-500'}>
                           {newTopicDueDate || 'dd - mm - yyyy'}
@@ -1633,9 +1633,9 @@ export default function GithubView({
                             className="fixed inset-0 z-40" 
                             onClick={() => setShowDatePicker(false)} 
                           />
-                          <div className="absolute right-0 mt-1.5 w-64 backdrop-blur-md bg-neutral-950/90 border border-neutral-800 rounded-xl p-3 shadow-2xl z-50 font-mono text-[9px] select-none">
+                          <div className="absolute right-0 mt-1.5 w-64 backdrop-blur-md bg-neutral-950/90 border border-neutral-800 rounded-xl p-3 shadow-2xl z-50 font-mono text-[13px] select-none">
                             <div className="flex items-center justify-between mb-3 text-neutral-200">
-                              <span className="font-bold text-[10px] text-neutral-200">
+                              <span className="font-bold text-[14px] text-neutral-200">
                                 {(() => {
                                   const monthNames = [
                                     "January", "February", "March", "April", "May", "June", 
@@ -1742,7 +1742,7 @@ export default function GithubView({
                               })()}
                             </div>
 
-                            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 pt-1.5 border-t border-neutral-900/50 text-[7px] text-neutral-500">
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 pt-1.5 border-t border-neutral-900/50 text-[12px] text-neutral-500">
                               <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#a855f7' }} />LD Short</span>
                               <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#eab308' }} />DW Short</span>
                               <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#22c55e' }} />LD Members</span>
@@ -1781,7 +1781,7 @@ export default function GithubView({
                         type="button"
                         onClick={() => setNewTopicDueDate(todayDateKey)}
                         aria-pressed={newTopicDueDate === todayDateKey}
-                        className={`px-2 py-0.5 border text-[8px] rounded transition cursor-pointer select-none ${newTopicDueDate === todayDateKey ? 'border-cyan-500 bg-cyan-500/20 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,.25)]' : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-800 hover:text-neutral-200'}`}
+                        className={`px-2 py-0.5 border text-[13px] rounded transition cursor-pointer select-none ${newTopicDueDate === todayDateKey ? 'border-cyan-500 bg-cyan-500/20 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,.25)]' : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-800 hover:text-neutral-200'}`}
                       >
                         Today
                       </button>
@@ -1789,7 +1789,7 @@ export default function GithubView({
                         type="button"
                         onClick={() => setNewTopicDueDate(tomorrowDateKey)}
                         aria-pressed={newTopicDueDate === tomorrowDateKey}
-                        className={`px-2 py-0.5 border text-[8px] rounded transition cursor-pointer select-none ${newTopicDueDate === tomorrowDateKey ? 'border-violet-500 bg-violet-500/20 text-violet-200 shadow-[0_0_12px_rgba(139,92,246,.25)]' : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-800 hover:text-neutral-200'}`}
+                        className={`px-2 py-0.5 border text-[13px] rounded transition cursor-pointer select-none ${newTopicDueDate === tomorrowDateKey ? 'border-violet-500 bg-violet-500/20 text-violet-200 shadow-[0_0_12px_rgba(139,92,246,.25)]' : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-800 hover:text-neutral-200'}`}
                       >
                         Tomorrow
                       </button>
@@ -1802,12 +1802,12 @@ export default function GithubView({
                       value={newTopicSchedTime}
                       onChange={e => setNewTopicSchedTime(e.target.value)}
                       placeholder={newTopicChannel === 'LearnDriven' ? '21:09' : '19:07'}
-                      className="w-full bg-neutral-950 border border-neutral-900 focus-within:border-neutral-800 outline-none text-[10px] rounded px-2 py-1.5 mt-1 text-white font-mono cursor-pointer select-none"
+                      className="w-full bg-neutral-950 border border-neutral-900 focus-within:border-neutral-800 outline-none text-[14px] rounded px-2 py-1.5 mt-1 text-white font-mono cursor-pointer select-none"
                     />
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-2 text-[10px] pt-1.5 border-t border-neutral-900/60">
+                <div className="flex justify-end gap-2 text-[14px] pt-1.5 border-t border-neutral-900/60">
                   <button
                     type="button"
                     onClick={() => { setIsAddFormOpen(false); setEditingTopicId(null); }}
@@ -1824,7 +1824,7 @@ export default function GithubView({
                 </div>
               </motion.form>
             ) : (
-              <div className="space-y-4 font-mono text-[10px] leading-relaxed">
+              <div className="space-y-4 font-mono text-[14px] leading-relaxed">
                 {/* Section Header */}
                 <div className="p-3 bg-neutral-950/60 border border-neutral-900 rounded-lg space-y-1">
                   <div className="flex items-center gap-1.5 text-blue-400 font-bold">
@@ -1845,7 +1845,7 @@ export default function GithubView({
                     </span>
                     <div className="space-y-0.5">
                       <span className="font-bold">CRITICAL FOCUS REQUIRED</span>
-                      <p className="text-[9px] text-neutral-400 font-sans leading-normal">
+                      <p className="text-[13px] text-neutral-400 font-sans leading-normal">
                         You have {criticalTopics.length} topics due within 24 hours or overdue. Click to highlight them.
                       </p>
                     </div>
@@ -1856,7 +1856,7 @@ export default function GithubView({
                     <CheckCircle className="h-4 w-4 text-emerald-500 mt-0.5" />
                     <div className="space-y-0.5">
                       <span className="font-bold">ALL SYSTEMS NOMINAL</span>
-                      <p className="text-[9px] text-neutral-400 font-sans leading-normal">
+                      <p className="text-[13px] text-neutral-400 font-sans leading-normal">
                         Deadlines for active content topics are distributed properly.
                       </p>
                     </div>
@@ -1867,7 +1867,7 @@ export default function GithubView({
                 <div className="p-3 bg-neutral-950/40 border border-neutral-900 rounded-lg flex items-center justify-between gap-3">
                   <div>
                     <span className="text-neutral-400 font-bold block">Production Efficiency</span>
-                    <span className="text-[9px] text-neutral-500 font-sans mt-0.5 block">
+                    <span className="text-[13px] text-neutral-500 font-sans mt-0.5 block">
                       Ratio of completed (edited/scheduled) topics.
                     </span>
                   </div>
@@ -1886,28 +1886,28 @@ export default function GithubView({
 
                 {/* Stage recommendations */}
                 <div className="p-3 bg-neutral-955/20 border border-neutral-900/80 rounded-lg space-y-2">
-                  <div className="flex justify-between items-center text-neutral-400 font-bold text-[9px] uppercase tracking-wider">
+                  <div className="flex justify-between items-center text-neutral-400 font-bold text-[13px] uppercase tracking-wider">
                     <span>Work Stage Density</span>
                     <span>Load</span>
                   </div>
                   <div className="space-y-1.5">
-                    <div className="flex justify-between items-center text-[9px]">
+                    <div className="flex justify-between items-center text-[13px]">
                       <span className="text-purple-400">Topic Idea Pool</span>
                       <span className="text-neutral-300 font-bold">{stats.topicCount} ideas</span>
                     </div>
-                    <div className="flex justify-between items-center text-[9px]">
+                    <div className="flex justify-between items-center text-[13px]">
                       <span className="text-blue-400">Scripting Load</span>
                       <span className="text-neutral-300 font-bold">{stats.scripted} tasks</span>
                     </div>
-                    <div className="flex justify-between items-center text-[9px]">
+                    <div className="flex justify-between items-center text-[13px]">
                       <span className="text-amber-400">Shot & Filmed</span>
                       <span className="text-neutral-300 font-bold">{stats.shot} videos</span>
                     </div>
-                    <div className="flex justify-between items-center text-[9px]">
+                    <div className="flex justify-between items-center text-[13px]">
                       <span className="text-fuchsia-400">To Be Edited</span>
                       <span className="text-neutral-300 font-bold">{stats.edited} videos</span>
                     </div>
-                    <div className="flex justify-between items-center text-[9px]">
+                    <div className="flex justify-between items-center text-[13px]">
                       <span className="text-emerald-400">Ready to Publish</span>
                       <span className="text-neutral-300 font-bold">{stats.scheduled} scheduled</span>
                     </div>
@@ -1933,7 +1933,7 @@ export default function GithubView({
                       <div className="flex-1 w-[1px] bg-neutral-900 min-h-[24px]" />
                     </div>
 
-                    <div className="flex-1 min-w-0 pb-3 font-mono text-[10px]">
+                    <div className="flex-1 min-w-0 pb-3 font-mono text-[14px]">
                       <span className="text-neutral-200 block leading-normal">
                         {activity.action} on <strong className="text-neutral-300">{activity.topicName}</strong>
                       </span>

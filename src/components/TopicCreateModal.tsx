@@ -391,7 +391,7 @@ export default function TopicCreateModal({
   };
 
   const checkbox = (key: keyof Eligibility, label: string, wide = false) => (
-    <label className={`flex cursor-pointer items-center gap-1.5 text-[9px] text-neutral-400 hover:text-neutral-200 ${wide ? 'col-span-2' : ''}`}>
+    <label className={`flex cursor-pointer items-center gap-1.5 text-[13px] text-neutral-400 hover:text-neutral-200 ${wide ? 'col-span-2' : ''}`}>
       <input
         type="checkbox"
         checked={eligibility[key]}
@@ -412,7 +412,7 @@ export default function TopicCreateModal({
         aria-pressed={isActive}
         aria-label={isActive ? `Clear score (currently ${value})` : `Set score to ${value}`}
         title={isActive ? 'Tap to clear' : `Set to ${value}`}
-        className={`relative flex h-5 w-5 cursor-pointer items-center justify-center rounded border text-[8px] font-bold transition ${
+        className={`relative flex h-5 w-5 cursor-pointer items-center justify-center rounded border text-[13px] font-bold transition ${
           isActive
             ? 'border-rose-400 bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,.25)]'
             : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-700 hover:text-white'
@@ -442,7 +442,7 @@ export default function TopicCreateModal({
           >
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <p className="font-mono text-[9px] uppercase tracking-[0.28em] text-rose-400">Topic Engine</p>
+                <p className="font-mono text-[13px] uppercase tracking-[0.28em] text-rose-400">Topic Engine</p>
                 <h3 className="mt-1 text-sm font-semibold text-neutral-200">{topicToEdit ? 'Edit Topic' : 'Topic Management'}</h3>
               </div>
               <button type="button" onClick={onClose} className="rounded border border-neutral-800 p-1.5 text-neutral-400 hover:text-white" aria-label="Close topic form">
@@ -450,7 +450,7 @@ export default function TopicCreateModal({
               </button>
             </div>
 
-            <div className="space-y-3 rounded-lg border border-neutral-900 bg-neutral-900/40 p-3.5 font-mono text-[10px]">
+            <div className="space-y-3 rounded-lg border border-neutral-900 bg-neutral-900/40 p-3.5 font-mono text-[14px]">
               <label className="block uppercase text-neutral-500">Topic Title
                 <input required value={name} onChange={event => setName(event.target.value)} placeholder="e.g. Next-Generation TypeScript Strategies" className="mt-1 w-full rounded border border-neutral-900 bg-neutral-950 px-2.5 py-1.5 text-xs normal-case text-white outline-none focus:border-neutral-700" />
               </label>
@@ -472,7 +472,7 @@ export default function TopicCreateModal({
                   <label className="block uppercase text-neutral-500">Content Lane</label>
                   <div className="mt-1 flex gap-2">
                     {(channel === 'LearnDriven' ? ['Shorts', 'Long', 'Members-Only'] : ['Shorts']).map(value => (
-                      <button key={value} type="button" onClick={() => chooseLane(value as Lane)} className={`flex-1 rounded border py-1.5 text-[10px] font-bold transition ${lane === value ? 'border-blue-500 bg-blue-600 text-white shadow-[0_0_8px_rgba(37,99,235,.25)]' : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-700 hover:text-white'}`}>{value}</button>
+                      <button key={value} type="button" onClick={() => chooseLane(value as Lane)} className={`flex-1 rounded border py-1.5 text-[14px] font-bold transition ${lane === value ? 'border-blue-500 bg-blue-600 text-white shadow-[0_0_8px_rgba(37,99,235,.25)]' : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-700 hover:text-white'}`}>{value}</button>
                     ))}
                   </div>
                 </div>
@@ -493,7 +493,7 @@ export default function TopicCreateModal({
               {lane && (
                 <div className="space-y-1.5 border-t border-neutral-900/60 pt-2">
                   <label className="block uppercase text-neutral-500">Revenue Streams</label>
-                  <p className="font-sans text-[8px] text-neutral-600">Options change depending on content lane selected.</p>
+                  <p className="font-sans text-[13px] text-neutral-600">Options change depending on content lane selected.</p>
                   <div className="mt-1 grid grid-cols-2 gap-2 font-sans">
                     {checkbox('neutral', 'Neutral - Level 0.5')}
                     {lane === 'Shorts' && <>{checkbox('productTag', 'Product tag')}{checkbox('viral', 'Viral potential')}{checkbox('pinnedPromo', 'Pinned promotion')}</>}
@@ -507,7 +507,7 @@ export default function TopicCreateModal({
                 <div>
                   <label className="block uppercase text-neutral-500">Priority</label>
                   <div className="mt-1.5 flex gap-1.5">
-                    {([1, 2, 3, 4, 5] as const).map(value => <button key={value} type="button" onClick={() => setPriority(value)} className={`flex h-6 w-6 items-center justify-center rounded border text-[9px] font-bold ${priority === value ? 'border-rose-400 bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,.3)]' : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-700'}`}>{value}</button>)}
+                    {([1, 2, 3, 4, 5] as const).map(value => <button key={value} type="button" onClick={() => setPriority(value)} className={`flex h-6 w-6 items-center justify-center rounded border text-[13px] font-bold ${priority === value ? 'border-rose-400 bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,.3)]' : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-700'}`}>{value}</button>)}
                   </div>
                 </div>
                 <fieldset className="space-y-1">
@@ -541,7 +541,7 @@ export default function TopicCreateModal({
                         onClick={() => setExplanationDifficulty(isActive ? undefined : value)}
                         aria-pressed={isActive}
                         title={isActive ? 'Tap to clear' : `Set to ${value}`}
-                        className={`relative flex h-5 w-5 cursor-pointer items-center justify-center rounded border text-[8px] font-bold transition ${
+                        className={`relative flex h-5 w-5 cursor-pointer items-center justify-center rounded border text-[13px] font-bold transition ${
                           isActive
                             ? 'border-amber-400 bg-amber-500 text-black shadow-[0_0_8px_rgba(245,158,11,.35)]'
                             : 'border-neutral-900 bg-neutral-950 text-neutral-400 hover:border-neutral-700 hover:text-white'
@@ -561,7 +561,7 @@ export default function TopicCreateModal({
                       onClick={() => {
                         setShowDatePicker(prev => !prev);
                       }}
-                      className="h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 text-[10px] normal-case text-white flex items-center justify-between cursor-pointer select-none"
+                      className="h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 text-[14px] normal-case text-white flex items-center justify-between cursor-pointer select-none"
                     >
                       <span className={dueDate ? 'text-white' : 'text-neutral-500'}>
                         {dueDate || 'dd - mm - yyyy'}
@@ -575,9 +575,9 @@ export default function TopicCreateModal({
                           className="fixed inset-0 z-40"
                           onClick={() => setShowDatePicker(false)}
                         />
-                        <div className="absolute right-0 mt-1.5 w-64 backdrop-blur-md bg-neutral-950/90 border border-neutral-800 rounded-xl p-3 shadow-2xl z-50 font-mono text-[9px] select-none">
+                        <div className="absolute right-0 mt-1.5 w-64 backdrop-blur-md bg-neutral-950/90 border border-neutral-800 rounded-xl p-3 shadow-2xl z-50 font-mono text-[13px] select-none">
                           <div className="flex items-center justify-between mb-3 text-neutral-200">
-                            <span className="font-bold text-[10px] text-neutral-200">
+                            <span className="font-bold text-[14px] text-neutral-200">
                               {(() => {
                                 const monthNames = [
                                   "January", "February", "March", "April", "May", "June",
@@ -674,7 +674,7 @@ export default function TopicCreateModal({
                             })()}
                           </div>
 
-                          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 pt-1.5 border-t border-neutral-900/50 text-[7px] text-neutral-500">
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 pt-1.5 border-t border-neutral-900/50 text-[12px] text-neutral-500">
                             <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#a855f7' }} />LD Short</span>
                             <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#eab308' }} />DW Short</span>
                             <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#22c55e' }} />LD Members</span>
@@ -705,42 +705,42 @@ export default function TopicCreateModal({
                   </div>
                 </label>
                 <label className="block uppercase text-neutral-500">Sched Time
-                  <input type="time" value={scheduleTime} onChange={event => setScheduleTime(event.target.value)} className="mt-1 h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 text-[10px] normal-case text-white outline-none" />
+                  <input type="time" value={scheduleTime} onChange={event => setScheduleTime(event.target.value)} className="mt-1 h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 text-[14px] normal-case text-white outline-none" />
                 </label>
               </div>
 
               <div className="flex gap-2">
-                <button type="button" onClick={() => setDueDate(localDateKey())} className={`rounded border px-2 py-1 text-[9px] ${dueDate === localDateKey() ? 'border-purple-500 bg-purple-950/40 text-purple-300' : 'border-neutral-900 bg-neutral-950 text-neutral-500 hover:text-white'}`}>Today</button>
-                <button type="button" onClick={() => setDueDate(localDateKey(1))} className={`rounded border px-2 py-1 text-[9px] ${dueDate === localDateKey(1) ? 'border-yellow-500 bg-yellow-950/40 text-yellow-300' : 'border-neutral-900 bg-neutral-950 text-neutral-500 hover:text-white'}`}>Tomorrow</button>
+                <button type="button" onClick={() => setDueDate(localDateKey())} className={`rounded border px-2 py-1 text-[13px] ${dueDate === localDateKey() ? 'border-purple-500 bg-purple-950/40 text-purple-300' : 'border-neutral-900 bg-neutral-950 text-neutral-500 hover:text-white'}`}>Today</button>
+                <button type="button" onClick={() => setDueDate(localDateKey(1))} className={`rounded border px-2 py-1 text-[13px] ${dueDate === localDateKey(1) ? 'border-yellow-500 bg-yellow-950/40 text-yellow-300' : 'border-neutral-900 bg-neutral-950 text-neutral-500 hover:text-white'}`}>Tomorrow</button>
               </div>
 
               {topicToEdit && (
                 <div className="space-y-2 border-t border-neutral-900/60 pt-2">
                   <div className="flex items-center justify-between">
                     <label className="block uppercase text-neutral-500">Stage timings</label>
-                    <span className="font-mono text-[8px] normal-case text-neutral-600">HH:MM:SS · overwrites the total</span>
+                    <span className="font-mono text-[13px] normal-case text-neutral-600">HH:MM:SS · overwrites the total</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {STAGE_TIMING_KEYS.map(stage => (
                       <label key={stage} className="block">
-                        <span className="block text-[8px] font-bold uppercase tracking-wider text-neutral-400">{STAGE_TIMING_LABEL[stage]}</span>
+                        <span className="block text-[13px] font-bold uppercase tracking-wider text-neutral-400">{STAGE_TIMING_LABEL[stage]}</span>
                         <input
                           type="text"
                           value={stageTimes[stage]}
                           onChange={event => setStageTimes(prev => ({ ...prev, [stage]: event.target.value }))}
                           placeholder="00:00:00"
-                          className="mt-1 h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 font-mono text-[10px] tabular-nums text-white outline-none focus:border-neutral-700"
+                          className="mt-1 h-7 w-full rounded border border-neutral-900 bg-neutral-950 px-2 font-mono text-[14px] tabular-nums text-white outline-none focus:border-neutral-700"
                         />
                       </label>
                     ))}
                   </div>
-                  <p className="font-sans text-[8px] normal-case text-neutral-600">
+                  <p className="font-sans text-[13px] normal-case text-neutral-600">
                     Editing a stage's total replaces every recorded sitting for that stage with a single manual entry. Leave a field unchanged to keep its existing history.
                   </p>
                 </div>
               )}
 
-              <button type="submit" disabled={!name.trim() || !channel} className="flex w-full items-center justify-center gap-1.5 rounded bg-rose-500 py-2 text-[10px] font-bold text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-40">
+              <button type="submit" disabled={!name.trim() || !channel} className="flex w-full items-center justify-center gap-1.5 rounded bg-rose-500 py-2 text-[14px] font-bold text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-40">
                 <Plus className="h-3.5 w-3.5" /> {topicToEdit ? 'Save Changes' : 'Add Topic'}
               </button>
             </div>

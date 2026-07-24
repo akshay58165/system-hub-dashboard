@@ -42,9 +42,9 @@ export default function RunningStageBar({ timers, topics, onPause, onResume, onD
   const stageLabel = activeTimer.stage.charAt(0).toUpperCase() + activeTimer.stage.slice(1);
 
   return (
-    <div className={`sticky top-[104px] z-20 w-full flex flex-wrap items-center gap-3 border-b px-4 py-2 font-mono text-[10px] backdrop-blur-md ${isRunning ? 'border-emerald-800/60 bg-emerald-950/85' : 'border-amber-800/60 bg-amber-950/85'}`}>
+    <div className={`sticky top-[104px] z-20 w-full flex flex-wrap items-center gap-3 border-b px-4 py-2 font-mono text-[14px] backdrop-blur-md ${isRunning ? 'border-emerald-800/60 bg-emerald-950/85' : 'border-amber-800/60 bg-amber-950/85'}`}>
       <span className={`h-2 w-2 rounded-full shrink-0 ${isRunning ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} aria-hidden="true" />
-      <span className={`text-[9px] font-bold uppercase tracking-wider ${isRunning ? 'text-emerald-300' : 'text-amber-300'}`}>{isRunning ? 'Running' : 'Paused'} · {stageLabel}</span>
+      <span className={`text-[13px] font-bold uppercase tracking-wider ${isRunning ? 'text-emerald-300' : 'text-amber-300'}`}>{isRunning ? 'Running' : 'Paused'} · {stageLabel}</span>
       <button
         type="button"
         onClick={() => {
@@ -65,7 +65,7 @@ export default function RunningStageBar({ timers, topics, onPause, onResume, onD
           <button
             type="button"
             onClick={onPause}
-            className="flex items-center gap-1 rounded border border-amber-800 bg-amber-950/40 px-2 py-1 text-[9px] font-bold uppercase text-amber-200 hover:border-amber-600 hover:text-amber-100"
+            className="flex items-center gap-1 rounded border border-amber-800 bg-amber-950/40 px-2 py-1 text-[13px] font-bold uppercase text-amber-200 hover:border-amber-600 hover:text-amber-100"
           >
             <Pause className="h-3 w-3" /> Pause
           </button>
@@ -73,7 +73,7 @@ export default function RunningStageBar({ timers, topics, onPause, onResume, onD
           <button
             type="button"
             onClick={onResume}
-            className="flex items-center gap-1 rounded border border-emerald-800 bg-emerald-950/40 px-2 py-1 text-[9px] font-bold uppercase text-emerald-200 hover:border-emerald-600 hover:text-emerald-100"
+            className="flex items-center gap-1 rounded border border-emerald-800 bg-emerald-950/40 px-2 py-1 text-[13px] font-bold uppercase text-emerald-200 hover:border-emerald-600 hover:text-emerald-100"
           >
             <Play className="h-3 w-3" /> Resume
           </button>
@@ -81,7 +81,7 @@ export default function RunningStageBar({ timers, topics, onPause, onResume, onD
         <button
           type="button"
           onClick={() => onDone(topic.id, activeTimer.stage)}
-          className="flex items-center gap-1 rounded border border-blue-800 bg-blue-950/40 px-2 py-1 text-[9px] font-bold uppercase text-blue-200 hover:border-blue-600 hover:text-blue-100"
+          className="flex items-center gap-1 rounded border border-blue-800 bg-blue-950/40 px-2 py-1 text-[13px] font-bold uppercase text-blue-200 hover:border-blue-600 hover:text-blue-100"
           title="Mark stage done — closes this bar"
         >
           <CheckCircle className="h-3 w-3" /> Done

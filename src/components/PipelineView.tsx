@@ -518,8 +518,8 @@ export default function PipelineView({
               
               {/* Stage Header */}
               <div className="flex justify-between items-center pb-1.5 border-b border-neutral-900/40">
-                <span className="text-[10px] font-bold text-neutral-500 font-mono tracking-wider uppercase">{stage}</span>
-                <span className="px-1.5 py-0.2 bg-neutral-900/40 border border-neutral-900/30 text-neutral-500 rounded text-[8px] font-mono">{items.length}</span>
+                <span className="text-[14px] font-bold text-neutral-500 font-mono tracking-wider uppercase">{stage}</span>
+                <span className="px-1.5 py-0.2 bg-neutral-900/40 border border-neutral-900/30 text-neutral-500 rounded text-[13px] font-mono">{items.length}</span>
               </div>
 
               {/* Cards List */}
@@ -561,42 +561,42 @@ export default function PipelineView({
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                         {/* Tags / Badges */}
                         <div className="flex flex-wrap items-center gap-1">
-                          <span className={`text-[7px] font-mono font-bold px-1 py-0.2 rounded border uppercase ${isLearnDriven ? 'text-purple-400/80 bg-purple-950/5 border-purple-900/10' : 'text-emerald-400/80 bg-emerald-950/5 border-emerald-900/10'}`}>
+                          <span className={`text-[12px] font-mono font-bold px-1 py-0.2 rounded border uppercase ${isLearnDriven ? 'text-purple-400/80 bg-purple-950/5 border-purple-900/10' : 'text-emerald-400/80 bg-emerald-950/5 border-emerald-900/10'}`}>
                             {video.channelName === 'LearnDriven' ? 'LD' : 'DW'}
                           </span>
-                          <span className="text-[7px] font-mono font-bold bg-zinc-900/30 text-zinc-500 px-1 py-0.2 rounded border border-zinc-900/30">
+                          <span className="text-[12px] font-mono font-bold bg-zinc-900/30 text-zinc-500 px-1 py-0.2 rounded border border-zinc-900/30">
                             {video.format}
                           </span>
-                          <span className="text-[7px] font-mono font-bold bg-blue-950/20 text-blue-400 px-1 py-0.2 rounded border border-blue-900/30 uppercase">
+                          <span className="text-[12px] font-mono font-bold bg-blue-950/20 text-blue-400 px-1 py-0.2 rounded border border-blue-900/30 uppercase">
                             {video.pipelineStage}
                           </span>
                           {video.blockedReason && (
-                            <span className="text-[7px] font-mono font-bold bg-red-950/10 text-red-400/80 px-1 py-0.2 rounded border border-red-900/15 animate-pulse">
+                            <span className="text-[12px] font-mono font-bold bg-red-950/10 text-red-400/80 px-1 py-0.2 rounded border border-red-900/15 animate-pulse">
                               BLOCKED
                             </span>
                           )}
                         </div>
 
                         {/* Title */}
-                        <h4 className="text-[10px] font-semibold text-zinc-300 leading-snug font-sans line-clamp-2 pr-4">
+                        <h4 className="text-[14px] font-semibold text-zinc-300 leading-snug font-sans line-clamp-2 pr-4">
                           {video.title}
                         </h4>
 
-                        {sourceTopic?.revenueLevel && <span className="text-[8px] font-mono text-emerald-400/80 flex items-center gap-1 select-none">
+                        {sourceTopic?.revenueLevel && <span className="text-[13px] font-mono text-emerald-400/80 flex items-center gap-1 select-none">
                           <Sparkles className="h-2.5 w-2.5 shrink-0 text-emerald-600" />
                           <span className="truncate">{revenueLevelLabel[sourceTopic.revenueLevel] || sourceTopic.revenueLevel}</span>
                         </span>}
 
-                        <div className="flex flex-wrap gap-x-2 gap-y-1 text-[7px] font-mono text-neutral-500">
+                        <div className="flex flex-wrap gap-x-2 gap-y-1 text-[12px] font-mono text-neutral-500">
                           {video.dueDate && <span className="flex items-center gap-1"><Clock className="h-2.5 w-2.5" />Due {new Date(video.dueDate).toLocaleDateString()}</span>}
                           <span>{video.productionEffortHours}h effort</span>
                           {video.difficultyLevel && <span className="capitalize">{video.difficultyLevel}</span>}
                           {video.contentType && <span className="truncate">{video.contentType}</span>}
                         </div>
 
-                        {video.nextAction && <p className="text-[8px] leading-snug text-cyan-400/80"><span className="text-neutral-600">Next:</span> {video.nextAction}</p>}
-                        {video.notes && <p className="line-clamp-2 text-[8px] leading-snug text-neutral-500">{video.notes}</p>}
-                        {video.blockedReason && <p className="text-[8px] leading-snug text-red-400/80">{video.blockedReason}</p>}
+                        {video.nextAction && <p className="text-[13px] leading-snug text-cyan-400/80"><span className="text-neutral-600">Next:</span> {video.nextAction}</p>}
+                        {video.notes && <p className="line-clamp-2 text-[13px] leading-snug text-neutral-500">{video.notes}</p>}
+                        {video.blockedReason && <p className="text-[13px] leading-snug text-red-400/80">{video.blockedReason}</p>}
 
                         </div>
                       </div>
@@ -605,7 +605,7 @@ export default function PipelineView({
                 })}
 
                 {items.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-6 text-neutral-800 text-[8px] font-mono select-none">
+                  <div className="flex flex-col items-center justify-center py-6 text-neutral-800 text-[13px] font-mono select-none">
                     empty
                   </div>
                 )}
@@ -632,10 +632,10 @@ export default function PipelineView({
                 <div className="flex justify-between items-start mb-4 border-b border-neutral-900 pb-3">
                   <div>
                     <h3 className="text-sm font-bold text-white font-sans tracking-tight">Edit Production Item</h3>
-                    <p className="text-[10px] text-neutral-500 font-mono mt-0.5">{video.title}</p>
+                    <p className="text-[14px] text-neutral-500 font-mono mt-0.5">{video.title}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className={`px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase tracking-widest ${video.channelName === 'LearnDriven' ? 'text-purple-400 bg-purple-950/40 border border-purple-900/30' : 'text-emerald-400 bg-emerald-950/40 border border-emerald-900/30'}`}>
+                    <span className={`px-2 py-0.5 rounded text-[13px] font-mono font-bold uppercase tracking-widest ${video.channelName === 'LearnDriven' ? 'text-purple-400 bg-purple-950/40 border border-purple-900/30' : 'text-emerald-400 bg-emerald-950/40 border border-emerald-900/30'}`}>
                       {video.channelName}
                     </span>
                     <button
@@ -652,7 +652,7 @@ export default function PipelineView({
                 <div className="space-y-4">
                   {/* Pipeline Stage Select */}
                   <div>
-                    <label className="block text-[9px] text-neutral-500 uppercase mb-1 font-mono">Pipeline Stage</label>
+                    <label className="block text-[13px] text-neutral-500 uppercase mb-1 font-mono">Pipeline Stage</label>
                     <DarkDropdown
                       label="Pipeline Stage"
                       value={editStage}
@@ -670,7 +670,7 @@ export default function PipelineView({
 
                   {/* Next Action Directives */}
                   <div>
-                    <label className="block text-[9px] text-neutral-500 uppercase mb-1 font-mono">Next Action</label>
+                    <label className="block text-[13px] text-neutral-500 uppercase mb-1 font-mono">Next Action</label>
                     <input
                       type="text"
                       placeholder="e.g. Write hook intro, film B-roll clip..."
@@ -682,7 +682,7 @@ export default function PipelineView({
 
                   {/* Blocked Reason */}
                   <div>
-                    <label className="block text-[9px] text-neutral-500 uppercase mb-1 font-mono flex items-center gap-1">
+                    <label className="block text-[13px] text-neutral-500 uppercase mb-1 font-mono flex items-center gap-1">
                       <AlertTriangle className="h-3 w-3 text-red-500 animate-pulse" />
                       <span>Blocked Reason (Leave blank if not blocked)</span>
                     </label>
@@ -697,7 +697,7 @@ export default function PipelineView({
 
                   {/* Production Notes */}
                   <div>
-                    <label className="block text-[9px] text-neutral-500 uppercase mb-1 font-mono">Production Notes</label>
+                    <label className="block text-[13px] text-neutral-500 uppercase mb-1 font-mono">Production Notes</label>
                     <textarea
                       rows={3}
                       placeholder="Add specific references, links, or ideas..."
@@ -708,7 +708,7 @@ export default function PipelineView({
                   </div>
 
                   {/* Save/Cancel Controls */}
-                  <div className="flex justify-between gap-2 text-[10px] pt-3 border-t border-neutral-900">
+                  <div className="flex justify-between gap-2 text-[14px] pt-3 border-t border-neutral-900">
                     <button
                       type="button"
                       onClick={handleDeleteVideo}

@@ -76,7 +76,7 @@ function TimerCard({ timer, session, headline }: TimerCardProps) {
           <div className="text-sm font-semibold text-neutral-100 truncate">
             {headline === 'topic' ? timer.topicName : stageLabels[timer.stage]}
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-mono text-neutral-500">
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] font-mono text-neutral-500">
             <span className="font-bold uppercase tracking-wider text-cyan-300">
               {headline === 'topic' ? stageLabels[timer.stage] : timer.topicName}
             </span>
@@ -86,26 +86,26 @@ function TimerCard({ timer, session, headline }: TimerCardProps) {
             <span>{startedTime}{endedTime ? `–${endedTime}` : ' (still active)'}</span>
           </div>
         </div>
-        <span className={`shrink-0 rounded px-2 py-1 text-[10px] font-bold uppercase ${timer.endReason === 'done' ? 'bg-emerald-950/40 text-emerald-300' : 'bg-amber-950/40 text-amber-300'}`}>
+        <span className={`shrink-0 rounded px-2 py-1 text-[14px] font-bold uppercase ${timer.endReason === 'done' ? 'bg-emerald-950/40 text-emerald-300' : 'bg-amber-950/40 text-amber-300'}`}>
           {timer.endReason === 'done' ? 'Completed' : 'Deferred'}
         </span>
       </div>
       <div className="mt-4 grid grid-cols-4 gap-2 text-center">
         <div>
           <div className="font-mono text-sm font-bold text-emerald-300">{formatDuration(timer.accumulatedActiveMs)}</div>
-          <div className="mt-0.5 text-[10px] uppercase tracking-wider text-neutral-500">Active</div>
+          <div className="mt-0.5 text-[14px] uppercase tracking-wider text-neutral-500">Active</div>
         </div>
         <div>
           <div className="font-mono text-sm font-bold text-amber-300">{formatDuration(timer.accumulatedPausedMs)}</div>
-          <div className="mt-0.5 text-[10px] uppercase tracking-wider text-neutral-500">Paused</div>
+          <div className="mt-0.5 text-[14px] uppercase tracking-wider text-neutral-500">Paused</div>
         </div>
         <div>
           <div className="font-mono text-sm font-bold text-cyan-300">{timer.breaksCount}</div>
-          <div className="mt-0.5 text-[10px] uppercase tracking-wider text-neutral-500">Breaks</div>
+          <div className="mt-0.5 text-[14px] uppercase tracking-wider text-neutral-500">Breaks</div>
         </div>
         <div>
           <div className="font-mono text-sm font-bold text-purple-300">{timer.productivityScore ? `${timer.productivityScore * 10}%` : '--'}</div>
-          <div className="mt-0.5 text-[10px] uppercase tracking-wider text-neutral-500">Productive</div>
+          <div className="mt-0.5 text-[14px] uppercase tracking-wider text-neutral-500">Productive</div>
         </div>
       </div>
       <TimerSittingsList timer={timer} />
@@ -122,20 +122,20 @@ function TimerSittingsList({ timer }: { timer: TaskTimerRecord }) {
   return (
     <div className="mt-3 rounded-lg border border-cyan-900/40 bg-cyan-950/10 p-2.5">
       <div className="flex items-center justify-between">
-        <div className="text-[10px] font-bold uppercase text-cyan-300">Sittings ({sittings.length})</div>
-        <span className="font-mono text-[10px] font-bold text-cyan-300">{formatDuration(sittings.reduce((sum, s) => sum + s.activeMs, 0))}</span>
+        <div className="text-[14px] font-bold uppercase text-cyan-300">Sittings ({sittings.length})</div>
+        <span className="font-mono text-[14px] font-bold text-cyan-300">{formatDuration(sittings.reduce((sum, s) => sum + s.activeMs, 0))}</span>
       </div>
       <div className="mt-1.5 space-y-1">
         {sittings.map((segment, i) => {
           const startedAt = new Date(segment.startedAt);
           const endedAt = segment.endedAt ? new Date(segment.endedAt) : null;
           return (
-            <div key={segment.id} className="flex items-center justify-between gap-2 text-[11px]">
+            <div key={segment.id} className="flex items-center justify-between gap-2 text-[14px]">
               <span className="min-w-0 flex-1 truncate font-mono text-neutral-400">
                 #{i + 1} {startedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 {endedAt ? `–${endedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ' (open)'}
               </span>
-              <span className="shrink-0 font-mono text-[10px] font-bold text-emerald-300">{formatDuration(segment.activeMs)}</span>
+              <span className="shrink-0 font-mono text-[14px] font-bold text-emerald-300">{formatDuration(segment.activeMs)}</span>
             </div>
           );
         })}
@@ -152,14 +152,14 @@ function SideWorkList({ entries }: { entries?: TaskTimerRecord['sideWork'] }) {
   return (
     <div className="mt-3 rounded-lg border border-cyan-900/40 bg-cyan-950/10 p-2.5">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-cyan-300"><Route className="h-3 w-3" />Side work</div>
-        <span className="font-mono text-[10px] font-bold text-cyan-300">{formatDuration(total)}</span>
+        <div className="flex items-center gap-1.5 text-[14px] font-bold uppercase text-cyan-300"><Route className="h-3 w-3" />Side work</div>
+        <span className="font-mono text-[14px] font-bold text-cyan-300">{formatDuration(total)}</span>
       </div>
       <div className="mt-1.5 space-y-1">
         {entries.map(entry => (
-          <div key={entry.id} className="flex items-center justify-between gap-2 text-[11px]">
+          <div key={entry.id} className="flex items-center justify-between gap-2 text-[14px]">
             <span className="min-w-0 flex-1 truncate text-neutral-300">{entry.description}</span>
-            <span className="shrink-0 font-mono text-[10px] text-neutral-500">{formatDuration(entry.accumulatedMs)}{entry.linkedTo === 'session' ? ' · session' : ''}</span>
+            <span className="shrink-0 font-mono text-[14px] text-neutral-500">{formatDuration(entry.accumulatedMs)}{entry.linkedTo === 'session' ? ' · session' : ''}</span>
           </div>
         ))}
       </div>
@@ -337,7 +337,7 @@ export default function SessionsView({ sessions, embedded = false }: SessionsVie
   return (
     <div className="space-y-5 pb-10">
       {!embedded && <div>
-        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.2em] text-purple-400">
+        <div className="flex items-center gap-2 text-[14px] font-bold uppercase tracking-[.2em] text-purple-400">
           <Clock3 className="h-4 w-4" />Session history
         </div>
         <h1 className="mt-2 text-2xl font-bold text-white">Sessions</h1>
@@ -453,14 +453,14 @@ export default function SessionsView({ sessions, embedded = false }: SessionsVie
                   {session.sessionNote ? (
                     <>
                       <div className="text-sm font-bold text-white leading-tight">{session.sessionNote}</div>
-                      <div className="mt-0.5 font-mono text-[11px] text-neutral-500">
+                      <div className="mt-0.5 font-mono text-[14px] text-neutral-500">
                         {new Date(session.startedAt).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} · {new Date(session.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}–{new Date(session.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </>
                   ) : (
                     <>
                       <div className="text-sm font-bold text-white leading-tight">{new Date(session.startedAt).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</div>
-                      <div className="mt-0.5 font-mono text-[11px] text-neutral-500">
+                      <div className="mt-0.5 font-mono text-[14px] text-neutral-500">
                         {new Date(session.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}–{new Date(session.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </>
@@ -476,7 +476,7 @@ export default function SessionsView({ sessions, embedded = false }: SessionsVie
                   <span><span className={`font-bold ${productivity >= 70 ? 'text-emerald-300' : productivity >= 40 ? 'text-amber-300' : 'text-rose-300'}`}>{productivity}%</span> <span className="text-neutral-500">prod</span></span>
                   <span><span className={`font-bold ${session.achievedGoals.length === totalGoals && totalGoals > 0 ? 'text-emerald-300' : 'text-white'}`}>{session.achievedGoals.length}/{totalGoals}</span> <span className="text-neutral-500">goals</span></span>
                   {session.extensionMinutes > 0 && (
-                    <span className="rounded border border-amber-900/40 bg-amber-950/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-300">+{session.extensionMinutes}m ext</span>
+                    <span className="rounded border border-amber-900/40 bg-amber-950/20 px-1.5 py-0.5 text-[14px] font-bold uppercase text-amber-300">+{session.extensionMinutes}m ext</span>
                   )}
                 </div>
 
@@ -494,29 +494,29 @@ export default function SessionsView({ sessions, embedded = false }: SessionsVie
                             <div className="flex items-start justify-between gap-3">
                               <div>
                                 <div className="text-sm font-semibold text-neutral-100">{timer.topicName}</div>
-                                <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-cyan-300">{stageLabels[timer.stage]}</div>
+                                <div className="mt-1 text-[14px] font-bold uppercase tracking-wider text-cyan-300">{stageLabels[timer.stage]}</div>
                               </div>
-                              <span className={`rounded px-2 py-1 text-[10px] font-bold uppercase ${timer.endReason === 'done' ? 'bg-emerald-950/40 text-emerald-300' : 'bg-amber-950/40 text-amber-300'}`}>{timer.endReason === 'done' ? 'Completed' : 'Deferred'}</span>
+                              <span className={`rounded px-2 py-1 text-[14px] font-bold uppercase ${timer.endReason === 'done' ? 'bg-emerald-950/40 text-emerald-300' : 'bg-amber-950/40 text-amber-300'}`}>{timer.endReason === 'done' ? 'Completed' : 'Deferred'}</span>
                             </div>
                             <div className="mt-4 grid grid-cols-4 gap-2 text-center">
                               <div>
                                 <div className="font-mono text-sm font-bold text-emerald-300">{formatDuration(timer.accumulatedActiveMs)}</div>
-                                <div className="mt-0.5 text-[10px] uppercase tracking-wider text-neutral-500">Active</div>
+                                <div className="mt-0.5 text-[14px] uppercase tracking-wider text-neutral-500">Active</div>
                               </div>
                               <div>
                                 <div className="font-mono text-sm font-bold text-amber-300">{formatDuration(timer.accumulatedPausedMs)}</div>
-                                <div className="mt-0.5 text-[10px] uppercase tracking-wider text-neutral-500">Paused</div>
+                                <div className="mt-0.5 text-[14px] uppercase tracking-wider text-neutral-500">Paused</div>
                               </div>
                               <div>
                                 <div className="font-mono text-sm font-bold text-cyan-300">{timer.breaksCount}</div>
-                                <div className="mt-0.5 text-[10px] uppercase tracking-wider text-neutral-500">Breaks</div>
+                                <div className="mt-0.5 text-[14px] uppercase tracking-wider text-neutral-500">Breaks</div>
                               </div>
                               <div>
                                 <div className="font-mono text-sm font-bold text-purple-300">{timer.productivityScore ? `${timer.productivityScore * 10}%` : '--'}</div>
-                                <div className="mt-0.5 text-[10px] uppercase tracking-wider text-neutral-500">Productive</div>
+                                <div className="mt-0.5 text-[14px] uppercase tracking-wider text-neutral-500">Productive</div>
                               </div>
                             </div>
-                            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-cyan-950/40 pt-2 font-mono text-[11px] text-neutral-500">
+                            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-cyan-950/40 pt-2 font-mono text-[14px] text-neutral-500">
                               <span>Started {new Date(timer.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                               <span>{timer.completedAt ? `Ended ${new Date(timer.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Still active'}</span>
                             </div>
@@ -600,7 +600,7 @@ export default function SessionsView({ sessions, embedded = false }: SessionsVie
                     <span><span className="text-emerald-300 font-bold">{formatDuration(group.totalActiveMs)}</span> <span className="text-neutral-500">total active</span></span>
                     <div className="flex gap-1">
                       {stageOrder.filter(s => group.stages.has(s)).map(s => (
-                        <span key={s} className="rounded border border-cyan-900/50 bg-cyan-950/25 px-1.5 py-0.5 text-[10px] font-bold uppercase text-cyan-300">{stageShortLabels[s]}</span>
+                        <span key={s} className="rounded border border-cyan-900/50 bg-cyan-950/25 px-1.5 py-0.5 text-[14px] font-bold uppercase text-cyan-300">{stageShortLabels[s]}</span>
                       ))}
                     </div>
                   </div>
@@ -616,8 +616,8 @@ export default function SessionsView({ sessions, embedded = false }: SessionsVie
                       <div key={stage} className="rounded-lg border border-neutral-800 bg-neutral-950/40 p-3">
                         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-900 pb-2">
                           <div className="flex items-center gap-2">
-                            <span className="rounded border border-cyan-800/60 bg-cyan-950/40 px-2 py-1 text-[10px] font-bold uppercase text-cyan-200">{stageLabels[stage]}</span>
-                            <span className="font-mono text-[11px] text-neutral-500">
+                            <span className="rounded border border-cyan-800/60 bg-cyan-950/40 px-2 py-1 text-[14px] font-bold uppercase text-cyan-200">{stageLabels[stage]}</span>
+                            <span className="font-mono text-[14px] text-neutral-500">
                               {rollup.sittings.length} sitting{rollup.sittings.length === 1 ? '' : 's'}
                               {rollup.timerCount > 1 ? ` · across ${rollup.timerCount} sessions` : ''}
                             </span>
@@ -633,15 +633,15 @@ export default function SessionsView({ sessions, embedded = false }: SessionsVie
                             const endTime = endedAt ? endedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
                             return (
                               <div key={segment.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-neutral-900 bg-neutral-950/70 px-2.5 py-1.5">
-                                <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
-                                  <span className="rounded bg-neutral-900 px-1.5 py-0.5 text-[9px] font-bold text-neutral-400">#{index + 1}</span>
+                                <div className="flex flex-wrap items-center gap-2 font-mono text-[14px]">
+                                  <span className="rounded bg-neutral-900 px-1.5 py-0.5 text-[13px] font-bold text-neutral-400">#{index + 1}</span>
                                   <span className="text-neutral-300">{dateLabel}</span>
                                   <span className="text-neutral-500">{startTime}–{endTime}</span>
-                                  <span className="text-[9px] uppercase text-neutral-600" title={new Date(session.startedAt).toLocaleString()}>
+                                  <span className="text-[13px] uppercase text-neutral-600" title={new Date(session.startedAt).toLocaleString()}>
                                     {new Date(session.startedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })} session
                                   </span>
                                 </div>
-                                <span className="font-mono text-[11px] font-bold text-emerald-300">{formatDuration(segment.activeMs)}</span>
+                                <span className="font-mono text-[14px] font-bold text-emerald-300">{formatDuration(segment.activeMs)}</span>
                               </div>
                             );
                           })}
@@ -654,7 +654,7 @@ export default function SessionsView({ sessions, embedded = false }: SessionsVie
                 {/* Per-timer detail cards remain accessible for anyone who
                     wants the paused/breaks/productivity slice per session. */}
                 <details className="mt-3 group">
-                  <summary className="cursor-pointer text-[10px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-300">
+                  <summary className="cursor-pointer text-[14px] font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-300">
                     Per-session detail ({group.entries.length} timer{group.entries.length === 1 ? '' : 's'})
                   </summary>
                   <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -704,7 +704,7 @@ export default function SessionsView({ sessions, embedded = false }: SessionsVie
                   }`}
                 >
                   {stageLabels[stage]}
-                  {!hasData && <span className="text-[9px] uppercase tracking-wider opacity-70">· empty</span>}
+                  {!hasData && <span className="text-[13px] uppercase tracking-wider opacity-70">· empty</span>}
                 </button>
               );
             })}

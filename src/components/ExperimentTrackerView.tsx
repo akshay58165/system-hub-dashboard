@@ -162,10 +162,10 @@ export default function ExperimentTrackerView({
                   <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-2xl pointer-events-none" />
                   
                   <div className="flex justify-between items-start mb-2">
-                    <span className="px-2 py-0.5 rounded bg-purple-950/60 text-purple-400 border border-purple-900/30 text-[8px] font-mono font-bold uppercase tracking-wider">
+                    <span className="px-2 py-0.5 rounded bg-purple-950/60 text-purple-400 border border-purple-900/30 text-[13px] font-mono font-bold uppercase tracking-wider">
                       Active
                     </span>
-                    <span className="text-[10px] font-mono text-neutral-500">
+                    <span className="text-[14px] font-mono text-neutral-500">
                       Started: {new Date(e.startDate).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                     </span>
                   </div>
@@ -174,17 +174,17 @@ export default function ExperimentTrackerView({
                   
                   <div className="mt-3 space-y-2 text-xs font-sans text-neutral-400">
                     <p><span className="font-bold text-neutral-200">Hypothesis:</span> {e.hypothesis}</p>
-                    <p className="font-mono text-[10px] text-purple-300">Metric tested: {e.metricBeingTested}</p>
+                    <p className="font-mono text-[14px] text-purple-300">Metric tested: {e.metricBeingTested}</p>
                   </div>
 
                   {/* Resolve controller */}
                   <div className="mt-4 pt-4 border-t border-neutral-850 flex justify-between items-center">
-                    <span className="text-[9px] font-mono text-neutral-500">
+                    <span className="text-[13px] font-mono text-neutral-500">
                       {e.videosIncluded.length} video(s) monitored
                     </span>
                     <button 
                       onClick={() => setResolvingExpId(e.id)}
-                      className="text-[10px] font-mono text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-0.5"
+                      className="text-[14px] font-mono text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-0.5"
                     >
                       <span>Complete & Resolve</span>
                       <ArrowRight className="h-3 w-3" />
@@ -212,10 +212,10 @@ export default function ExperimentTrackerView({
               experiments.filter(e => e.status === 'completed').map(e => (
                 <div key={e.id} className="p-5 rounded-xl border border-neutral-850 bg-neutral-900 space-y-3">
                   <div className="flex justify-between items-start">
-                    <span className="px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-900/30 text-[8px] font-mono font-bold uppercase tracking-wider">
+                    <span className="px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-900/30 text-[13px] font-mono font-bold uppercase tracking-wider">
                       Concluded
                     </span>
-                    <span className="text-[10px] font-mono text-neutral-500">
+                    <span className="text-[14px] font-mono text-neutral-500">
                       Concluded: {e.endDate ? new Date(e.endDate).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'N/A'}
                     </span>
                   </div>
@@ -224,9 +224,9 @@ export default function ExperimentTrackerView({
 
                   <div className="text-xs font-sans text-neutral-400 space-y-2.5">
                     <div className="p-2.5 rounded bg-neutral-950 border border-neutral-850">
-                      <span className="text-[10px] text-neutral-500 font-mono block mb-1">DECISION & LEARNING</span>
+                      <span className="text-[14px] text-neutral-500 font-mono block mb-1">DECISION & LEARNING</span>
                       <p className="text-white leading-relaxed">{e.decision}</p>
-                      <p className="text-neutral-400 text-[11px] leading-relaxed mt-1">{e.learning}</p>
+                      <p className="text-neutral-400 text-[14px] leading-relaxed mt-1">{e.learning}</p>
                     </div>
 
                     <p><span className="font-bold text-neutral-200">Test Metrics:</span> {e.result}</p>
@@ -267,7 +267,7 @@ export default function ExperimentTrackerView({
               <div className="space-y-4">
                 {/* Result */}
                 <div>
-                  <label className="block text-[9px] text-neutral-500 uppercase mb-1 font-mono">Test Results / Metrics</label>
+                  <label className="block text-[13px] text-neutral-500 uppercase mb-1 font-mono">Test Results / Metrics</label>
                   <input
                     type="text"
                     required
@@ -280,7 +280,7 @@ export default function ExperimentTrackerView({
 
                 {/* Decision */}
                 <div>
-                  <label className="block text-[9px] text-neutral-500 uppercase mb-1 font-mono">Action / Decision</label>
+                  <label className="block text-[13px] text-neutral-500 uppercase mb-1 font-mono">Action / Decision</label>
                   <input
                     type="text"
                     required
@@ -293,7 +293,7 @@ export default function ExperimentTrackerView({
 
                 {/* Learning */}
                 <div>
-                  <label className="block text-[9px] text-neutral-500 uppercase mb-1 font-mono">Key Learning Point</label>
+                  <label className="block text-[13px] text-neutral-500 uppercase mb-1 font-mono">Key Learning Point</label>
                   <textarea
                     rows={3}
                     placeholder="e.g. Contrast background boosts CTR by 60% on Sci-Fi topics..."
@@ -304,7 +304,7 @@ export default function ExperimentTrackerView({
                 </div>
 
                 {/* Controls */}
-                <div className="flex justify-end gap-2 text-[10px] pt-3 border-t border-neutral-900">
+                <div className="flex justify-end gap-2 text-[14px] pt-3 border-t border-neutral-900">
                   <button
                     onClick={() => setResolvingExpId(null)}
                     className="px-3 py-1.5 text-neutral-500 hover:text-neutral-300 font-mono"
@@ -353,7 +353,7 @@ export default function ExperimentTrackerView({
               <form onSubmit={handleCreateExperiment} className="space-y-4">
                 {/* Name */}
                 <div>
-                  <label className="block text-[9px] text-neutral-500 uppercase mb-1 font-mono">Experiment Name</label>
+                  <label className="block text-[13px] text-neutral-500 uppercase mb-1 font-mono">Experiment Name</label>
                   <input
                     type="text"
                     required
@@ -366,7 +366,7 @@ export default function ExperimentTrackerView({
 
                 {/* Hypothesis */}
                 <div>
-                  <label className="block text-[9px] text-neutral-500 uppercase mb-1 font-mono">Hypothesis</label>
+                  <label className="block text-[13px] text-neutral-500 uppercase mb-1 font-mono">Hypothesis</label>
                   <input
                     type="text"
                     required
@@ -379,7 +379,7 @@ export default function ExperimentTrackerView({
 
                 {/* Metric tested */}
                 <div>
-                  <label className="block text-[9px] text-neutral-500 uppercase mb-1 font-mono">Metric to Test</label>
+                  <label className="block text-[13px] text-neutral-500 uppercase mb-1 font-mono">Metric to Test</label>
                   <input
                     type="text"
                     required
@@ -392,8 +392,8 @@ export default function ExperimentTrackerView({
 
                 {/* Video Select checkboxes */}
                 <div>
-                  <label className="block text-[9px] text-neutral-500 uppercase mb-1 font-mono">Select Videos Included</label>
-                  <div className="max-h-28 overflow-y-auto border border-neutral-900 rounded p-2.5 space-y-1 bg-neutral-900/20 text-[10px] font-sans">
+                  <label className="block text-[13px] text-neutral-500 uppercase mb-1 font-mono">Select Videos Included</label>
+                  <div className="max-h-28 overflow-y-auto border border-neutral-900 rounded p-2.5 space-y-1 bg-neutral-900/20 text-[14px] font-sans">
                     {videos.map(v => (
                       <label key={v.id} className="flex items-center gap-2 text-neutral-300 hover:text-white cursor-pointer select-none">
                         <input
@@ -415,7 +415,7 @@ export default function ExperimentTrackerView({
                 </div>
 
                 {/* Controls */}
-                <div className="flex justify-end gap-2 text-[10px] pt-3 border-t border-neutral-900">
+                <div className="flex justify-end gap-2 text-[14px] pt-3 border-t border-neutral-900">
                   <button
                     type="button"
                     onClick={() => setIsCreateOpen(false)}

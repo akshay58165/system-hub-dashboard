@@ -608,7 +608,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
             </div>
             <div>
               <h2 className="text-sm font-bold text-neutral-100 font-mono tracking-tight">Streak Engine</h2>
-              <p className="text-[11px] text-neutral-400 font-mono">Real creation streaks, daily momentum, and goal pace - built to keep the chain alive.</p>
+              <p className="text-[14px] text-neutral-400 font-mono">Real creation streaks, daily momentum, and goal pace - built to keep the chain alive.</p>
             </div>
           </div>
 
@@ -644,7 +644,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
                   className={`p-5 rounded-xl border cursor-pointer transition-all duration-300 hover:border-opacity-60 ${bg}`}
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-mono">{channel}</span>
+                    <span className="text-[14px] font-bold uppercase tracking-wider text-neutral-400 font-mono">{channel}</span>
                     <motion.div
                       animate={lit ? { scale: [1, 1.12, 1] } : {}}
                       transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
@@ -654,15 +654,15 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
                   </div>
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-4xl font-bold text-white font-mono tracking-tighter">{data.streak}</span>
-                    <span className="text-[11px] text-neutral-400 font-mono uppercase">day streak</span>
+                    <span className="text-[14px] text-neutral-400 font-mono uppercase">day streak</span>
                   </div>
-                  <p className={`text-[11px] font-mono mt-1.5 font-bold ${
+                  <p className={`text-[14px] font-mono mt-1.5 font-bold ${
                     data.status === 'red' ? 'text-rose-400' : data.status === 'orange' ? 'text-amber-400' : 'text-emerald-400'
                   }`}>
                     {data.message}
                   </p>
                   {milestone && (
-                      <p className="text-[11px] text-neutral-400 font-mono mt-2">
+                      <p className="text-[14px] text-neutral-400 font-mono mt-2">
                       {milestone - data.streak} more day{milestone - data.streak === 1 ? '' : 's'} to the <span className="text-neutral-300 font-bold">{milestone}-day club</span>
                     </p>
                   )}
@@ -679,7 +679,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
             >
               <div className="flex items-center gap-2 mb-3">
                 <Target className="h-4 w-4 text-blue-400" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400 font-mono">Today's Move</span>
+                <span className="text-[14px] font-bold uppercase tracking-wider text-blue-400 font-mono">Today's Move</span>
               </div>
               {(() => {
                 const urgentStreak =
@@ -733,8 +733,8 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
             className="p-4 rounded-xl border border-neutral-900 bg-neutral-950/60 mb-4"
           >
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-mono">Last 14 Days</span>
-              <span className="text-[11px] text-neutral-400 font-mono">{activities.length > 0 ? 'Don\'t break the chain' : 'No activity logged yet'}</span>
+              <span className="text-[14px] font-bold uppercase tracking-wider text-neutral-400 font-mono">Last 14 Days</span>
+              <span className="text-[14px] text-neutral-400 font-mono">{activities.length > 0 ? 'Don\'t break the chain' : 'No activity logged yet'}</span>
             </div>
             <div className="flex gap-1.5">
               {activityHeatmap.map((day, i) => (
@@ -764,10 +764,10 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Target className="h-4 w-4 text-purple-400" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400 font-mono">Goal Pace</span>
+                <span className="text-[14px] font-bold uppercase tracking-wider text-purple-400 font-mono">Goal Pace</span>
               </div>
               {goalPace && (
-                <span className="text-[11px] font-mono text-neutral-400">{goalPace.monthName} · {goalPace.daysRemaining}d remaining</span>
+                <span className="text-[14px] font-mono text-neutral-400">{goalPace.monthName} · {goalPace.daysRemaining}d remaining</span>
               )}
             </div>
 
@@ -776,7 +776,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
                 <p className="text-xs text-neutral-400">No active cycle goal set.</p>
                 <button
                   onClick={() => onTabChange('actionhub')}
-                  className="text-[11px] text-purple-400 font-bold hover:text-purple-300 transition cursor-pointer"
+                  className="text-[14px] text-purple-400 font-bold hover:text-purple-300 transition cursor-pointer"
                 >
                   Set targets in Action Hub →
                 </button>
@@ -785,15 +785,15 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
               <div className="space-y-4">
                 <div className="flex justify-between items-end border-b border-neutral-900 pb-3">
                   <div>
-                    <span className="text-[11px] font-mono text-neutral-400 uppercase tracking-wider">Current Pace</span>
+                    <span className="text-[14px] font-mono text-neutral-400 uppercase tracking-wider">Current Pace</span>
                     <div className="text-2xl font-bold text-white font-mono tracking-tight">
-                      {goalPace.currentPace.toFixed(1)} <span className="text-[11px] text-neutral-400 uppercase">vids/wk</span>
+                      {goalPace.currentPace.toFixed(1)} <span className="text-[14px] text-neutral-400 uppercase">vids/wk</span>
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="text-[10px] font-mono text-purple-400/70 uppercase tracking-wider">Required Pace</span>
+                    <span className="text-[14px] font-mono text-purple-400/70 uppercase tracking-wider">Required Pace</span>
                     <div className="text-2xl font-bold text-purple-400 font-mono tracking-tight">
-                      {Number.isFinite(goalPace.requiredPace) ? goalPace.requiredPace.toFixed(1) : '-'} <span className="text-[10px] text-purple-400/50 uppercase">vids/wk</span>
+                      {Number.isFinite(goalPace.requiredPace) ? goalPace.requiredPace.toFixed(1) : '-'} <span className="text-[14px] text-purple-400/50 uppercase">vids/wk</span>
                     </div>
                   </div>
                 </div>
@@ -802,7 +802,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
                   goalPace.aheadOfSchedule ? 'bg-emerald-950/30 border-emerald-900/50' : 'bg-amber-950/30 border-amber-900/50'
                 }`}>
                   {goalPace.aheadOfSchedule ? <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" /> : <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />}
-                  <span className={`text-[11px] font-mono ${goalPace.aheadOfSchedule ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  <span className={`text-[14px] font-mono ${goalPace.aheadOfSchedule ? 'text-emerald-400' : 'text-amber-400'}`}>
                     {goalPace.aheadOfSchedule
                       ? 'On pace to hit your goal. Keep it up.'
                       : `${goalPace.remaining} more needed - pick up the pace to stay on track.`}
@@ -810,7 +810,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
                 </div>
 
                 <div>
-                  <div className="flex justify-between text-[10px] font-mono mb-1">
+                  <div className="flex justify-between text-[14px] font-mono mb-1">
                     <span className="text-neutral-400">{goalPace.scheduledInCycle} / {goalPace.target} videos</span>
                     <span className="text-neutral-400">{Math.round((goalPace.scheduledInCycle / goalPace.target) * 100)}%</span>
                   </div>
@@ -891,7 +891,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
             className={`p-4 rounded-lg border ${tile.bg} ${tile.border} transition-colors duration-300 cursor-pointer`}
           >
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] font-bold uppercase tracking-wider font-mono text-neutral-400">{tile.label}</span>
+              <span className="text-[14px] font-bold uppercase tracking-wider font-mono text-neutral-400">{tile.label}</span>
               <span className={tile.color}>{tile.icon}</span>
             </div>
 
@@ -900,7 +900,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
                 {tile.topicTitle ? (
                   <>
                     <p className="text-sm font-bold text-white leading-snug line-clamp-2">{tile.topicTitle}</p>
-                    <span className={`inline-block mt-1 text-[10px] font-mono font-bold ${tile.dueLabel?.includes('overdue') ? 'text-rose-400' : tile.dueLabel === 'Due today' ? 'text-amber-400' : 'text-neutral-400'}`}>
+                    <span className={`inline-block mt-1 text-[14px] font-mono font-bold ${tile.dueLabel?.includes('overdue') ? 'text-rose-400' : tile.dueLabel === 'Due today' ? 'text-amber-400' : 'text-neutral-400'}`}>
                       {tile.dueLabel}
                     </span>
                   </>
@@ -915,7 +915,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
               </div>
             )}
 
-            <div className="mt-2 text-[11px] text-neutral-400 font-mono flex items-center justify-between">
+            <div className="mt-2 text-[14px] text-neutral-400 font-mono flex items-center justify-between">
               <span>{tile.footLabel}</span>
               <span className="text-neutral-400">{tile.footValue}</span>
             </div>
@@ -930,9 +930,9 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div>
               <h3 className="text-sm font-semibold text-neutral-200">Content Scheduling & Velocity</h3>
-              <p className="text-[11px] text-neutral-400 font-sans">Dotted line = Topics Added | Solid line = Videos Scheduled</p>
+              <p className="text-[14px] text-neutral-400 font-sans">Dotted line = Topics Added | Solid line = Videos Scheduled</p>
             </div>
-            <div className="flex flex-wrap items-center gap-3.5 text-[10px] font-mono">
+            <div className="flex flex-wrap items-center gap-3.5 text-[14px] font-mono">
               <div className="flex items-center gap-1.5 text-blue-400">
                 <span className="h-1.5 w-1.5 bg-blue-500 rounded-full" />
                 <span>LearnDriven</span>
@@ -975,7 +975,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
         <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-5 flex flex-col justify-between space-y-4 shadow-sm hover:border-neutral-850/30 transition duration-300 font-mono">
           <div>
             <h3 className="text-sm font-semibold text-neutral-200">Video Buffer & Frequency</h3>
-            <p className="text-[11px] text-neutral-400">Publishing safety margin and monthly output volume.</p>
+            <p className="text-[14px] text-neutral-400">Publishing safety margin and monthly output volume.</p>
           </div>
 
           <div className="space-y-4 py-1 text-xs">
@@ -983,7 +983,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
             <div className="p-3 bg-neutral-900/20 border border-neutral-900 rounded-lg space-y-2">
               <div className="flex justify-between items-center border-b border-neutral-900/60 pb-1.5 font-bold">
                 <span className="text-neutral-300">LearnDriven</span>
-                <span className={`text-[10px] px-2 py-0.5 rounded ${
+                <span className={`text-[14px] px-2 py-0.5 rounded ${
                   bufferAndFrequency.learnDriven.bufferDays >= 5 ? 'bg-emerald-950 text-emerald-400 border border-emerald-900/40' :
                   bufferAndFrequency.learnDriven.bufferDays >= 2 ? 'bg-amber-950/40 text-orange-400 border border-amber-900/40' :
                   'bg-red-950 text-red-400 border border-red-900/40 animate-pulse'
@@ -991,17 +991,17 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
                   {bufferAndFrequency.learnDriven.bufferDays}d Buffer
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-2 text-center text-[10px] text-neutral-400">
+              <div className="grid grid-cols-3 gap-2 text-center text-[14px] text-neutral-400">
                 <div className="bg-neutral-950/40 p-1.5 rounded border border-neutral-900/60">
-                  <span className="text-[9px] uppercase text-neutral-400 block">Shorts</span>
+                  <span className="text-[13px] uppercase text-neutral-400 block">Shorts</span>
                   <span className="font-bold text-white mt-0.5 block">{bufferAndFrequency.learnDriven.shortsCount}/mo</span>
                 </div>
                 <div className="bg-neutral-950/40 p-1.5 rounded border border-neutral-900/60">
-                  <span className="text-[9px] uppercase text-neutral-400 block">Longs</span>
+                  <span className="text-[13px] uppercase text-neutral-400 block">Longs</span>
                   <span className="font-bold text-white mt-0.5 block">{bufferAndFrequency.learnDriven.longsCount}/mo</span>
                 </div>
                 <div className="bg-neutral-950/40 p-1.5 rounded border border-neutral-900/60">
-                  <span className="text-[9px] uppercase text-neutral-400 block">Members</span>
+                  <span className="text-[13px] uppercase text-neutral-400 block">Members</span>
                   <span className="font-bold text-white mt-0.5 block">{bufferAndFrequency.learnDriven.membersCount}/mo</span>
                 </div>
               </div>
@@ -1011,7 +1011,7 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
             <div className="p-3 bg-neutral-900/20 border border-neutral-900 rounded-lg space-y-2">
               <div className="flex justify-between items-center border-b border-neutral-900/60 pb-1.5 font-bold">
                 <span className="text-neutral-300">DecodeWorthy</span>
-                <span className={`text-[10px] px-2 py-0.5 rounded ${
+                <span className={`text-[14px] px-2 py-0.5 rounded ${
                   bufferAndFrequency.decodeWorthy.bufferDays >= 5 ? 'bg-emerald-950 text-emerald-400 border border-emerald-900/40' :
                   bufferAndFrequency.decodeWorthy.bufferDays >= 2 ? 'bg-amber-950/40 text-orange-400 border border-amber-900/40' :
                   'bg-red-950 text-red-400 border border-red-900/40 animate-pulse'
@@ -1019,9 +1019,9 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
                   {bufferAndFrequency.decodeWorthy.bufferDays}d Buffer
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-2 text-center text-[10px] text-neutral-400">
+              <div className="grid grid-cols-3 gap-2 text-center text-[14px] text-neutral-400">
                 <div className="bg-neutral-950/40 p-1.5 rounded border border-neutral-900/60 col-span-3">
-                  <span className="text-[9px] uppercase text-neutral-400 block">Shorts Frequency</span>
+                  <span className="text-[13px] uppercase text-neutral-400 block">Shorts Frequency</span>
                   <span className="font-bold text-white mt-0.5 block">{bufferAndFrequency.decodeWorthy.shortsCount}/mo (Long/Member N/A)</span>
                 </div>
               </div>
@@ -1035,9 +1035,9 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-sm font-semibold text-neutral-200">Content Pipeline Activities</h3>
-            <p className="text-[11px] text-neutral-400 font-sans">Real-time log of the last 25 workflow state transitions and video scheduling.</p>
+            <p className="text-[14px] text-neutral-400 font-sans">Real-time log of the last 25 workflow state transitions and video scheduling.</p>
           </div>
-          <span className="px-2 py-0.5 bg-neutral-900 text-neutral-400 font-mono text-[10px] border border-neutral-900 rounded-full">
+          <span className="px-2 py-0.5 bg-neutral-900 text-neutral-400 font-mono text-[14px] border border-neutral-900 rounded-full">
             {last25Activities.length} logs
           </span>
         </div>
@@ -1064,13 +1064,13 @@ export default function Overview({ repos, vercelProjects, supabase, events, onTa
                     <span className="text-white font-bold">@{act.author}</span> {act.action} <span className={`font-bold ${act.channel === 'LearnDriven' ? 'text-blue-400' : 'text-emerald-400'}`}>"{act.topicName}"</span>
                   </p>
                   <div className="flex items-center gap-2.5 mt-1">
-                    <span className={`px-1.5 py-0.2 rounded font-mono text-[10px] uppercase font-semibold tracking-wider ${
+                    <span className={`px-1.5 py-0.2 rounded font-mono text-[14px] uppercase font-semibold tracking-wider ${
                       act.channel === 'LearnDriven' ? 'bg-blue-950/40 text-blue-400 border border-blue-900/20' :
                       'bg-emerald-950/40 text-emerald-400 border border-emerald-900/20'
                     }`}>
                       {act.channel}
                     </span>
-                    <span className="text-neutral-400 font-mono text-[11px] italic">
+                    <span className="text-neutral-400 font-mono text-[14px] italic">
                       {dateStr} - {timeStr}
                     </span>
                   </div>

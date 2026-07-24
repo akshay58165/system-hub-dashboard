@@ -373,10 +373,10 @@ export default function VideoLabView({
             >
               {!isYearly && (
                 <div className={`absolute inset-0 flex min-w-0 flex-col bg-gradient-to-b from-black/5 via-black/20 to-black/70 ${isSingle ? 'justify-between p-2.5 pt-7' : 'justify-end p-1.5'}`}>
-                  {isSingle && <div className="flex min-w-0 items-center justify-between gap-1"><span className="min-w-0 truncate rounded bg-black/40 px-1.5 py-0.5 text-[6px] font-bold uppercase text-white/85">{post.state}</span><span className="shrink-0 whitespace-nowrap rounded bg-black/40 px-1.5 py-0.5 text-[6px] font-bold text-white/90">{post.time}</span></div>}
+                  {isSingle && <div className="flex min-w-0 flex-wrap items-center gap-1"><span className="shrink-0 whitespace-nowrap rounded bg-black/40 px-1.5 py-0.5 text-[12px] font-bold uppercase text-white/85">{post.state}</span><span className="shrink-0 whitespace-nowrap rounded bg-black/40 px-1.5 py-0.5 text-[12px] font-bold text-white/90">{post.time}</span></div>}
                   <div>
-                    <div className={`${isSingle ? 'text-[12px] leading-[1.15]' : 'text-[10px] leading-tight'} line-clamp-2 font-sans font-extrabold text-white drop-shadow-md`}>{post.title}</div>
-                    {isSingle && <div className="mt-2 grid min-w-0 grid-cols-2 gap-1"><span title={post.contentType} className="col-span-2 truncate rounded border border-white/15 bg-black/40 px-1.5 py-0.5 text-[6px] font-bold uppercase text-white/85">{post.contentType}</span><span title={`Revenue ${post.revenueLevel}`} className="truncate rounded border border-white/15 bg-black/40 px-1.5 py-0.5 text-[6px] font-bold uppercase text-white/85">Revenue {post.revenueLevel}</span><span className="truncate rounded border border-white/15 bg-black/40 px-1.5 py-0.5 text-right text-[6px] font-bold uppercase text-white/85">{post.format}</span></div>}
+                    <div className={`${isSingle ? 'text-[15px] leading-[1.15]' : 'text-[14px] leading-tight'} line-clamp-2 font-sans font-extrabold text-white drop-shadow-md`}>{post.title}</div>
+                    {isSingle && <div className="mt-2 grid min-w-0 grid-cols-2 gap-1"><span title={post.contentType} className="col-span-2 truncate rounded border border-white/15 bg-black/40 px-1.5 py-0.5 text-[12px] font-bold uppercase text-white/85">{post.contentType}</span><span title={`Revenue ${post.revenueLevel}`} className="truncate rounded border border-white/15 bg-black/40 px-1.5 py-0.5 text-[12px] font-bold uppercase text-white/85">Revenue {post.revenueLevel}</span><span className="truncate rounded border border-white/15 bg-black/40 px-1.5 py-0.5 text-right text-[12px] font-bold uppercase text-white/85">{post.format}</span></div>}
                   </div>
                 </div>
               )}
@@ -384,7 +384,7 @@ export default function VideoLabView({
           );
         })}
         {dayPosts.length > 4 && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-[10px] font-mono text-white pointer-events-none">
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-[14px] font-mono text-white pointer-events-none">
             +{dayPosts.length - 4}
           </div>
         )}
@@ -402,7 +402,7 @@ export default function VideoLabView({
             <LayoutGrid className="h-5 w-5 text-indigo-500 animate-pulse" />
             <span>Video Consistency Lab</span>
           </h2>
-          <p className="text-[11px] text-zinc-400 uppercase">
+          <p className="text-[14px] text-zinc-400 uppercase">
             Streaks, publishing cadence, goal pace, and release history from live production data
           </p>
         </div>
@@ -416,7 +416,7 @@ export default function VideoLabView({
                 setViewMode(mode);
                 setSelectedDay(null);
               }}
-              className={`px-3 py-1 text-[10px] rounded uppercase font-bold transition-all duration-200 ${
+              className={`px-3 py-1 text-[14px] rounded uppercase font-bold transition-all duration-200 ${
                 viewMode === mode 
                   ? 'bg-indigo-600 text-white shadow-md' 
                   : 'text-zinc-400 hover:text-zinc-300 hover:bg-zinc-850'
@@ -439,9 +439,9 @@ export default function VideoLabView({
             { label: 'Scheduled 7d', value: consistency.scheduledNext7, detail: 'upcoming releases', icon: Clock, color: 'text-purple-400', border: 'border-purple-950/60' }
           ].map(metric => (
             <div key={metric.label} className={`rounded-xl border ${metric.border} bg-zinc-950/80 p-4`}>
-                <div className="flex items-center justify-between"><span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">{metric.label}</span><metric.icon className={`h-4 w-4 ${metric.color}`} /></div>
+                <div className="flex items-center justify-between"><span className="text-[14px] font-bold uppercase tracking-widest text-zinc-400">{metric.label}</span><metric.icon className={`h-4 w-4 ${metric.color}`} /></div>
                 <div className="mt-3 text-2xl font-black text-white">{metric.value}</div>
-                <div className="mt-1 text-[10px] text-zinc-400">{metric.detail}</div>
+                <div className="mt-1 text-[14px] text-zinc-400">{metric.detail}</div>
             </div>
           ))}
         </div>
@@ -449,25 +449,25 @@ export default function VideoLabView({
         <div className="grid gap-4 xl:grid-cols-[1.1fr_.9fr]">
           <div className="rounded-xl border border-zinc-900 bg-zinc-950/70 p-5">
             <div className="mb-5 flex items-center justify-between">
-                <div><div className="flex items-center gap-2 text-sm font-bold text-white"><Target className="h-4 w-4 text-indigo-400" /> Publishing goal</div><div className="mt-1 text-[10px] uppercase text-zinc-400">{cycleGoals?.monthName || 'No active cycle configured'}</div></div>
-                <div className="text-right"><div className="text-lg font-black text-indigo-300">{consistency.goalDone}/{consistency.goalTarget || '-'}</div><div className="text-[10px] uppercase text-zinc-400">published / target</div></div>
+                <div><div className="flex items-center gap-2 text-sm font-bold text-white"><Target className="h-4 w-4 text-indigo-400" /> Publishing goal</div><div className="mt-1 text-[14px] uppercase text-zinc-400">{cycleGoals?.monthName || 'No active cycle configured'}</div></div>
+                <div className="text-right"><div className="text-lg font-black text-indigo-300">{consistency.goalDone}/{consistency.goalTarget || '-'}</div><div className="text-[14px] uppercase text-zinc-400">published / target</div></div>
               </div>
             <div className="h-2.5 overflow-hidden rounded-full bg-zinc-900"><motion.div initial={{ width: 0 }} animate={{ width: `${consistency.goalTarget ? Math.min(100, Math.round((consistency.goalDone / consistency.goalTarget) * 100)) : 0}%` }} className="h-full rounded-full bg-gradient-to-r from-indigo-600 via-violet-500 to-cyan-400" /></div>
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div><div className="text-lg font-bold text-white">{consistency.remaining}</div><div className="text-[10px] uppercase text-zinc-400">remaining</div></div>
-                <div><div className="text-lg font-bold text-white">{consistency.daysLeft}</div><div className="text-[10px] uppercase text-zinc-400">days left</div></div>
-                <div><div className="text-lg font-bold text-white">{consistency.daysLeft ? (consistency.remaining / consistency.daysLeft).toFixed(2) : consistency.remaining}</div><div className="text-[10px] uppercase text-zinc-400">needed / day</div></div>
-                <div><div className="text-lg font-bold text-white">{consistency.weeklyTarget || '-'}</div><div className="text-[10px] uppercase text-zinc-400">weekly target</div></div>
+                <div><div className="text-lg font-bold text-white">{consistency.remaining}</div><div className="text-[14px] uppercase text-zinc-400">remaining</div></div>
+                <div><div className="text-lg font-bold text-white">{consistency.daysLeft}</div><div className="text-[14px] uppercase text-zinc-400">days left</div></div>
+                <div><div className="text-lg font-bold text-white">{consistency.daysLeft ? (consistency.remaining / consistency.daysLeft).toFixed(2) : consistency.remaining}</div><div className="text-[14px] uppercase text-zinc-400">needed / day</div></div>
+                <div><div className="text-lg font-bold text-white">{consistency.weeklyTarget || '-'}</div><div className="text-[14px] uppercase text-zinc-400">weekly target</div></div>
               </div>
             </div>
 
           <div className="rounded-xl border border-zinc-900 bg-zinc-950/70 p-5">
-            <div className="mb-4 flex items-center justify-between"><div><div className="text-sm font-bold text-white">8-week cadence</div><div className="mt-1 text-[10px] uppercase text-zinc-400">published videos per rolling week</div></div><div className="text-right"><div className="text-lg font-black text-cyan-300">{consistency.hitWeeks}/8</div><div className="text-[10px] uppercase text-zinc-400">goal-hit weeks</div></div></div>
+            <div className="mb-4 flex items-center justify-between"><div><div className="text-sm font-bold text-white">8-week cadence</div><div className="mt-1 text-[14px] uppercase text-zinc-400">published videos per rolling week</div></div><div className="text-right"><div className="text-lg font-black text-cyan-300">{consistency.hitWeeks}/8</div><div className="text-[14px] uppercase text-zinc-400">goal-hit weeks</div></div></div>
             <div className="flex h-24 items-end gap-2 border-b border-zinc-900 pb-2">
               {consistency.weekly.map((week, index) => {
                 const max = Math.max(1, consistency.weeklyTarget, ...consistency.weekly.map(item => item.count));
                 const hit = consistency.weeklyTarget > 0 && week.count >= consistency.weeklyTarget;
-                return <div key={`${week.label}-${index}`} className="flex h-full flex-1 flex-col items-center justify-end gap-1"><span className="text-[10px] text-zinc-400">{week.count}</span><div className={`w-full rounded-t ${hit ? 'bg-emerald-500' : 'bg-indigo-500/70'}`} style={{ height: `${Math.max(4, (week.count / max) * 62)}px` }} /><span className="text-[10px] text-zinc-400">{week.label}</span></div>;
+                return <div key={`${week.label}-${index}`} className="flex h-full flex-1 flex-col items-center justify-end gap-1"><span className="text-[14px] text-zinc-400">{week.count}</span><div className={`w-full rounded-t ${hit ? 'bg-emerald-500' : 'bg-indigo-500/70'}`} style={{ height: `${Math.max(4, (week.count / max) * 62)}px` }} /><span className="text-[14px] text-zinc-400">{week.label}</span></div>;
               })}
             </div>
           </div>
@@ -590,7 +590,7 @@ export default function VideoLabView({
           {viewMode === 'calendar' && (
             <div className="overflow-x-auto pb-2">
               <div className="min-w-[840px] space-y-4">
-                <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+                <div className="grid grid-cols-7 gap-1 text-center text-[14px] font-bold text-zinc-400 uppercase tracking-wider">
                 <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
               </div>
               <div className="grid grid-cols-7 gap-2.5">
@@ -612,7 +612,7 @@ export default function VideoLabView({
                       {renderSubdividedBlock(dateStr, 'h-full w-full')}
                       
                       {/* Calendar Day Label overlay */}
-                      <span className={`absolute top-1.5 left-2 text-[10px] font-bold ${
+                      <span className={`absolute top-1.5 left-2 text-[14px] font-bold ${
                         isSelected 
                           ? 'text-indigo-400 font-black scale-110' 
                           : dayPosts.length > 0 ? 'text-zinc-100' : 'text-zinc-400'
@@ -635,8 +635,8 @@ export default function VideoLabView({
             return (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-[11px] text-zinc-300 uppercase font-bold">Week {selectedWeekIdx + 1} Feed View</span>
-                  <span className="text-[10px] text-zinc-400 font-mono">
+                  <span className="text-[14px] text-zinc-300 uppercase font-bold">Week {selectedWeekIdx + 1} Feed View</span>
+                  <span className="text-[14px] text-zinc-400 font-mono">
                     Total Week Posts: {
                       weekDays.reduce((acc, d) => acc + (postsByDate[d.dateStr]?.length || 0), 0)
                     }
@@ -657,11 +657,11 @@ export default function VideoLabView({
                         className={`cursor-pointer transition-all duration-300 ${isCurrentMonth ? '' : 'opacity-25'}`}
                       >
                         <div className="flex justify-between items-center mb-1">
-                            <span className={`text-[10px] font-bold ${isSelected ? 'text-indigo-400 font-black' : 'text-zinc-400'}`}>
+                            <span className={`text-[14px] font-bold ${isSelected ? 'text-indigo-400 font-black' : 'text-zinc-400'}`}>
                             {dayNum} - {weekdayName}
                           </span>
                           {dayPosts.length > 0 && (
-                             <span className="text-[10px] bg-indigo-950 text-indigo-300 px-1 rounded-sm">{dayPosts.length}p</span>
+                             <span className="text-[14px] bg-indigo-950 text-indigo-300 px-1 rounded-sm">{dayPosts.length}p</span>
                           )}
                         </div>
                         <div className="aspect-square">
@@ -679,8 +679,8 @@ export default function VideoLabView({
           {viewMode === 'monthly' && (
             <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-[11px] text-zinc-300 uppercase font-bold">Sequential Monthly Grid Map</span>
-                  <span className="text-[10px] text-zinc-400 font-mono">
+                  <span className="text-[14px] text-zinc-300 uppercase font-bold">Sequential Monthly Grid Map</span>
+                  <span className="text-[14px] text-zinc-400 font-mono">
                   {monthNames[selectedMonth]} Total Publications: {
                     sequentialMonthDays.reduce((acc, d) => acc + (postsByDate[d.dateStr]?.length || 0), 0)
                   }
@@ -704,7 +704,7 @@ export default function VideoLabView({
                       {renderSubdividedBlock(dateStr, 'h-full w-full')}
                       
                       {/* Calendar Day Label overlay */}
-                      <span className={`absolute top-1.5 left-2 text-[10px] font-bold ${
+                      <span className={`absolute top-1.5 left-2 text-[14px] font-bold ${
                         isSelected 
                           ? 'text-indigo-400 font-black scale-110' 
                           : dayPosts.length > 0 ? 'text-zinc-100' : 'text-zinc-400'
@@ -723,7 +723,7 @@ export default function VideoLabView({
             <div className="space-y-4 overflow-x-auto select-none py-2">
               <div className="flex gap-[3px] min-w-[700px]">
                 {/* Day of week labels */}
-                  <div className="grid grid-rows-7 gap-[3px] text-[10px] text-zinc-400 font-bold pr-1 pt-4 select-none">
+                  <div className="grid grid-rows-7 gap-[3px] text-[14px] text-zinc-400 font-bold pr-1 pt-4 select-none">
                   <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
                 </div>
 
@@ -764,7 +764,7 @@ export default function VideoLabView({
               </div>
 
               {/* Month Markers below matrix */}
-                <div className="flex justify-between text-[10px] font-bold text-zinc-400 px-6 uppercase pt-1">
+                <div className="flex justify-between text-[14px] font-bold text-zinc-400 px-6 uppercase pt-1">
                 {monthNames.map(name => <span key={name}>{name.substring(0, 3)}</span>)}
               </div>
             </div>
@@ -783,7 +783,7 @@ export default function VideoLabView({
                 <span>Selected Day Feed</span>
               </h3>
               {selectedDay && (
-                  <span className="text-[10px] font-mono text-zinc-400 uppercase">{selectedDay}</span>
+                  <span className="text-[14px] font-mono text-zinc-400 uppercase">{selectedDay}</span>
               )}
             </div>
 
@@ -793,7 +793,7 @@ export default function VideoLabView({
                   const dayPosts = postsByDate[selectedDay] || [];
                   if (dayPosts.length === 0) {
                     return (
-                        <div className="text-center py-8 text-zinc-400 text-[11px] border border-dashed border-zinc-900 rounded-lg">
+                        <div className="text-center py-8 text-zinc-400 text-[14px] border border-dashed border-zinc-900 rounded-lg">
                         No videos published on this day. Complete a topic through the pipeline to fill this date.
                       </div>
                     );
@@ -816,7 +816,7 @@ export default function VideoLabView({
                               <span className="text-sm font-bold text-white tracking-tight leading-tight line-clamp-2 pr-4">{post.title}</span>
                               <div className="flex items-center gap-1.5 shrink-0">
                                 {post.source === 'pipeline' && (
-                                  <span className="text-[7px] bg-indigo-950 text-indigo-400 border border-indigo-900/40 px-1 py-0.2 rounded font-bold" title="Live Pipeline Item">
+                                  <span className="text-[12px] bg-indigo-950 text-indigo-400 border border-indigo-900/40 px-1 py-0.2 rounded font-bold" title="Live Pipeline Item">
                                     Pipeline
                                   </span>
                                 )}
@@ -834,18 +834,18 @@ export default function VideoLabView({
                             <div className="flex flex-wrap gap-1.5 pl-2">
                               <span 
                                 style={{ borderColor: `${color}40`, color: color }}
-                                className="px-1.5 py-0.2 bg-zinc-950 border rounded text-[10px] font-bold"
+                                className="px-1.5 py-0.2 bg-zinc-950 border rounded text-[14px] font-bold"
                               >
                                 {post.channelName}
                               </span>
-                              <span className="px-1.5 py-0.2 bg-zinc-900 text-zinc-300 border border-zinc-850 rounded text-[10px]">
+                              <span className="px-1.5 py-0.2 bg-zinc-900 text-zinc-300 border border-zinc-850 rounded text-[14px]">
                                 {post.format}
                               </span>
-                              <span className="px-1.5 py-0.2 bg-zinc-950/80 text-zinc-200 border border-zinc-800 rounded text-[10px]">{post.contentType}</span>
-                              <span className="px-1.5 py-0.2 bg-amber-950/40 text-amber-200 border border-amber-900/40 rounded text-[10px]">Revenue {post.revenueLevel}</span>
-                              {post.priority && <span className="px-1.5 py-0.2 bg-rose-950/40 text-rose-200 border border-rose-900/40 rounded text-[10px]">Priority {post.priority}</span>}
+                              <span className="px-1.5 py-0.2 bg-zinc-950/80 text-zinc-200 border border-zinc-800 rounded text-[14px]">{post.contentType}</span>
+                              <span className="px-1.5 py-0.2 bg-amber-950/40 text-amber-200 border border-amber-900/40 rounded text-[14px]">Revenue {post.revenueLevel}</span>
+                              {post.priority && <span className="px-1.5 py-0.2 bg-rose-950/40 text-rose-200 border border-rose-900/40 rounded text-[14px]">Priority {post.priority}</span>}
                             </div>
-                            <div className="flex items-center justify-between border-t border-white/5 pt-2 pl-2 text-[10px] uppercase text-zinc-400"><span>{post.state}</span><span className="font-bold text-zinc-200">{post.time}</span></div>
+                            <div className="flex items-center justify-between border-t border-white/5 pt-2 pl-2 text-[14px] uppercase text-zinc-400"><span>{post.state}</span><span className="font-bold text-zinc-200">{post.time}</span></div>
                           </div>
                         );
                       })}
@@ -854,7 +854,7 @@ export default function VideoLabView({
                 })()}
               </div>
             ) : (
-              <div className="text-center py-8 text-zinc-400 text-[11px] leading-normal uppercase">
+              <div className="text-center py-8 text-zinc-400 text-[14px] leading-normal uppercase">
                 Select any square grid block in the matrix to view the publications and metrics feed for that day.
               </div>
             )}
@@ -869,35 +869,35 @@ export default function VideoLabView({
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <span className="text-[10px] text-zinc-400 font-bold uppercase block tracking-wider">LearnDriven Channel</span>
+                <span className="text-[14px] text-zinc-400 font-bold uppercase block tracking-wider">LearnDriven Channel</span>
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-[2px]" style={{ backgroundColor: getFormatColor('LearnDriven', 'Short') }} />
-                     <span className="text-[10px] text-zinc-300">Short Video (#10b981)</span>
+                     <span className="text-[14px] text-zinc-300">Short Video (#10b981)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-[2px]" style={{ backgroundColor: getFormatColor('LearnDriven', 'Long') }} />
-                     <span className="text-[10px] text-zinc-300">Long Video (#047857)</span>
+                     <span className="text-[14px] text-zinc-300">Long Video (#047857)</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-[2px]" style={{ backgroundColor: getFormatColor('LearnDriven', 'Members') }} />
-                     <span className="text-[10px] text-zinc-300">Members Only (#0d9488)</span>
+                     <span className="text-[14px] text-zinc-300">Members Only (#0d9488)</span>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-2 border-t border-zinc-900 pt-3">
-                <span className="text-[10px] text-zinc-400 font-bold uppercase block tracking-wider">DecodeWorthy Channel</span>
+                <span className="text-[14px] text-zinc-400 font-bold uppercase block tracking-wider">DecodeWorthy Channel</span>
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-[2px]" style={{ backgroundColor: getFormatColor('DecodeWorthy', 'Short') }} />
-                     <span className="text-[10px] text-zinc-300">Short Video (#8b5cf6)</span>
+                     <span className="text-[14px] text-zinc-300">Short Video (#8b5cf6)</span>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-2 border-t border-zinc-900 pt-3">
-                <span className="text-[10px] text-zinc-400 font-bold uppercase block tracking-wider">Revenue level patterns</span>
+                <span className="text-[14px] text-zinc-400 font-bold uppercase block tracking-wider">Revenue level patterns</span>
                 {[
                   { label: 'Lvl 0.5 - Lvl 1', hint: 'Entry revenue', swatch: { backgroundImage: 'repeating-linear-gradient(135deg, transparent 0 10px, rgba(255,255,255,.10) 10px 12px)', backgroundSize: '20px 20px' } },
                   { label: 'Lvl 2 - Lvl 3', hint: 'Stable revenue', swatch: { backgroundImage: 'linear-gradient(rgba(255,255,255,.09) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.09) 1px, transparent 1px)', backgroundSize: '16px 16px' } },
@@ -905,7 +905,7 @@ export default function VideoLabView({
                   { label: 'Lvl 6 - Lvl 7', hint: 'High revenue', swatch: { backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,.12) 0 1px, transparent 1px 14px)', backgroundSize: '14px 14px' } },
                   { label: 'Lvl 8 - Lvl 9.5', hint: 'Premium revenue', swatch: { backgroundImage: 'repeating-linear-gradient(135deg, rgba(255,255,255,.12) 0 1px, transparent 1px 9px), repeating-linear-gradient(45deg, rgba(255,255,255,.10) 0 1px, transparent 1px 11px)', backgroundSize: '18px 18px' } },
                   { label: 'Lvl 20', hint: 'Elite revenue', swatch: { backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,.18) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.18) 50%, rgba(255,255,255,.18) 75%, transparent 75%, transparent)', backgroundSize: '18px 18px' } }
-                ].map(item => <div key={item.label} className="flex items-center gap-2"><div className="h-3 w-5 rounded-[2px] bg-indigo-700" style={item.swatch} /><span className="text-[10px] text-zinc-300">{item.label} <span className="text-zinc-400">({item.hint})</span></span></div>)}
+                ].map(item => <div key={item.label} className="flex items-center gap-2"><div className="h-3 w-5 rounded-[2px] bg-indigo-700" style={item.swatch} /><span className="text-[14px] text-zinc-300">{item.label} <span className="text-zinc-400">({item.hint})</span></span></div>)}
               </div>
             </div>
           </div>
@@ -928,7 +928,7 @@ export default function VideoLabView({
               top: `${hoveredDayData.y}px`, 
               transform: 'translate(-50%, -100%)' 
             }}
-              className="z-50 bg-zinc-950/95 border border-zinc-800 p-3 rounded-lg shadow-2xl w-64 space-y-2 pointer-events-none font-mono text-[11px] backdrop-blur-md"
+              className="z-50 bg-zinc-950/95 border border-zinc-800 p-3 rounded-lg shadow-2xl w-64 space-y-2 pointer-events-none font-mono text-[14px] backdrop-blur-md"
           >
             <div className="border-b border-zinc-900 pb-1.5 flex justify-between items-center text-zinc-400 font-bold uppercase">
               <span>{new Date(hoveredDayData.dateStr).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}</span>
@@ -941,11 +941,11 @@ export default function VideoLabView({
                   <div key={post.id} className="space-y-1">
                     <div className="flex items-center gap-1.5">
                       <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                       <span className="text-[10px] font-bold uppercase" style={{ color }}>{post.channelName}</span>
-                       <span className="text-[10px] text-zinc-400 bg-zinc-900 border border-zinc-850 px-1 rounded-sm">{post.format}</span>
+                       <span className="text-[14px] font-bold uppercase" style={{ color }}>{post.channelName}</span>
+                       <span className="text-[14px] text-zinc-400 bg-zinc-900 border border-zinc-850 px-1 rounded-sm">{post.format}</span>
                     </div>
-                    <p className="text-white text-[11px] leading-normal pl-3 font-semibold line-clamp-2">{post.title}</p>
-                     <div className="flex flex-wrap gap-1 pl-3 text-[10px] uppercase text-zinc-400"><span>{post.time}</span><span>-</span><span>{post.contentType}</span><span>-</span><span className="text-amber-300">Revenue {post.revenueLevel}</span></div>
+                    <p className="text-white text-[14px] leading-normal pl-3 font-semibold line-clamp-2">{post.title}</p>
+                     <div className="flex flex-wrap gap-1 pl-3 text-[14px] uppercase text-zinc-400"><span>{post.time}</span><span>-</span><span>{post.contentType}</span><span>-</span><span className="text-amber-300">Revenue {post.revenueLevel}</span></div>
                   </div>
                 );
               })}

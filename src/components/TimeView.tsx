@@ -373,11 +373,11 @@ export default function TimeView({
               <Timer className="h-5 w-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[.28em] text-purple-300">
+              <div className="flex items-center gap-2 font-mono text-[14px] uppercase tracking-[.28em] text-purple-300">
                 <Sparkles className="h-3 w-3 animate-pulse" /> Time telemetry
               </div>
               <h1 className="mt-1 text-2xl font-bold tracking-tight text-white">Every second, every stage.</h1>
-              <p className="mt-1 text-[11px] text-neutral-400">Per-stage stopwatches, sittings, and averages across every topic in flight.</p>
+              <p className="mt-1 text-[14px] text-neutral-400">Per-stage stopwatches, sittings, and averages across every topic in flight.</p>
             </div>
           </div>
           <div className="flex items-center gap-2 self-start lg:self-auto font-mono">
@@ -385,7 +385,7 @@ export default function TimeView({
               <button
                 type="button"
                 onClick={() => { setFilterOpen(o => !o); setSortOpen(false); }}
-                className="group flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] text-neutral-200 backdrop-blur-md transition hover:border-white/25 hover:bg-white/10"
+                className="group flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[14px] text-neutral-200 backdrop-blur-md transition hover:border-white/25 hover:bg-white/10"
               >
                 <Filter className="h-3 w-3 text-purple-300" />
                 <span className="text-neutral-500">Filter</span>
@@ -399,7 +399,7 @@ export default function TimeView({
                       key={opt}
                       type="button"
                       onClick={() => { setFilterMode(opt); setFilterOpen(false); }}
-                      className={`block w-full text-left px-3 py-1.5 text-[11px] transition ${filterMode === opt ? 'bg-purple-500/15 text-purple-200' : 'text-neutral-300 hover:bg-white/5 hover:text-white'}`}
+                      className={`block w-full text-left px-3 py-1.5 text-[14px] transition ${filterMode === opt ? 'bg-purple-500/15 text-purple-200' : 'text-neutral-300 hover:bg-white/5 hover:text-white'}`}
                     >{filterLabels[opt]}</button>
                   ))}
                 </div>
@@ -409,7 +409,7 @@ export default function TimeView({
               <button
                 type="button"
                 onClick={() => { setSortOpen(o => !o); setFilterOpen(false); }}
-                className="group flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] text-neutral-200 backdrop-blur-md transition hover:border-white/25 hover:bg-white/10"
+                className="group flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[14px] text-neutral-200 backdrop-blur-md transition hover:border-white/25 hover:bg-white/10"
               >
                 <ArrowUpDown className="h-3 w-3 text-cyan-300" />
                 <span className="text-neutral-500">Sort</span>
@@ -423,7 +423,7 @@ export default function TimeView({
                       key={opt}
                       type="button"
                       onClick={() => { setSortMode(opt); setSortOpen(false); }}
-                      className={`block w-full text-left px-3 py-1.5 text-[11px] transition ${sortMode === opt ? 'bg-cyan-500/15 text-cyan-200' : 'text-neutral-300 hover:bg-white/5 hover:text-white'}`}
+                      className={`block w-full text-left px-3 py-1.5 text-[14px] transition ${sortMode === opt ? 'bg-cyan-500/15 text-cyan-200' : 'text-neutral-300 hover:bg-white/5 hover:text-white'}`}
                     >{SORT_LABELS[opt]}</button>
                   ))}
                 </div>
@@ -448,9 +448,9 @@ export default function TimeView({
             <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${tile.tint} opacity-90`} />
             <div className="relative z-10 flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <div className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">{tile.label}</div>
+                <div className="font-mono text-[13px] uppercase tracking-[.24em] text-neutral-500">{tile.label}</div>
                 <div className={`mt-2 text-2xl font-bold tracking-tight ${tile.accent}`}>{tile.value}</div>
-                <div className="mt-1 text-[10px] text-neutral-500 leading-snug">{tile.sub}</div>
+                <div className="mt-1 text-[14px] text-neutral-500 leading-snug">{tile.sub}</div>
               </div>
               <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${tile.chip}`}>
                 <tile.Icon className="h-4 w-4" />
@@ -477,13 +477,13 @@ export default function TimeView({
                   {busy ? STAGE_ICON[busy.stage] : <Flame className="h-5 w-5" />}
                 </div>
                 <div>
-                  <div className="font-mono text-[10px] uppercase tracking-[.28em] text-neutral-500 flex items-center gap-1.5">
+                  <div className="font-mono text-[14px] uppercase tracking-[.28em] text-neutral-500 flex items-center gap-1.5">
                     <Flame className="h-3 w-3" /> Busiest stage
                   </div>
                   <div className={`mt-1 text-3xl font-bold tracking-tight ${busy && palette ? palette.text : 'text-neutral-400'}`}>
                     {busy ? STAGE_LABEL[busy.stage] : '—'}
                   </div>
-                  <div className="mt-1 text-[11px] text-neutral-400">
+                  <div className="mt-1 text-[14px] text-neutral-400">
                     {busy
                       ? <>Averages <span className={`font-semibold ${palette!.text}`}>{formatShort(busy.avgMs)}</span> per topic over the tracked sample.</>
                       : 'Need at least one topic with every stage tracked.'}
@@ -492,14 +492,14 @@ export default function TimeView({
               </div>
               <div className="grid grid-cols-2 gap-3 md:gap-4">
                 <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 min-w-[128px] backdrop-blur-md">
-                  <div className="font-mono text-[9px] uppercase tracking-[.22em] text-neutral-500">Sample size</div>
-                  <div className="mt-1 text-lg font-bold text-white tabular-nums">{fullyTrackedTopics.length} <span className="text-[11px] font-normal text-neutral-500">/ {perTopic.length}</span></div>
-                  <div className="text-[10px] text-neutral-500">fully tracked</div>
+                  <div className="font-mono text-[13px] uppercase tracking-[.22em] text-neutral-500">Sample size</div>
+                  <div className="mt-1 text-lg font-bold text-white tabular-nums">{fullyTrackedTopics.length} <span className="text-[14px] font-normal text-neutral-500">/ {perTopic.length}</span></div>
+                  <div className="text-[14px] text-neutral-500">fully tracked</div>
                 </div>
                 <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 min-w-[128px] backdrop-blur-md">
-                  <div className="font-mono text-[9px] uppercase tracking-[.22em] text-neutral-500">Avg sittings</div>
+                  <div className="font-mono text-[13px] uppercase tracking-[.22em] text-neutral-500">Avg sittings</div>
                   <div className={`mt-1 text-lg font-bold ${busy && palette ? palette.text : 'text-neutral-400'} tabular-nums`}>{busy ? formatAvgSittings(busy.avgSittings) : '—'}</div>
-                  <div className="text-[10px] text-neutral-500">on this stage</div>
+                  <div className="text-[14px] text-neutral-500">on this stage</div>
                 </div>
               </div>
             </div>
@@ -515,17 +515,17 @@ export default function TimeView({
               <Zap className="h-4 w-4" />
             </div>
             <div>
-              <div className="font-mono text-[10px] uppercase tracking-[.28em] text-purple-300">Avg per stage · one video</div>
-              <div className="text-[10px] text-neutral-500 mt-0.5">only topics with every stage tracked contribute</div>
+              <div className="font-mono text-[14px] uppercase tracking-[.28em] text-purple-300">Avg per stage · one video</div>
+              <div className="text-[14px] text-neutral-500 mt-0.5">only topics with every stage tracked contribute</div>
             </div>
           </div>
-          <div className="hidden md:flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-[10px] text-neutral-400">
+          <div className="hidden md:flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-[14px] text-neutral-400">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
             {fullyTrackedTopics.length} sample
           </div>
         </div>
         {fullyTrackedTopics.length === 0 ? (
-          <div className="text-center py-8 text-neutral-500 text-[11px] rounded-xl border border-dashed border-white/10">
+          <div className="text-center py-8 text-neutral-500 text-[14px] rounded-xl border border-dashed border-white/10">
             No topic has all {STAGES.length} stages tracked yet.
             {partialTopicsCount > 0 && ` ${partialTopicsCount} partial topic${partialTopicsCount === 1 ? '' : 's'} excluded.`}
           </div>
@@ -544,12 +544,12 @@ export default function TimeView({
                   <div className="relative z-10 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className={`grid h-8 w-8 place-items-center rounded-xl ${palette.iconBg}`}>{STAGE_ICON[s.stage]}</div>
-                      <span className={`font-mono text-[10px] uppercase tracking-[.22em] ${palette.text}`}>{STAGE_LABEL[s.stage]}</span>
+                      <span className={`font-mono text-[14px] uppercase tracking-[.22em] ${palette.text}`}>{STAGE_LABEL[s.stage]}</span>
                     </div>
-                    {isBusy && <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-[8px] uppercase tracking-wider text-neutral-300">Busiest</span>}
+                    {isBusy && <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 font-mono text-[13px] uppercase tracking-wider text-neutral-300">Busiest</span>}
                   </div>
                   <div className="relative z-10 mt-3 text-2xl font-bold tracking-tight text-white tabular-nums">{formatShort(s.avgMs)}</div>
-                  <div className={`relative z-10 mt-1 text-[10px] ${palette.softText} tabular-nums`}>
+                  <div className={`relative z-10 mt-1 text-[14px] ${palette.softText} tabular-nums`}>
                     {formatAvgSittings(s.avgSittings)} sittings avg
                   </div>
                 </div>
@@ -567,11 +567,11 @@ export default function TimeView({
               <TrendingUp className="h-4 w-4" />
             </div>
             <div>
-              <div className="font-mono text-[10px] uppercase tracking-[.28em] text-cyan-300">Total time by stage</div>
-              <div className="text-[10px] text-neutral-500 mt-0.5">every topic, every sitting</div>
+              <div className="font-mono text-[14px] uppercase tracking-[.28em] text-cyan-300">Total time by stage</div>
+              <div className="text-[14px] text-neutral-500 mt-0.5">every topic, every sitting</div>
             </div>
           </div>
-          <div className="hidden md:block font-mono text-[10px] text-neutral-500">{formatShort(grandTotalMs)} total</div>
+          <div className="hidden md:block font-mono text-[14px] text-neutral-500">{formatShort(grandTotalMs)} total</div>
         </div>
         <div className="space-y-3">
           {stageAggregate.map(s => {
@@ -579,7 +579,7 @@ export default function TimeView({
             const palette = STAGE_PALETTE[s.stage];
             return (
               <div key={s.stage} className="space-y-1.5">
-                <div className="flex justify-between items-center text-[10px] font-mono">
+                <div className="flex justify-between items-center text-[14px] font-mono">
                   <div className="flex items-center gap-2">
                     <span className={`h-2 w-2 rounded-full`} style={{ background: palette.glowVar, boxShadow: `0 0 8px ${palette.glowVar}` }} />
                     <span className={`${palette.text} font-semibold`}>{STAGE_LABEL[s.stage]}</span>
@@ -607,7 +607,7 @@ export default function TimeView({
       {/* Topic list */}
       <div className="space-y-2">
         {finalSorted.length === 0 && (
-          <div className="text-center py-6 text-neutral-500 text-[10px] border border-dashed border-neutral-800 rounded-lg">
+          <div className="text-center py-6 text-neutral-500 text-[14px] border border-dashed border-neutral-800 rounded-lg">
             No topics yet. Add one from the Pipeline.
           </div>
         )}
@@ -624,31 +624,31 @@ export default function TimeView({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-neutral-100 truncate">{t.name}</span>
-                    <span className="px-1.5 py-0.5 rounded text-[8px] border border-neutral-800 text-neutral-400">{t.channel}</span>
-                    <span className="px-1.5 py-0.5 rounded text-[8px] border border-blue-900/40 text-blue-400 bg-blue-950/20 uppercase">{t.status}</span>
-                    {row.anyRunning && <span className="text-[8px] text-emerald-400 font-bold">● LIVE</span>}
-                    {!row.anyRunning && row.anyPaused && <span className="text-[8px] text-amber-400 font-bold">◐ PAUSED</span>}
+                    <span className="px-1.5 py-0.5 rounded text-[13px] border border-neutral-800 text-neutral-400">{t.channel}</span>
+                    <span className="px-1.5 py-0.5 rounded text-[13px] border border-blue-900/40 text-blue-400 bg-blue-950/20 uppercase">{t.status}</span>
+                    {row.anyRunning && <span className="text-[13px] text-emerald-400 font-bold">● LIVE</span>}
+                    {!row.anyRunning && row.anyPaused && <span className="text-[13px] text-amber-400 font-bold">◐ PAUSED</span>}
                   </div>
-                  <div className="text-[9px] text-neutral-500 mt-0.5">
+                  <div className="text-[13px] text-neutral-500 mt-0.5">
                     Created {new Date(t.createdDate).toLocaleDateString()} · Due {t.dueDate ? new Date(t.dueDate).toLocaleDateString() : 'None'}
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0 font-sans">
                   {STAGES.map(s => (
                     <div key={s} className="text-center min-w-[3.5rem]">
-                      <div className="text-[10px] uppercase text-neutral-200 font-semibold tracking-wide">{STAGE_LABEL[s]}</div>
-                      <div className={`text-[12px] font-mono font-semibold ${row.perStage[s].running ? 'text-emerald-300' : row.perStage[s].paused ? 'text-amber-300' : row.perStage[s].done ? 'text-neutral-100' : 'text-neutral-500'}`}>
+                      <div className="text-[14px] uppercase text-neutral-200 font-semibold tracking-wide">{STAGE_LABEL[s]}</div>
+                      <div className={`text-[15px] font-mono font-semibold ${row.perStage[s].running ? 'text-emerald-300' : row.perStage[s].paused ? 'text-amber-300' : row.perStage[s].done ? 'text-neutral-100' : 'text-neutral-500'}`}>
                         {row.perStage[s].ms > 0 ? formatShort(row.perStage[s].ms) : '—'}
                       </div>
-                      <div className="text-[10px] font-mono text-cyan-300 font-semibold">
+                      <div className="text-[14px] font-mono text-cyan-300 font-semibold">
                         {row.perStage[s].sittings > 0 ? `×${row.perStage[s].sittings}` : ''}
                       </div>
                     </div>
                   ))}
                   <div className="text-center min-w-[3.5rem] pl-2 border-l border-neutral-800">
-                    <div className="text-[10px] uppercase text-neutral-200 font-semibold tracking-wide">Total</div>
-                    <div className="text-[13px] font-mono font-bold text-white">{row.totalMs > 0 ? formatShort(row.totalMs) : '—'}</div>
-                    <div className="text-[10px] text-neutral-400">{row.totalSittings} sittings</div>
+                    <div className="text-[14px] uppercase text-neutral-200 font-semibold tracking-wide">Total</div>
+                    <div className="text-[15px] font-mono font-bold text-white">{row.totalMs > 0 ? formatShort(row.totalMs) : '—'}</div>
+                    <div className="text-[14px] text-neutral-400">{row.totalSittings} sittings</div>
                   </div>
                   <ChevronDown className={`h-3.5 w-3.5 text-neutral-300 transition ${isOpen ? 'rotate-180' : ''}`} />
                 </div>
@@ -673,10 +673,10 @@ export default function TimeView({
                       <div className="relative flex items-start justify-between gap-4">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.28em] ${activeInfo.running ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' : activeInfo.paused ? 'border-amber-500/40 bg-amber-500/10 text-amber-300' : 'border-neutral-700 bg-neutral-900 text-neutral-300'}`}>
+                            <span className={`rounded-full border px-2.5 py-1 text-[14px] font-bold uppercase tracking-[0.28em] ${activeInfo.running ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' : activeInfo.paused ? 'border-amber-500/40 bg-amber-500/10 text-amber-300' : 'border-neutral-700 bg-neutral-900 text-neutral-300'}`}>
                               {STAGE_LABEL[activeStage]}
                             </span>
-                            <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.28em] ${activeInfo.running ? 'bg-emerald-500/15 text-emerald-300' : activeInfo.paused ? 'bg-amber-500/15 text-amber-300' : 'bg-neutral-800 text-neutral-400'}`}>
+                            <span className={`rounded-full px-2.5 py-1 text-[14px] font-bold uppercase tracking-[0.28em] ${activeInfo.running ? 'bg-emerald-500/15 text-emerald-300' : activeInfo.paused ? 'bg-amber-500/15 text-amber-300' : 'bg-neutral-800 text-neutral-400'}`}>
                               {activeInfo.running ? 'Live stopwatch' : activeInfo.paused ? 'Paused' : 'Stopped'}
                             </span>
                           </div>
@@ -712,7 +712,7 @@ export default function TimeView({
                           <button
                             type="button"
                             onClick={() => onStartTimer(t.id, activeStage)}
-                            className="rounded-full border border-emerald-700/60 bg-emerald-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-200 hover:bg-emerald-500/15"
+                            className="rounded-full border border-emerald-700/60 bg-emerald-500/10 px-4 py-2 text-[14px] font-bold uppercase tracking-[0.2em] text-emerald-200 hover:bg-emerald-500/15"
                           >
                             {activeInfo.paused ? 'Resume' : 'Start'} {STAGE_LABEL[activeStage]}
                           </button>
@@ -721,7 +721,7 @@ export default function TimeView({
                           <button
                             type="button"
                             onClick={onPauseTimer}
-                            className="rounded-full border border-amber-700/60 bg-amber-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200 hover:bg-amber-500/15"
+                            className="rounded-full border border-amber-700/60 bg-amber-500/10 px-4 py-2 text-[14px] font-bold uppercase tracking-[0.2em] text-amber-200 hover:bg-amber-500/15"
                           >
                             Pause {STAGE_LABEL[activeStage]}
                           </button>
@@ -730,7 +730,7 @@ export default function TimeView({
                           type="button"
                           disabled={activeInfo.ms === 0 && !activeInfo.running && !activeInfo.paused}
                           onClick={() => onCompleteStage(t.id, activeStage)}
-                          className="rounded-full border border-blue-700/60 bg-blue-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-blue-200 hover:bg-blue-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+                          className="rounded-full border border-blue-700/60 bg-blue-500/10 px-4 py-2 text-[14px] font-bold uppercase tracking-[0.2em] text-blue-200 hover:bg-blue-500/15 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           Done
                         </button>
@@ -744,7 +744,7 @@ export default function TimeView({
                             setEditingStageKey(stageKey);
                             setEditingStageValue(formatHMS(activeInfo.ms));
                           }}
-                          className="rounded-full border border-neutral-800 bg-neutral-950/60 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-400 hover:border-blue-500/40 hover:text-blue-300"
+                          className="rounded-full border border-neutral-800 bg-neutral-950/60 px-2.5 py-1 text-[13px] font-bold uppercase tracking-[0.18em] text-neutral-400 hover:border-blue-500/40 hover:text-blue-300"
                         >
                           Edit time
                         </button>
@@ -755,7 +755,7 @@ export default function TimeView({
                             setEditingSittingsKey(stageKey);
                             setEditingSittingsValue(String(Math.max(1, activeInfo.sittings || 1)));
                           }}
-                          className="rounded-full border border-neutral-800 bg-neutral-950/60 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-400 hover:border-cyan-500/40 hover:text-cyan-300"
+                          className="rounded-full border border-neutral-800 bg-neutral-950/60 px-2.5 py-1 text-[13px] font-bold uppercase tracking-[0.18em] text-neutral-400 hover:border-cyan-500/40 hover:text-cyan-300"
                         >
                           Edit sittings
                         </button>
@@ -773,7 +773,7 @@ export default function TimeView({
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
-                                <div className={`font-bold uppercase tracking-[0.2em] ${isActive ? 'text-[11px] text-neutral-100' : 'text-[9px] text-neutral-400'}`}>
+                                <div className={`font-bold uppercase tracking-[0.2em] ${isActive ? 'text-[14px] text-neutral-100' : 'text-[13px] text-neutral-400'}`}>
                                   {STAGE_LABEL[s]}
                                   {isActive && info.running && <span className="ml-2 text-emerald-300">LIVE</span>}
                                   {isActive && info.paused && <span className="ml-2 text-amber-300">PAUSED</span>}
@@ -799,7 +799,7 @@ export default function TimeView({
                                         }
                                         if (e.key === 'Escape') setEditingStageKey(null);
                                       }}
-                                      className="w-full rounded border border-blue-600 bg-neutral-900 px-2 py-1 text-[11px] font-mono text-white outline-none"
+                                      className="w-full rounded border border-blue-600 bg-neutral-900 px-2 py-1 text-[14px] font-mono text-white outline-none"
                                       placeholder="HH:MM:SS"
                                     />
                                   ) : (
@@ -812,7 +812,7 @@ export default function TimeView({
                               </div>
                             </div>
 
-                            <div className="mt-2 flex items-center justify-between gap-2 text-[9px] text-neutral-500">
+                            <div className="mt-2 flex items-center justify-between gap-2 text-[13px] text-neutral-500">
                               <span>{info.sittings} sittings</span>
                               <button
                                 type="button"
@@ -822,7 +822,7 @@ export default function TimeView({
                                   setEditingSittingsValue(String(Math.max(1, info.sittings || 1)));
                                 }}
                                 title="Edit sittings count"
-                                className="rounded border border-neutral-800 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-400 hover:border-cyan-500/40 hover:text-cyan-300"
+                                className="rounded border border-neutral-800 px-2 py-1 text-[13px] font-bold uppercase tracking-[0.18em] text-neutral-400 hover:border-cyan-500/40 hover:text-cyan-300"
                               >
                                 Split
                               </button>
@@ -838,7 +838,7 @@ export default function TimeView({
                                   onFocus={(e) => e.currentTarget.select()}
                                   onClick={(e) => e.currentTarget.select()}
                                   onChange={(e) => setEditingSittingsValue(e.target.value.replace(/[^\d]/g, ""))}
-                                  className="w-20 rounded border border-neutral-800 bg-neutral-900 px-2 py-1 text-[11px] font-mono text-white outline-none"
+                                  className="w-20 rounded border border-neutral-800 bg-neutral-900 px-2 py-1 text-[14px] font-mono text-white outline-none"
                                 />
                                 <button
                                   type="button"
@@ -851,14 +851,14 @@ export default function TimeView({
                                     onSetStageTotals(t.id, s, info.ms, n);
                                     setEditingSittingsKey(null);
                                   }}
-                                  className="rounded border border-cyan-700/60 bg-cyan-500/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-cyan-200 hover:bg-cyan-500/15"
+                                  className="rounded border border-cyan-700/60 bg-cyan-500/10 px-2.5 py-1 text-[13px] font-bold uppercase tracking-[0.18em] text-cyan-200 hover:bg-cyan-500/15"
                                 >
                                   Save
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setEditingSittingsKey(null)}
-                                  className="rounded border border-neutral-800 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-400 hover:text-neutral-200"
+                                  className="rounded border border-neutral-800 px-2.5 py-1 text-[13px] font-bold uppercase tracking-[0.18em] text-neutral-400 hover:text-neutral-200"
                                 >
                                   Cancel
                                 </button>
@@ -870,7 +870,7 @@ export default function TimeView({
                                 <button
                                   type="button"
                                   onClick={() => onStartTimer(t.id, s)}
-                                  className="flex-1 rounded-lg border border-emerald-800/60 bg-emerald-500/10 px-2 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-200 hover:bg-emerald-500/15"
+                                  className="flex-1 rounded-lg border border-emerald-800/60 bg-emerald-500/10 px-2 py-1.5 text-[13px] font-bold uppercase tracking-[0.18em] text-emerald-200 hover:bg-emerald-500/15"
                                 >
                                   {info.paused ? 'Resume' : 'Start'}
                                 </button>
@@ -879,7 +879,7 @@ export default function TimeView({
                                 <button
                                   type="button"
                                   onClick={onPauseTimer}
-                                  className="flex-1 rounded-lg border border-amber-800/60 bg-amber-500/10 px-2 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-amber-200 hover:bg-amber-500/15"
+                                  className="flex-1 rounded-lg border border-amber-800/60 bg-amber-500/10 px-2 py-1.5 text-[13px] font-bold uppercase tracking-[0.18em] text-amber-200 hover:bg-amber-500/15"
                                 >
                                   Pause
                                 </button>
@@ -888,7 +888,7 @@ export default function TimeView({
                                 type="button"
                                 disabled={info.ms === 0 && !info.running && !info.paused}
                                 onClick={() => onCompleteStage(t.id, s)}
-                                className="rounded-lg border border-blue-800/60 bg-blue-500/10 px-2 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-blue-200 hover:bg-blue-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+                                className="rounded-lg border border-blue-800/60 bg-blue-500/10 px-2 py-1.5 text-[13px] font-bold uppercase tracking-[0.18em] text-blue-200 hover:bg-blue-500/15 disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                   Done
                                 </button>
@@ -902,7 +902,7 @@ export default function TimeView({
                                   setEditingStageKey(stageKey);
                                   setEditingStageValue(formatHMS(info.ms));
                                 }}
-                                className="rounded-full border border-neutral-800 bg-neutral-950/60 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-400 hover:border-blue-500/40 hover:text-blue-300"
+                                className="rounded-full border border-neutral-800 bg-neutral-950/60 px-2.5 py-1 text-[13px] font-bold uppercase tracking-[0.18em] text-neutral-400 hover:border-blue-500/40 hover:text-blue-300"
                               >
                                 Edit time
                               </button>
@@ -913,7 +913,7 @@ export default function TimeView({
                                   setEditingSittingsKey(stageKey);
                                   setEditingSittingsValue(String(Math.max(1, info.sittings || 1)));
                                 }}
-                                className="rounded-full border border-neutral-800 bg-neutral-950/60 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-400 hover:border-cyan-500/40 hover:text-cyan-300"
+                                className="rounded-full border border-neutral-800 bg-neutral-950/60 px-2.5 py-1 text-[13px] font-bold uppercase tracking-[0.18em] text-neutral-400 hover:border-cyan-500/40 hover:text-cyan-300"
                               >
                                 Edit sittings
                               </button>
@@ -931,7 +931,7 @@ export default function TimeView({
                       <button
                         type="button"
                         onClick={() => setEntriesOpen(prev => prev === t.id ? null : t.id)}
-                        className="flex w-full items-center justify-between border-b border-neutral-800/80 px-3 py-2 text-[10px] uppercase tracking-[0.22em] text-neutral-500 hover:text-neutral-200"
+                        className="flex w-full items-center justify-between border-b border-neutral-800/80 px-3 py-2 text-[14px] uppercase tracking-[0.22em] text-neutral-500 hover:text-neutral-200"
                         aria-expanded={entriesOpen === t.id}
                       >
                         <span>Time entries ({row.timers.length})</span>
@@ -940,19 +940,19 @@ export default function TimeView({
                       {entriesOpen === t.id ? (
                       <div className="divide-y divide-neutral-900">
                         {row.timers.slice().sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()).map(timer => (
-                          <div key={timer.id} className="flex items-start justify-between gap-3 px-3 py-2 text-[10px]">
+                          <div key={timer.id} className="flex items-start justify-between gap-3 px-3 py-2 text-[14px]">
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="rounded-full border border-neutral-800 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-300">{STAGE_LABEL[timer.stage]}</span>
+                                <span className="rounded-full border border-neutral-800 px-2 py-0.5 text-[13px] font-bold uppercase tracking-[0.18em] text-neutral-300">{STAGE_LABEL[timer.stage]}</span>
                                 <span className="font-mono text-sm font-semibold text-neutral-100 tabular-nums">{formatHMS(timer.accumulatedActiveMs)}</span>
                                 <span className="text-neutral-600">·</span>
                                 {(() => {
                                   const n = timer.segments && timer.segments.length > 0
                                     ? timer.segments.length
                                     : timer.status === 'paused' ? timer.breaksCount : timer.breaksCount + 1;
-                                  return <span className="text-neutral-500 text-[9px]">{new Date(timer.startedAt).toLocaleDateString()} · {n} sitting{n === 1 ? '' : 's'}</span>;
+                                  return <span className="text-neutral-500 text-[13px]">{new Date(timer.startedAt).toLocaleDateString()} · {n} sitting{n === 1 ? '' : 's'}</span>;
                                 })()}
-                                <span className={`rounded-full border px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.18em] ${timer.status === 'running' ? 'border-emerald-900 text-emerald-300' : timer.status === 'paused' ? 'border-amber-900 text-amber-300' : 'border-neutral-800 text-neutral-500'}`}>{timer.status}</span>
+                                <span className={`rounded-full border px-2 py-0.5 text-[13px] font-bold uppercase tracking-[0.18em] ${timer.status === 'running' ? 'border-emerald-900 text-emerald-300' : timer.status === 'paused' ? 'border-amber-900 text-amber-300' : 'border-neutral-800 text-neutral-500'}`}>{timer.status}</span>
                               </div>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">

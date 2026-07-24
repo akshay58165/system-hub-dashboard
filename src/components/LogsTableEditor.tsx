@@ -146,13 +146,13 @@ export default function LogsTableEditor({
           <div className="flex bg-neutral-950 border border-neutral-850 rounded-lg p-0.5 font-mono">
             <button
               onClick={() => { setSelectedTable('topics'); setSearch(''); setSortField('id'); }}
-              className={`px-3 py-1.5 rounded text-[10px] font-bold transition ${selectedTable === 'topics' ? 'bg-emerald-950 text-emerald-400 border border-emerald-900/30' : 'text-neutral-400 hover:text-neutral-200'}`}
+              className={`px-3 py-1.5 rounded text-[14px] font-bold transition ${selectedTable === 'topics' ? 'bg-emerald-950 text-emerald-400 border border-emerald-900/30' : 'text-neutral-400 hover:text-neutral-200'}`}
             >
               Topics ({topics.length})
             </button>
             <button
               onClick={() => { setSelectedTable('activities'); setSearch(''); setSortField('timestamp'); }}
-              className={`px-3 py-1.5 rounded text-[10px] font-bold transition ${selectedTable === 'activities' ? 'bg-emerald-950 text-emerald-400 border border-emerald-900/30' : 'text-neutral-400 hover:text-neutral-200'}`}
+              className={`px-3 py-1.5 rounded text-[14px] font-bold transition ${selectedTable === 'activities' ? 'bg-emerald-950 text-emerald-400 border border-emerald-900/30' : 'text-neutral-400 hover:text-neutral-200'}`}
             >
               Activities ({activities.length})
             </button>
@@ -179,7 +179,7 @@ export default function LogsTableEditor({
         <div className="overflow-x-auto max-h-[500px] scrollbar-none">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-neutral-900 border-b border-neutral-800 text-[10px] text-neutral-400 font-mono sticky top-0 z-10 select-none">
+              <tr className="bg-neutral-900 border-b border-neutral-800 text-[14px] text-neutral-400 font-mono sticky top-0 z-10 select-none">
                 {selectedTable === 'topics' ? (
                   <>
                     <th onClick={() => handleSort('id')} className="px-4 py-3 font-semibold cursor-pointer hover:bg-neutral-800">
@@ -227,7 +227,7 @@ export default function LogsTableEditor({
                 )}
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-900 font-mono text-[11px] text-neutral-300">
+            <tbody className="divide-y divide-neutral-900 font-mono text-[14px] text-neutral-300">
               {selectedTable === 'topics' ? (
                 sortedTopics.length === 0 ? (
                   <tr>
@@ -243,7 +243,7 @@ export default function LogsTableEditor({
                         {topic.name}
                       </td>
                       <td className="px-4 py-2.5">
-                        <span className={`px-2 py-0.5 rounded border text-[9px] font-bold ${topic.channel === 'LearnDriven' ? 'text-purple-400 bg-purple-950/10 border-purple-900/20' : 'text-emerald-400 bg-emerald-950/10 border-emerald-900/20'}`}>
+                        <span className={`px-2 py-0.5 rounded border text-[13px] font-bold ${topic.channel === 'LearnDriven' ? 'text-purple-400 bg-purple-950/10 border-purple-900/20' : 'text-emerald-400 bg-emerald-950/10 border-emerald-900/20'}`}>
                           {topic.channel}
                         </span>
                       </td>
@@ -251,7 +251,7 @@ export default function LogsTableEditor({
                         <select
                           value={topic.status}
                           onChange={(e) => handleUpdateTopicStatus(topic.id, e.target.value as Topic['status'])}
-                          className="bg-neutral-900 border border-neutral-800 rounded text-[10px] text-zinc-300 px-2 py-1 outline-none cursor-pointer focus:border-zinc-700 font-mono"
+                          className="bg-neutral-900 border border-neutral-800 rounded text-[14px] text-zinc-300 px-2 py-1 outline-none cursor-pointer focus:border-zinc-700 font-mono"
                         >
                           <option value="topic">Topic Idea</option>
                           <option value="scripted">Scripted</option>
@@ -292,7 +292,7 @@ export default function LogsTableEditor({
                         {act.topicName}
                       </td>
                       <td className="px-4 py-2.5">
-                        <span className={`px-2 py-0.5 rounded border text-[9px] font-bold ${act.channel === 'LearnDriven' ? 'text-purple-400 bg-purple-950/10 border-purple-900/20' : 'text-emerald-400 bg-emerald-950/10 border-emerald-900/20'}`}>
+                        <span className={`px-2 py-0.5 rounded border text-[13px] font-bold ${act.channel === 'LearnDriven' ? 'text-purple-400 bg-purple-950/10 border-purple-900/20' : 'text-emerald-400 bg-emerald-950/10 border-emerald-900/20'}`}>
                           {act.channel}
                         </span>
                       </td>

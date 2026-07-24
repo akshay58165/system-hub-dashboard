@@ -108,7 +108,7 @@ function StatTile({ value, label, tone = 'text-white' }: { value: number | strin
   return (
     <div className="rounded-xl border border-neutral-800/80 bg-neutral-950/75 px-3 py-2">
       <div className={`text-sm font-semibold ${tone}`}>{value}</div>
-      <div className="mt-0.5 font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">{label}</div>
+      <div className="mt-0.5 font-mono text-[13px] uppercase tracking-[.24em] text-neutral-500">{label}</div>
     </div>
   );
 }
@@ -171,8 +171,8 @@ function MonthlyPublishStrip({ topics, nowMs, className }: { topics: Topic[]; no
   return (
     <div className={`rounded-xl border border-neutral-800/70 bg-neutral-950/70 p-3 ${className ?? ''}`}>
       <div className="mb-2 flex items-center justify-between">
-        <div className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Publish rhythm · {monthName} {year}</div>
-        <div className="font-mono text-[9px] text-neutral-600">{daysInMonth} days</div>
+        <div className="font-mono text-[13px] uppercase tracking-[.24em] text-neutral-500">Publish rhythm · {monthName} {year}</div>
+        <div className="font-mono text-[13px] text-neutral-600">{daysInMonth} days</div>
       </div>
       <div className="space-y-2">
         {channels.map(channel => {
@@ -197,8 +197,8 @@ function MonthlyPublishStrip({ topics, nowMs, className }: { topics: Topic[]; no
           return (
             <div key={channel.name} className="flex items-center gap-3">
               <div className="w-24 shrink-0">
-                <div className={`text-[10px] font-bold ${channel.accent}`}>{channel.name}</div>
-                <div className="font-mono text-[8px] text-neutral-500">{daysPosted}d · {videosPosted} vids</div>
+                <div className={`text-[14px] font-bold ${channel.accent}`}>{channel.name}</div>
+                <div className="font-mono text-[13px] text-neutral-500">{daysPosted}d · {videosPosted} vids</div>
               </div>
               <div className="flex flex-1 items-center gap-[2px] overflow-hidden rounded-md bg-neutral-950/60 px-1 py-1.5">
                 {Array.from({ length: daysInMonth }, (_, i) => {
@@ -231,8 +231,8 @@ function MonthlyPublishStrip({ topics, nowMs, className }: { topics: Topic[]; no
                 })}
               </div>
               <div className="w-20 shrink-0 text-right">
-                <div className={`font-mono text-[11px] font-bold ${channel.accent}`}>{videosPosted}</div>
-                <div className="font-mono text-[8px] text-neutral-500">
+                <div className={`font-mono text-[14px] font-bold ${channel.accent}`}>{videosPosted}</div>
+                <div className="font-mono text-[13px] text-neutral-500">
                   {daysScheduled > 0 ? `${daysScheduled} scheduled` : `${daysInMonth - todayDay} days left`}
                 </div>
               </div>
@@ -240,7 +240,7 @@ function MonthlyPublishStrip({ topics, nowMs, className }: { topics: Topic[]; no
           );
         })}
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-neutral-900 pt-2 text-[8px] font-mono text-neutral-500">
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-neutral-900 pt-2 text-[13px] font-mono text-neutral-500">
         <span className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm bg-rose-500/70" /> missed</span>
         <span className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm bg-neutral-800/70" /> empty</span>
         <span className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm bg-emerald-300/80 animate-pulse" /> scheduled</span>
@@ -383,7 +383,7 @@ export default function ProductionPipelineMap({
         return (
           <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
-              <div className="mb-2 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[.24em] text-cyan-300">
+              <div className="mb-2 flex items-center gap-2 font-mono text-[14px] uppercase tracking-[.24em] text-cyan-300">
                 <Sparkles className="h-3.5 w-3.5 animate-pulse" />
                 Live content operations
               </div>
@@ -406,11 +406,11 @@ export default function ProductionPipelineMap({
                 className={`group rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 min-w-0 w-full ${opsBorder} ${opsBg}`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Operational state</span>
+                  <span className="font-mono text-[13px] uppercase tracking-[.24em] text-neutral-500">Operational state</span>
                   <span className={`h-2.5 w-2.5 rounded-full ${opsDot}`} />
                 </div>
                 <div className={`mt-2 font-mono text-sm font-bold uppercase tracking-wide ${opsText}`}>{opsLabel}</div>
-                <div className="mt-1 flex items-center justify-between gap-3 text-[11px] text-neutral-500">
+                <div className="mt-1 flex items-center justify-between gap-3 text-[14px] text-neutral-500">
                   <span>{totalBlocked} blocked · {totalOverdue} overdue · {dueSoonCount} due soon</span>
                   <ArrowUpRight className="h-3.5 w-3.5 shrink-0 group-hover:text-white" />
                 </div>
@@ -427,7 +427,7 @@ export default function ProductionPipelineMap({
                 className="group rounded-2xl border border-cyan-900/40 bg-cyan-950/20 p-4 text-left transition hover:-translate-y-0.5 hover:border-cyan-700/60 min-w-0 w-full"
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Now working on</span>
+                  <span className="font-mono text-[13px] uppercase tracking-[.24em] text-neutral-500">Now working on</span>
                   {activeTaskTimer ? <LiveDot /> : <span className="h-2.5 w-2.5 rounded-full bg-neutral-700" />}
                 </div>
                 <AnimatePresence mode="wait">
@@ -442,7 +442,7 @@ export default function ProductionPipelineMap({
                     <div className="text-sm font-semibold text-white truncate">
                       {activeTaskTimer ? activeTaskTimer.topicName : focusTopic?.name ?? 'Nothing active'}
                     </div>
-                    <div className="mt-1 text-[11px] leading-relaxed text-neutral-400">
+                    <div className="mt-1 text-[14px] leading-relaxed text-neutral-400">
                       {activeTaskTimer
                         ? `${activeTaskTimer.status === 'paused' ? 'Paused' : 'Running'} · ${formatDuration(activeTaskTimerMs?.active ?? 0)} on ${activeTaskTimer.stage}`
                         : focusTopic
@@ -484,10 +484,10 @@ export default function ProductionPipelineMap({
                     <Icon className="h-4 w-4" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className={`font-mono text-[9px] font-semibold uppercase tracking-[.2em] ${node.tone.badge}`}>{node.title}</div>
+                    <div className={`font-mono text-[13px] font-semibold uppercase tracking-[.2em] ${node.tone.badge}`}>{node.title}</div>
                     <div className="mt-0.5 text-lg font-bold leading-none text-white">
                       {node.count}
-                      <span className="ml-1.5 text-[9px] font-normal uppercase tracking-wider text-neutral-500">
+                      <span className="ml-1.5 text-[13px] font-normal uppercase tracking-wider text-neutral-500">
                         {node.count === 0 ? 'empty' : node.count === 1 ? 'topic' : 'topics'}
                       </span>
                     </div>
@@ -509,26 +509,26 @@ export default function ProductionPipelineMap({
                 </div>
 
                 {/* Body: signals + oldest topic hint */}
-                <div className="relative z-10 space-y-1.5 px-3 py-2.5 text-[10px]">
+                <div className="relative z-10 space-y-1.5 px-3 py-2.5 text-[14px]">
                   {(node.blocked > 0 || node.overdue > 0 || hasLive || (node.pausedCount > 0 && !hasLive)) && (
                     <div className="flex flex-wrap gap-1.5">
                       {node.blocked > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded border border-rose-900/40 bg-rose-950/25 px-1.5 py-0.5 font-mono text-[9px] font-bold text-rose-300">
+                        <span className="inline-flex items-center gap-1 rounded border border-rose-900/40 bg-rose-950/25 px-1.5 py-0.5 font-mono text-[13px] font-bold text-rose-300">
                           <AlertTriangle className="h-2.5 w-2.5" />{node.blocked} blocked
                         </span>
                       )}
                       {node.overdue > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded border border-amber-900/40 bg-amber-950/25 px-1.5 py-0.5 font-mono text-[9px] font-bold text-amber-300">
+                        <span className="inline-flex items-center gap-1 rounded border border-amber-900/40 bg-amber-950/25 px-1.5 py-0.5 font-mono text-[13px] font-bold text-amber-300">
                           <Clock3 className="h-2.5 w-2.5" />{node.overdue} overdue
                         </span>
                       )}
                       {hasLive && (
-                        <span className="inline-flex items-center gap-1 rounded border border-emerald-900/40 bg-emerald-950/25 px-1.5 py-0.5 font-mono text-[9px] font-bold text-emerald-300">
+                        <span className="inline-flex items-center gap-1 rounded border border-emerald-900/40 bg-emerald-950/25 px-1.5 py-0.5 font-mono text-[13px] font-bold text-emerald-300">
                           <Radio className="h-2.5 w-2.5" />{node.liveCount} live
                         </span>
                       )}
                       {!hasLive && node.pausedCount > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded border border-neutral-800 bg-neutral-900/60 px-1.5 py-0.5 font-mono text-[9px] font-bold text-neutral-300">
+                        <span className="inline-flex items-center gap-1 rounded border border-neutral-800 bg-neutral-900/60 px-1.5 py-0.5 font-mono text-[13px] font-bold text-neutral-300">
                           {node.pausedCount} paused
                         </span>
                       )}
@@ -536,20 +536,20 @@ export default function ProductionPipelineMap({
                   )}
                   {node.count === 0 ? (
                     <div className="text-neutral-500 leading-snug">
-                      <span className={`font-mono text-[8px] font-bold uppercase tracking-wider ${node.tone.badge}`}>Next step</span>
-                      <div className="mt-0.5 text-[10px] text-neutral-400">{node.nextAction}</div>
+                      <span className={`font-mono text-[13px] font-bold uppercase tracking-wider ${node.tone.badge}`}>Next step</span>
+                      <div className="mt-0.5 text-[14px] text-neutral-400">{node.nextAction}</div>
                     </div>
                   ) : node.oldestName ? (
                     <div>
-                      <div className="text-[9px] font-mono uppercase tracking-wider text-neutral-500">Oldest</div>
-                      <div className="mt-0.5 truncate text-[11px] font-semibold text-neutral-100">{node.oldestName}</div>
-                      <div className="mt-0.5 text-[9px] text-neutral-500">
+                      <div className="text-[13px] font-mono uppercase tracking-wider text-neutral-500">Oldest</div>
+                      <div className="mt-0.5 truncate text-[14px] font-semibold text-neutral-100">{node.oldestName}</div>
+                      <div className="mt-0.5 text-[13px] text-neutral-500">
                         {node.oldestAgeDays && node.oldestAgeDays > 0 ? `${node.oldestAgeDays}d in queue` : 'Added today'} · {node.nextAction}
                       </div>
                     </div>
                   ) : null}
                   {node.stale > 0 && node.blocked === 0 && node.overdue === 0 && node.count > 0 && (
-                    <div className="text-[9px] text-neutral-500">{node.stale} sitting 3d+</div>
+                    <div className="text-[13px] text-neutral-500">{node.stale} sitting 3d+</div>
                   )}
                 </div>
               </motion.button>
@@ -590,12 +590,12 @@ export default function ProductionPipelineMap({
               <div className="rounded-2xl border border-neutral-800/70 bg-neutral-950/75 p-4 min-w-0">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Time this week</div>
+                    <div className="font-mono text-[13px] uppercase tracking-[.24em] text-neutral-500">Time this week</div>
                     <div className="mt-1 text-sm font-semibold text-white">{formatDuration(weekMs)}</div>
                   </div>
                   <Clock3 className="h-5 w-5 text-cyan-300" />
                 </div>
-                <div className="mt-2 text-[11px] text-neutral-400">
+                <div className="mt-2 text-[14px] text-neutral-400">
                   {weekTimers.length > 0
                     ? `${weekSittings} sitting${weekSittings === 1 ? '' : 's'} across ${weekTopics} topic${weekTopics === 1 ? '' : 's'}`
                     : 'Start a stage stopwatch on any topic to record time.'}
@@ -606,13 +606,13 @@ export default function ProductionPipelineMap({
 
           <div className="rounded-2xl border border-neutral-800/70 bg-neutral-950/75 p-4">
             <div className="flex items-center justify-between">
-              <div className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Active task</div>
+              <div className="font-mono text-[13px] uppercase tracking-[.24em] text-neutral-500">Active task</div>
               {activeTaskTimer?.status === 'running' && <LiveDot />}
             </div>
             <div className="mt-1 text-sm font-semibold text-white truncate">
               {activeTaskTimer ? activeTaskTimer.topicName : 'No task timer'}
             </div>
-            <div className="mt-2 text-[11px] text-neutral-400">
+            <div className="mt-2 text-[14px] text-neutral-400">
               {activeTaskTimer
                 ? `${activeTaskTimer.status === 'paused' ? 'Paused' : 'Running'} · ${formatDuration(activeTaskTimerMs?.active ?? 0)} on ${activeTaskTimer.stage}`
                 : 'Click a stage action on any topic to start one.'}
@@ -621,7 +621,7 @@ export default function ProductionPipelineMap({
 
           <div className="rounded-2xl border border-neutral-800/70 bg-neutral-950/75 p-4">
             <div className="flex items-center justify-between">
-              <div className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Attention</div>
+              <div className="font-mono text-[13px] uppercase tracking-[.24em] text-neutral-500">Attention</div>
               {totalBlocked + totalOverdue > 0 ? <AttentionDot /> : <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.7)]" />}
             </div>
             <div className="mt-1 text-sm font-semibold text-white">
@@ -629,7 +629,7 @@ export default function ProductionPipelineMap({
                 ? 'All clear'
                 : `${totalBlocked + totalOverdue} need${totalBlocked + totalOverdue === 1 ? 's' : ''} action`}
             </div>
-            <div className="mt-2 text-[11px] text-neutral-400">
+            <div className="mt-2 text-[14px] text-neutral-400">
               {totalBlocked} blocked · {totalOverdue} overdue · {runningTimers} running · {pausedTimers} paused
             </div>
           </div>
@@ -650,11 +650,11 @@ export default function ProductionPipelineMap({
             return (
               <div className="rounded-2xl border border-neutral-800/70 bg-neutral-950/75 p-4 min-w-0">
                 <div className="flex items-center justify-between">
-                  <div className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Last done activity</div>
+                  <div className="font-mono text-[13px] uppercase tracking-[.24em] text-neutral-500">Last done activity</div>
                   <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(52,211,153,0.85)] animate-pulse" title="Live activity feed" />
                 </div>
                 {recent.length === 0 ? (
-                  <div className="mt-2 text-[11px] text-neutral-500">No activity yet. Actions across the app will surface here.</div>
+                  <div className="mt-2 text-[14px] text-neutral-500">No activity yet. Actions across the app will surface here.</div>
                 ) : (
                   <ul className="mt-2 space-y-1.5">
                     {recent.map((activity, index) => {
@@ -667,11 +667,11 @@ export default function ProductionPipelineMap({
                         <li key={activity.id} className="flex items-start gap-2">
                           <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} aria-hidden="true" />
                           <div className="min-w-0 flex-1">
-                            <div className="truncate text-[11px] text-neutral-200" title={`${activity.action} — ${activity.topicName}`}>
+                            <div className="truncate text-[14px] text-neutral-200" title={`${activity.action} — ${activity.topicName}`}>
                               <span className="font-semibold">{activity.action}</span>
                               {activity.topicName ? <span className="text-neutral-500"> · {activity.topicName}</span> : null}
                             </div>
-                            <div className="text-[9px] text-neutral-500">{activity.channel} · {rel(activity.timestamp)}</div>
+                            <div className="text-[13px] text-neutral-500">{activity.channel} · {rel(activity.timestamp)}</div>
                           </div>
                         </li>
                       );
@@ -711,11 +711,11 @@ export default function ProductionPipelineMap({
             return (
               <div className="rounded-2xl border border-neutral-800/70 bg-neutral-950/75 p-4 min-w-0">
                 <div className="flex items-center justify-between">
-                  <div className="font-mono text-[9px] uppercase tracking-[.24em] text-neutral-500">Avg time per stage · 1 video</div>
+                  <div className="font-mono text-[13px] uppercase tracking-[.24em] text-neutral-500">Avg time per stage · 1 video</div>
                   <span className={`h-2 w-2 rounded-full ${complete.length > 0 ? 'bg-emerald-500 shadow-[0_0_10px_rgba(52,211,153,0.85)]' : 'bg-neutral-700'}`} title={complete.length > 0 ? 'Based on complete topics' : 'No topic yet has all 4 stages tracked'} />
                 </div>
                 {complete.length === 0 ? (
-                  <div className="mt-2 text-[11px] text-neutral-500">
+                  <div className="mt-2 text-[14px] text-neutral-500">
                     No topic has all 4 stages timed yet. {incompleteCount > 0 ? `${incompleteCount} topic${incompleteCount === 1 ? '' : 's'} with partial data ignored.` : ''}
                   </div>
                 ) : (
@@ -723,12 +723,12 @@ export default function ProductionPipelineMap({
                     <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {stages.map(stage => (
                         <div key={stage} className="rounded border border-neutral-900 bg-neutral-950/60 px-2 py-1.5">
-                          <div className={`text-[8px] uppercase tracking-wider ${stageMeta[stage].class}`}>{stageMeta[stage].label}</div>
-                          <div className="mt-0.5 text-[13px] font-bold text-white tabular-nums">{formatDuration(avg(stage))}</div>
+                          <div className={`text-[13px] uppercase tracking-wider ${stageMeta[stage].class}`}>{stageMeta[stage].label}</div>
+                          <div className="mt-0.5 text-[15px] font-bold text-white tabular-nums">{formatDuration(avg(stage))}</div>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-2 text-[10px] text-neutral-500">
+                    <div className="mt-2 text-[14px] text-neutral-500">
                       Averaged from <span className="text-emerald-300 font-bold">{complete.length}</span> complete topic{complete.length === 1 ? '' : 's'}
                       {incompleteCount > 0 && <> · <span className="text-amber-300 font-bold">{incompleteCount}</span> incomplete topic{incompleteCount === 1 ? '' : 's'} excluded</>}
                     </div>

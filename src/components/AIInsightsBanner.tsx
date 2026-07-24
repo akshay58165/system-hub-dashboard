@@ -215,14 +215,14 @@ export default function AIInsightsBanner() {
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-bold text-neutral-100 font-mono tracking-tight">AI Insights</h2>
-                <span className="flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-emerald-950/30 border border-emerald-900/40 text-emerald-400 text-[9px] font-bold uppercase tracking-wider">
+                <span className="flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-emerald-950/30 border border-emerald-900/40 text-emerald-400 text-[13px] font-bold uppercase tracking-wider">
                   <span className="relative flex h-1.5 w-1.5">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
                   </span>
                   Live
                 </span>
-                <span className="px-1.5 py-0.2 rounded bg-neutral-900 border border-neutral-850 text-neutral-500 text-[9px] font-mono uppercase tracking-wider">
+                <span className="px-1.5 py-0.2 rounded bg-neutral-900 border border-neutral-850 text-neutral-500 text-[13px] font-mono uppercase tracking-wider">
                   Preview · sample data
                 </span>
               </div>
@@ -233,7 +233,7 @@ export default function AIInsightsBanner() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.3 }}
-                  className="text-[10px] text-neutral-500 font-mono mt-0.5"
+                  className="text-[14px] text-neutral-500 font-mono mt-0.5"
                 >
                   {THINKING_STATUSES[statusIndex]}
                 </motion.p>
@@ -244,7 +244,7 @@ export default function AIInsightsBanner() {
           {/* Category breakdown chips */}
           <div className="flex items-center gap-2 flex-wrap">
             {(Object.keys(CATEGORY_META) as InsightCategory[]).map(cat => (
-              <div key={cat} className="flex items-center gap-1 text-[10px] font-mono text-neutral-500">
+              <div key={cat} className="flex items-center gap-1 text-[14px] font-mono text-neutral-500">
                 <span className={`h-1.5 w-1.5 rounded-full ${CATEGORY_META[cat].dot}`} />
                 <span>{CATEGORY_META[cat].label}</span>
                 <span className="text-neutral-700">({categoryCounts[cat] ?? 0})</span>
@@ -268,19 +268,19 @@ export default function AIInsightsBanner() {
                 <div className={`mt-0.5 shrink-0 ${meta.color}`}>{meta.icon}</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className={`text-[9px] font-bold uppercase tracking-wider ${meta.color}`}>{meta.label}</span>
-                    <span className="text-[9px] text-neutral-600 font-mono">{active.meta}</span>
+                    <span className={`text-[13px] font-bold uppercase tracking-wider ${meta.color}`}>{meta.label}</span>
+                    <span className="text-[13px] text-neutral-600 font-mono">{active.meta}</span>
                   </div>
                   <h3 className="text-sm font-bold text-neutral-100 leading-snug">{active.title}</h3>
                   <p className="text-xs text-neutral-400 mt-1.5 leading-relaxed font-sans">{active.description}</p>
 
                   <div className="flex items-center gap-3 mt-3">
-                    <button className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-mono font-bold ${meta.color} ${meta.bg} border ${meta.border} hover:brightness-125 transition cursor-pointer`}>
+                    <button className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[14px] font-mono font-bold ${meta.color} ${meta.bg} border ${meta.border} hover:brightness-125 transition cursor-pointer`}>
                       <span>Take action</span>
                       <ArrowRight className="h-3 w-3" />
                     </button>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[9px] text-neutral-600 font-mono uppercase tracking-wider">Confidence</span>
+                      <span className="text-[13px] text-neutral-600 font-mono uppercase tracking-wider">Confidence</span>
                       <div className="w-16 h-1 bg-neutral-900 rounded-full overflow-hidden">
                         <motion.div
                           className={`h-full rounded-full ${meta.dot}`}
@@ -289,7 +289,7 @@ export default function AIInsightsBanner() {
                           transition={{ duration: 0.6, ease: 'easeOut' }}
                         />
                       </div>
-                      <span className="text-[9px] text-neutral-500 font-mono">{active.confidence}%</span>
+                      <span className="text-[13px] text-neutral-500 font-mono">{active.confidence}%</span>
                     </div>
                   </div>
                 </div>
